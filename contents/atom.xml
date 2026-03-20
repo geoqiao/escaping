@@ -1,5 +1,5 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<feed xmlns="http://www.w3.org/2005/Atom"><id>https://geoqiao.github.io/</id><title>geoqiao's Blog</title><updated>2026-03-20T14:09:08.801002+00:00</updated><author><name>geoqiao</name><email>geoqiao@example.com</email></author><link href="https://geoqiao.github.io/" rel="alternate"/><generator uri="https://lkiesow.github.io/python-feedgen" version="1.0.0">python-feedgen</generator><subtitle>1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
+<feed xmlns="http://www.w3.org/2005/Atom"><id>https://geoqiao.github.io/</id><title>geoqiao's Blog</title><updated>2026-03-20T14:31:28.584510+00:00</updated><author><name>geoqiao</name><email>geoqiao@example.com</email></author><link href="https://geoqiao.github.io/" rel="alternate"/><generator uri="https://lkiesow.github.io/python-feedgen" version="1.0.0">python-feedgen</generator><subtitle>1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
 2. 这个网页基于GitHub Pages &amp; GitHub Actions 自动部署。
 3. 主体 main.py 自己完成，前端主题由AI生成。
 </subtitle><entry><id>https://geoqiao.github.io/blog/2.html</id><title>excel 学习经验分享</title><updated>2024-05-07T15:03:36+00:00</updated><content type="html"><![CDATA[<h2>描述</h2>
