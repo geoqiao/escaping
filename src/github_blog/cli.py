@@ -50,7 +50,7 @@ class BlogGenerator:
             self._generate_index(issues, tags, issue_slugs)
 
             # 渲染主页 (landing page)
-            home_content = self.render.render_home()
+            home_content = self.render.render_home(issues[:3], issue_slugs)
             Path("index.html").write_text(home_content, encoding="utf-8")
 
             # 渲染标签页

@@ -40,59 +40,7 @@
     <link rel="alternate" type="application/atom+xml" title="RSS" href="/contents/atom.xml">
     <link rel="icon" type="image/png" href="/templates/PaperMod/static/images/favicon.png">
     
-<style>
-    .home-container {
-        max-width: 640px;
-        margin: 0 auto;
-        padding: 2rem 1rem;
-        text-align: center;
-    }
-
-    .profile-photo {
-        border: 1px solid #eee;
-        max-width: 160px;
-        padding: 2px;
-        border-radius: 50%;
-        margin-bottom: 2rem;
-    }
-
-    .about-section {
-        text-align: left;
-        margin-bottom: 2rem;
-    }
-
-    .about-section h2 {
-        margin-bottom: 1rem;
-    }
-
-    .about-content {
-        line-height: 1.6;
-    }
-
-    .links-section {
-        display: flex;
-        justify-content: center;
-        gap: 2rem;
-        margin-top: 3rem;
-        font-size: 1.1rem;
-    }
-
-    .links-section a {
-        color: var(--accent);
-        text-decoration: none;
-        font-weight: 600;
-    }
-
-    .links-section a:hover {
-        text-decoration: underline;
-    }
-
-    .footer-note {
-        margin-top: 4rem;
-        opacity: 0.6;
-        font-size: 0.9rem;
-    }
-</style>
+<link rel="stylesheet" href="/templates/PaperMod/static/css/home.css">
 
 </head>
 
@@ -140,18 +88,47 @@
         <a href="https://x.com/geoqiao">Twitter</a>
     </div>
 
-    <div class="footer-note">
-        <p>@GeoQiao'blog</p>
+    
+    <div class="latest-posts">
+        <h3>Latest Posts</h3>
+        
+        <article class="post-entry">
+            
+            <div class="post-entry-title">
+                <a href="/contents/blog/32-python-vscode-vibe-coding.html">Vibe Coding 实战后感 - github_blog with Trae</a>
+            </div>
+            <div class="post-entry-meta">
+                2026-03-21
+            </div>
+        </article>
+        
+        <article class="post-entry">
+            
+            <div class="post-entry-title">
+                <a href="/contents/blog/31-summary.html">2025年终总结：关注自己</a>
+            </div>
+            <div class="post-entry-meta">
+                2026-02-21
+            </div>
+        </article>
+        
+        <article class="post-entry">
+            
+            <div class="post-entry-title">
+                <a href="/contents/blog/30-travel.html">我喜欢冬天的下午走路去成都的茶馆喝茶</a>
+            </div>
+            <div class="post-entry-meta">
+                2025-02-05
+            </div>
+        </article>
+        
     </div>
+    
 </div>
 
     </main>
 
-    <footer class="pm-footer">
-        <div class="container">
-            <p id="site-year">&copy; <span id="year"></span> geoqiao's Blog</p>
-        </div>
-    </footer>
+    
 
     <script src="/templates/PaperMod/static/js/papermod.js"></script>
     <script src="/templates/PaperMod/static/js/prism.js"></script>

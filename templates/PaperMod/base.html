@@ -61,11 +61,13 @@
         {% block content %}{% endblock %}
     </main>
 
+    {% block footer %}
     <footer class="pm-footer">
         <div class="container">
             <p id="site-year">&copy; <span id="year"></span> {{ blog_title }}</p>
         </div>
     </footer>
+    {% endblock %}
 
     <script src="/templates/PaperMod/static/js/papermod.js"></script>
     <script src="/templates/PaperMod/static/js/prism.js"></script>

@@ -59,9 +59,11 @@ class RenderService:
             google_search_verification=settings.google_search_console.content,
         )
 
-    def render_home(self) -> str:
+    def render_home(self, issues: list[Issue], issue_slugs: dict[int, str]) -> str:
         template = self.env.get_template("home.html")
         return template.render(
+            issues=issues,
+            issue_slugs=issue_slugs,
             blog_title=settings.blog.title,
             github_name=settings.github.name,
             github_repo=settings.github.repo,
