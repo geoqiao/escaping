@@ -5,10 +5,14 @@ description = "Add your description here"
 readme = "README.md"
 requires-python = ">=3.9"
 dependencies = [
+    "cachetools>=6.2.6",
     "feedgen>=1.0.0",
     "jinja2>=3.1.4",
+    "lru-dict>=1.4.1",
     "marko>=2.1.2",
     "pygithub>=2.4.0",
+    "pypinyin>=0.55.0",
+    "python-slugify>=8.0.4",
     "pyyaml>=6.0.2",
 ]
 

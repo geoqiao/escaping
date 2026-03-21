@@ -1,0 +1,173 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="" />
+    <title>Python 环境配置从零开始： uv、pdm 和 VSCode 的最佳实践 - geoqiao's Blog</title>
+    <meta name="description" content="1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
+2. 这个网页基于GitHub Pages & GitHub Actions 自动部署。
+3. 主体 main.py 自己完成，前端主题由AI生成。
+">
+    
+<link rel="canonical" href="https://geoqiao.github.io/contents/blog/27-python-huan-jing-pei-zhi-cong-ling-kai-shi-uv-pdm-he-vscode-de-zui-jia-shi-jian.html" />
+
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:wght@300;400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/templates/PaperMod/static/css/papermod.css">
+    <link rel="stylesheet" href="/templates/default_theme/static/css/prism.css">
+    <link rel="alternate" type="application/atom+xml" title="RSS" href="/contents/atom.xml">
+    <link rel="icon" type="image/png" href="/templates/PaperMod/static/images/favicon.png">
+</head>
+
+<body>
+    <header class="pm-header">
+        <nav class="container nav">
+            <a href="/" class="logo">
+                <img class="logo-avatar" src="/templates/PaperMod/static/images/favicon.png" alt="geoqiao's Blog">
+                <span>geoqiao's Blog</span>
+            </a>
+
+            <div class="nav-actions">
+                <button class="theme-toggle" aria-label="Toggle theme">🌙</button>
+                <button class="menu-toggle" aria-label="Toggle menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+
+            <ul class="nav-links">
+                <li><a href="/contents/">Blog</a></li>
+                <li><a href="/contents/tags">Tag</a></li>
+                <li><a href="/contents/about.html">About</a></li>
+                <li><a href="/contents/atom.xml">RSS</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        
+<article class="post full-post">
+    <aside class="toc">
+        <h4>目录</h4>
+        <nav id="toc"></nav>
+    </aside>
+    <main>
+        <h1 class="post-title">Python 环境配置从零开始： uv、pdm 和 VSCode 的最佳实践</h1>
+        <div class="post-meta">发布于 2024-11-03
+            
+            | 标签: <a href="/contents/tag/python.html" class="tag">python</a>
+            
+        </div>
+
+        <div class="post-content"><h2>前言</h2>
+<p>写过好多次 Python 包管理工具和编辑器选择的 issues 了，但是很散，这里集中整合一下，一次性解决学习 Python 的新手一定会碰到的 Python 安装、环境配置、编辑器选择的问题！</p>
+<h3>TL;DR</h3>
+<p>推荐使用<code>uv</code>或者<code>pdm</code>这样的工具来解决管理 Python 版本、管理虚拟环境及依赖的问题。</p>
+<p>编辑器推荐使用 VSCode。</p>
+<h2>为什么要写这篇</h2>
+<p>我在学习 Python 之初遇到了三大难题：</p>
+<h3>1. 怎么下载 Python，用哪个 Python？</h3>
+<p>市面上的教程大部分让我们通过 Python 官网下载 Python 解释器，但是这对于新手来说有很多问题：</p>
+<ol>
+<li>要选择与教程匹配的 Python 版本：为了避免因为 Python 版本不同而出现的问题，但这并不容易，</li>
+<li>配置默认路径对新手来说不容易：下载后要配置路径，不然可能无法使用，这需要一些配置路径的知识</li>
+<li>如何切换 Python 版本：很多情况下，我们可能已经看了很多教程，电脑上已经安装了 Python，但是版本和当前教程并不一样！</li>
+</ol>
+<p>我在接触 Python 的时候，经常卡在这第一步出问题，然后陷入找教程、看教程第一节、放弃、找下一个教程的死循环。</p>
+<h3>2. 怎么安装三方库，安装到哪里？</h3>
+<p>市面上的教程关于安装三方库的时候总是只说一句 <code>pip install</code> ，如果真的这么做了，时间久了之后，本机的 Python 环境一定会很混乱。</p>
+<p>我主要学习 Python 来做数据分析工作，你懂的，数据分析的库贼多，而且互相之间大都有依赖关系。然后我有时还会想看些其他方面的教程，比如 Django、fastapi 这些。<strong>我按照教程中不断的往本机环境<code>pip install</code> ，直到把新买的 MacBook 送进天才吧！</strong></p>
+<h3>3. 选择哪个编辑器？</h3>
+<p>这又是一大难题，好奇心作祟的我，遵循着差生文具多的定律，把几乎所有的主流编辑器都试用了：VSCode、jupyter notebook、PyCharm CE、spyder、zed、Neovim......</p>
+<p>结果就是，只顾着看这种编辑器、折腾各种配置了，真正的 Python 代码怎么写是一点没看....</p>
+<p>没有完美的编辑器！这里推荐：<strong>VSCode，免费、功能强大、不局限于某个语言、跨平台、配置少、支持 jupyter notebook！</strong></p>
+<p>不建议其他编辑器的原因：</p>
+<ol>
+<li>jupyter notebook：除了在初学或者必要场景，不推荐使用。用 jupyter 写出来的代码结构性很差，会很难学会 Python 中面向对象的概念；如果入门之后切换到其他编辑器，也会增加切换编辑器的学习成本</li>
+<li>PyCharm CE：专业版好贵，社区版居然不支持 jupyter notebook，太离谱。而且在我配置的过程中，感觉配置起来也相对麻烦，一直没有搞懂各种教程中对 PyCharm 吹捧的原因是啥</li>
+<li>spyder：好喜欢这种左边<code>.py</code>文件，右边类似 jupyter 一样的输出展示！但是真的太慢了，功能界面也很老旧。而且 VSCode 也可以设置为类似 spyder 这样的界面</li>
+<li>zed：性能真的好快！但是会陷入到 LSP 的各种配置文档中，不配置的话，甚至 impot 语句到会报错</li>
+<li>Neovim：千万不要下载！千万不要下载！千万不要下载！时间一宿一宿的过去，根本不知道干啥了</li>
+</ol>
+<h2>实操 Python 环境配置-仅需五步进入代码学习</h2>
+<h3>1. 安装 Python 项目管理工具</h3>
+<p>uv 和 pdm 二选一即可，这里以 macOS 为例：</p>
+<pre><code class="language-shell"># 安装uv
+curl -LsSf https://astral.sh/uv/install.sh | sh
+# or 安装pdm
+curl -sSL https://pdm-project.org/install-pdm.py | python3 -
+</code></pre>
+<h3>2. 安装 Python</h3>
+<pre><code class="language-shell">uv python install 3.11 # 使用uv安装Python，我一般会把最近的4个版本都装上，方便折腾，反正也不会把电脑搞坏
+</code></pre>
+<h3>3. 初始化项目并选择最低 Python 版本</h3>
+<p>给每个项目单独创建一个虚拟环境，并把项目文件放在一个文件夹内管理是一个非常好的习惯。比如，我会给我学习的每个教程都单独设置一个项目文件夹。</p>
+<pre><code class="language-shell">mkdir my_project # 创建文件夹，mkdir 是 make directory 的缩写
+cd my_project # 进入我们创建的项目文件内，cd 是 change directory 的缩写
+
+uv init . --python 3.9  # 使用uv初始化项目文件夹，并选择项目可接受的最低Python版本为3.9
+</code></pre>
+<h3>4.选择 Python 版本并添加项目依赖</h3>
+<pre><code class="language-shell">uv python pin 3.11 # 指定项目的Python版本，这里指定的版本不可以比初始化的最低版本低
+uv add pandas # 使用uv安装pandas依赖，这时uv会自动帮我们把pandas安装到当前项目的虚拟环境中，如果我们没有安装3.11版本，uv会帮我们自动安装
+uv add numpy scipy # 使用uv同时安装多个依赖
+uv remove scipy # 使用uv移除scipy
+</code></pre>
+<p><code>uv add</code>和<code>uv remove</code>每次运行都会帮我们自动进行依赖解析，安装最合适的三方库版本</p>
+<h3>5.VSCode 配置</h3>
+<p>这一步最简单，任何方式下载安装好 VSCode 之后，只需要下载 Python 插件，其他插件依据实际个人需求，比如中文界面、主题、csv 美化等等。如果想使用 jupyter 可以下载 jupyter 插件，然后在<code>.ipynb</code>文件中编辑即可</p>
+<p>刚开始全部默认配置即可。VSCode 会自动帮我们完成虚拟环境识别、智能补全、错误提示等功能。</p>
+<h2>最后</h2>
+<p>类似 uv 和 pdm 这样的工具可以帮我们节省很多项目配置的时间，在正式学习 Python 之前先掌握他们的用法非常有必要。最后备注一些可能的疑问：</p>
+<ol>
+<li>
+uv 和 pdm 有什么区别：<ul>
+<li>功能上：基本功能完全一样，pdm 有更多的高级功能更加成熟一点</li>
+<li>性能：uv 基于 rust，在依赖解析方面更快</li>
+</ul>
+</li>
+<li>
+如何生成<code>requirements.txt</code>文件：<ul>
+<li>uv：<code>uv export &gt; requirements.txt</code></li>
+<li>pdm：<code>pdm export -f requirements &gt; requirements.txt</code></li>
+</ul>
+</li>
+<li>
+每个项目一个环境，重复的依赖会不会特别占存储空间？<ul>
+<li>不会，uv 和 pdm 都采用的中心化存储缓存，每个版本的包只有在第一次安装的时候存储一份，后续相同的版本会复用第一次安装的缓存</li>
+</ul>
+</li>
+<li>
+文档：<ul>
+<li>uv：<a href="https://docs.astral.sh/uv/">https://docs.astral.sh/uv/</a></li>
+<li>pdm：<a href="https://pdm-project.org/en/latest/">https://pdm-project.org/en/latest/</a></li>
+</ul>
+</li>
+</ol>
+<p>最后再提一句，编辑器就用 VSCode 就行了，千万不要瞎折腾！千万不要瞎折腾！千万不要瞎折腾！</p>
+</div>
+
+        <div id="comments">
+            <script src="https://utteranc.es/client.js" repo="geoqiao/geoqiao.github.io"
+                issue-number="27" theme="github-light" crossorigin="anonymous" async></script>
+        </div>
+    </main>
+</article>
+
+    </main>
+
+    <footer class="pm-footer">
+        <div class="container">
+            <p id="site-year">&copy; <span id="year"></span> geoqiao's Blog</p>
+        </div>
+    </footer>
+
+    <script src="/templates/PaperMod/static/js/papermod.js"></script>
+    <!-- prism is reused from default theme -->
+    <script src="/templates/default_theme/static/js/prism.js"></script>
+</body>
+
+</html>

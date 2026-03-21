@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="" />
+    <title>Python环境安装-Anaconda为例 - geoqiao's Blog</title>
+    <meta name="description" content="1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
+2. 这个网页基于GitHub Pages & GitHub Actions 自动部署。
+3. 主体 main.py 自己完成，前端主题由AI生成。
+">
+    
+<link rel="canonical" href="https://geoqiao.github.io/contents/blog/11-python-huan-jing-an-zhuang-anaconda-wei-li.html" />
+
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:wght@300;400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/templates/PaperMod/static/css/papermod.css">
+    <link rel="stylesheet" href="/templates/default_theme/static/css/prism.css">
+    <link rel="alternate" type="application/atom+xml" title="RSS" href="/contents/atom.xml">
+    <link rel="icon" type="image/png" href="/templates/PaperMod/static/images/favicon.png">
+</head>
+
+<body>
+    <header class="pm-header">
+        <nav class="container nav">
+            <a href="/" class="logo">
+                <img class="logo-avatar" src="/templates/PaperMod/static/images/favicon.png" alt="geoqiao's Blog">
+                <span>geoqiao's Blog</span>
+            </a>
+
+            <div class="nav-actions">
+                <button class="theme-toggle" aria-label="Toggle theme">🌙</button>
+                <button class="menu-toggle" aria-label="Toggle menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+
+            <ul class="nav-links">
+                <li><a href="/contents/">Blog</a></li>
+                <li><a href="/contents/tags">Tag</a></li>
+                <li><a href="/contents/about.html">About</a></li>
+                <li><a href="/contents/atom.xml">RSS</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        
+<article class="post full-post">
+    <aside class="toc">
+        <h4>目录</h4>
+        <nav id="toc"></nav>
+    </aside>
+    <main>
+        <h1 class="post-title">Python环境安装-Anaconda为例</h1>
+        <div class="post-meta">发布于 2023-07-30
+            
+            | 标签: <a href="/contents/tag/python.html" class="tag">python</a>
+            
+        </div>
+
+        <div class="post-content"><p>学习 Python 第一步就是需要安装一个 Python 环境，这可劝退了大部分人。</p>
+<h2>安装 Python 环境的几种传统方式</h2>
+<ol>
+<li>系统自带，直接用系统的。比如 macOS 一般自带 Python3。</li>
+<li>终端使用 Homebrew 类似的包管理工具安装。安装后自己修改路径，安装需要使用的 Python 库。一般成功后终端输入<code>python3</code>就可以成功进入 Python 环境了。</li>
+<li><a href="https://www.python.org/">Python 官网</a>最直接的方式，甚至官网也有详细的安装教程。</li>
+</ol>
+<p>以上几种方式，对于已有编程经验或者计算机基础知识的人来说，完全可以，可操作空间极大，完全可以自定义一个个性化的 Python 环境。</p>
+<p>但是对于刚入门的小白，我以重装系统的惨痛教训建议：不要使用以上的方法安装 Python！</p>
+<h3>为什么不推荐？</h3>
+<p>因为终端操作有一定门槛，新手第一次安装遇到报错很容易直接劝退；就算折腾一番安装好了，后续各种后续看不懂的终端命令也够折磨人的了。</p>
+<blockquote>
+<p>人的焦虑和恐惧来自于没有安全感，对工具的掌控程度越高，安全感越多</p>
+</blockquote>
+<p>我也不知道我怎么就安装了好几个版本的 Python，Google 搜如何解决，随便在某 code 网站复制了一个命令，然后，电脑就什么都没了，重装系统都进行不下去，最后只能求助于天才吧。</p>
+<h2>新手友好的 Python 环境安装-Anaconda</h2>
+<p>作为 95 后，小时候没少玩 DNF、穿越火线、英雄联盟。那时候还不像现在网速这么快，每次更新加载都很慢，每次等待都想踹主机。但我家里穷，只敢心里想想不敢真的踹。那每次大更新我都直接卸载重装。</p>
+<p>对于安装游戏、卸载游戏我相当在行，想安装在 D 盘，绝不会让游戏安装到 C 盘。</p>
+<h3>为什么讲到这个呢？</h3>
+<p>因为<strong>安装 Anaconda 的过程</strong>，就像给电脑安装游戏一样简单。</p>
+<ol>
+<li>找到<a href="https://www.anaconda.com/">Anaconda 官网</a></li>
+<li>下载安装包</li>
+<li>安装安装包（就是屏幕上弹出一个框框，就是需要一直点下一步的那个熟悉的框框</li>
+<li>选择喜欢的编辑器，新建<code>.ipynb</code>文件，kernel 选择前面带 base 的就行</li>
+<li>大部分库基本都有，比如 pandas、numpy 等等，不需要二次手动安装</li>
+</ol>
+<h2>用什么编辑器呢？</h2>
+<p>说实话很多编辑器都很好用，但我们的原则是必须简单、免费。</p>
+<p>那就有两个选择：</p>
+<p>一个是 jupyter notebook ，很适合新手。写一行、运行一行，非常好入门。</p>
+<p>另一个是 VSCode，可以安装 jupyter notebook 插件，以及 Python 的语法高亮插件。我个人感觉要比纯粹的 jupyter notebook 功能更强大，使用体验也更好。</p>
+<p>我自己是在用 VSCode，因为 VSCode 创建文件夹、管理文件夹的方式跟在资源管理器/访达里面创建删除的体验没啥区别，非常直觉。</p>
+<h2>总结</h2>
+<p>以上就是全部内容，其实跟标题相关的就四五行。具体安装教程没有写，是因为真的和小时候下载安装游戏的流程一模一样。</p>
+<p>如果过程中碰到什么问题，可以及时 Google 搜索。当然，如果你愿意的话，可以直接在这个 issue 下面评论，我会尽快回复的。</p>
+</div>
+
+        <div id="comments">
+            <script src="https://utteranc.es/client.js" repo="geoqiao/geoqiao.github.io"
+                issue-number="11" theme="github-light" crossorigin="anonymous" async></script>
+        </div>
+    </main>
+</article>
+
+    </main>
+
+    <footer class="pm-footer">
+        <div class="container">
+            <p id="site-year">&copy; <span id="year"></span> geoqiao's Blog</p>
+        </div>
+    </footer>
+
+    <script src="/templates/PaperMod/static/js/papermod.js"></script>
+    <!-- prism is reused from default theme -->
+    <script src="/templates/default_theme/static/js/prism.js"></script>
+</body>
+
+</html>

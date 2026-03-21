@@ -39,11 +39,12 @@
         {% if issues %}
         {% for issue in issues %}
         <article class="post">
-            <h2 class="post-title"><a href="/contents/blog/{{ issue.number }}.html">{{ issue.title }}</a></h2>
+            {% set slug = issue_slugs[issue.number|string] %}
+            <h2 class="post-title"><a href="/contents/blog/{{ slug }}.html">{{ issue.title }}</a></h2>
             <div class="post-meta">发布于 {{ issue.created_at.strftime('%Y-%m-%d') }}
                 {% if issue.labels %}
-                | 标签: {% for label in issue.labels %}<a href="/contents/tag/{{ label.name }}.html"
-                        class="tag">{{ label.name }}</a>{% endfor %}
+                | 标签: {% for label in issue.labels %}<a href="/contents/tag/{{ label.name }}.html" class="tag">{{
+                    label.name }}</a>{% endfor %}
                 {% endif %}
             </div>
             <div class="post-summary">{{ issue.body|truncate(160)|safe }}</div>

@@ -1,0 +1,156 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="" />
+    <title>不要纠结了！在Pandas中数据筛选就用它 - Python - geoqiao's Blog</title>
+    <meta name="description" content="1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
+2. 这个网页基于GitHub Pages & GitHub Actions 自动部署。
+3. 主体 main.py 自己完成，前端主题由AI生成。
+">
+    
+<link rel="canonical" href="https://geoqiao.github.io/contents/blog/25-bu-yao-jiu-jie-le-zai-pandas-zhong-shu-ju-shai-xuan-jiu-yong-ta-python.html" />
+
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:wght@300;400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/templates/PaperMod/static/css/papermod.css">
+    <link rel="stylesheet" href="/templates/default_theme/static/css/prism.css">
+    <link rel="alternate" type="application/atom+xml" title="RSS" href="/contents/atom.xml">
+    <link rel="icon" type="image/png" href="/templates/PaperMod/static/images/favicon.png">
+</head>
+
+<body>
+    <header class="pm-header">
+        <nav class="container nav">
+            <a href="/" class="logo">
+                <img class="logo-avatar" src="/templates/PaperMod/static/images/favicon.png" alt="geoqiao's Blog">
+                <span>geoqiao's Blog</span>
+            </a>
+
+            <div class="nav-actions">
+                <button class="theme-toggle" aria-label="Toggle theme">🌙</button>
+                <button class="menu-toggle" aria-label="Toggle menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+
+            <ul class="nav-links">
+                <li><a href="/contents/">Blog</a></li>
+                <li><a href="/contents/tags">Tag</a></li>
+                <li><a href="/contents/about.html">About</a></li>
+                <li><a href="/contents/atom.xml">RSS</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        
+<article class="post full-post">
+    <aside class="toc">
+        <h4>目录</h4>
+        <nav id="toc"></nav>
+    </aside>
+    <main>
+        <h1 class="post-title">不要纠结了！在Pandas中数据筛选就用它 - Python</h1>
+        <div class="post-meta">发布于 2024-10-07
+            
+            | 标签: <a href="/contents/tag/python.html" class="tag">python</a><a href="/contents/tag/DataAnalysis.html" class="tag">DataAnalysis</a>
+            
+        </div>
+
+        <div class="post-content"><h2>TL;DR</h2>
+<p>建议使用 <code>DataFrame.loc</code> 方法，支持类似 SQL 中的<code>where</code>条件对<code>rows</code>筛选，也支持对<code>column</code>进行筛选。</p>
+<h2>The Zen of Python</h2>
+<p>如果在 Python 文件中输入 <code>import this</code>，便可以看到 Python 之禅的全文。其中有一条：</p>
+<blockquote>
+<p>There should be one-- and preferably only one --obvious way to do it.</p>
+</blockquote>
+<p>很明显，Pandas 从 2008 年发展到现在，已经跟这些原则没有什么关系了，光是筛选 DataFrame 的方法就有 n 种，我能想到的：</p>
+<pre><code class="language-python">df[df[&quot;foo&quot;]&gt;0]
+df.loc[df[&quot;foo&quot;]&gt;0,:]
+df.iloc[0,1]
+df.filter(items=[&#x27;foo&#x27;, &#x27;bar&#x27;])
+df.query(&#x27;foo &gt; bar&#x27;)
+</code></pre>
+<p>刚开始，对于我这个初学者来说，Google 搜到什么就用什么。实际结果就是自己的代码非常乱，一个文件用到的筛选方法非常多，这个代码第一遍写的时候知道是干嘛的，第二遍看的时候真的没人一下子能看懂。</p>
+<p><strong>每种筛选方法有什么区别</strong>：大家可以参考<a href="https://www.perplexity.ai/search/df-loche-df-query-de-qu-bie-KTT8Yo9MQRa8qEFB_CmEzw#10">ai 回答</a></p>
+<h2>为什么推荐.loc 方法</h2>
+<p><strong>首先我们先创建一个测试用数据集</strong>：</p>
+<pre><code class="language-python">data = {
+	&quot;Name&quot;: [&quot;Alice&quot;, &quot;Bob&quot;, &quot;Charlie&quot;, &quot;David&quot;, &quot;Eva&quot;],
+	&quot;Age&quot;: [25, 30, 35, 40, 28],
+	&quot;Gender&quot;: [&quot;Female&quot;, &quot;Male&quot;, &quot;Male&quot;, &quot;Male&quot;, &quot;Female&quot;],
+	&quot;Salary&quot;: [50000, 60000, 70000, 80000, 55000],
+	&quot;Country&quot;: [&quot;USA&quot;, &quot;Canada&quot;, &quot;USA&quot;, &quot;UK&quot;, &quot;Canada&quot;],
+}
+
+df = pd.DataFrame(data)
+</code></pre>
+<p><strong>主要理由如下</strong>：</p>
+<ol>
+<li>支持同时筛选 rows 和 columns，<code>.loc</code>支持以逗号隔开的两个参数：第一个参数对 rows 进行操作，第二参数对 columns 进行操作</li>
+</ol>
+<pre><code class="language-python">df.loc[:,:] # 取所有行和所有列
+df.loc[df[&quot;age&quot;]&gt;30] # 取age &gt; 30 的行 和 所有列
+df.loc[df[&quot;age&quot;]&gt;30, [&quot;Name&quot;, &quot;Salary&quot;]] # 取age &gt; 30 的行 和 Name、Salary列
+df.loc[df[&quot;age&quot;]&gt;30, [&quot;Name&quot;, &quot;Salary&quot;]]
+df.loc[0:3,:] # 取索引为0-3的行 和 所有列
+df.loc[(df[&quot;Age&quot;] &gt; 30) &amp; (df[&quot;Gender&quot;] == &quot;Male&quot;), [&quot;Name&quot;,&quot;Salary&quot;]] # 取age &gt; 30且 Gender = Male 的行 和Name、Salary列
+</code></pre>
+<ol start="2">
+<li>支持对 rows 进行复杂条件判断筛选：</li>
+</ol>
+<pre><code class="language-python">df.loc[(df[&quot;Age&quot;] &gt; 30) &amp; (df[&quot;Gender&quot;] == &quot;Male&quot;), [&quot;Name&quot;,&quot;Salary&quot;]] # 取age &gt; 30且 Gender = Male 的行 和Name、Salary列
+</code></pre>
+<ol start="3">
+<li>对行或列进行<strong>区间</strong>形式的筛选：</li>
+</ol>
+<pre><code class="language-python">df.loc[0:3,:] # 取索引为0-3的行 和 所有列
+df.loc[0:3,&quot;Name&quot;:&quot;Salary&quot;] # 取索引为0-3的行 和 Name - Salary的所有列
+</code></pre>
+<ol start="4">
+<li>再花哨点，把筛选条件作为变量</li>
+</ol>
+<pre><code class="language-python"># 取age &gt; n且 Gender = Male 的行 和Name、Salary列
+n = 30
+df.loc[(df[&quot;Age&quot;] &gt; n) &amp; (df[&quot;Gender&quot;] == &quot;Male&quot;), [&quot;Name&quot;,&quot;Salary&quot;]]
+</code></pre>
+<h2>.loc 的缺点</h2>
+<p>这么全面的方法也有缺点：</p>
+<ol>
+<li>
+<p><strong>性能问题</strong>：在处理非常大的 DataFrame 时，<code>.loc</code>可能会比其他方法（如<code>.query</code>或布尔索引）慢，尤其是当涉及复杂条件时。</p>
+</li>
+<li>
+<p><strong>复杂条件可读性差</strong>：当涉及多个复杂条件时，使用布尔索引结合<code>.loc</code>可能导致代码变得冗长且难以阅读。</p>
+</li>
+</ol>
+<h2>结语</h2>
+<p>综上，基本上<code>.loc</code>方法基本可以满足日常工作中会碰到的 90%以上的筛选场景，不用纠结，选<code>.loc</code>准没错！</p>
+</div>
+
+        <div id="comments">
+            <script src="https://utteranc.es/client.js" repo="geoqiao/geoqiao.github.io"
+                issue-number="25" theme="github-light" crossorigin="anonymous" async></script>
+        </div>
+    </main>
+</article>
+
+    </main>
+
+    <footer class="pm-footer">
+        <div class="container">
+            <p id="site-year">&copy; <span id="year"></span> geoqiao's Blog</p>
+        </div>
+    </footer>
+
+    <script src="/templates/PaperMod/static/js/papermod.js"></script>
+    <!-- prism is reused from default theme -->
+    <script src="/templates/default_theme/static/js/prism.js"></script>
+</body>
+
+</html>

@@ -27,6 +27,7 @@ from marko import Markdown
 from marko.ext.gfm import GFM
 
 from configs.config_utils import Config
+from configs.slug_utils import generate_slug
 
 config = Config()
 
@@ -38,6 +39,14 @@ def main(token: str, repo_name: str):
     repo: Repository = get_repo(user, repo_name)
     issues: PaginatedList[Issue] = get_all_issues(repo, me)
     issues_list = list(issues)
+
+    # 为每个 issue 生成 slug 并关联到其 ID，同时提供字符串和整数键以增强模板兼容性
+    issue_slugs = {}
+    for issue in issues_list:
+        slug = generate_slug(issue.number, issue.title)
+        issue_slugs[issue.number] = slug
+        issue_slugs[str(issue.number)] = slug
+
     tags = collect_tags(issues_list)
     page_size = config.page_size
     pages = paginate_issues(issues_list, page_size)
@@ -45,16 +54,19 @@ def main(token: str, repo_name: str):
 
     for page, page_issues in enumerate(pages, start=1):
         pagination = build_pagination(page, total_pages)
-        index_blog: str = render_blog_index(page_issues, tags, pagination)
+        # 将 issue_slugs 转换为 Jinja2 易于读取的格式
+        index_blog: str = render_blog_index(page_issues, tags, pagination, issue_slugs)
         save_blog_index_as_html(content=index_blog, page=page)
 
     for issue in issues_list:
-        content: str = render_issue_body(issue)
-        save_articles_to_content_dir(issue, content=content)
+        content: str = render_issue_body(issue, issue_slugs[issue.number])
+        save_articles_to_content_dir(
+            issue, content=content, slug=issue_slugs[issue.number]
+        )
 
-    gen_rss_feed(issues_list)
+    gen_rss_feed(issues_list, issue_slugs)
     gen_robots_txt()
-    gen_sitemap(issues_list, tags)
+    gen_sitemap(issues_list, tags, issue_slugs)
 
     tag_index = build_tag_index(issues_list)
     if tags:
@@ -62,7 +74,7 @@ def main(token: str, repo_name: str):
             tag_issues = tag_index.get(tag, [])
             if not tag_issues:
                 continue
-            tag_content = render_tag_page(tag, tag_issues, tags)
+            tag_content = render_tag_page(tag, tag_issues, tags, issue_slugs)
             save_tag_page(tag, tag_content)
         tags_index_content = render_tags_index(tags, tag_index)
         save_tags_index(tags_index_content)
@@ -195,12 +207,15 @@ def build_pagination(page: int, total_pages: int) -> dict:
     }
 
 
-def render_blog_index(issues: list[Issue], tags: list[str], pagination: dict) -> str:
+def render_blog_index(
+    issues: list[Issue], tags: list[str], pagination: dict, issue_slugs: dict[int, str]
+) -> str:
     """
     A function that renders an article list using a provided list of issues.
 
     Parameters:
     - issues: PaginatedList, a paginated list of issues to render in the article list.
+    - issue_slugs: A mapping from issue number to slug.
 
     Returns:
     - str, the rendered article list HTML content.
@@ -215,6 +230,7 @@ def render_blog_index(issues: list[Issue], tags: list[str], pagination: dict) ->
 
     return template.render(
         issues=issues,
+        issue_slugs=issue_slugs,
         tags=tags,
         pagination=pagination,
         blog_title=blog_title,
@@ -246,7 +262,9 @@ def save_blog_index_as_html(content: str, page: int):
         f.write(content)
 
 
-def render_tag_page(tag: str, issues: list[Issue], tags: list[str]) -> str:
+def render_tag_page(
+    tag: str, issues: list[Issue], tags: list[str], issue_slugs: dict[int, str]
+) -> str:
     blog_title = config.blog_title
     github_name = config.github_name
     meta_description = config.meta_description
@@ -256,6 +274,7 @@ def render_tag_page(tag: str, issues: list[Issue], tags: list[str]) -> str:
     return template.render(
         tag_name=tag,
         issues=issues,
+        issue_slugs=issue_slugs,
         tags=tags,
         blog_title=blog_title,
         github_name=github_name,
@@ -310,12 +329,13 @@ def markdown2html(mdstr: str) -> str:
     return html
 
 
-def render_issue_body(issue: Issue) -> str:
+def render_issue_body(issue: Issue, slug: str) -> str:
     """
     Render the body of an issue by converting markdown to HTML and injecting it into a template.
 
     Parameters:
     issue (Issue): The issue object containing the body to render.
+    slug (str): The slug for the issue.
 
     Returns:
     str: The rendered HTML body of the issue.
@@ -329,6 +349,7 @@ def render_issue_body(issue: Issue) -> str:
     template = env.get_template("post.html")
     return template.render(
         issue=issue,
+        slug=slug,
         html_body=html_body,
         blog_title=blog_title,
         github_name=github_name,
@@ -341,17 +362,19 @@ def render_issue_body(issue: Issue) -> str:
     )
 
 
-def save_articles_to_content_dir(issue: Issue, content: str):
-    path = config.content_dir / config.blog_dir / f"{issue.number}.html"
+def save_articles_to_content_dir(issue: Issue, content: str, slug: str):
+    # 使用 slug 作为文件名
+    path = config.content_dir / config.blog_dir / f"{slug}.html"
     with open(path, "w", encoding="utf-8") as f:
         f.write(content)
 
 
-def gen_rss_feed(issues: list[Issue]):
+def gen_rss_feed(issues: list[Issue], issue_slugs: dict[int, str]):
     """Generate an RSS feed for the given issues.
 
     Args:
         issues (list): A list of GitHub issue objects.
+        issue_slugs (dict): A mapping from issue number to slug.
 
     Returns:
         None
@@ -364,10 +387,14 @@ def gen_rss_feed(issues: list[Issue]):
     fg.description(f"""{config.meta_description}""")
 
     for issue in issues:
+        slug = issue_slugs[issue.number]
         fe = fg.add_entry()
-        fe.id(f"{config.blog_url}{config.blog_dir}/{issue.number}.html")
+        # 修复 RSS 链接：确保包含 contents/ 且处理斜杠
+        blog_dir_str = str(config.blog_dir).strip("/")
+        url = f"{config.blog_url.rstrip('/')}/contents/{blog_dir_str}/{slug}.html"
+        fe.id(url)
         fe.title(issue.title)
-        fe.link(href=f"{config.blog_url}{config.blog_dir}/{issue.number}.html")
+        fe.link(href=url)
         fe.description(issue.body[:100])
         fe.published(issue.created_at)
         fe.updated(issue.updated_at)
@@ -377,62 +404,41 @@ def gen_rss_feed(issues: list[Issue]):
 
 
 def gen_robots_txt():
-    """Generate robots.txt file."""
-    content = f"""User-agent: *
-Allow: /
-Sitemap: {config.blog_url}sitemap.xml
-"""
+    """Generate robots.txt file using a template."""
+    env = Environment(loader=FileSystemLoader("templates/seo"))
+    template = env.get_template("robots.txt.j2")
+    content = template.render(base_url=config.blog_url.rstrip("/"))
     with open("robots.txt", "w", encoding="utf-8") as f:
         f.write(content)
 
 
-def gen_sitemap(issues: list[Issue], tags: list[str]):
-    """Generate sitemap.xml file."""
+def gen_sitemap(issues: list[Issue], tags: list[str], issue_slugs: dict[int, str]):
+    """Generate sitemap.xml file using a template."""
     base_url = config.blog_url
     now = datetime.now().strftime("%Y-%m-%d")
 
-    sitemap_content = [
-        '<?xml version="1.0" encoding="UTF-8"?>',
-        '<urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">',
-    ]
+    # 准备文章数据
+    blog_items = []
+    for issue in issues:
+        blog_items.append(
+            {
+                "slug": issue_slugs[issue.number],
+                "lastmod": issue.updated_at.strftime("%Y-%m-%d"),
+            }
+        )
 
-    # Home page (the one in contents/)
-    sitemap_content.append(
-        f"""  <url>
-    <loc>{base_url}contents/index.html</loc>
-    <lastmod>{now}</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
-  </url>"""
+    env = Environment(loader=FileSystemLoader("templates/seo"))
+    template = env.get_template("sitemap.xml.j2")
+    content = template.render(
+        base_url=base_url.rstrip("/"),
+        now=now,
+        blog_items=blog_items,
+        blog_dir=str(config.blog_dir).strip("/"),
+        tags=tags,
     )
 
-    # Blog posts
-    for issue in issues:
-        lastmod = issue.updated_at.strftime("%Y-%m-%d")
-        sitemap_content.append(
-            f"""  <url>
-    <loc>{base_url}contents/{config.blog_dir}/{issue.number}.html</loc>
-    <lastmod>{lastmod}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
-  </url>"""
-        )
-
-    # Tag pages
-    for tag in tags:
-        sitemap_content.append(
-            f"""  <url>
-    <loc>{base_url}contents/tag/{tag}.html</loc>
-    <lastmod>{now}</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
-  </url>"""
-        )
-
-    sitemap_content.append("</urlset>")
-
     with open("sitemap.xml", "w", encoding="utf-8") as f:
-        f.write("\n".join(sitemap_content))
+        f.write(content)
 
 
 @contextmanager

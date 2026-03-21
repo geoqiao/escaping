@@ -1,0 +1,177 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="" />
+    <title>为 GitHub Pages 个人博客添加 YAML 配置功能 - 基于 Python - geoqiao's Blog</title>
+    <meta name="description" content="1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
+2. 这个网页基于GitHub Pages & GitHub Actions 自动部署。
+3. 主体 main.py 自己完成，前端主题由AI生成。
+">
+    
+<link rel="canonical" href="https://geoqiao.github.io/contents/blog/24-wei-github-pages-ge-ren-bo-ke-tian-jia-yaml-pei-zhi-gong-neng-ji-yu-python.html" />
+
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:wght@300;400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/templates/PaperMod/static/css/papermod.css">
+    <link rel="stylesheet" href="/templates/default_theme/static/css/prism.css">
+    <link rel="alternate" type="application/atom+xml" title="RSS" href="/contents/atom.xml">
+    <link rel="icon" type="image/png" href="/templates/PaperMod/static/images/favicon.png">
+</head>
+
+<body>
+    <header class="pm-header">
+        <nav class="container nav">
+            <a href="/" class="logo">
+                <img class="logo-avatar" src="/templates/PaperMod/static/images/favicon.png" alt="geoqiao's Blog">
+                <span>geoqiao's Blog</span>
+            </a>
+
+            <div class="nav-actions">
+                <button class="theme-toggle" aria-label="Toggle theme">🌙</button>
+                <button class="menu-toggle" aria-label="Toggle menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+
+            <ul class="nav-links">
+                <li><a href="/contents/">Blog</a></li>
+                <li><a href="/contents/tags">Tag</a></li>
+                <li><a href="/contents/about.html">About</a></li>
+                <li><a href="/contents/atom.xml">RSS</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        
+<article class="post full-post">
+    <aside class="toc">
+        <h4>目录</h4>
+        <nav id="toc"></nav>
+    </aside>
+    <main>
+        <h1 class="post-title">为 GitHub Pages 个人博客添加 YAML 配置功能 - 基于 Python</h1>
+        <div class="post-meta">发布于 2024-10-03
+            
+            | 标签: <a href="/contents/tag/python.html" class="tag">python</a><a href="/contents/tag/blog.html" class="tag">blog</a>
+            
+        </div>
+
+        <div class="post-content"><p>好长一段时间了，工作上事情很多，很烦。也很久没有写工作以外的 Python 了。趁着假期和一些其他原因，今天又重新捡起了 <a href="https://geoqiao.github.io/contents/">github_blog</a> 这个项目。</p>
+<p>近期主要做了两个改动：</p>
+<ol>
+<li>
+<p>把前端模板部分利用 <code>cursor</code> 重写了一下。和原来的 <a href="https://github.com/ahonn/hexo-theme-even">even</a> 主题相比，现在的虽然看起来比较简陋，但胜在每一行 CSS 和 HTML 都知道是什么意思、有什么作用！</p>
+<blockquote>
+<pre><code>其实过程特别简单，仅仅在 cursor 中使用了3个 prompt，cursor 太强大，几乎一遍过，所以这个改动真的没啥讲的。
+</code></pre>
+</blockquote>
+</li>
+<li>
+<p>就是为主题增加配置文件的功能，目的是为了其他人使用（当然，大概率可能也没有其他人用），这也是写这篇 blog 要讲的主题。</p>
+</li>
+</ol>
+<h2>正文</h2>
+<p>其实增加配置文件的功能想了很久，因为可以减少别人使用的成本，并且满足自己的虚荣心。</p>
+<h2>why YAML？</h2>
+<p>其实这部分决策起来很快，主要有 4 个原因：</p>
+<ol>
+<li>我对与所有配置文件几乎都不熟</li>
+<li>记得 <a href="https://www.gohugo.org/doc/overview/configuration/">Hugo</a> 的配置文件就可以用 YAML，GitHub Actions 也使用 YAML</li>
+<li>JSON 太不易读了，对于小白来说那么多花括号会搞晕人的</li>
+<li>TOML 看起来也挺复杂，而且我不想跟 Python 的<code>pyproject.toml</code>搞混</li>
+</ol>
+<p>但 YAML 不是没有缺点：对缩进和空格有要求这一点比较麻烦，曾经我就因为这一点在 GitHub Actions 上浪费了一下午 debug。</p>
+<p><strong>配置 YAML</strong>：
+目前我的配置还比较简单，模板中涉及的变量主要是博客的标题、描述、以及使用者的 GitHub 名称：</p>
+<pre><code class="language-yaml"># 博客信息
+blog:
+	title: GeoQiao&#x27;s Blog
+	description: This is a blog powered by pygithub and jinja2.
+	url: https://geoqiao.github.io/contents
+	author:
+		name: geoqiao
+		email: geoqiao@example.com
+
+# GitHub 相关配置
+github:
+	name: geoqiao # GitHub 用户名
+	repo: geoqiao/geoqiao.github.io # GitHub 仓库名称
+</code></pre>
+<p>使用 Python 读取 yaml 文件也很简单：</p>
+<pre><code class="language-python">import yaml  # 导入yaml包，需要提前安装`uv add pyyaml`
+
+CONFIG_FILE = &quot;./configs/config.yaml&quot; # 配置文件路径
+
+# 写一个上下文管理器打开就行，这个函数会返回一个配置文件的dict
+def load_config():
+	with open(CONFIG_FILE, &quot;r&quot;) as file:
+		config = yaml.safe_load(file)
+	return config
+
+CONFIG = liad_config()
+</code></pre>
+<p>读取文件之后，只要使用 dict 的方法读取相应的 value 就行，比如读取博客的标题就是：<code>CONFIG[&quot;blog&quot;][&quot;title&quot;]</code>，这样就会输出所对应的 value<code>GeoQiao&#x27;s Blog</code>。</p>
+<h2>剩下的</h2>
+<p>剩下的就比较简单了，只要 1. 在模板中把相应的变量用符合 Jinja2 的语法写入，2. 并把读取到的配置变量传入给 HTML 模板 即可</p>
+<p><strong>写入模板</strong></p>
+<p>把原本手写的标题、名字、描述部分全都换为变量格式：比如把 <code>geoqiao</code> 全部替换为<code>{{ github_name }}</code></p>
+<p><strong>给模板传入变量的值</strong></p>
+<p>这里以渲染<code>index.html</code>为例:</p>
+<pre><code class="language-python">def render_blog_index(issues: PaginatedList[Issue]) -&gt; str:
+	env = Environment(loader=FileSystemLoader(&quot;templates&quot;))
+	template = env.get_template(&quot;index.html&quot;)
+	# 通过CONFIG获取相应变量的value（就是字典取值的写法
+	blog_title = CONFIG[&quot;blog&quot;][&quot;title&quot;]
+	github_name = CONFIG[&quot;github&quot;][&quot;name&quot;]
+	meta_description = CONFIG[&quot;blog&quot;][&quot;description&quot;]
+
+	return template.render(
+		issues=issues,
+		# 把取到的配置文件中的值传给HTML模板
+		blog_title=blog_title,
+		github_name=github_name,
+		meta_description=meta_description,
+	)
+</code></pre>
+<h2>最后</h2>
+<p>配置文件功能增加后，使用这个项目搭建 GitHub Pages 博客会变得相对比较简单：</p>
+<ol>
+<li>新建一个 GitHub Pages 仓库，名字格式为<code>&lt;github_name&gt;.github.io</code></li>
+<li>获取 GitHub Token（可以 Google 搜索如何获取</li>
+<li>把我的项目仓库中的文件全部复制到创建好的 GitHub Pages 仓库中</li>
+<li>修改<code>configs/config.yaml</code>中的配置项，将博客的标题、描述、GitHub 姓名全部改成自己的</li>
+<li>修改 GitHub Actions 中的仓库名字</li>
+<li>开始写 issue，submit 之后，GitHub Actions 会自动更新部署到页面</li>
+<li>到<code>https://&lt;your_github_name&gt;.github.io/contents</code>页面查看自己的文章</li>
+</ol>
+<p>项目会自动生成 RSS feed，添加到诸如 netnewsfire 或 Follow 中，而且以上只需要配置一次，之后只需要每次写 issue 就好了</p>
+<p>PS：当然现在的前端 templates 还比较简陋，我会慢慢更新优化，也欢迎随时 pull request 到<a href="https://github.com/geoqiao/github_blog">项目仓库</a> 或者提交 issue 。</p>
+</div>
+
+        <div id="comments">
+            <script src="https://utteranc.es/client.js" repo="geoqiao/geoqiao.github.io"
+                issue-number="24" theme="github-light" crossorigin="anonymous" async></script>
+        </div>
+    </main>
+</article>
+
+    </main>
+
+    <footer class="pm-footer">
+        <div class="container">
+            <p id="site-year">&copy; <span id="year"></span> geoqiao's Blog</p>
+        </div>
+    </footer>
+
+    <script src="/templates/PaperMod/static/js/papermod.js"></script>
+    <!-- prism is reused from default theme -->
+    <script src="/templates/default_theme/static/js/prism.js"></script>
+</body>
+
+</html>

@@ -1,273 +1,234 @@
 <?xml version="1.0" encoding="UTF-8"?>
 <urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9">
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/index.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>daily</changefreq>
-    <priority>1.0</priority>
+    <loc>https://geoqiao.github.io/contents/</loc>
+    <lastmod>2026-03-21</lastmod>
   </url>
+
+  
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/31.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/31-2025-nian-zhong-zong-jie-guan-zhu-zi-ji.html</loc>
     <lastmod>2026-02-23</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/30.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/30-wo-xi-huan-dong-tian-de-xia-wu-zou-lu-qu-cheng-du-de-cha-guan-he-cha.html</loc>
     <lastmod>2025-02-05</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/29.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/29-2024-nian-zhong-zong-jie-kong-zhi-yu-qi-jian-chi-xia-qu.html</loc>
     <lastmod>2025-12-21</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/28.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/28-pei-zhi-vscode-de-mian-fei-ai-bian-cheng-zhu-shou-ollama-groq-he-continue-kuo-zhan.html</loc>
     <lastmod>2024-11-16</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/27.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/27-python-huan-jing-pei-zhi-cong-ling-kai-shi-uv-pdm-he-vscode-de-zui-jia-shi-jian.html</loc>
     <lastmod>2024-11-08</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/26.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/26-ru-he-dui-lian-xu-xing-shu-ju-jin-xing-fen-xiang-python.html</loc>
     <lastmod>2024-10-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/25.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/25-bu-yao-jiu-jie-le-zai-pandas-zhong-shu-ju-shai-xuan-jiu-yong-ta-python.html</loc>
     <lastmod>2024-10-07</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/24.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/24-wei-github-pages-ge-ren-bo-ke-tian-jia-yaml-pei-zhi-gong-neng-ji-yu-python.html</loc>
     <lastmod>2024-10-03</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/23.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/23-uv-github-20k-star-de-zhong-ji-python-xiang-mu-guan-li-gong-ju.html</loc>
     <lastmod>2024-09-22</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/22.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/22-claim-my-rss-feed-on-follow-a-amazing-rss-reader.html</loc>
     <lastmod>2024-09-08</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/21.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/21-shi-yong-python-he-github-pages-da-jian-ge-ren-bo-ke.html</loc>
     <lastmod>2024-09-22</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/20.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/20-ji-yu-fastapi-de-crud-lian-xi-rss-ding-yue-guan-li.html</loc>
     <lastmod>2024-05-15</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/1.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/1-rye-hao-yong-de-python-bao-guan-li-gong-ju.html</loc>
     <lastmod>2024-05-07</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/18.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/18-python-bian-ji-qi-wo-de-vscode-pei-zhi.html</loc>
     <lastmod>2024-05-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/17.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/17-app-defaults-2023.html</loc>
     <lastmod>2026-02-23</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/16.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/16-vim-don-t-be-afraid.html</loc>
     <lastmod>2024-05-15</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/15.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/15-zong-you-yi-xie-app-zhi-neng-windows-yong.html</loc>
     <lastmod>2024-05-26</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/14.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/14-coke-machine-challenge.html</loc>
     <lastmod>2024-05-15</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/13.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/13-wo-de-di-yi-ge-wan-zheng-de-ji-qi-xue-xi-xiang-mu-titanic-zong-jie.html</loc>
     <lastmod>2024-05-15</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/12.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/12-zhong-qi-qing-yong-obsidian.html</loc>
     <lastmod>2026-02-23</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/11.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/11-python-huan-jing-an-zhuang-anaconda-wei-li.html</loc>
     <lastmod>2024-05-15</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/10.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/10-shottr-yuan-sheng-qing-qiao-qie-gong-neng-qiang-da-de-mian-fei-macos-jie-tu-gong-ju.html</loc>
     <lastmod>2026-02-23</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/9.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/9-what-s-on-my-mac.html</loc>
     <lastmod>2026-02-23</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/8.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/8-ji-yu-github-issues-de-ge-ren-blog-da-jian.html</loc>
     <lastmod>2026-02-23</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/7.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/7-zong-dei-huo-zhe-ba.html</loc>
     <lastmod>2026-02-23</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/6.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/6-out-of-the-depth-of-misfortune-comes-bliss.html</loc>
     <lastmod>2024-05-07</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/5.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/5-kong-tiao-bo-xue-li-lun-de-ti-chu.html</loc>
     <lastmod>2024-05-07</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/4.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/4-guan-yu-li-shi.html</loc>
     <lastmod>2024-05-07</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/3.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/3-with-sql-as-english.html</loc>
     <lastmod>2024-09-22</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
   <url>
-    <loc>https://geoqiao.github.io/contents/blog/2.html</loc>
+    <loc>https://geoqiao.github.io/contents/blog/2-excel-xue-xi-jing-yan-fen-xiang.html</loc>
     <lastmod>2024-05-07</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.8</priority>
   </url>
+  
+
+  
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/DataAnalysis.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/RSS.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/RandomThoughts.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/VMware.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/VSCode.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/blog.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/copilot.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/cs50p.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/macapp.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/obsidian.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/python.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/summary.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/travel.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
   <url>
     <loc>https://geoqiao.github.io/contents/tag/vim.html</loc>
-    <lastmod>2026-03-20</lastmod>
-    <changefreq>weekly</changefreq>
-    <priority>0.5</priority>
+    <lastmod>2026-03-21</lastmod>
   </url>
+  
 </urlset>

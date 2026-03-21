@@ -1,0 +1,135 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="" />
+    <title>excel 学习经验分享 - geoqiao's Blog</title>
+    <meta name="description" content="1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
+2. 这个网页基于GitHub Pages & GitHub Actions 自动部署。
+3. 主体 main.py 自己完成，前端主题由AI生成。
+">
+    
+<link rel="canonical" href="https://geoqiao.github.io/contents/blog/2-excel-xue-xi-jing-yan-fen-xiang.html" />
+
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:wght@300;400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/templates/PaperMod/static/css/papermod.css">
+    <link rel="stylesheet" href="/templates/default_theme/static/css/prism.css">
+    <link rel="alternate" type="application/atom+xml" title="RSS" href="/contents/atom.xml">
+    <link rel="icon" type="image/png" href="/templates/PaperMod/static/images/favicon.png">
+</head>
+
+<body>
+    <header class="pm-header">
+        <nav class="container nav">
+            <a href="/" class="logo">
+                <img class="logo-avatar" src="/templates/PaperMod/static/images/favicon.png" alt="geoqiao's Blog">
+                <span>geoqiao's Blog</span>
+            </a>
+
+            <div class="nav-actions">
+                <button class="theme-toggle" aria-label="Toggle theme">🌙</button>
+                <button class="menu-toggle" aria-label="Toggle menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+
+            <ul class="nav-links">
+                <li><a href="/contents/">Blog</a></li>
+                <li><a href="/contents/tags">Tag</a></li>
+                <li><a href="/contents/about.html">About</a></li>
+                <li><a href="/contents/atom.xml">RSS</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        
+<article class="post full-post">
+    <aside class="toc">
+        <h4>目录</h4>
+        <nav id="toc"></nav>
+    </aside>
+    <main>
+        <h1 class="post-title">excel 学习经验分享</h1>
+        <div class="post-meta">发布于 2023-07-15
+            
+        </div>
+
+        <div class="post-content"><h2>描述</h2>
+<ol>
+<li>
+<p>这是一个分享个人 excel 经验的文档。</p>
+</li>
+<li>
+<p>不分享特定函数的使用方法；实际上，你可以在百度/谷歌轻松搜索到答案。</p>
+</li>
+<li>
+<p>分享一些思路，这些思路可以用在 SQL 和 Python 的学习中。</p>
+</li>
+</ol>
+<h2>函数与 <code>y=x+2</code></h2>
+<p><code>y=x+2</code> 是一个非常简单的数学方程，如果我们给定符合格式的 X 的值，代入这个方程式，就可以得到期望的 Y 值。</p>
+<p>例如：假设 <code>x=2</code>，则 Y = 2+2，即 Y = 4；但是，假设 <code>x=假设</code>，却得不到任何值。</p>
+<p>这是因为，在这里变量 X 只能为一个数字格式，方程式才能被正确计算。</p>
+<p>同理，excel<span class="pangu"></span>的函数也是如此，例如常用的<span class="pangu"></span>vlookup、xlookup、sumifs、if<span class="pangu"></span>等等，只要在单元格内输入 <code>=vlookup(函数要求的参数格式)</code>，即可得到期望的结果。你可以在<span class="pangu"></span>Google<span class="pangu"></span>或者百度搜索到函数的用法。
+以此类推，excel<span class="pangu"></span>的任一函数都可以这样看待。当使用次数多了之后，便不用每次都去搜索参数格式。</p>
+<h2>数据透视表</h2>
+<p>数据透视表是一个数据分析工作中非常实用的工具。</p>
+<h3>数据透视表优势</h3>
+<ol>
+<li>很多时候数据透视表的性能（运行速度）要好于使用函数的方式。</li>
+<li>使用上不需要手动输入参数，只需要会使用鼠标<code>拖、拉、拽</code>三招就可以。</li>
+<li>会了<code>拖、拉、拽</code>，就会了一半的<span class="pangu"></span>BI<span class="pangu"></span>工具，操作方式真的很像市面上所有的主流 BI 工具如<span class="pangu"></span>tableau、powerbi、finebi。</li>
+</ol>
+<h3>数据透视表操作流程</h3>
+<ol>
+<li>
+<p>准备数据：首先需要准备好需要进行分析的数据，并将其放入 Excel 中。</p>
+</li>
+<li>
+<p>选择数据透视表：在 Excel 中，选择需要进行分析的数据区域，然后在菜单栏中选择“插入”选项卡中的“数据透视表”。</p>
+</li>
+<li>
+<p>设定数据源：在弹出的“数据透视表创建向导”中，选择“选择多个合适的数据源”选项，并将数据源区域的范围填入。</p>
+</li>
+<li>
+<p>设定行、列及值：在“数据透视表字段列表”中，将需要分析的数据字段拖动到“行”、“列”、“值”区域中。</p>
+</li>
+<li>
+<p>设定筛选器：可以在“数据透视表字段列表”中，将需要进行筛选的数据字段拖动到“筛选器”区域中，并进行筛选。</p>
+</li>
+<li>
+<p>设定样式：根据需要，可以在“设计”选项卡中设定数据透视表的样式。</p>
+</li>
+<li>
+<p>更新数据：当需要更新数据时，只需右键单击数据透视表并选择“刷新”即可。</p>
+</li>
+</ol>
+</div>
+
+        <div id="comments">
+            <script src="https://utteranc.es/client.js" repo="geoqiao/geoqiao.github.io"
+                issue-number="2" theme="github-light" crossorigin="anonymous" async></script>
+        </div>
+    </main>
+</article>
+
+    </main>
+
+    <footer class="pm-footer">
+        <div class="container">
+            <p id="site-year">&copy; <span id="year"></span> geoqiao's Blog</p>
+        </div>
+    </footer>
+
+    <script src="/templates/PaperMod/static/js/papermod.js"></script>
+    <!-- prism is reused from default theme -->
+    <script src="/templates/default_theme/static/js/prism.js"></script>
+</body>
+
+</html>

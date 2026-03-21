@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="" />
+    <title>rye - 好用的Python包管理工具 - geoqiao's Blog</title>
+    <meta name="description" content="1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
+2. 这个网页基于GitHub Pages & GitHub Actions 自动部署。
+3. 主体 main.py 自己完成，前端主题由AI生成。
+">
+    
+<link rel="canonical" href="https://geoqiao.github.io/contents/blog/1-rye-hao-yong-de-python-bao-guan-li-gong-ju.html" />
+
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:wght@300;400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/templates/PaperMod/static/css/papermod.css">
+    <link rel="stylesheet" href="/templates/default_theme/static/css/prism.css">
+    <link rel="alternate" type="application/atom+xml" title="RSS" href="/contents/atom.xml">
+    <link rel="icon" type="image/png" href="/templates/PaperMod/static/images/favicon.png">
+</head>
+
+<body>
+    <header class="pm-header">
+        <nav class="container nav">
+            <a href="/" class="logo">
+                <img class="logo-avatar" src="/templates/PaperMod/static/images/favicon.png" alt="geoqiao's Blog">
+                <span>geoqiao's Blog</span>
+            </a>
+
+            <div class="nav-actions">
+                <button class="theme-toggle" aria-label="Toggle theme">🌙</button>
+                <button class="menu-toggle" aria-label="Toggle menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+
+            <ul class="nav-links">
+                <li><a href="/contents/">Blog</a></li>
+                <li><a href="/contents/tags">Tag</a></li>
+                <li><a href="/contents/about.html">About</a></li>
+                <li><a href="/contents/atom.xml">RSS</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        
+<article class="post full-post">
+    <aside class="toc">
+        <h4>目录</h4>
+        <nav id="toc"></nav>
+    </aside>
+    <main>
+        <h1 class="post-title">rye - 好用的Python包管理工具</h1>
+        <div class="post-meta">发布于 2024-01-06
+            
+            | 标签: <a href="/contents/tag/python.html" class="tag">python</a>
+            
+        </div>
+
+        <div class="post-content"><p><a href="https://github.com/mitsuhiko/rye">rye</a>是一个 Python 的包管理器，可以更轻松的管理 Python 项目和虚拟环境，作者是流行 web 框架 flask 的作者<a href="https://github.com/mitsuhiko">Armin Ronacher</a></p>
+<p>作为一个刚开始学习 Python 的新手，它解决了我碰到的两个难题：</p>
+<ol>
+<li>使用<code>pip</code>安装包时，经常某些包无法在当前 python 版本安装</li>
+<li>不会使用 venv 等虚拟环境管理工具</li>
+<li>使用<code>conda</code>时，经常社区还没有适配某些最新版本的包</li>
+</ol>
+<p>这里引出 rye 主要的几个功能：</p>
+<ol>
+<li>管理全局的 Python 版本</li>
+<li>管理虚拟环境中的 Python 版本</li>
+<li>以封装<code>pip</code>和<code>virtualenv</code>的方式，让我不必烦恼如何使用他们</li>
+</ol>
+<h2>安装 rye</h2>
+<p>在 macOS 上，直接运行一下命令即可，同时在 rye 的<a href="https://rye-up.com/guide/installation/#installing-rye">文档</a>也给出了其他系统的安装方式。</p>
+<p>例如 macOS：</p>
+<blockquote>
+<p>To install run you can curl a command which will install the right binary for your operating system and CPU architecture and install it:</p>
+<pre><code class="language-shell">curl -sSf https://rye-up.com/get | bash
+</code></pre>
+</blockquote>
+<p><strong>补充</strong>：</p>
+<pre><code class="language-shell">rye self update # 升级rye
+</code></pre>
+<pre><code class="language-shell">rye self uninstall # 卸载rye
+</code></pre>
+<h2>开始一个新项目</h2>
+<p>使用  <code>rye init</code>  初始化一个新项目非常容易。在这里，我开始一个名为： <code>&quot;test-rye&quot;</code>的新项目。</p>
+<pre><code class="language-shell">mkdir test-rye  #创建项目文件夹
+cd test-rye #在终端进入刚才创建的项目文件夹
+rye init . #使用rye初始化项目
+</code></pre>
+<p>执行初始化之后，rye 会帮我们创建一些默认文件：</p>
+<pre><code class="language-shell">tree
+├── README.md       # 项目的README文件
+├── pyproject.toml  # rye用来管理项目的文件
+└── src
+    └── test_rye
+        └── __init__.py
+</code></pre>
+<p>现在，我们便可以安装自己想安装的包。假设我这个项目想用来做一些数据分析工作：</p>
+<pre><code class="language-shell"># 使用rye安装 numpy pandas scikit-learn xgboost
+rye add numpy pandas scikit-learn xgboost # 解析包版本，并添加到pyproject.toml文件中
+rye sync # 开始下载文件对应的包
+</code></pre>
+<p>至此，一个由 rye 管理的项目就创建完成了，我们可以使用 VSCode 打开项目文件夹，并开始写代码了。</p>
+<pre><code class="language-shell">code .  # 使用VSCode打开项目文件夹
+</code></pre>
+<p>此时，我们的项目文件夹结构如下：</p>
+<pre><code class="language-shell">tree
+├── README.md
+├── pyproject.toml
+├── requirements-dev.lock
+├── requirements.lock
+└── src
+    └── test_rye
+        ├── __init__.py
+        └── __pycache__
+            └── __init__.cpython-311.pyc
+</code></pre>
+<p><strong>注意事项</strong>：
+当我们的项目需要添加新的依赖时，可以使用<code>rye add &lt;package name&gt;</code> 和 <code>rye sync</code>来安装对应的包，或者通过<code>rye romove &lt;package name&gt;</code>和<code>rye sync</code>来移除对应的包。</p>
+<p><code>rye add &lt;package name&gt;</code>和<code>rye romove &lt;package name&gt;</code>只修改<code>pyproject.toml</code>文件，<code>rye sync</code>会按照<code>pyproject.toml</code>文件实际对项目的依赖进行操作。</p>
+<h2>修改项目的 Python 版本</h2>
+<p>rye 当前为我们的项目安装 <a href="mailto:Python@3.11">Python@3.11</a> 版本，但不必担心，rye 为我们提供了修改项目 Python 版本的命令</p>
+<pre><code class="language-shell">rye pin 3.9
+rye sync # 所有的修改都需要使用sync命令生效
+</code></pre>
+<p>此时，我们的项目的 Python <a href="%E7%89%88%E6%9C%AC%E5%B0%B1%E5%8F%98%E4%B8%BA%E4%BA%86Python@3.9">版本就变为了<span class="pangu"></span>Python@3.9</a></p>
+<h2>全局 Python 脚本</h2>
+<p>某些情况下，有些包我们想要全局使用，比如<code>black</code>或者<code>ruff</code>来对我们的代码进行格式化。</p>
+<pre><code class="language-shell">rye install ruff
+</code></pre>
+<p>安装之后，就可以在终端全局使用<code>ruff</code>命令了</p>
+<p>卸载也很简单：</p>
+<pre><code class="language-shell">rye uninstall ruff
+</code></pre>
+<h2>最后</h2>
+<p>rye 还支持一些常规的操作，比如接管全局 python、升级项目中某个依赖或者所有依赖的版本、构建/发布包等等功能，可以通过<a href="https://rye-up.com/guide/">官方文档</a>查看。</p>
+</div>
+
+        <div id="comments">
+            <script src="https://utteranc.es/client.js" repo="geoqiao/geoqiao.github.io"
+                issue-number="1" theme="github-light" crossorigin="anonymous" async></script>
+        </div>
+    </main>
+</article>
+
+    </main>
+
+    <footer class="pm-footer">
+        <div class="container">
+            <p id="site-year">&copy; <span id="year"></span> geoqiao's Blog</p>
+        </div>
+    </footer>
+
+    <script src="/templates/PaperMod/static/js/papermod.js"></script>
+    <!-- prism is reused from default theme -->
+    <script src="/templates/default_theme/static/js/prism.js"></script>
+</body>
+
+</html>

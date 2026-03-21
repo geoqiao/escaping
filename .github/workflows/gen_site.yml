@@ -43,6 +43,7 @@ jobs:
         run: |
           git config --local user.email "action@github.com"
           git config --local user.name "GitHub Action"
-          git add contents robots.txt sitemap.xml index.html
-          git commit -a -m 'update new blog and SEO files' || echo "nothing to commit"
+          # 使用 -A 选项以确保删除不再存在的旧文件（如旧的数字 ID HTML）
+          git add -A contents robots.txt sitemap.xml index.html
+          git commit -m 'chore: update blog with new slug format and cleanup old files' || echo "nothing to commit"
           git push || echo "nothing to push"

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="google-site-verification" content="" />
+    <title>Coke Machine Challenge  - geoqiao's Blog</title>
+    <meta name="description" content="1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
+2. 这个网页基于GitHub Pages & GitHub Actions 自动部署。
+3. 主体 main.py 自己完成，前端主题由AI生成。
+">
+    
+<link rel="canonical" href="https://geoqiao.github.io/contents/blog/14-coke-machine-challenge.html" />
+
+
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;700&family=Merriweather:wght@300;400;700&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="/templates/PaperMod/static/css/papermod.css">
+    <link rel="stylesheet" href="/templates/default_theme/static/css/prism.css">
+    <link rel="alternate" type="application/atom+xml" title="RSS" href="/contents/atom.xml">
+    <link rel="icon" type="image/png" href="/templates/PaperMod/static/images/favicon.png">
+</head>
+
+<body>
+    <header class="pm-header">
+        <nav class="container nav">
+            <a href="/" class="logo">
+                <img class="logo-avatar" src="/templates/PaperMod/static/images/favicon.png" alt="geoqiao's Blog">
+                <span>geoqiao's Blog</span>
+            </a>
+
+            <div class="nav-actions">
+                <button class="theme-toggle" aria-label="Toggle theme">🌙</button>
+                <button class="menu-toggle" aria-label="Toggle menu">
+                    <span></span><span></span><span></span>
+                </button>
+            </div>
+
+            <ul class="nav-links">
+                <li><a href="/contents/">Blog</a></li>
+                <li><a href="/contents/tags">Tag</a></li>
+                <li><a href="/contents/about.html">About</a></li>
+                <li><a href="/contents/atom.xml">RSS</a></li>
+            </ul>
+        </nav>
+    </header>
+
+    <main class="container">
+        
+<article class="post full-post">
+    <aside class="toc">
+        <h4>目录</h4>
+        <nav id="toc"></nav>
+    </aside>
+    <main>
+        <h1 class="post-title">Coke Machine Challenge </h1>
+        <div class="post-meta">发布于 2023-09-03
+            
+            | 标签: <a href="/contents/tag/python.html" class="tag">python</a><a href="/contents/tag/cs50p.html" class="tag">cs50p</a>
+            
+        </div>
+
+        <div class="post-content"><h2>什么是 Coke Machine</h2>
+<p>Coke Machine 是<a href="https://cs50.harvard.edu/python/2022/">CS50P</a>课程中 loop 章节的其中一个课后练习，这个课后练习需要使用 Python 语言中的 loop 语法实现一个可乐售卖机，具体要求如下：</p>
+<blockquote>
+<p>Suppose that a machine sells bottles of Coca-Cola (Coke) for 50 cents and only accepts coins in these denominations: 25 cents, 10 cents, and 5 cents.</p>
+<p>In a file called <code>coke.py</code>, implement a program that prompts the user to insert a coin, one at a time, each time informing the user of the amount due. Once the user has inputted at least 50 cents, output how many cents in change the user is owed. Assume that the user will only input integers, and ignore any integer that isn’t an accepted denomination.</p>
+</blockquote>
+<p>实际上，这是一个很简单的实现，但是我在这里被困了 2 个小时，这里重新记录一遍过程，当作<strong>错题集</strong>。</p>
+<h2>任务拆解</h2>
+<ol>
+<li>假设输入只有 25、10、5 几种情况，且只输入整数格式，忽略任何不符合要求的数字</li>
+<li>文件名为 coke.py</li>
+<li>提示用户投入一枚硬币，每次都要通知应付金额</li>
+<li>一旦用户投入的金额大于等于 50，输出找零金额</li>
+</ol>
+<h2>代码实现</h2>
+<h3>初始化</h3>
+<p>可乐需要 50 美分；一开始没有任何硬币投入；投入的硬币只有三种情况；提示用户可乐的价格。</p>
+<p>代码如下：</p>
+<pre><code class="language-python">amount_due = 50
+change = 0
+coin_list = [5,10,25]
+print(f&quot;Amount Due: {amount_due}&quot;) # 告诉客户coke价格
+</code></pre>
+<h3>付费环节</h3>
+<p>由于条件限制，用户无法一次投入 50 美分，需要多次投入（循环），每次都要提醒用户还要投多少钱。</p>
+<pre><code class="language-python">while amount_due &gt; 0: # 循环开始的条件，如果用户还需要投的钱大于0，则说明钱还不够
+    coin = input(&quot;Insert a coin (25, 10, or 5): &quot;)
+    # 这里用try 语句来避免用户输入一些无法转换为整数的文本内容
+    try:
+        coin = int(coin)
+    except ValueError:
+        print(&quot;Invalid coin&quot;)
+        continue
+    # if语句用来判断用户投入的硬币是否符合要求
+    if coin in coin_list:
+        amount_due -= coin # 总共需要投入的减去已经投入的就是还需要投入的
+        change += coin # 这里用来统计用户总共投入的多少
+        print(f&quot;Amount Due: {amount_due}&quot;)
+    else: # 如果用户投入的硬币不符合要求，重新提示可乐价格
+        print(&quot;Amount Due: 50&quot;)
+</code></pre>
+<h3>付费结束之后</h3>
+<p>付费结束之后，有可能刚好投入了 50 美分，但也有可能客户给多了，需要给用户找零，代码如下：</p>
+<pre><code class="language-python"># 还需要付费金额小于等于0，即付够钱了
+# 仍需付费金额的绝对值，即为需要找零的钱
+if amount_due &lt;= 0:
+    print(f&quot;Change Owed: {abs(amount_due)}&quot;)
+</code></pre>
+<h2>完整代码</h2>
+<p>把以上代码优化一下，当 coke.py 当作脚本运行是可以处罚，但是当 import 到其他 Python 文件中则不会触发：</p>
+<pre><code class="language-python">def coke():
+    amount_due = 50
+    change = 0
+    coin_list = [5, 10, 25]
+    print(f&quot;Amount Due: {amount_due}&quot;)
+
+    while amount_due &gt; 0:
+        coin = input(&quot;Insert a coin (25, 10, or 5): &quot;)
+        try:
+            coin = int(coin)
+        except ValueError:
+            print(&quot;Invalid coin&quot;)
+            continue
+
+        if coin in coin_list:
+            amount_due -= coin
+            change += coin
+            print(f&quot;Amount Due: {amount_due}&quot;)
+        else:
+            print(&quot;Amount Due: 50&quot;)
+
+    if amount_due &lt;= 0:
+        print(f&quot;Change Owed: {abs(amount_due)}&quot;)
+
+if __name__ == &quot;__main__&quot;:
+    coke()
+</code></pre>
+<p>重写一遍才发现，<code>change</code>这个变量好像根本没用。</p>
+<p>本来是想记录一下用户投入了多少美分，然后用总共投入的钱减去可乐的价格，就是需要找零的钱。现在看来这个变量完全可以去掉，从而使代码更加简洁。</p>
+<p>我就不删了，希望之后重看的时候还能发现这个不完美的地方。</p>
+</div>
+
+        <div id="comments">
+            <script src="https://utteranc.es/client.js" repo="geoqiao/geoqiao.github.io"
+                issue-number="14" theme="github-light" crossorigin="anonymous" async></script>
+        </div>
+    </main>
+</article>
+
+    </main>
+
+    <footer class="pm-footer">
+        <div class="container">
+            <p id="site-year">&copy; <span id="year"></span> geoqiao's Blog</p>
+        </div>
+    </footer>
+
+    <script src="/templates/PaperMod/static/js/papermod.js"></script>
+    <!-- prism is reused from default theme -->
+    <script src="/templates/default_theme/static/js/prism.js"></script>
+</body>
+
+</html>
