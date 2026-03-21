@@ -2,7 +2,7 @@
 <feed xmlns="http://www.w3.org/2005/Atom">
   <id>https://geoqiao.github.io/</id>
   <title>geoqiao's Blog</title>
-  <updated>2026-03-21T09:58:27.325450+00:00</updated>
+  <updated>2026-03-21T10:02:56.451857+00:00</updated>
   <author>
     <name>geoqiao</name>
     <email>geoqiao@example.com</email>
@@ -1620,7 +1620,7 @@ ollama run qwen2.5-coder:7b # 安装 qwen2.5-coder:7b
   <entry>
     <id>https://geoqiao.github.io/contents/blog/32-python-vscode-vibe-coding.html</id>
     <title>Vibe Coding 实战后感 - github_blog with Trae</title>
-    <updated>2026-03-21T09:58:10+00:00</updated>
+    <updated>2026-03-21T10:02:38+00:00</updated>
     <content type="html"><![CDATA[<h2>TL:DR</h2>
 <p>我使用 Trae IDE 对我的 github_blog 项目做了一些迭代。与之前不同的是，这次完全<code>vibe coding</code>，没有手写一行代码。</p>
 <blockquote>
