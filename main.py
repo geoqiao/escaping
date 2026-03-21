@@ -43,7 +43,8 @@ def main(token: str, repo_name: str):
     # 为每个 issue 生成 slug 并关联到其 ID，同时提供字符串和整数键以增强模板兼容性
     issue_slugs = {}
     for issue in issues_list:
-        slug = generate_slug(issue.number, issue.title)
+        issue_tags = [label.name for label in issue.labels] if issue.labels else []
+        slug = generate_slug(issue.number, issue_tags)
         issue_slugs[issue.number] = slug
         issue_slugs[str(issue.number)] = slug
 
@@ -393,7 +394,11 @@ def gen_rss_feed(issues: list[Issue], issue_slugs: dict[int, str]):
         blog_dir_str = str(config.blog_dir).strip("/")
         url = f"{config.blog_url.rstrip('/')}/contents/{blog_dir_str}/{slug}.html"
         fe.id(url)
-        fe.title(issue.title)
+        # 使用新的标题格式：ID + Tags
+        issue_tags = (
+            " ".join([label.name for label in issue.labels]) if issue.labels else ""
+        )
+        fe.title(f"{issue.number} {issue_tags}".strip())
         fe.link(href=url)
         fe.description(issue.body[:100])
         fe.published(issue.created_at)

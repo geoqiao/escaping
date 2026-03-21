@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ issue.title }} - {{ blog_title }}{% endblock %}
+{% block title %}{{ issue.number }} {% for label in issue.labels %}{{ label.name }} {% endfor %} - {{ blog_title }}{% endblock %}
 
 {% block canonical %}
 <link rel="canonical" href="{{ blog_url }}contents/blog/{{ slug }}.html" />
@@ -13,7 +13,7 @@
         <nav id="toc"></nav>
     </aside>
     <main>
-        <h1 class="post-title">{{ issue.title }}</h1>
+        <h1 class="post-title">{{ issue.number }} {% for label in issue.labels %}{{ label.name }} {% endfor %}</h1>
         <div class="post-meta">发布于 {{ issue.created_at.strftime('%Y-%m-%d') }}
             {% if issue.labels %}
             | 标签: {% for label in issue.labels %}<a href="/contents/tag/{{ label.name }}.html" class="tag">{{ label.name
