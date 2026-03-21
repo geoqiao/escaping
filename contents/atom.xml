@@ -1,8 +1,8 @@
 <?xml version='1.0' encoding='UTF-8'?>
-<feed xmlns="http://www.w3.org/2005/Atom"><id>https://geoqiao.github.io/</id><title>geoqiao's Blog</title><updated>2026-03-21T04:40:45.507032+00:00</updated><author><name>geoqiao</name><email>geoqiao@example.com</email></author><link href="https://geoqiao.github.io/" rel="alternate"/><generator uri="https://lkiesow.github.io/python-feedgen" version="1.0.0">python-feedgen</generator><subtitle>1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
+<feed xmlns="http://www.w3.org/2005/Atom"><id>https://geoqiao.github.io/</id><title>geoqiao's Blog</title><updated>2026-03-21T05:06:28.999267+00:00</updated><author><name>geoqiao</name><email>geoqiao@example.com</email></author><link href="https://geoqiao.github.io/" rel="alternate"/><generator uri="https://lkiesow.github.io/python-feedgen" version="1.0.0">python-feedgen</generator><subtitle>1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
 2. 这个网页基于GitHub Pages &amp; GitHub Actions 自动部署。
 3. 主体 main.py 自己完成，前端主题由AI生成。
-</subtitle><entry><id>https://geoqiao.github.io/contents/blog/2-excel-xue-xi-jing-yan-fen-xiang.html</id><title>excel 学习经验分享</title><updated>2024-05-07T15:03:36+00:00</updated><content type="html"><![CDATA[<h2>描述</h2>
+</subtitle><entry><id>https://geoqiao.github.io/contents/blog/2.html</id><title>2</title><updated>2024-05-07T15:03:36+00:00</updated><content type="html"><![CDATA[<h2>描述</h2>
 <ol>
 <li>
 <p>这是一个分享个人 excel 经验的文档。</p>
@@ -52,7 +52,7 @@
 <p>更新数据：当需要更新数据时，只需右键单击数据透视表并选择“刷新”即可。</p>
 </li>
 </ol>
-]]></content><link href="https://geoqiao.github.io/contents/blog/2-excel-xue-xi-jing-yan-fen-xiang.html"/><published>2023-07-15T02:54:59+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/3-with-sql-as-english.html</id><title>with_sql _as_english</title><updated>2024-09-22T09:53:47+00:00</updated><content type="html"><![CDATA[<h2>描述</h2>
+]]></content><link href="https://geoqiao.github.io/contents/blog/2.html"/><published>2023-07-15T02:54:59+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/3.html</id><title>3</title><updated>2024-09-22T09:53:47+00:00</updated><content type="html"><![CDATA[<h2>描述</h2>
 <ol>
 <li>分享自己学习 SQL 的经验。</li>
 <li><code>WITH 临时表名 AS 子查询</code> 是 SQL 中一个常用的语法，这篇分享会介绍这个语法。</li>
@@ -74,10 +74,10 @@ ON table1.id = table2.id
 WHERE table1.column1 = &#x27;1&#x27;
 </code></pre>
 <p>在这个示例中，<code>table1</code>  和  <code>table2</code>  是两个不同的表，我们在 <code>table1</code> 中写了一个 <code>vlookup</code> ，这个公式以两张表中的 <code>id</code> 字段为条件关联，把 <code>table2</code>  中的 <code>name</code> 字段匹配到了 <code>table1</code> ，并且匹配完成后进行了一个筛选，只选择 <code>table1</code> 中 <code>column1</code> 字段为 <code>&#x27;1&#x27;</code> 的行。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/3-with-sql-as-english.html"/><published>2023-07-15T03:09:11+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/4-guan-yu-li-shi.html</id><title>关于历史</title><updated>2024-05-07T15:04:37+00:00</updated><content type="html"><![CDATA[<p>吃饭的时候突然想到，把历史比喻成一个车轮真的是生动形象且具体。</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/3.html"/><published>2023-07-15T03:09:11+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/4.html</id><title>4</title><updated>2024-05-07T15:04:37+00:00</updated><content type="html"><![CDATA[<p>吃饭的时候突然想到，把历史比喻成一个车轮真的是生动形象且具体。</p>
 <p>在某种角度上来看，这个车轮一直在向前滚动；另一种种角度上，车轮又在不断循环，车轮的材质变化，滚动的速度也不一样。</p>
 <p>一些东西一直再改变，但一些东西一直没变。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/4-guan-yu-li-shi.html"/><published>2023-07-15T03:17:05+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/5-kong-tiao-bo-xue-li-lun-de-ti-chu.html</id><title>空调剥削理论的提出</title><updated>2024-05-07T15:05:03+00:00</updated><content type="html"><![CDATA[<h2>两大基本原理</h2>
+]]></content><link href="https://geoqiao.github.io/contents/blog/4.html"/><published>2023-07-15T03:17:05+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/5.html</id><title>5</title><updated>2024-05-07T15:05:03+00:00</updated><content type="html"><![CDATA[<h2>两大基本原理</h2>
 <p><strong>首先</strong>，在开始阐述空调剥削理论之前，先来了解一下这个理论成立的两大基本原理：</p>
 <p><strong>空调制冷原理</strong>和<strong>能量守恒</strong></p>
 <h3>空调制冷原理</h3>
@@ -110,7 +110,7 @@ WHERE table1.column1 = &#x27;1&#x27;
 <h2>这个理论有两层含义：</h2>
 <p><strong>第一层是，技术的进步没能克服<span class="pangu"></span>43<span class="pangu"></span>摄氏度的气温，空调没用了。也就是空调作为一个没有生命，没有意识的机器，剥削了包括人类在内的地球全体。</strong></p>
 <p><strong>第二层是，技术的进步克服了<span class="pangu"></span>43<span class="pangu"></span>摄氏度的气温，空调依然有作用，但使用成本大大增加。即能够使用空调的少数人类剥削包括用不上空调的其余人类在内的地球全体。</strong></p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/5-kong-tiao-bo-xue-li-lun-de-ti-chu.html"/><published>2023-07-15T03:25:05+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/6-out-of-the-depth-of-misfortune-comes-bliss.html</id><title>Out of the depth of misfortune comes bliss</title><updated>2024-05-07T15:05:43+00:00</updated><content type="html"><![CDATA[<p>大方无隅</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/5.html"/><published>2023-07-15T03:25:05+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/6.html</id><title>6</title><updated>2024-05-07T15:05:43+00:00</updated><content type="html"><![CDATA[<p>大方无隅</p>
 <p>大器晚成</p>
 <p>大音希声</p>
 <p>大象无形</p>
@@ -129,7 +129,7 @@ WHERE table1.column1 = &#x27;1&#x27;
 <p>否极泰来</p>
 <p>否极泰来</p>
 <p>否极泰来</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/6-out-of-the-depth-of-misfortune-comes-bliss.html"/><published>2023-07-15T03:34:29+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/7-zong-dei-huo-zhe-ba.html</id><title>总得活着吧？</title><updated>2026-02-23T03:48:01+00:00</updated><content type="html"><![CDATA[<p>世俗价值都是禁不起推敲的，推敲下去觉得活着没意义。  </p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/6.html"/><published>2023-07-15T03:34:29+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/7-randomthoughts.html</id><title>7 RandomThoughts</title><updated>2026-02-23T03:48:01+00:00</updated><content type="html"><![CDATA[<p>世俗价值都是禁不起推敲的，推敲下去觉得活着没意义。  </p>
 <p>你越想意义就越痛苦。所以人们只能有两个选择，肉体自杀和哲学自杀。</p>
 <h2>哲学自杀</h2>
 <p>哲学自杀就是不再想这个问题了，老子选择信仰个宗教，伊斯兰或者马克思，或者世俗主义，或者纯粹享乐比谁啪的多，比谁赚得多…总之信个世俗价值的东西。你可以随便吃饭时候问一下同桌人，生活的意义是啥，别人不是笑你就是说想这干嘛，但他们是无法给出答案的。这就是所谓哲学自杀。人如果不愿放弃，继续思考，结果必然面对找不到意义的尴尬，也就是加缪的名词‘荒谬’，很可能走向虚无。</p>
@@ -142,7 +142,7 @@ WHERE table1.column1 = &#x27;1&#x27;
 <h2>知其不可为而为之</h2>
 <p>就比如，生活给了你一巴掌，让你去死；你不仅不能听它的，还得回它一巴掌，再加一句：操！生命的意义就在这句粗口里。</p>
 <p>知道人终有一死，但现在，我选择活。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/7-zong-dei-huo-zhe-ba.html"/><published>2023-07-15T14:40:01+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/8-ji-yu-github-issues-de-ge-ren-blog-da-jian.html</id><title>基于 GitHub issues 的个人 blog 搭建</title><updated>2026-02-23T03:45:53+00:00</updated><content type="html"><![CDATA[<h2>背景</h2>
+]]></content><link href="https://geoqiao.github.io/contents/blog/7-randomthoughts.html"/><published>2023-07-15T14:40:01+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/8-python.html</id><title>8 python</title><updated>2026-02-23T03:45:53+00:00</updated><content type="html"><![CDATA[<h2>背景</h2>
 <p>我最近碰到了以下问题：</p>
 <ol>
 <li>偶尔想写点东西，想有一个个人 blog</li>
@@ -167,7 +167,7 @@ WHERE table1.column1 = &#x27;1&#x27;
 <p>不过需要补充一点，按教程操作完成后需要把 GitHub Action 的读写权限打开。操作方式为 Settings - Actions - General - 勾选 Read and write permissions - save，如下图所示：</p>
 <h2>结语</h2>
 <p>以上就是全部内容，非常感谢 @yihong0618 老师的代码。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/8-ji-yu-github-issues-de-ge-ren-blog-da-jian.html"/><published>2023-07-18T13:10:40+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/9-what-s-on-my-mac.html</id><title>What's on my Mac</title><updated>2026-02-23T03:45:43+00:00</updated><content type="html"><![CDATA[<p>和大多数人一样，拿到一台<span class="pangu"></span>MacBook<span class="pangu"></span>第一件事就是找各种软件，以下是我目前在用的一些。它们的整体使用体验都很不错，且部分软件可以联动形成 workflow ，供大家参考。</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/8-python.html"/><published>2023-07-18T13:10:40+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/9-macapp.html</id><title>9 macapp</title><updated>2026-02-23T03:45:43+00:00</updated><content type="html"><![CDATA[<p>和大多数人一样，拿到一台<span class="pangu"></span>MacBook<span class="pangu"></span>第一件事就是找各种软件，以下是我目前在用的一些。它们的整体使用体验都很不错，且部分软件可以联动形成 workflow ，供大家参考。</p>
 <h2>启动器类- Raycast</h2>
 <p>目前免费的启动器类<span class="pangu"></span>app，可以启动、替代很多软件。自带的窗口管理功能替代 magnet、rectangle 等等窗口管理软件；自带的文件搜索功能替代了访达；还有一系列提升工作效率的插件。不了解的人可以<a href="https://telegra.ph/%E4%B8%BA%E4%BB%80%E4%B9%88%E6%88%91%E7%94%A8raycast%E6%9B%BF%E4%BB%A3%E4%BA%86alfred-07-17">参考这里</a>。</p>
 <h2>自动切换输入法- Input Source Pro</h2>
@@ -198,7 +198,7 @@ WHERE table1.column1 = &#x27;1&#x27;
 <p>微信、telegram、VSCode、Chrome。。。</p>
 <p>office 被我卸载了，因为想学 pandas，强迫自己用 pandas 读表</p>
 <p>Report content on this page</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/9-what-s-on-my-mac.html"/><published>2023-07-29T06:20:29+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/10-shottr-yuan-sheng-qing-qiao-qie-gong-neng-qiang-da-de-mian-fei-macos-jie-tu-gong-ju.html</id><title>Shottr- 原生、轻巧且功能强大的免费macOS截图工具</title><updated>2026-02-23T03:45:13+00:00</updated><content type="html"><![CDATA[<p>| <a href="https://shottr.cc/">Shottr<span class="pangu"></span>官网</a></p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/9-macapp.html"/><published>2023-07-29T06:20:29+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/10-macapp.html</id><title>10 macapp</title><updated>2026-02-23T03:45:13+00:00</updated><content type="html"><![CDATA[<p>| <a href="https://shottr.cc/">Shottr<span class="pangu"></span>官网</a></p>
 <ul>
 <li>
 <p><strong>截图</strong>：不得不说，作为截图工具的基础功能，shottr 并没有特别出彩的地方，UI 也谈不上漂亮。但是基础的区域截图、顺序标记都有，操作起来也非常直觉。而且在其他同类<span class="pangu"></span>app<span class="pangu"></span>中要付费的滚动截图功能也是免费的。</p>
@@ -217,7 +217,7 @@ WHERE table1.column1 = &#x27;1&#x27;
 </li>
 </ul>
 <p>整体体验下来，我认为 shottr<span class="pangu"></span>非常适合经常需要<strong>对截图进行简单编辑</strong>或者经常使用<strong>OCR<span class="pangu"></span>功能</strong>的朋友，shottr 能轻松满足你的需求。而且，向开发者邮件反馈<span class="pangu"></span>issue，开发者回复都非常积极。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/10-shottr-yuan-sheng-qing-qiao-qie-gong-neng-qiang-da-de-mian-fei-macos-jie-tu-gong-ju.html"/><published>2023-07-29T06:28:23+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/11-python-huan-jing-an-zhuang-anaconda-wei-li.html</id><title>Python环境安装-Anaconda为例</title><updated>2024-05-15T16:06:43+00:00</updated><content type="html"><![CDATA[<p>学习 Python 第一步就是需要安装一个 Python 环境，这可劝退了大部分人。</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/10-macapp.html"/><published>2023-07-29T06:28:23+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/11-python.html</id><title>11 python</title><updated>2024-05-15T16:06:43+00:00</updated><content type="html"><![CDATA[<p>学习 Python 第一步就是需要安装一个 Python 环境，这可劝退了大部分人。</p>
 <h2>安装 Python 环境的几种传统方式</h2>
 <ol>
 <li>系统自带，直接用系统的。比如 macOS 一般自带 Python3。</li>
@@ -253,7 +253,7 @@ WHERE table1.column1 = &#x27;1&#x27;
 <h2>总结</h2>
 <p>以上就是全部内容，其实跟标题相关的就四五行。具体安装教程没有写，是因为真的和小时候下载安装游戏的流程一模一样。</p>
 <p>如果过程中碰到什么问题，可以及时 Google 搜索。当然，如果你愿意的话，可以直接在这个 issue 下面评论，我会尽快回复的。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/11-python-huan-jing-an-zhuang-anaconda-wei-li.html"/><published>2023-07-30T11:09:46+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/12-zhong-qi-qing-yong-obsidian.html</id><title>重器轻用-Obsidian</title><updated>2026-02-23T03:45:00+00:00</updated><content type="html"><![CDATA[<h2>什么是 Obsidian</h2>
+]]></content><link href="https://geoqiao.github.io/contents/blog/11-python.html"/><published>2023-07-30T11:09:46+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/12-obsidian.html</id><title>12 obsidian</title><updated>2026-02-23T03:45:00+00:00</updated><content type="html"><![CDATA[<h2>什么是 Obsidian</h2>
 <p>Obsidian 是一个个人知识管理和笔记应用程序，它使用<strong>Markdown</strong>语法来编写和格式化笔记，帮助用户组织、链接和探索知识。它支持<strong>双向链接</strong>、标签、搜索和<strong>插件扩展</strong>，并且完全本地化存储，让用户轻松构建和管理一个互相关联的知识网络。</p>
 <p>总结下来三个优点：</p>
 <ol>
@@ -287,7 +287,7 @@ WHERE table1.column1 = &#x27;1&#x27;
 <p>我认为最重要的是：精力集中在<strong>使用工具</strong>，而不是<strong>如何使用工具</strong>上。</p>
 <p>对比 Notion，想用得好，自己又得做产品经理，又得做开发，搞一个模板可能没用几次可能就有新场景需要满足，又要优化模板，最后成长的架构思维和设计能力，这是我不想从一个<strong>知识管理</strong>软件上体验到的。</p>
 <p>Obsidian 给了我一个可以重器轻用的选择，这非常重要。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/12-zhong-qi-qing-yong-obsidian.html"/><published>2023-08-19T07:57:20+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/13-wo-de-di-yi-ge-wan-zheng-de-ji-qi-xue-xi-xiang-mu-titanic-zong-jie.html</id><title>我的第一个完整的机器学习项目-Titanic总结</title><updated>2024-05-15T16:06:28+00:00</updated><content type="html"><![CDATA[<h2>背景</h2>
+]]></content><link href="https://geoqiao.github.io/contents/blog/12-obsidian.html"/><published>2023-08-19T07:57:20+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/13-dataanalysis.html</id><title>13 DataAnalysis</title><updated>2024-05-15T16:06:28+00:00</updated><content type="html"><![CDATA[<h2>背景</h2>
 <p>最近一直在学习<span class="pangu"></span>Python，尝试使用<span class="pangu"></span>Python<span class="pangu"></span>解决一些工作上的问题。这里记录参加这次比赛的心得总结，并会给出我的<a href="https://github.com/geoqiao/Python_DA_100_day/blob/main/kaggle_competition/titanic.py">代码示例(rank：top16%)</a></p>
 <p>Titanic<span class="pangu"></span>是一个机器学习的入门级分类问题的比赛，数据集记录了<span class="pangu"></span>titanic<span class="pangu"></span>乘客的一些信息如性别、票价、船舱等级等信息。数据集被分成<span class="pangu"></span>train_data 和 test_data<span class="pangu"></span>两部分。参赛者需要根据<span class="pangu"></span>train_data<span class="pangu"></span>的数据信息，利用模型对数据集进行学习，并且预测<span class="pangu"></span>test_data<span class="pangu"></span>中乘客是否最终幸存。</p>
 <p>titanic<span class="pangu"></span>数据集的优势是：</p>
@@ -337,7 +337,7 @@ b.快且效果好，相对与其他模型需要适当调整参数来说，xgboos
 <li>Python<span class="pangu"></span>基础：写干净的代码真的很重要，比如这个代码示例，第二次看我已经优点头疼了，函数为什么要那么定义。</li>
 <li>写一篇机器学习相关概念的解释<span class="pangu"></span>blog，例如：kmeans、SVM、随机森林、决策数、XGBoost、</li>
 </ol>
-]]></content><link href="https://geoqiao.github.io/contents/blog/13-wo-de-di-yi-ge-wan-zheng-de-ji-qi-xue-xi-xiang-mu-titanic-zong-jie.html"/><published>2023-08-31T13:47:47+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/14-coke-machine-challenge.html</id><title>Coke Machine Challenge </title><updated>2024-05-15T16:05:43+00:00</updated><content type="html"><![CDATA[<h2>什么是 Coke Machine</h2>
+]]></content><link href="https://geoqiao.github.io/contents/blog/13-dataanalysis.html"/><published>2023-08-31T13:47:47+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/14-python-cs50p.html</id><title>14 python cs50p</title><updated>2024-05-15T16:05:43+00:00</updated><content type="html"><![CDATA[<h2>什么是 Coke Machine</h2>
 <p>Coke Machine 是<a href="https://cs50.harvard.edu/python/2022/">CS50P</a>课程中 loop 章节的其中一个课后练习，这个课后练习需要使用 Python 语言中的 loop 语法实现一个可乐售卖机，具体要求如下：</p>
 <blockquote>
 <p>Suppose that a machine sells bottles of Coca-Cola (Coke) for 50 cents and only accepts coins in these denominations: 25 cents, 10 cents, and 5 cents.</p>
@@ -417,7 +417,7 @@ if __name__ == &quot;__main__&quot;:
 <p>重写一遍才发现，<code>change</code>这个变量好像根本没用。</p>
 <p>本来是想记录一下用户投入了多少美分，然后用总共投入的钱减去可乐的价格，就是需要找零的钱。现在看来这个变量完全可以去掉，从而使代码更加简洁。</p>
 <p>我就不删了，希望之后重看的时候还能发现这个不完美的地方。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/14-coke-machine-challenge.html"/><published>2023-09-03T13:02:25+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/15-zong-you-yi-xie-app-zhi-neng-windows-yong.html</id><title>总有一些 app 只能 Windows 用</title><updated>2024-05-26T08:43:17+00:00</updated><content type="html"><![CDATA[<p>总有一些 app 只有 Windows 版本，最近对象就碰到这样一个问题，不得已只能安装一个虚拟机了。</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/14-python-cs50p.html"/><published>2023-09-03T13:02:25+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/15-vmware.html</id><title>15 VMware</title><updated>2024-05-26T08:43:17+00:00</updated><content type="html"><![CDATA[<p>总有一些 app 只有 Windows 版本，最近对象就碰到这样一个问题，不得已只能安装一个虚拟机了。</p>
 <h2>结论</h2>
 <ol>
 <li>我最终选择了 VMware</li>
@@ -443,7 +443,7 @@ if __name__ == &quot;__main__&quot;:
 <p>VMware tech preview 下载：<a href="https://customerconnect.vmware.com/downloads/get-download?downloadGroup=FUS-TP2023">Download VMware Fusion Public Tech Preview 2023</a></p>
 <p>VMware 正式版下载：<a href="https://www.vmware.com/cn/products/fusion/fusion-evaluation.html">下载 VMware Fusion | VMware | CN</a></p>
 <p>安装教程：<a href="https://youtu.be/vtck5BVjVHM?si=nsNpgXIZAT-QihfH">YouTube</a></p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/15-zong-you-yi-xie-app-zhi-neng-windows-yong.html"/><published>2023-09-24T14:02:41+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/16-vim-don-t-be-afraid.html</id><title>Vim？ Don't be afraid ！</title><updated>2024-05-15T16:04:50+00:00</updated><content type="html"><![CDATA[<p>作为一名初学者，遇到问题时经常 Google 相关教程。不可避免的，某些教程默认读者会使用 Vim。</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/15-vmware.html"/><published>2023-09-24T14:02:41+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/16-vim.html</id><title>16 vim</title><updated>2024-05-15T16:04:50+00:00</updated><content type="html"><![CDATA[<p>作为一名初学者，遇到问题时经常 Google 相关教程。不可避免的，某些教程默认读者会使用 Vim。</p>
 <p><code>vim ~/.zshrc</code> 一旦<code>ENTER</code>按下去，就完蛋了。这他妈什么界面？我的终端怎么变成这样，什么命令都无法输入？我该怎么返回上一步？直接退出的话教程就跟不上了怎么办？</p>
 <p>真的是太难了，刚开始不了解终端，不了解每条命令的原理，碰见 Vim 真的让人慌张。</p>
 <p>这个 issue 用来帮助读者克服 Vim 恐惧，再也不用担心搜到的教程含有 Vim 命令。</p>
@@ -469,7 +469,7 @@ if __name__ == &quot;__main__&quot;:
 <blockquote>
 <p>tips: 如果你安装了 VSCode，也可以在终端中输入<code>code &lt;file path&gt;</code>使用 VSCode 打开并修改对应文件</p>
 </blockquote>
-]]></content><link href="https://geoqiao.github.io/contents/blog/16-vim-don-t-be-afraid.html"/><published>2023-10-22T06:52:44+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/17-app-defaults-2023.html</id><title>App Defaults 2023</title><updated>2026-02-23T03:44:20+00:00</updated><content type="html"><![CDATA[<h1>背景</h1>
+]]></content><link href="https://geoqiao.github.io/contents/blog/16-vim.html"/><published>2023-10-22T06:52:44+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/17-macapp.html</id><title>17 macapp</title><updated>2026-02-23T03:44:20+00:00</updated><content type="html"><![CDATA[<h1>背景</h1>
 <p>一段时间之前写过一篇<a href="https://github.com/geoqiao/geoqiao.github.io/issues/9">what's on my mac</a>，推荐过一些自己使用的 Mac 应用。</p>
 <p>最近逛 Twitter 刷到<a href="https://defaults.rknight.me/">App Defaults</a>项目，这是一份 RSS 订阅清单，包含了很多播客作者的 App Defaults 文章，可以直接通过 OPML 文件订阅。</p>
 <p>这次一些软件发生了变化，对之前的文章做一个更新。</p>
@@ -494,7 +494,7 @@ if __name__ == &quot;__main__&quot;:
 </ul>
 <h1>总结</h1>
 <p>以上就是我目前高频使用的软件了，还有很多没写上去，大家可以参考 <a href="https://github.com/geoqiao/geoqiao.github.io/issues/9">what's on my mac</a>。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/17-app-defaults-2023.html"/><published>2023-11-11T09:01:56+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/18-python-bian-ji-qi-wo-de-vscode-pei-zhi.html</id><title>Python编辑器-我的VSCode配置</title><updated>2024-05-26T11:45:08+00:00</updated><content type="html"><![CDATA[<p>VSCode 是一款由微软开发、非常流行的代码编辑器：功能强大、简单易用。</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/17-macapp.html"/><published>2023-11-11T09:01:56+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/18-python.html</id><title>18 python</title><updated>2024-05-26T11:45:08+00:00</updated><content type="html"><![CDATA[<p>VSCode 是一款由微软开发、非常流行的代码编辑器：功能强大、简单易用。</p>
 <h2>为什么不是其他编辑器</h2>
 <p>可以编辑 Python 的编辑器很多，但是为什么选择 VSCode 呢？</p>
 <p><strong>PyCharm</strong>：太重了，并且是付费软件。社区版免费，但无法在 PyCharm 中使用 jupyter notebook。并且实话说，我感觉 PyCharm 的学习曲线相对陡峭(下载过一次，感觉配置起来没有 VSCode 简单)。</p>
@@ -625,7 +625,7 @@ if __name__ == &quot;__main__&quot;:
 
 }
 </code></pre>
-]]></content><link href="https://geoqiao.github.io/contents/blog/18-python-bian-ji-qi-wo-de-vscode-pei-zhi.html"/><published>2023-12-10T07:14:08+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/1-rye-hao-yong-de-python-bao-guan-li-gong-ju.html</id><title>rye - 好用的Python包管理工具</title><updated>2024-05-07T15:16:05+00:00</updated><content type="html"><![CDATA[<p><a href="https://github.com/mitsuhiko/rye">rye</a>是一个 Python 的包管理器，可以更轻松的管理 Python 项目和虚拟环境，作者是流行 web 框架 flask 的作者<a href="https://github.com/mitsuhiko">Armin Ronacher</a></p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/18-python.html"/><published>2023-12-10T07:14:08+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/1-python.html</id><title>1 python</title><updated>2024-05-07T15:16:05+00:00</updated><content type="html"><![CDATA[<p><a href="https://github.com/mitsuhiko/rye">rye</a>是一个 Python 的包管理器，可以更轻松的管理 Python 项目和虚拟环境，作者是流行 web 框架 flask 的作者<a href="https://github.com/mitsuhiko">Armin Ronacher</a></p>
 <p>作为一个刚开始学习 Python 的新手，它解决了我碰到的两个难题：</p>
 <ol>
 <li>使用<code>pip</code>安装包时，经常某些包无法在当前 python 版本安装</li>
@@ -704,7 +704,7 @@ rye sync # 所有的修改都需要使用sync命令生效
 </code></pre>
 <h2>最后</h2>
 <p>rye 还支持一些常规的操作，比如接管全局 python、升级项目中某个依赖或者所有依赖的版本、构建/发布包等等功能，可以通过<a href="https://rye-up.com/guide/">官方文档</a>查看。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/1-rye-hao-yong-de-python-bao-guan-li-gong-ju.html"/><published>2024-01-06T07:38:36+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/20-ji-yu-fastapi-de-crud-lian-xi-rss-ding-yue-guan-li.html</id><title>基于 fastAPI 的 CRUD 练习- RSS 订阅管理</title><updated>2024-05-15T15:59:15+00:00</updated><content type="html"><![CDATA[<h1>背景</h1>
+]]></content><link href="https://geoqiao.github.io/contents/blog/1-python.html"/><published>2024-01-06T07:38:36+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/20-python-rss.html</id><title>20 python RSS</title><updated>2024-05-15T15:59:15+00:00</updated><content type="html"><![CDATA[<h1>背景</h1>
 <p>最近两三年，我逐渐卸载了抖音、微博等社交媒体，主要从<span class="pangu"></span>RSS<span class="pangu"></span>订阅获取信息。卸载部分社交媒体让我有了一点时间做其他事情，比如听播客、学<span class="pangu"></span>Python、阅读......</p>
 <p>这个练习是我的<a href="https://cs50.harvard.edu/python/2022/">CS50P</a>final project<span class="pangu"></span>的延续，主要目的是学习一些<span class="pangu"></span>web<span class="pangu"></span>的开发框架、使用<span class="pangu"></span>Python<span class="pangu"></span>操作数据库。</p>
 <h2>why fastAPI</h2>
@@ -780,7 +780,7 @@ async def get_rss_feeds(request: Request):
 </blockquote>
 <p><strong>预览效果如下</strong>
 <img width="1336" alt="image" src="https://github.com/geoqiao/geoqiao.github.io/assets/105639506/869f0d88-fdb0-4f7a-911c-6c8e39b260df"></p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/20-ji-yu-fastapi-de-crud-lian-xi-rss-ding-yue-guan-li.html"/><published>2024-05-10T15:41:01+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/21-shi-yong-python-he-github-pages-da-jian-ge-ren-bo-ke.html</id><title>使用 Python 和 GitHub Pages 搭建个人博客</title><updated>2024-09-22T09:52:11+00:00</updated><content type="html"><![CDATA[<h1>背景</h1>
+]]></content><link href="https://geoqiao.github.io/contents/blog/20-python-rss.html"/><published>2024-05-10T15:41:01+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/21-python-blog.html</id><title>21 python blog</title><updated>2024-09-22T09:52:11+00:00</updated><content type="html"><![CDATA[<h1>背景</h1>
 <p>我偶尔有写点什么的欲望，加上 yihong 老师 <a href="https://github.com/yihong0618/gitblog">gitblog</a> 项目的激励，于是产生了写一个个人博客页面的想法。</p>
 <p>因为工作上数据分析需要，我在 2022 年开始接触 Python。作为一名曾经试图考艺术硕士的商科生，我意外的很喜欢写 Python 的体验。很长一段时间以来，我只使用 Python 做一些数据分析工作。但随着使用时间的增长，我发现自己的 Python 代码代码虽然可以运行，但是很难读、很多代码重复使用率不高、维护起来很费力。</p>
 <p>于是我尝试学习 Python 的基本概念，而不仅仅局限于 Pandas 和 sklearn。这个项目便是我目前学习的成果。</p>
@@ -843,8 +843,8 @@ def markdown2html(mdstr: str):
 <p>因为白天上班比较忙，所以每天晚上下班都会花一个小时来看这个项目。花了将近一个月的时间，我终于实现了自己搭建博客页面的想法。</p>
 <p>现在我已经开始使用自己的项目来写博客，这种体验真的很美妙。</p>
 <p>这是我的<a href="https://github.com/geoqiao/github_blog">源代码仓库</a>和<a href="https://geoqiao.github.io/contents/">GitHub Pages</a>页面</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/21-shi-yong-python-he-github-pages-da-jian-ge-ren-bo-ke.html"/><published>2024-05-12T09:14:39+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/22-claim-my-rss-feed-on-follow-a-amazing-rss-reader.html</id><title>Claim my RSS feed on Follow ,a amazing RSS reader</title><updated>2024-09-08T02:01:25+00:00</updated><content type="html"><![CDATA[<p>This message is used to verify that this feed (feedId:53066833315102724) belongs to me (userId:53065838481510400). Join me in enjoying RSS on the next generation information browser <a href="https://follow.is">https://follow.is</a>.</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/22-claim-my-rss-feed-on-follow-a-amazing-rss-reader.html"/><published>2024-09-08T02:01:25+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/23-uv-github-20k-star-de-zhong-ji-python-xiang-mu-guan-li-gong-ju.html</id><title>uv - GitHub 20k star 的终极 Python 项目管理工具</title><updated>2024-09-22T09:38:47+00:00</updated><content type="html"><![CDATA[<h2>uv 是什么</h2>
+]]></content><link href="https://geoqiao.github.io/contents/blog/21-python-blog.html"/><published>2024-05-12T09:14:39+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/22.html</id><title>22</title><updated>2024-09-08T02:01:25+00:00</updated><content type="html"><![CDATA[<p>This message is used to verify that this feed (feedId:53066833315102724) belongs to me (userId:53065838481510400). Join me in enjoying RSS on the next generation information browser <a href="https://follow.is">https://follow.is</a>.</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/22.html"/><published>2024-09-08T02:01:25+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/23-python.html</id><title>23 python</title><updated>2024-09-22T09:38:47+00:00</updated><content type="html"><![CDATA[<h2>uv 是什么</h2>
 <p><a href="https://docs.astral.sh/uv/">uv</a> 是一个 Python 项目管理和包管理的工具，由 Astral 开发（他们的另一个明星产品是 <a href="https://docs.astral.sh/ruff/">ruff</a> ）。</p>
 <p>在我刚接触 Python 的时候，阻止我动手写代码的问题主要有 2 个：</p>
 <h3>1. 怎么安装 Python？</h3>
@@ -882,7 +882,7 @@ uv remove pandas # 移除pandas库
 <h2>最后</h2>
 <p>这里只是介绍了 uv 的一些常用功能，对于如何使用大家可以参考<a href="https://geoqiao.github.io/contents/blog/1.html">rye 推荐</a>以及<a href="https://docs.astral.sh/uv/">官方文档</a></p>
 <p>如果你也是刚刚接触 Python，或者像我一样刚刚接触代码和命令行，非常推荐使用 uv，可以省去安装 Python 和相关依赖的绝大部分麻烦，直接进入主要的学习代码环节，而不是把时间浪费在环境配置上。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/23-uv-github-20k-star-de-zhong-ji-python-xiang-mu-guan-li-gong-ju.html"/><published>2024-09-08T07:52:02+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/24-wei-github-pages-ge-ren-bo-ke-tian-jia-yaml-pei-zhi-gong-neng-ji-yu-python.html</id><title>为 GitHub Pages 个人博客添加 YAML 配置功能 - 基于 Python</title><updated>2024-10-03T13:35:19+00:00</updated><content type="html"><![CDATA[<p>好长一段时间了，工作上事情很多，很烦。也很久没有写工作以外的 Python 了。趁着假期和一些其他原因，今天又重新捡起了 <a href="https://geoqiao.github.io/contents/">github_blog</a> 这个项目。</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/23-python.html"/><published>2024-09-08T07:52:02+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/24-python-blog.html</id><title>24 python blog</title><updated>2024-10-03T13:35:19+00:00</updated><content type="html"><![CDATA[<p>好长一段时间了，工作上事情很多，很烦。也很久没有写工作以外的 Python 了。趁着假期和一些其他原因，今天又重新捡起了 <a href="https://geoqiao.github.io/contents/">github_blog</a> 这个项目。</p>
 <p>近期主要做了两个改动：</p>
 <ol>
 <li>
@@ -972,7 +972,7 @@ CONFIG = liad_config()
 </ol>
 <p>项目会自动生成 RSS feed，添加到诸如 netnewsfire 或 Follow 中，而且以上只需要配置一次，之后只需要每次写 issue 就好了</p>
 <p>PS：当然现在的前端 templates 还比较简陋，我会慢慢更新优化，也欢迎随时 pull request 到<a href="https://github.com/geoqiao/github_blog">项目仓库</a> 或者提交 issue 。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/24-wei-github-pages-ge-ren-bo-ke-tian-jia-yaml-pei-zhi-gong-neng-ji-yu-python.html"/><published>2024-10-03T11:12:43+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/25-bu-yao-jiu-jie-le-zai-pandas-zhong-shu-ju-shai-xuan-jiu-yong-ta-python.html</id><title>不要纠结了！在Pandas中数据筛选就用它 - Python</title><updated>2024-10-07T11:36:26+00:00</updated><content type="html"><![CDATA[<h2>TL;DR</h2>
+]]></content><link href="https://geoqiao.github.io/contents/blog/24-python-blog.html"/><published>2024-10-03T11:12:43+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/25-python-dataanalysis.html</id><title>25 python DataAnalysis</title><updated>2024-10-07T11:36:26+00:00</updated><content type="html"><![CDATA[<h2>TL;DR</h2>
 <p>建议使用 <code>DataFrame.loc</code> 方法，支持类似 SQL 中的<code>where</code>条件对<code>rows</code>筛选，也支持对<code>column</code>进行筛选。</p>
 <h2>The Zen of Python</h2>
 <p>如果在 Python 文件中输入 <code>import this</code>，便可以看到 Python 之禅的全文。其中有一条：</p>
@@ -1041,7 +1041,7 @@ df.loc[(df[&quot;Age&quot;] &gt; n) &amp; (df[&quot;Gender&quot;] == &quot;Male&
 </ol>
 <h2>结语</h2>
 <p>综上，基本上<code>.loc</code>方法基本可以满足日常工作中会碰到的 90%以上的筛选场景，不用纠结，选<code>.loc</code>准没错！</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/25-bu-yao-jiu-jie-le-zai-pandas-zhong-shu-ju-shai-xuan-jiu-yong-ta-python.html"/><published>2024-10-07T06:42:00+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/26-ru-he-dui-lian-xu-xing-shu-ju-jin-xing-fen-xiang-python.html</id><title>如何对连续型数据进行分箱 - Python</title><updated>2024-10-26T09:03:51+00:00</updated><content type="html"><![CDATA[<p>在做数据分析时，经常要对连续型数据进行分箱。面临的主要问题是：怎么分箱才是最优的？</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/25-python-dataanalysis.html"/><published>2024-10-07T06:42:00+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/26-python-dataanalysis.html</id><title>26 python DataAnalysis</title><updated>2024-10-26T09:03:51+00:00</updated><content type="html"><![CDATA[<p>在做数据分析时，经常要对连续型数据进行分箱。面临的主要问题是：怎么分箱才是最优的？</p>
 <p>一个常见的场景是，老板想看用户在不同年龄段的占比以及消费情况，这时如果将所有年龄全部展示出来会话，表格会非常长，不容易阅读。一般情况下，我们会把相近的年龄做一个区间，来展示不同年龄区间数据。这就需要用到分箱，把年龄划分成不同的区间。</p>
 <h2>常用的分箱方法</h2>
 <ol>
@@ -1103,7 +1103,7 @@ optb.fit(x, y)  #分箱
 <p>是不是非常简单！核心代码其实就三行：实例化分箱器、fit、输出分箱结果。</p>
 <p>实际使用中，可以针对自己的业务场景对代码增加判断是否数值型变量、输出到 excel 等操作。</p>
 <p>其实<code>optbinning</code>库还提供了很多非常好用的接口，比如只获取分箱区间、将分箱结果映射到原始数据集等等操作，大家可以从<a href="https://gnpalencia.org/optbinning/index.html">文档</a>中看到更多技巧。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/26-ru-he-dui-lian-xu-xing-shu-ju-jin-xing-fen-xiang-python.html"/><published>2024-10-26T09:03:51+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/27-python-huan-jing-pei-zhi-cong-ling-kai-shi-uv-pdm-he-vscode-de-zui-jia-shi-jian.html</id><title>Python 环境配置从零开始： uv、pdm 和 VSCode 的最佳实践</title><updated>2024-11-08T15:50:23+00:00</updated><content type="html"><![CDATA[<h2>前言</h2>
+]]></content><link href="https://geoqiao.github.io/contents/blog/26-python-dataanalysis.html"/><published>2024-10-26T09:03:51+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/27-python.html</id><title>27 python</title><updated>2024-11-08T15:50:23+00:00</updated><content type="html"><![CDATA[<h2>前言</h2>
 <p>写过好多次 Python 包管理工具和编辑器选择的 issues 了，但是很散，这里集中整合一下，一次性解决学习 Python 的新手一定会碰到的 Python 安装、环境配置、编辑器选择的问题！</p>
 <h3>TL;DR</h3>
 <p>推荐使用<code>uv</code>或者<code>pdm</code>这样的工具来解决管理 Python 版本、管理虚拟环境及依赖的问题。</p>
@@ -1189,7 +1189,7 @@ uv 和 pdm 有什么区别：<ul>
 </li>
 </ol>
 <p>最后再提一句，编辑器就用 VSCode 就行了，千万不要瞎折腾！千万不要瞎折腾！千万不要瞎折腾！</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/27-python-huan-jing-pei-zhi-cong-ling-kai-shi-uv-pdm-he-vscode-de-zui-jia-shi-jian.html"/><published>2024-11-03T09:53:26+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/28-pei-zhi-vscode-de-mian-fei-ai-bian-cheng-zhu-shou-ollama-groq-he-continue-kuo-zhan.html</id><title>配置 VSCode 的免费 AI 编程助手：Ollama 、Groq和 Continue 扩展</title><updated>2024-11-16T08:53:28+00:00</updated><content type="html"><![CDATA[<p>这篇 issue 展示通过配置 Ollama 和 Continue 扩展，为 VSCode 配置免费、本地的 AI 编程助手。</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/27-python.html"/><published>2024-11-03T09:53:26+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/28-vscode-copilot.html</id><title>28 VSCode copilot</title><updated>2024-11-16T08:53:28+00:00</updated><content type="html"><![CDATA[<p>这篇 issue 展示通过配置 Ollama 和 Continue 扩展，为 VSCode 配置免费、本地的 AI 编程助手。</p>
 <p>我在体验了 cursor 之后，立即寻找类似 cursor 的免费解决方案。最终发现使用 Continue 配置自定义的 API 是相对比较简单，且实用的方法。</p>
 <blockquote>
 <p><strong>Ollama</strong>: 是一个开源框架，专为在本地机器上便捷部署和运行大型语言模型（LLM）而设计。使用 ollama 可以在自己的本地电脑上运行开源大模型。</p>
@@ -1237,7 +1237,7 @@ ollama run qwen2.5-coder:7b # 安装 qwen2.5-coder:7b
 <h2>结论</h2>
 <p>现在给自己配置一个免费的编程助手真的不要太简单，虽然能力上还不如 Claude，但是日常使用已经非常够用了</p>
 <img width="1988" alt="image" src="https://github.com/user-attachments/assets/b257d01e-3c16-4a38-b75e-413d0ce500f8">
-]]></content><link href="https://geoqiao.github.io/contents/blog/28-pei-zhi-vscode-de-mian-fei-ai-bian-cheng-zhu-shou-ollama-groq-he-continue-kuo-zhan.html"/><published>2024-11-16T08:53:27+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/29-2024-nian-zhong-zong-jie-kong-zhi-yu-qi-jian-chi-xia-qu.html</id><title>2024年终总结：控制预期，坚持下去</title><updated>2025-12-21T06:58:17+00:00</updated><content type="html"><![CDATA[<p>好久不见!</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/28-vscode-copilot.html"/><published>2024-11-16T08:53:27+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/29-summary.html</id><title>29 summary</title><updated>2025-12-21T06:58:17+00:00</updated><content type="html"><![CDATA[<p>好久不见!</p>
 <p>已经好久没有更新博客了，甚至很久没有优化博客的代码实现。</p>
 <p>2024 年发生了很多事情，我很感谢它。</p>
 <blockquote>
@@ -1272,7 +1272,7 @@ ollama run qwen2.5-coder:7b # 安装 qwen2.5-coder:7b
 <li><input checked="" disabled="" type="checkbox"> 带妈妈出去走走</li>
 <li><input checked="" disabled="" type="checkbox"> 要回去看看姥姥，我很想她，但我不能经常想</li>
 </ul>
-]]></content><link href="https://geoqiao.github.io/contents/blog/29-2024-nian-zhong-zong-jie-kong-zhi-yu-qi-jian-chi-xia-qu.html"/><published>2024-12-31T15:42:13+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/30-wo-xi-huan-dong-tian-de-xia-wu-zou-lu-qu-cheng-du-de-cha-guan-he-cha.html</id><title>我喜欢冬天的下午走路去成都的茶馆喝茶</title><updated>2025-02-05T12:39:28+00:00</updated><content type="html"><![CDATA[<h2>记录一下</h2>
+]]></content><link href="https://geoqiao.github.io/contents/blog/29-summary.html"/><published>2024-12-31T15:42:13+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/30-travel.html</id><title>30 travel</title><updated>2025-02-05T12:39:28+00:00</updated><content type="html"><![CDATA[<h2>记录一下</h2>
 <p>今年的计划完成了一大项：带妈妈出去走走。</p>
 <p>正好赶上春节期间表妹结婚，要去成都，所以回家也待不了几天，于是邀请妈妈来上海。</p>
 <p>去了杭州、苏州，也再次逛了一下上海，最后去成都。</p>
@@ -1287,7 +1287,7 @@ ollama run qwen2.5-coder:7b # 安装 qwen2.5-coder:7b
 <p>成都冬天的气温也非常加分，昼夜温差很小，白天坐在室外的茶馆也不觉得冷。</p>
 <h3>3. 相比历史文化景点，我更喜欢自然景点</h3>
 <p>虽然历史文化有其独特魅力，但自然景观带来的宁静与放松让我感到更加舒适。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/30-wo-xi-huan-dong-tian-de-xia-wu-zou-lu-qu-cheng-du-de-cha-guan-he-cha.html"/><published>2025-02-05T12:39:28+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/31-2025-nian-zhong-zong-jie-guan-zhu-zi-ji.html</id><title>2025年终总结：关注自己</title><updated>2026-02-23T02:33:41+00:00</updated><content type="html"><![CDATA[<p>是时候回顾一下了。26<span class="pangu"></span>年已经到来，祝有缘读到这篇的朋友新年快乐！</p>
+]]></content><link href="https://geoqiao.github.io/contents/blog/30-travel.html"/><published>2025-02-05T12:39:28+00:00</published></entry><entry><id>https://geoqiao.github.io/contents/blog/31-summary.html</id><title>31 summary</title><updated>2026-02-23T02:33:41+00:00</updated><content type="html"><![CDATA[<p>是时候回顾一下了。26<span class="pangu"></span>年已经到来，祝有缘读到这篇的朋友新年快乐！</p>
 <h2>25<span class="pangu"></span>年待办进度</h2>
 <p>25<span class="pangu"></span>年的待办事项基本完成</p>
 <ul>
@@ -1366,4 +1366,4 @@ ollama run qwen2.5-coder:7b # 安装 qwen2.5-coder:7b
 </ul>
 <h2>总结</h2>
 <p>2025<span class="pangu"></span>年过去了，30<span class="pangu"></span>岁到了，很多事情都已发生。愿我可以永远策马扬鞭、坦诚对待自己。</p>
-]]></content><link href="https://geoqiao.github.io/contents/blog/31-2025-nian-zhong-zong-jie-guan-zhu-zi-ji.html"/><published>2026-02-21T14:35:26+00:00</published></entry></feed>
+]]></content><link href="https://geoqiao.github.io/contents/blog/31-summary.html"/><published>2026-02-21T14:35:26+00:00</published></entry></feed>
