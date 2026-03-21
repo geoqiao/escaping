@@ -38,7 +38,9 @@ class ThemeConfig(BaseModel):
 class Settings(BaseSettings):
     blog: BlogConfig
     github: GithubConfig
-    google_search_console: GoogleSearchConsoleConfig = Field(alias="GoogleSearchConsole")
+    google_search_console: GoogleSearchConsoleConfig = Field(
+        alias="GoogleSearchConsole"
+    )
     theme: ThemeConfig
 
     model_config = SettingsConfigDict(
@@ -56,7 +58,7 @@ class Settings(BaseSettings):
 
 # 全局配置实例
 try:
-    settings = Settings.load_from_yaml(Path("configs/config.yaml"))
+    settings = Settings.load_from_yaml(Path("config.yaml"))
 except Exception:
     # 允许测试或 CI 环境通过环境变量覆盖，若 yaml 不存在则跳过
     pass
