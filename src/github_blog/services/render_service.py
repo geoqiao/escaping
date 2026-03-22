@@ -150,3 +150,16 @@ class RenderService:
         seo_env = Environment(loader=FileSystemLoader("templates/seo"))
         template = seo_env.get_template("robots.txt.j2")
         return template.render(base_url=str(settings.blog.url).rstrip("/"))
+
+    def render_about(self) -> str:
+        template = self.env.get_template("about.html")
+        return template.render(
+            blog_title=settings.blog.title,
+            github_name=settings.github.name,
+            github_repo=settings.github.repo,
+            blog_url=str(settings.blog.url),
+            rss_atom_path=settings.blog.rss_atom_path,
+            author_name=settings.blog.author.name,
+            meta_description=settings.blog.description,
+            google_search_verification=settings.google_search_console.content,
+        )

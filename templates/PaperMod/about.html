@@ -1,32 +1,27 @@
-<!DOCTYPE html>
-<html>
+{% extends 'base.html' %}
 
-<head>
-    <meta charset="utf-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>About - {{ blog_title }}</title>
-    <link rel="stylesheet" href="/templates/PaperMod/static/css/papermod.css">
-</head>
+{% block title %}About - {{ blog_title }}{% endblock %}
 
-<body>
-    <main class="page-content">
-        <div class="w">
-            <header>
-                <h1>About</h1>
-            </header>
+{% block canonical %}
+<link rel="canonical" href="{{ blog_url.rstrip('/') }}/contents/about.html" />
+{% endblock %}
 
-            <div class="about-content">
-                <img src="/templates/PaperMod/static/images/favicon.png" alt="profile photo"
-                    style="width:120px;border-radius:50%">
-                <h2>{{ author_name }}</h2>
-                <p>{{ meta_description }}</p>
+{% block og_url %}{{ blog_url.rstrip('/') }}/contents/about.html{% endblock %}
+{% block og_title %}About - {{ blog_title }}{% endblock %}
+{% block og_description %}{{ meta_description }}{% endblock %}
 
-                <p>
-                    <a href="https://github.com/{{ github_name }}">GitHub</a>
-                </p>
-            </div>
-        </div>
-    </main>
-</body>
+{% block twitter_url %}{{ blog_url.rstrip('/') }}/contents/about.html{% endblock %}
+{% block twitter_title %}About - {{ blog_title }}{% endblock %}
+{% block twitter_description %}{{ meta_description }}{% endblock %}
 
-</html>
+{% block content %}
+<div class="about-page" style="max-width:640px;margin:3rem auto;text-align:center">
+    <img src="/templates/PaperMod/static/images/favicon.png" alt="{{ author_name }}"
+        style="width:120px;border-radius:50%;margin-bottom:1rem">
+    <h1 style="margin-bottom:0.5rem">{{ author_name }}</h1>
+    <p style="color:var(--muted);margin-bottom:1.5rem">{{ meta_description }}</p>
+    <p>
+        <a href="https://github.com/{{ github_name }}" style="color:var(--accent)">GitHub</a>
+    </p>
+</div>
+{% endblock %}

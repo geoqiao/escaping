@@ -70,6 +70,10 @@ class BlogGenerator:
             robots_content = self.render.render_robots()
             Path("robots.txt").write_text(robots_content, encoding="utf-8")
 
+            # 渲染 about 页面
+            about_content = self.render.render_about()
+            (settings.blog.content_dir / "about.html").write_text(about_content, encoding="utf-8")
+
             logger.info("generation_completed")
         except Exception as e:
             logger.error("generation_failed", error=str(e))
