@@ -168,3 +168,4 @@ backup/
 .vscode/
 .ruff_cache/
 .trae/
+.superpowers/
