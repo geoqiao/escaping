@@ -400,6 +400,17 @@ html[data-theme='dark'] .tag {
     color: #4b5563
 }
 
+.toc-link.toc-active {
+    color: var(--accent);
+    box-shadow: inset 2px 0 0 var(--accent);
+    padding-left: 4px;
+    font-weight: 700;
+}
+
+html[data-theme='dark'] .toc-link.toc-active {
+    color: var(--accent);
+}
+
 html[data-theme='dark'] .toc-link {
     color: #e5e7eb
 }

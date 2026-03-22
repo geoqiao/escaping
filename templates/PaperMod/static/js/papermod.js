@@ -6,7 +6,7 @@
     if (saved) applyTheme(saved); else { const prefers = window.matchMedia && window.matchMedia('(prefers-color-scheme: dark)').matches; applyTheme(prefers ? 'dark' : 'light') }
     if (themeBtn) themeBtn.addEventListener('click', () => { const cur = document.documentElement.getAttribute('data-theme') || 'light'; applyTheme(cur === 'dark' ? 'light' : 'dark') });
 
-    // Simple TOC builder: find headings inside post-content
+    // TOC builder + active highlight
     const toc = document.getElementById('toc');
     if (toc) {
         const content = document.querySelector('.post-content');
@@ -15,6 +15,7 @@
             if (headings.length) {
                 const ul = document.createElement('ul');
                 ul.className = 'toc-list';
+                const tocLinks = [];
                 headings.forEach((h, index) => {
                     if (!h.id) {
                         const base = h.textContent.trim().toLowerCase().replace(/[^\p{L}\p{N}]+/gu, '-').replace(/^-+|-+$/g, '');
@@ -29,8 +30,26 @@
                     a.textContent = h.textContent;
                     li.appendChild(a);
                     ul.appendChild(li);
+                    tocLinks.push({ heading: h, link: a });
                 });
                 toc.appendChild(ul);
+
+                // Active highlight via IntersectionObserver
+                let activeLink = null;
+                const observer = new IntersectionObserver((entries) => {
+                    entries.forEach(entry => {
+                        if (entry.isIntersecting) {
+                            const match = tocLinks.find(t => t.heading === entry.target);
+                            if (match) {
+                                if (activeLink) activeLink.classList.remove('toc-active');
+                                activeLink = match.link;
+                                activeLink.classList.add('toc-active');
+                            }
+                        }
+                    });
+                }, { rootMargin: '0px 0px -80% 0px', threshold: 0 });
+
+                headings.forEach(h => observer.observe(h));
             }
         }
     }
