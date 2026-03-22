@@ -1,48 +1,71 @@
-# github-blog
+# github-blog 🚀
 
-自从学习 Python 以来，一直有个自己写一个博客页面的想法，今天终于初步实现了。
+[English](#english) | [简体中文](#简体中文)
 
-**原理非常简单**：
+---
 
-1. 使用 PyGithub 读取 GitHub 仓库的 issues
-   > 可以返回 issue 的标题、创建时间、标签、内容等
-2. 利用 GitHub API 将第一步得到的 markdown 格式的 issue 内容转换为 HTML
-3. 使用 Jinja2 写一个 HTML 模板，并将第一步得到的内容渲染
+## 简体中文
 
-**demo**: [geoqiao's pages](https://geoqiao.github.io/contents/)
+### 简介
 
-## 使用方法
+`github-blog` 是一个极致简洁、自动化程度极高的个人博客框架。它将 GitHub Issues 作为后端编辑器，利用 GitHub Actions 自动触发构建，并最终通过 GitHub Pages 进行分发。
 
-1. 创建<user_name>.github.io 仓库
-2. 将此仓库的所有文件复制到<user_name>.github.io 仓库中
-3. 配置 GitHub Token & [utterances](https://utteranc.es/)
-4. 修改`./configs/config.yaml`文件中的配置信息，例如将用户名、博客名称切换为你自己的
-5. 修改 index.html 为你的个人信息
-6. 创建你的 issues
+**核心特性**：
 
-## ROADMAP && TODO
+- 📝 **以 Issue 为博文**：直接在 GitHub Issues 中写作，支持标签分类。
+- 🤖 **全自动化流**：无需本地部署，Issue 更新即刻触发自动构建。
+- 🎨 **优雅 UI**：内置精美的 PaperMod 主题，支持暗色模式与极致的中西文排版优化。
+- 🔍 **SEO 友好**：自动生成 `sitemap.xml`、`robots.txt` 以及语义化的 URL (Slugs)。
+- ⚡ **性能卓越**：基于 Python 3.11 和 `uv` 构建，生成速度极快。
 
-- [x] 优化 HTML 模板（尽力了... 等更熟悉 CSS 之后再搞
-- [x] 增加 GitHub Actions 支持，实现 issue 更新后自动部署
-- [x] 慢慢优化代码，比如模板中涉及到仓库和 GitHub 用户名的部分全部改为变量（现在优先实现功能、优化先放一放
-- [x] 分享搭建的过程，输出中巩固
-- [x] 增加基于 issue 的评论功能
-- [x] 增加模板选择功能（就差新模板了）
-- [ ] 增加 SEO 优化配置项
-- [ ] 增加这个代码仓库更新后，自动同步至 GitHub Pages 仓库的功能
+### 快速开始 (3步搞定)
 
-## 非常感谢
+1. **通过模板创建**：点击 `Use this template` 创建你的仓库（建议命名为 `username.github.io`）。
+2. **配置秘钥**：在仓库 `Settings -> Secrets and variables -> Actions` 中添加名为 `G_T` 的 Secret，值为你的 [GitHub Personal Access Token](https://github.com/settings/tokens)。
+3. **开始写作**：新建一个 Issue 并添加至少一个 Label，稍等片刻，你的博客就上线了！
 
-**[gitblog](https://github.com/yihong0618/gitblog)**
+### 示例
 
-我之前使用的是 yihong 老师的 gitblog ~~（自己写的还没能完全自动化）~~，也是从 yihong 老师这里第一次看到了用 issue 写博客，还能用 GitHub 和 Python 实现几乎完全自动化，真是太牛了。如果有写博客的需求，强烈推荐这个项目。
+- **作者博客**: [geoqiao&#39;s Blog](https://geoqiao.github.io/)
 
-**[Gmeek](https://github.com/Meekdai/Gmeek)**
+### 鸣谢
 
-关注 Gmeek 项目也很久，从这里知道了如何使用 GitHub API 实现 markdown 转 HTML。这个项目已经很完善，按教程操作走，很快就可以实现 GitHub Pages 的搭建。
+本项目深受以下优秀项目的启发：
 
-以及 **Gemini/poe** 等一大批 ai 工具，作为编程初学者赶上这个两年，真的受益良多
+- [gitblog](https://github.com/yihong0618/gitblog) - 开启了 Issue 写作的先河。
+- [Gmeek](https://github.com/Meekdai/Gmeek) - 提供了极简的构建思路。
+- 感谢 **Trae/Gemini** 等 AI 工具在前端审美与代码重构上的巨大帮助。
 
-**[utterances](https://utteranc.es/)**
+---
 
-评论功能由 utterances 实现，非常简单好用！
+## English
+
+### Introduction
+
+`github-blog` is a minimalist and highly automated personal blog framework. It turns GitHub Issues into a powerful CMS, leverages GitHub Actions for automated builds, and deploys via GitHub Pages.
+
+**Key Features**:
+
+- 📝 **Issue-based Writing**: Write directly in GitHub Issues with label support.
+- 🤖 **Zero-Ops Workflow**: No local setup required; build triggers automatically on issue updates.
+- 🎨 **Elegant UI**: Built-in refined PaperMod theme with dark mode and optimized typography for mixed CN/EN content.
+- 🔍 **SEO Ready**: Automated generation of `sitemap.xml`, `robots.txt`, and human-friendly slugs.
+- ⚡ **High Performance**: Powered by Python 3.11 and `uv` for lightning-fast site generation.
+
+### Quick Start
+
+1. **Use Template**: Click `Use this template` to create your repository (recommended: `username.github.io`).
+2. **Add Secret**: Go to `Settings -> Secrets and variables -> Actions` and add a Secret named `G_T` with your [GitHub Personal Access Token](https://github.com/settings/tokens).
+3. **Start Writing**: Create a new Issue and add at least one Label. Your blog will be live in seconds!
+
+### Live Demo
+
+- **Author's Blog**: [geoqiao&#39;s Blog](https://geoqiao.github.io/)
+
+### Credits
+
+This project is inspired by:
+
+- [gitblog](https://github.com/yihong0618/gitblog) - The pioneer of Issue-based blogging.
+- [Gmeek](https://github.com/Meekdai/Gmeek) - For the minimalist build philosophy.
+- Thanks to **Trae/Gemini** for the incredible assistance in UI aesthetics and code refactoring.
