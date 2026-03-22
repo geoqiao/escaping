@@ -167,4 +167,4 @@ backup/
 
 .vscode/
 .ruff_cache/
-.trae/
+.trae/.worktrees/
