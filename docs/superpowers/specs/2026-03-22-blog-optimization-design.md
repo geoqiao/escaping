@@ -26,7 +26,7 @@ The main pain points identified:
 1. Improve the reading experience for every post page
 2. Fix known bugs and content gaps
 3. Make the build system more robust and faster
-4. Keep all changes self-contained with no new external runtime dependencies (pure Python for backend, no Node.js required)
+4. Keep all changes self-contained with no new external runtime dependencies (pure Python for backend, no Node.js required). Frontend JS libraries like Fuse.js are bundled locally and have no server-side or build-time impact.
 
 ---
 
@@ -64,9 +64,10 @@ Frontend changes are confined to:
 - `templates/PaperMod/post.html` — add progress bar element
 
 Backend changes are confined to:
-- `src/github_blog/cli.py` — incremental build logic
-- `src/github_blog/builder.py` (or equivalent render entry point) — asset fingerprinting + minification
-- `src/github_blog/markdown.py` (or marko extension) — lazy-load images
+- `src/github_blog/cli.py` — incremental build logic, asset fingerprinting + minification orchestration
+- `src/github_blog/services/render_service.py` — marko renderer extension (lazy-load images), feedgen RSS changes
+- new `src/github_blog/build_cache.py` — incremental build cache helper
+- new `src/github_blog/assets.py` — asset fingerprinting + minification helpers
 - `tests/` — new test files
 
 ---
@@ -147,7 +148,7 @@ These changes directly affect every post page read.
 |-----------|----------|
 | `tests/test_slug.py` | `slug.py` — CJK transliteration, ASCII slugify, collision handling |
 | `tests/test_config.py` | `config.py` — required fields, env override, invalid config rejection |
-| `tests/test_renderer.py` | Template rendering smoke tests — post, index, tag, home pages render without error |
+| `tests/test_renderer.py` | Unit tests for `render_service.py` — call `render_post()`, `render_index()`, `render_tag()`, `render_home()` directly with minimal fixture data; assert the returned HTML string contains expected elements (no filesystem I/O) |
 | `tests/test_pagination.py` | Pagination logic — page count, page boundaries, empty case |
 
 **Tool:** `pytest`. Add to `pyproject.toml` dev dependencies.
@@ -158,9 +159,9 @@ These changes directly affect every post page read.
 
 **What:** All `<img>` tags in rendered post HTML get `loading="lazy"`.
 
-**How:** Extend the marko renderer (`src/github_blog/markdown.py` or wherever the custom marko extension lives) to override the `Image` element and inject `loading="lazy"`.
+**How:** Extend the marko renderer in `src/github_blog/services/render_service.py` — add a custom `Image` renderer class that injects `loading="lazy"` into the rendered `<img>` tag.
 
-**Files:** `src/github_blog/markdown.py` (or equivalent)
+**Files:** `src/github_blog/services/render_service.py`
 
 ---
 
@@ -176,6 +177,7 @@ These changes directly affect every post page read.
 3. For each fetched issue, compare `updated_at`; skip render if unchanged
 4. Always re-render index, tag, and home pages (they depend on the full post list)
 5. Always invalidate cache if `config.yaml` or any template changes (compare template mtimes)
+6. Support a `--force` CLI flag in `cli.py` that bypasses the cache entirely and rebuilds all pages
 
 **Files:** `src/github_blog/cli.py`, new `src/github_blog/build_cache.py`
 
@@ -189,17 +191,17 @@ These changes directly affect every post page read.
 3. Inject the hashed filename into a Jinja2 context variable (`asset_url('papermod.css')` helper)
 4. Templates reference `{{ asset_url('papermod.css') }}`
 
-**Files:** `src/github_blog/builder.py`, all templates that reference static assets
+**Files:** `src/github_blog/assets.py` (new helper), `src/github_blog/cli.py` (calls helper), and these templates that reference static assets: `base.html`, `home.html`, `about.html`
 
 #### CSS/JS Minification
 
 **What:** Reduce transfer size of static assets by ~30–40%.
 
-**How:** Use `rcssmin` (CSS) and `rjsmin` (JS) — both are pure Python, zero new non-Python dependencies, compatible with the existing `uv` setup. Run at build time after fingerprinting.
+**How:** Use `rcssmin` (CSS) and `rjsmin` (JS) — both are pure Python, zero new non-Python dependencies, compatible with the existing `uv` setup. Run at build time after fingerprinting inside `assets.py`.
 
 **New dependencies:** `rcssmin`, `rjsmin` (add to `pyproject.toml`)
 
-**Files:** `src/github_blog/builder.py`, `pyproject.toml`
+**Files:** `src/github_blog/assets.py` (new helper), `pyproject.toml`
 
 ---
 
@@ -225,7 +227,7 @@ These changes directly affect every post page read.
 
 **How:** Update `feedgen` usage in the feed builder to set `entry.content()` with the full rendered HTML. Add a feed generation loop over all tags.
 
-**Files:** `src/github_blog/feed.py` (or wherever feedgen is called)
+**Files:** `src/github_blog/services/render_service.py` (where feedgen is called)
 
 #### Lighthouse Audit + Accessibility
 
@@ -236,7 +238,7 @@ These changes directly affect every post page read.
 - Low color contrast on some muted text → adjust CSS custom properties
 - Missing `aria-label` on icon-only links (nav icons) → fix in `base.html`
 
-**This is a one-time audit task, not a code change spec.**
+**This is a one-time audit task, not a code change spec. It is excluded from the implementation plan and tracked separately.**
 
 ---
 
@@ -271,7 +273,8 @@ Each priority is independently deployable. P0 changes are purely frontend (no Py
 - [ ] P0: Typography changes applied, line-height and max-width verified
 - [ ] P1: Copy button works on all code blocks; language label shows correctly
 - [ ] P1: `/about.html` has nav, dark mode, and OG tags
-- [ ] P1: `pytest` runs green with ≥ 80% coverage on core modules
-- [ ] P2: Second build after a single issue edit only re-renders that post's page
+- [ ] P1: `pytest` runs green with ≥ 80% line coverage across the four tested modules (`slug`, `config`, `render_service`, pagination logic)
+- [ ] P2: Second build after a single issue edit only re-renders that post's page (all other post HTML files unchanged)
+- [ ] P2: Build after touching any template file or `config.yaml` triggers a full rebuild (cache fully invalidated)
 - [ ] P2: CSS/JS filenames contain hash; browser hard-refresh not needed after deploys
 - [ ] P3: Search returns relevant results for title and content queries
