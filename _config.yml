@@ -1,0 +1,38 @@
+# Jekyll configuration
+# This file is used by GitHub Pages to configure Jekyll build
+
+# Exclude directories and files from Jekyll processing
+exclude:
+  - docs/
+  - src/
+  - templates/
+  - tests/
+  - ".venv/"
+  - ".coverage"
+  - "*.py"
+  - "uv.lock"
+  - "pyproject.toml"
+  - "config.yaml"
+  - ".python-version"
+  - ".gitignore"
+  - ".gitattributes"
+  - README.md
+  - backup/
+  - ".github/"
+  - ".vscode/"
+  - ".ruff_cache/"
+  - ".trae/"
+  - ".superpowers/"
+
+# Disable Jekyll's default processing since we use custom HTML
+defaults:
+  - scope:
+      path: ""
+    values:
+      layout: null
+
+# Disable plugins that might interfere with our HTML
+plugins: []
+
+# Set safe mode to prevent unwanted processing
+safe: true
