@@ -51,6 +51,30 @@ uv run blog-gen <GITHUB_TOKEN> <REPO_NAME>
 uv run blog-gen ghp_xxx geoqiao/geoqiao.github.io
 ```
 
+### Local Preview
+
+**Important:** Always start the HTTP server from the project root directory, not from `contents/`.
+
+```bash
+# Correct: Start from project root
+uv run python -m http.server 8000
+# Then open http://localhost:8000
+```
+
+**Why:** The project uses absolute paths like `/templates/PaperMod/static/css/papermod.css` for CSS.
+- The `templates/` directory is at the project root
+- `contents/` is just a subdirectory for blog posts
+- Starting from `contents/` would cause 404 errors for all static resources
+
+**Directory structure reminder:**
+```
+project-root/          <- Start server here
+├── index.html         <- Landing page (home)
+├── contents/          <- Blog posts subdirectory
+│   └── blog/
+└── templates/         <- Theme static files
+```
+
 ### Testing
 ```bash
 # Run all tests with coverage
