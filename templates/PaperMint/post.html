@@ -9,11 +9,13 @@
 {% block og_type %}article{% endblock %}
 {% block og_url %}{{ blog_url.rstrip('/') }}/contents/blog/{{ slug }}.html{% endblock %}
 {% block og_title %}{{ issue.title }}{% endblock %}
-{% block og_description %}标签: {% for label in issue.labels %}{{ label.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% endblock %}
+{% block og_description %}{% if issue.labels %}Tags: {% for label in issue.labels %}{{ label.name }}{% if not loop.last
+%}, {% endif %}{% endfor %}{% else %}{{ blog_title }}{% endif %}{% endblock %}
 
 {% block twitter_url %}{{ blog_url.rstrip('/') }}/contents/blog/{{ slug }}.html{% endblock %}
 {% block twitter_title %}{{ issue.title }}{% endblock %}
-{% block twitter_description %}标签: {% for label in issue.labels %}{{ label.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% endblock %}
+{% block twitter_description %}{% if issue.labels %}Tags: {% for label in issue.labels %}{{ label.name }}{% if not
+loop.last %}, {% endif %}{% endfor %}{% else %}{{ blog_title }}{% endif %}{% endblock %}
 
 {% block content %}
 <div id="reading-progress"></div>
@@ -26,7 +28,8 @@
         <h1 class="post-title">{{ issue.title }}</h1>
         <div class="post-meta">发布于 {{ issue.created_at.strftime('%Y-%m-%d') }}
             {% if issue.labels %}
-            | 标签: {% for label in issue.labels %}<a href="/contents/tag/{{ label.name }}.html" class="tag">{{ label.name
+            | Tags: {% for label in issue.labels %}<a href="/contents/tag/{{ label.name }}.html" class="tag">{{
+                label.name
                 }}</a>{% endfor %}
             {% endif %}
         </div>

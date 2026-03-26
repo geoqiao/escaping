@@ -1,14 +1,14 @@
 {% extends 'base.html' %}
 
-{% block title %}标签: {{ tag_name }} - {{ blog_title }}{% endblock %}
+{% block title %}Tags: {{ tag_name }} - {{ blog_title }}{% endblock %}
 
 {% block canonical %}
 <link rel="canonical" href="{{ blog_url.rstrip('/') }}/contents/tag/{{ tag_name }}.html" />
 {% endblock %}
 
-{% block og_title %}标签: {{ tag_name }}{% endblock %}
+{% block og_title %}Tags: {{ tag_name }}{% endblock %}
 {% block og_url %}{{ blog_url.rstrip('/') }}/contents/tag/{{ tag_name }}.html{% endblock %}
-{% block twitter_title %}标签: {{ tag_name }}{% endblock %}
+{% block twitter_title %}Tags: {{ tag_name }}{% endblock %}
 
 {% block content %}
 <section class="content-grid">
@@ -21,7 +21,7 @@
         </section>
 
         <section class="tags">
-            <h4>标签</h4>
+            <h4>Tags</h4>
             {% if tags %}
             <div class="tag-list">
                 {% for tag in tags %}
@@ -29,17 +29,17 @@
                 {% endfor %}
             </div>
             {% else %}
-            <p>暂无标签</p>
+            <p>No Tags</p>
             {% endif %}
         </section>
 
         <section class="about-link">
-            <a href="/contents/about.html">关于作者 →</a>
+            <a href="/contents/about.html">About →</a>
         </section>
     </aside>
 
     <main class="posts-list">
-        <h1 class="post-title">标签: {{ tag_name }}</h1>
+        <h1 class="post-title">Tags: {{ tag_name }}</h1>
         {% if issues %}
         {% for issue in issues %}
         <article class="post">
@@ -47,7 +47,7 @@
             <h2 class="post-title"><a href="/contents/blog/{{ slug }}.html">{{ issue.title }}</a></h2>
             <div class="post-meta">发布于 {{ issue.created_at.strftime('%Y-%m-%d') }}
                 {% if issue.labels %}
-                | 标签: {% for label in issue.labels %}<a href="/contents/tag/{{ label.name }}.html" class="tag">{{
+                | Tags: {% for label in issue.labels %}<a href="/contents/tag/{{ label.name }}.html" class="tag">{{
                     label.name }}</a>{% endfor %}
                 {% endif %}
             </div>
@@ -55,7 +55,7 @@
         </article>
         {% endfor %}
         {% else %}
-        <p class="post-summary">该标签下暂无文章。</p>
+        <p class="post-summary">No articles under this tag.</p>
         {% endif %}
     </main>
 </section>

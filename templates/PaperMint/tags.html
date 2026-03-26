@@ -1,10 +1,14 @@
 {% extends 'base.html' %}
 
-{% block title %}标签 - {{ blog_title }}{% endblock %}
+{% block title %}Tags - {{ blog_title }}{% endblock %}
 
 {% block canonical %}
-<link rel="canonical" href="{{ blog_url }}contents/tag/index.html" />
+<link rel="canonical" href="{{ blog_url.rstrip('/') }}/contents/tag/index.html" />
 {% endblock %}
+
+{% block og_title %}Tags{% endblock %}
+{% block og_url %}{{ blog_url.rstrip('/') }}/contents/tag/index.html{% endblock %}
+{% block twitter_title %}Tags{% endblock %}
 
 {% block content %}
 <section class="content-grid">
@@ -17,7 +21,7 @@
         </section>
 
         <section class="tags">
-            <h4>标签</h4>
+            <h4>Tags</h4>
             {% if tags %}
             <div class="tag-list">
                 {% for tag in tags %}
@@ -25,27 +29,28 @@
                 {% endfor %}
             </div>
             {% else %}
-            <p>暂无标签</p>
+            <p>No Tags</p>
             {% endif %}
         </section>
 
         <section class="about-link">
-            <a href="/contents/about.html">关于作者 →</a>
+            <a href="/contents/about.html">About →</a>
         </section>
     </aside>
 
     <main class="posts-list">
-        <h1 class="post-title">所有标签</h1>
+        <h1 class="post-title">All Tags</h1>
         {% if tag_items %}
-        <div class="tag-list">
+        <div class="tag-cloud">
             {% for item in tag_items %}
-            <a class="tag" href="/contents/tag/{{ item.name }}.html">
-                {{ item.name }} ({{ item.count }})
+            <a href="/contents/tag/{{ item.name }}.html" class="tag-item">
+                <span class="tag-name">{{ item.name }}</span>
+                <span class="tag-count">{{ item.count }}</span>
             </a>
             {% endfor %}
         </div>
         {% else %}
-        <p class="post-summary">当前没有任何标签。</p>
+        <p class="post-summary">No tags found.</p>
         {% endif %}
     </main>
 </section>
