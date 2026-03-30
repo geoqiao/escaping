@@ -23,6 +23,8 @@ jobs:
   build:
     name: Generate Site
     runs-on: ubuntu-latest
+    env:
+      FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
     if: github.event_name != 'issues' || github.repository_owner_id == github.event.issue.user.id
     steps:
       - name: Checkout
