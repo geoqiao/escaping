@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from feedgen.feed import FeedGenerator
@@ -30,8 +31,10 @@ class RenderService:
             loader=FileSystemLoader(str(self.settings.theme.path)),
             autoescape=True,
         )
+        # SEO templates are relative to theme path (e.g., templates/seo)
+        seo_template_path = self.settings.theme.path.parent / "seo"
         self.seo_env = Environment(
-            loader=FileSystemLoader("templates/seo"),
+            loader=FileSystemLoader(str(seo_template_path)),
             autoescape=True,
         )
         self.markdown = Markdown(extensions=[GFM, "pangu"], renderer=LazyImageRenderer)
@@ -121,7 +124,8 @@ class RenderService:
         for issue in issues:
             slug = issue_slugs[str(issue.number)]
             fe = fg.add_entry()
-            url = f"{base_url}/contents/{blog_dir_str}/{slug}.html"
+            content_dir_str = str(self.settings.blog.content_dir).strip("./").strip("/")
+            url = f"{base_url}/{content_dir_str}/{blog_dir_str}/{slug}.html"
             fe.id(url)
             fe.title(issue.title)
             fe.link(href=url)
