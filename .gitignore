@@ -164,6 +164,7 @@ cython_debug/
 # Generated site content (deployed via GitHub Actions)
 docs/
 contents/
+output/
 /index.html
 robots.txt
 sitemap.xml
