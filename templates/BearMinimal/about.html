@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ about.page_title }} - {{ blog_title }}{% endblock %}
+
+{% block canonical %}
+<link rel="canonical" href="{{ blog_url }}about.html" />
+{% endblock %}
+
+{% block content %}
+<div class="about-content">
+    <h1>{{ about.page_title }}</h1>
+
+    {% for section in about.sections %}
+    <section class="about-section">
+        <h2>{{ section.title }}</h2>
+
+        {% if section.type == 'paragraphs' %}
+        {% for line in section.content %}
+        <p>{{ line | replace('{{ author_name }}', author_name) | replace('{{ github_name }}', github_name) | replace('{{ blog_url }}', blog_url) }}</p>
+        {% endfor %}
+
+        {% elif section.type == 'list' %}
+        <ul>
+            {% for item in section.content %}
+            <li>{{ item | replace('{{ author_name }}', author_name) | replace('{{ github_name }}', github_name) | replace('{{ blog_url }}', blog_url) }}</li>
+            {% endfor %}
+        </ul>
+
+        {% elif section.type == 'contact' %}
+        <ul class="contact-list">
+            {% for link in section.links %}
+            <li>
+                <strong>{{ link.name }}</strong>:
+                <a href="{{ link.url | replace('{{ github_name }}', github_name) | replace('{{ blog_url }}', blog_url) }}">
+                    {{ link.display | replace('{{ github_name }}', github_name) | replace('{{ blog_url }}', blog_url) }}
+                </a>
+            </li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+    </section>
+    {% endfor %}
+</div>
+{% endblock %}

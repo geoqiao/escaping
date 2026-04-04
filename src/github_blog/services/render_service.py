@@ -49,6 +49,8 @@ class RenderService:
             "meta_description": self.settings.blog.description,
             "google_search_verification": self.settings.google_search_console.content,
             "theme_path": self.settings.theme.url_path,
+            "navigation": self.settings.navigation,
+            "pagination_config": self.settings.pagination,
         }
 
     def markdown_to_html(self, md_str: str) -> str:
@@ -85,6 +87,7 @@ class RenderService:
         return template.render(
             issues=issues,
             issue_slugs=issue_slugs,
+            home=self.settings.home,
             **self._get_common_context(),
         )
 
@@ -162,6 +165,7 @@ class RenderService:
     def render_about(self) -> str:
         template = self.env.get_template("about.html")
         return template.render(
+            about=self.settings.about,
             **self._get_common_context(),
         )
 
@@ -175,5 +179,6 @@ class RenderService:
         return template.render(
             tags=tags,
             tag_items=tag_items,
+            tags_config=self.settings.tags,
             **self._get_common_context(),
         )

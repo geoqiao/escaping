@@ -44,6 +44,46 @@ class ThemeConfig(BaseModel):
         return "/" + str(self.path).strip("/")
 
 
+class NavigationItem(BaseModel):
+    name: str
+    url: str
+
+
+class NavigationConfig(BaseModel):
+    items: list[NavigationItem] = Field(default_factory=list)
+
+
+class HomeConfig(BaseModel):
+    intro_line1: str = ""
+    intro_line2: str = ""
+    source_code_text: str = ""
+    source_code_url: str = ""
+    recent_posts_title: str = "Recent Posts"
+    view_all_text: str = "View all posts →"
+    post_count: int = 10
+
+
+class AboutSection(BaseModel):
+    title: str
+    type: str  # paragraphs, list, contact
+    content: list[str] = Field(default_factory=list)
+    links: list[dict[str, str]] = Field(default_factory=list)
+
+
+class AboutConfig(BaseModel):
+    page_title: str = "About"
+    sections: list[AboutSection] = Field(default_factory=list)
+
+
+class PaginationConfig(BaseModel):
+    prev_text: str = "← Prev"
+    next_text: str = "Next →"
+
+
+class TagsConfig(BaseModel):
+    page_title: str = "Tags"
+
+
 class Settings(BaseSettings):
     blog: BlogConfig
     github: GithubConfig
@@ -51,6 +91,11 @@ class Settings(BaseSettings):
         alias="GoogleSearchConsole"
     )
     theme: ThemeConfig
+    navigation: NavigationConfig = Field(default_factory=NavigationConfig)
+    home: HomeConfig = Field(default_factory=HomeConfig)
+    about: AboutConfig = Field(default_factory=AboutConfig)
+    pagination: PaginationConfig = Field(default_factory=PaginationConfig)
+    tags: TagsConfig = Field(default_factory=TagsConfig)
 
     model_config = SettingsConfigDict(
         env_nested_delimiter="__",
