@@ -636,3 +636,22 @@ html[data-theme="dark"] .token.important,
 html[data-theme="dark"] .token.variable {
   color: #fbbf24;
 }
+
+/* About page avatar */
+.about-avatar {
+  text-align: center;
+  margin: 1.5rem 0;
+}
+
+.avatar-img {
+  width: 120px;
+  height: 120px;
+  border-radius: 50%;
+  object-fit: cover;
+  border: 3px solid var(--border);
+  transition: border-color 0.3s ease;
+}
+
+.avatar-img:hover {
+  border-color: var(--link);
+}

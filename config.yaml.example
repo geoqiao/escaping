@@ -11,6 +11,8 @@ github:
   repo: yourname/yourname.github.io
 
 about:
+  # 头像 URL（可选），建议使用正方形图片，会显示为圆形
+  # avatar: https://github.com/yourname.png
   bio: |
     在这里介绍你自己。
     可以写多行。

@@ -53,6 +53,7 @@ def test_blog_generator_integration(mock_get_settings, mock_gh_service_class, tm
     mock_settings.theme.path = str(real_template_path)
     mock_settings.theme.url_path = "/templates/BearMinimal"
     mock_settings.google_search_console.content = ""
+    mock_settings.about.avatar = ""
     mock_settings.about.bio = "Test bio"
     mock_settings.about.expertise = ["Skill 1", "Skill 2"]
     mock_settings.about.links = []

@@ -10,6 +10,12 @@
 <div class="about-content">
     <h1>About</h1>
 
+    {% if about_avatar %}
+    <div class="about-avatar">
+        <img src="{{ about_avatar }}" alt="{{ author_name }}" class="avatar-img">
+    </div>
+    {% endif %}
+
     {% if about_bio %}
     <section class="about-section">
         {% for line in about_bio.split('\n') %}

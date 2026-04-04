@@ -13,6 +13,8 @@ github:
   repo: geoqiao/geoqiao.github.io
 
 about:
+  # 头像 URL，建议使用正方形图片，会显示为圆形
+  avatar: https://github.com/geoqiao.png
   bio: |
     你好，我是 geoqiao。
     一名金融行业的贷后策略分析师，喜欢折腾工具，也享受用代码解决重复性工作。

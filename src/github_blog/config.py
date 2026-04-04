@@ -38,6 +38,7 @@ class AboutLink(BaseModel):
 class AboutConfig(BaseModel):
     """关于页面配置（必填）"""
 
+    avatar: str = ""  # 头像 URL，留空则不显示
     bio: str
     expertise: list[str] = Field(default_factory=list)
     links: list[AboutLink]

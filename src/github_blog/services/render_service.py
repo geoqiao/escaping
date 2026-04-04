@@ -50,6 +50,7 @@ class RenderService:
             "google_search_verification": self.settings.google_search_console.content,
             "theme_path": self.settings.theme.url_path,
             "navigation": self.settings.navigation,
+            "about_avatar": self.settings.about.avatar,
             "about_bio": self.settings.about.bio,
             "about_expertise": self.settings.about.expertise,
             "about_links": self.settings.about.links,
