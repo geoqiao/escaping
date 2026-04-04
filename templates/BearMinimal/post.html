@@ -1,0 +1,46 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ issue.title }} - {{ blog_title }}{% endblock %}
+
+{% block canonical %}
+<link rel="canonical" href="{{ blog_url.rstrip('/') }}/blog/{{ slug }}.html" />
+{% endblock %}
+
+{% block og_type %}article{% endblock %}
+{% block og_url %}{{ blog_url.rstrip('/') }}/blog/{{ slug }}.html{% endblock %}
+{% block og_title %}{{ issue.title }}{% endblock %}
+{% block og_description %}{% if issue.labels %}Tags: {% for label in issue.labels %}{{ label.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ blog_title }}{% endif %}{% endblock %}
+
+{% block twitter_url %}{{ blog_url.rstrip('/') }}/blog/{{ slug }}.html{% endblock %}
+{% block twitter_title %}{{ issue.title }}{% endblock %}
+{% block twitter_description %}{% if issue.labels %}Tags: {% for label in issue.labels %}{{ label.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ blog_title }}{% endif %}{% endblock %}
+
+{% block content %}
+<article>
+    <h1>{{ issue.title }}</h1>
+
+    <div class="post-meta">
+        <time>{{ issue.created_at.strftime('%Y-%m-%d') }}</time>
+        {% if issue.labels %}
+        ·
+        {% for label in issue.labels %}
+        <a href="/tag/{{ label.name }}.html">#{{ label.name }}</a>{% if not loop.last %}, {% endif %}
+        {% endfor %}
+        {% endif %}
+    </div>
+
+    <div class="post-content">
+        {{ html_body|safe }}
+    </div>
+</article>
+
+<div class="comments">
+    <script src="https://utteranc.es/client.js"
+        repo="{{ github_repo }}"
+        issue-number="{{ issue.number }}"
+        theme="preferred-color-scheme"
+        crossorigin="anonymous"
+        async>
+    </script>
+</div>
+{% endblock %}

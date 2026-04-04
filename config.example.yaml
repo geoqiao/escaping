@@ -1,28 +1,25 @@
 # 博客信息
 blog:
-  title: geoqiao's Blog
-  description: |
-    1. 目前是一名金融行业贷后策略分析师；这里是我的个人空间，记录一些想记录的。
-    2. 这个网页基于GitHub Pages & GitHub Actions 自动部署。
-    3. 主体 main.py 自己完成，前端主题由AI生成。
-  url: https://geoqiao.github.io/
+  title: "Your Blog Title"
+  description: "A short description of your blog."
+  url: https://username.github.io/
   content_dir: "./output/"
   blog_dir: "blog/"
   rss_atom_path: "atom.xml"
   author:
-    name: geoqiao
-    email: geoqiao@example.com
+    name: Your Name
+    email: your.email@example.com
   page_size: 10
 
 # GitHub 相关配置
 github:
-  name: geoqiao # GitHub 用户名
-  repo: geoqiao/geoqiao.github.io # GitHub 仓库名称
+  name: username  # GitHub 用户名
+  repo: username/username.github.io  # GitHub 仓库名称
 
-# Google Search Console
+# Google Search Console (可选)
 GoogleSearchConsole:
-  content: DRggZlykSzc8M9TyaS0BPSRE7Kvw8W9hHt5pZrIMm3Y # Google Search Console ID
-  verify: true # 是否验证
+  content: ""
+  verify: false
 
 # 主题配置
 theme:
@@ -34,7 +31,7 @@ home:
   intro_line1: "这是一个基于 GitHub Issues 的静态博客系统。"
   intro_line2: "使用 Python + Jinja2 自动生成，通过 GitHub Actions 自动部署。"
   source_code_text: "查看源码 →"
-  source_code_url: "https://github.com/geoqiao/geoqiao.github.io"
+  source_code_url: "https://github.com/username/username.github.io"
   recent_posts_title: "Recent Posts"
   view_all_text: "View all posts →"
   post_count: 10
@@ -47,23 +44,19 @@ about:
       type: "paragraphs"
       content:
         - "你好，我是 {{ author_name }}。"
-        - "一名金融行业的贷后策略分析师，喜欢折腾工具，也享受用代码解决重复性工作。"
-        - "工作之余，我喜欢记录生活中的碎片——可能是一杯成都茶馆的茶，也可能是对 AI 工具的折腾心得。"
+        - "这里写一段简短的个人介绍。"
     - title: "专业领域"
       type: "list"
       content:
-        - "金融数据分析"
-        - "贷后策略与风控"
-        - "Python 自动化工具"
+        - "领域 1"
+        - "领域 2"
+        - "领域 3"
     - title: "联系方式"
       type: "contact"
       links:
         - name: "GitHub"
           display: "@{{ github_name }}"
           url: "https://github.com/{{ github_name }}"
-        - name: "GitHub Pages"
-          display: "{{ blog_url }}"
-          url: "{{ blog_url }}"
         - name: "Twitter/X"
           display: "@yourname"
           url: "https://twitter.com/yourname"

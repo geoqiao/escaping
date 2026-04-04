@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block content %}
+<div class="home-intro">
+    {% if home.intro_line1 %}
+    <p class="intro-line">{{ home.intro_line1 }}</p>
+    {% endif %}
+    {% if home.intro_line2 %}
+    <p class="intro-line">{{ home.intro_line2 }}</p>
+    {% endif %}
+    {% if home.source_code_text %}
+    <p class="intro-line"><a href="{{ home.source_code_url }}">{{ home.source_code_text }}</a></p>
+    {% endif %}
+</div>
+
+{% if issues %}
+<section class="recent-posts">
+    <h2>{{ home.recent_posts_title }}</h2>
+    {% for issue in issues %}
+    {% set slug = issue_slugs[issue.number|string] %}
+    <article class="post-item">
+        <div class="post-header">
+            <time class="post-date">{{ issue.created_at.strftime('%Y-%m-%d') }}</time>
+            <h3 class="post-title"><a href="/blog/{{ slug }}.html">{{ issue.title }}</a></h3>
+        </div>
+    </article>
+    {% endfor %}
+
+    <p><a href="/blog/">{{ home.view_all_text }}</a></p>
+</section>
+{% endif %}
+{% endblock %}

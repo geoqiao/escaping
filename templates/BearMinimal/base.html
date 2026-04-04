@@ -1,0 +1,64 @@
+<!DOCTYPE html>
+<html lang="zh-CN" data-theme="light">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{% block description %}{{ meta_description }}{% endblock %}">
+    <meta name="google-site-verification" content="{{ google_search_verification }}">
+    <title>{% block title %}{{ blog_title }}{% endblock %}</title>
+    {% block canonical %}{% endblock %}
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:url" content="{% block og_url %}{{ blog_url }}{% endblock %}">
+    <meta property="og:site_name" content="{{ blog_title }}">
+    <meta property="og:title" content="{% block og_title %}{{ blog_title }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ meta_description }}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ blog_url.rstrip('/') }}{{ theme_path }}/static/images/favicon.png{% endblock %}">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:url" content="{% block twitter_url %}{{ blog_url }}{% endblock %}">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ blog_title }}{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ meta_description }}{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ blog_url.rstrip('/') }}{{ theme_path }}/static/images/favicon.png{% endblock %}">
+
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/prism.css">
+    <link rel="alternate" type="application/atom+xml" title="RSS" href="/{{ rss_atom_path }}">
+    <link rel="icon" type="image/png" href="{{ theme_path }}/static/images/favicon.png">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <header>
+        <div class="container">
+            <nav>
+                <a href="/" class="logo">{{ blog_title }}</a>
+                <ul class="nav-links">
+                    {% for item in navigation.items %}
+                    <li><a href="{{ item.url }}">{{ item.name }}</a></li>
+                    {% endfor %}
+                    <li><button class="theme-toggle" aria-label="Toggle theme">🌙</button></li>
+                </ul>
+            </nav>
+        </div>
+    </header>
+
+    <main>
+        <div class="container">
+            {% block content %}{% endblock %}
+        </div>
+    </main>
+
+    {% block footer %}
+    <footer>
+        <div class="container">
+            <p>&copy; {{ github_name }} · <a href="https://github.com/{{ github_repo }}">GitHub</a></p>
+        </div>
+    </footer>
+    {% endblock %}
+
+    <script src="{{ theme_path }}/static/js/prism.js"></script>
+    <script src="{{ theme_path }}/static/js/theme.js"></script>
+</body>
+</html>

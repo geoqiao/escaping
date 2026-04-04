@@ -1,0 +1,32 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ tag_name }} - {{ blog_title }}{% endblock %}
+
+{% block canonical %}
+<link rel="canonical" href="{{ blog_url.rstrip('/') }}/tag/{{ tag_name }}.html" />
+{% endblock %}
+
+{% block og_title %}{{ tag_name }} - {{ blog_title }}{% endblock %}
+
+{% block content %}
+<h1>#{{ tag_name }}</h1>
+
+<section class="post-list">
+    {% for issue in issues %}
+    {% set slug = issue_slugs[issue.number|string] %}
+    <article class="post-item">
+        <div class="post-header">
+            <time class="post-date">{{ issue.created_at.strftime('%Y-%m-%d') }}</time>
+            <h2 class="post-title"><a href="/blog/{{ slug }}.html">{{ issue.title }}</a></h2>
+        </div>
+        {% if issue.labels %}
+        <div class="post-tags">
+            {% for label in issue.labels %}
+            <a href="/tag/{{ label.name }}.html" class="tag">{{ label.name }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </article>
+    {% endfor %}
+</section>
+{% endblock %}

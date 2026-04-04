@@ -1,0 +1,44 @@
+{% extends 'base.html' %}
+
+{% block canonical %}
+<link rel="canonical" href="{{ blog_url }}blog/" />
+{% endblock %}
+
+{% block content %}
+<section class="post-list">
+    {% for issue in issues %}
+    {% set slug = issue_slugs[issue.number|string] %}
+    <article class="post-item">
+        <div class="post-header">
+            <time class="post-date">{{ issue.created_at.strftime('%Y-%m-%d') }}</time>
+            <h2 class="post-title"><a href="/blog/{{ slug }}.html">{{ issue.title }}</a></h2>
+        </div>
+        {% if issue.labels %}
+        <div class="post-tags">
+            {% for label in issue.labels %}
+            <a href="/tag/{{ label.name }}.html" class="tag">{{ label.name }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </article>
+    {% endfor %}
+</section>
+
+{% if pagination and pagination.pages > 1 %}
+<nav class="pagination">
+    {% if pagination.has_prev %}
+    <a href="/blog/page/{{ pagination.prev_num }}.html">{{ pagination_config.prev_text }}</a>
+    {% else %}
+    <span class="disabled">{{ pagination_config.prev_text }}</span>
+    {% endif %}
+
+    <span>{{ pagination.page }} / {{ pagination.pages }}</span>
+
+    {% if pagination.has_next %}
+    <a href="/blog/page/{{ pagination.next_num }}.html">{{ pagination_config.next_text }}</a>
+    {% else %}
+    <span class="disabled">{{ pagination_config.next_text }}</span>
+    {% endif %}
+</nav>
+{% endif %}
+{% endblock %}

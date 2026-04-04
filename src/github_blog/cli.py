@@ -48,7 +48,8 @@ class BlogGenerator:
             self._generate_index(issues, tags, issue_slugs)
 
             # 渲染主页 (landing page) (放到 output/ 根目录)
-            home_content = self.render.render_home(issues[:3], issue_slugs)
+            post_count = self.settings.home.post_count
+            home_content = self.render.render_home(issues[:post_count], issue_slugs)
             (self.settings.blog.content_dir / "index.html").write_text(
                 home_content, encoding="utf-8"
             )
