@@ -11,8 +11,9 @@
 
 <div class="tag-list">
     {% for item in tag_items %}
-    <span class="tag">
-        <a href="/tag/{{ item.name }}.html">{{ item.name }} <span class="tag-count">{{ item.count }}</span></a>
+    <span class="tag-item">
+        <a href="/tag/{{ item.name }}.html" class="tag">{{ item.name }}</a>
+        <span class="tag-count">({{ item.count }})</span>
     </span>
     {% endfor %}
 </div>

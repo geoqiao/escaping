@@ -374,9 +374,14 @@ html[data-theme="dark"] pre[class*="language-"]::selection {
   margin: 2rem 0;
 }
 
-.tag-list .tag {
+.tag-item {
   display: inline-block;
   margin: 0.5rem 1rem 0.5rem 0;
+}
+
+.tag-count {
+  color: var(--text-muted);
+  font-size: 0.85rem;
 }
 
 .tag-count {

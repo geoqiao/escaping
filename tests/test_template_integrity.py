@@ -59,7 +59,7 @@ class TestTemplateClassConsistency:
         content = self._get_template_content("tags.html")
 
         # 检查是否错误使用了未定义的标签类
-        forbidden_classes = ["tag-cloud", "tag-item"]
+        forbidden_classes = ["tag-cloud"]
         for cls in forbidden_classes:
             assert f'class="{cls}"' not in content, (
                 f"tags.html 使用了未定义的 CSS 类 '{cls}'，"
@@ -119,9 +119,6 @@ class TestRenderedOutputConsistency:
         assert 'class="tag-cloud"' not in html, (
             "渲染输出包含未定义的 'tag-cloud' 类"
         )
-        assert 'class="tag-item"' not in html, (
-            "渲染输出包含未定义的 'tag-item' 类"
-        )
 
     def test_all_tag_links_use_consistent_format(self, render):
         """所有标签链接格式必须一致"""
@@ -130,8 +127,8 @@ class TestRenderedOutputConsistency:
             tag_counts={"python": 5}
         )
 
-        # 检查是否包含数量显示 (如 "python (5)")
-        assert "python (5)" in html or 'python <span class="tag-count">5</span>' in html
+        # 检查是否包含数量显示 (如 "python <span class=\"tag-count\">(5)</span>")
+        assert 'class="tag-count">(5)' in html or 'class="tag-count">5' in html
 
 
 class TestCSSStyleDefinitions:
