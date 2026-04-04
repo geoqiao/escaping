@@ -38,32 +38,83 @@
 
 <div class="comments" id="comments-container">
     <p class="comments-loading">Loading comments...</p>
-    <script src="https://utteranc.es/client.js"
-        repo="{{ github_repo }}"
-        issue-number="{{ issue.number }}"
-        theme="github-light"
-        crossorigin="anonymous"
-        async>
-    </script>
+    <noscript>
+        <p class="comments-error">Please enable JavaScript to view comments.</p>
+    </noscript>
 </div>
 
 <script>
-// Hide loading message when Utterances loads
 (function() {
+    'use strict';
     var container = document.getElementById('comments-container');
     var loadingMsg = container.querySelector('.comments-loading');
 
-    // Hide loading message after iframe loads
-    window.addEventListener('message', function(e) {
-        if (e.origin === 'https://utteranc.es' && loadingMsg) {
-            loadingMsg.style.display = 'none';
-        }
-    });
+    // Detect iOS Safari
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
 
-    // Fallback: hide after 5 seconds anyway
+    // Load Utterances dynamically
+    var script = document.createElement('script');
+    script.src = 'https://utteranc.es/client.js';
+    script.setAttribute('repo', '{{ github_repo }}');
+    script.setAttribute('issue-number', '{{ issue.number }}');
+    script.setAttribute('theme', 'github-light');
+    script.setAttribute('crossorigin', 'anonymous');
+    script.async = true;
+
+    // Monitor iframe creation
+    var checkInterval;
+    var checkCount = 0;
+
+    function checkIframe() {
+        var iframe = container.querySelector('iframe');
+        checkCount++;
+
+        if (iframe && loadingMsg) {
+            loadingMsg.style.display = 'none';
+            clearInterval(checkInterval);
+            return true;
+        }
+
+        // Give up after 8 seconds
+        if (checkCount > 40) {
+            clearInterval(checkInterval);
+            showError();
+            return false;
+        }
+        return false;
+    }
+
+    function showError() {
+        if (loadingMsg) {
+            var msg = 'Comments may not be available.';
+            if (isIOS && isSafari) {
+                msg += '<br><small>iOS Safari may block third-party content.<br>Try "Settings → Safari → Disable Cross-Site Tracking"</small>';
+            }
+            loadingMsg.innerHTML = msg + '<br><a href="https://github.com/{{ github_repo }}/issues/{{ issue.number }}" target="_blank" rel="noopener">View or add comment on GitHub →</a>';
+            loadingMsg.className = 'comments-error';
+        }
+    }
+
+    script.onload = function() {
+        // Start checking for iframe
+        checkInterval = setInterval(checkIframe, 200);
+    };
+
+    script.onerror = function() {
+        clearInterval(checkInterval);
+        showError();
+    };
+
+    container.appendChild(script);
+
+    // Absolute fallback after 12 seconds
     setTimeout(function() {
-        if (loadingMsg) loadingMsg.style.display = 'none';
-    }, 5000);
+        clearInterval(checkInterval);
+        if (loadingMsg && loadingMsg.style.display !== 'none') {
+            showError();
+        }
+    }, 12000);
 })();
 </script>
 {% endblock %}
