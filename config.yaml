@@ -65,8 +65,8 @@ about:
           display: "{{ blog_url }}"
           url: "{{ blog_url }}"
         - name: "Twitter/X"
-          display: "@yourname"
-          url: "https://twitter.com/yourname"
+          display: "@geoqiao"
+          url: "https://twitter.com/geoqiao"
 
 # 导航配置
 navigation:
