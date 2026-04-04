@@ -43,19 +43,19 @@ home:
 about:
   page_title: "About"
   sections:
-    - title: "关于我"
+    - title: "About Me"
       type: "paragraphs"
       content:
         - "你好，我是 {{ author_name }}。"
         - "一名金融行业的贷后策略分析师，喜欢折腾工具，也享受用代码解决重复性工作。"
         - "工作之余，我喜欢记录生活中的碎片——可能是一杯成都茶馆的茶，也可能是对 AI 工具的折腾心得。"
-    - title: "专业领域"
+    - title: "Expertise"
       type: "list"
       content:
         - "金融数据分析"
         - "贷后策略与风控"
         - "Python 自动化工具"
-    - title: "联系方式"
+    - title: "Contact"
       type: "contact"
       links:
         - name: "GitHub"
