@@ -1,148 +1,182 @@
+"""Pydantic configuration models for github-blog.
+
+This module defines 8 independent configuration sections:
+- GithubConfig: GitHub repository settings
+- BlogConfig: Blog metadata
+- AboutConfig: About page content
+- BrandingConfig: Branding and footer settings
+- PathsConfig: File paths and URL configuration
+- SeoConfig: SEO settings
+- CommentsConfig: Comments provider settings
+- SecurityConfig: Security settings
+"""
+
 import logging
 from pathlib import Path
+from typing import Optional
 
 import yaml
 from pydantic import BaseModel, Field, HttpUrl
-from pydantic_settings import BaseSettings, SettingsConfigDict
+from pydantic_settings import SettingsConfigDict
 
 logger = logging.getLogger(__name__)
 
 
+class GithubConfig(BaseModel):
+    """GitHub repository configuration."""
+
+    repo: str
+    _username: Optional[str] = None
+
+    @property
+    def username(self) -> str:
+        """Resolve username from repo if not explicitly set."""
+        if self._username is not None:
+            return self._username
+        if "/" in self.repo:
+            return self.repo.split("/")[0]
+        return self.repo
+
+    def resolve_username(self) -> str:
+        """Resolve username (alias for username property)."""
+        return self.username
+
+
 class BlogConfig(BaseModel):
-    """核心博客配置（必填）"""
+    """Blog metadata configuration."""
 
     title: str
-    description: str
     url: HttpUrl
     author: str
 
 
-class GithubConfig(BaseModel):
-    """GitHub 配置（必填）"""
-
-    repo: str
-
-    @property
-    def name(self) -> str:
-        """从 repo 解析用户名，如 'geoqiao/blog' -> 'geoqiao'"""
-        return self.repo.split("/")[0] if "/" in self.repo else self.repo
-
-
 class AboutLink(BaseModel):
-    """关于页面链接"""
+    """Link in the about section."""
 
     name: str
     url: str
 
 
 class AboutConfig(BaseModel):
-    """关于页面配置（必填）"""
+    """About page configuration."""
 
-    avatar: str = ""  # 头像 URL，留空则不显示
+    avatar: str = ""
     bio: str
     expertise: list[str] = Field(default_factory=list)
-    links: list[AboutLink]
+    links: list[AboutLink] = Field(default_factory=list)
 
 
-class ThemeConfig(BaseModel):
-    """主题配置（可选，默认 BearMinimal）"""
+class BrandingConfig(BaseModel):
+    """Branding and footer configuration."""
 
-    name: str = "BearMinimal"
-
-    @property
-    def path(self) -> Path:
-        """主题路径，如 'BearMinimal' → templates/BearMinimal"""
-        return Path("templates") / self.name
-
-    @property
-    def seo(self) -> Path:
-        """SEO 模板路径"""
-        return Path("templates/seo")
-
-    @property
-    def url_path(self) -> str:
-        """URL 路径，如 /templates/BearMinimal"""
-        return f"/templates/{self.name}"
+    show_powered_by: bool = True
+    powered_by_text: str = "Powered by"
+    powered_by_url: str = "https://github.com/geoqiao/github-blog"
+    show_intro: bool = False
+    intro_text: str = ""
+    source_link_text: str = "View Source"
+    source_link_url: str = ""
 
 
-class NavigationItem(BaseModel):
-    """导航项"""
+class PathsConfig(BaseModel):
+    """File paths and URL configuration."""
 
-    name: str
-    url: str
-
-
-class NavigationConfig(BaseModel):
-    """导航配置（可选）"""
-
-    items: list[NavigationItem] = Field(default_factory=list)
-
-
-class AdvancedConfig(BaseModel):
-    """高级配置（可选，一般不需要修改）"""
-
+    output: str = "output"
+    theme: str = "BearMinimal"
+    blog: str = "blog"
+    tag: str = "tag"
+    rss: str = "atom.xml"
+    about: str = "about.html"
     page_size: int = 10
     home_post_count: int = 10
     language: str = "en"
 
+    @property
+    def theme_path(self) -> Path:
+        """Return Path to theme directory."""
+        return Path("templates") / self.theme
 
-class GoogleSearchConsoleConfig(BaseModel):
-    """Google Search Console 配置（可选）"""
+    @property
+    def seo_path(self) -> Path:
+        """Return Path to SEO templates."""
+        return Path("templates/seo")
 
-    content: str = ""
-    verify: bool = False
+    @property
+    def theme_url_path(self) -> str:
+        """Return URL path for theme assets."""
+        return f"/templates/{self.theme}"
 
 
-class Settings(BaseSettings):
-    """应用配置"""
+class SeoConfig(BaseModel):
+    """SEO configuration."""
 
-    # 核心配置（必填）
-    blog: BlogConfig
+    google_search_console: str = ""
+    enable_sitemap: bool = True
+    enable_robots: bool = True
+
+
+class CommentsConfig(BaseModel):
+    """Comments provider configuration."""
+
+    provider: str = "utterances"
+    repo: str = ""
+    theme: str = "github-light"
+
+
+class SecurityConfig(BaseModel):
+    """Security settings."""
+
+    token_env: str = "G_T"
+
+
+class Settings(BaseModel):
+    """Application settings composing all 8 config sections."""
+
     github: GithubConfig
+    blog: BlogConfig
     about: AboutConfig
+    branding: BrandingConfig = Field(default_factory=BrandingConfig)
+    paths: PathsConfig = Field(default_factory=PathsConfig)
+    seo: SeoConfig = Field(default_factory=SeoConfig)
+    comments: CommentsConfig = Field(default_factory=CommentsConfig)
+    security: SecurityConfig = Field(default_factory=SecurityConfig)
 
-    # 可选配置
-    theme: ThemeConfig = Field(default_factory=ThemeConfig)
-    navigation: NavigationConfig = Field(default_factory=NavigationConfig)
-    advanced: AdvancedConfig = Field(default_factory=AdvancedConfig)
-    google_search_console: GoogleSearchConsoleConfig = Field(
-        default_factory=GoogleSearchConsoleConfig,
-        alias="GoogleSearchConsole",
-    )
-
-    model_config = SettingsConfigDict(
-        env_nested_delimiter="__",
-        env_prefix="APP_",
-        extra="ignore",
-    )
+    model_config = SettingsConfigDict(extra="ignore")
 
     @classmethod
     def load_from_yaml(cls, yaml_path: Path) -> "Settings":
+        """Load settings from a YAML file."""
         with open(yaml_path, encoding="utf-8") as f:
             data = yaml.safe_load(f)
         return cls.model_validate(data)
 
 
-# 全局配置实例
-try:
-    _settings = Settings.load_from_yaml(Path("config.yaml"))
-except (FileNotFoundError, yaml.YAMLError) as e:
-    # 允许测试或 CI 环境通过环境变量覆盖, 若 yaml 不存在则跳过
-    logger.debug(f"Config load skipped: {e}")
-    _settings = None
+# Global settings instance
+_settings: Optional[Settings] = None
 
 
 def get_settings() -> Settings:
-    """获取应用配置。
+    """Get the global settings instance.
+
+    Returns:
+        The global Settings instance.
 
     Raises:
-        RuntimeError: 如果配置未加载成功。
+        RuntimeError: If settings have not been loaded.
     """
+    global _settings
     if _settings is None:
-        msg = "Settings not loaded. Ensure config.yaml exists or set environment variables."
-        raise RuntimeError(msg)
+        load_settings()
+    assert _settings is not None
     return _settings
 
 
-# 向后兼容的导出
-settings = _settings
+def load_settings() -> Settings:
+    """Load settings from config.yaml.
+
+    Returns:
+        The loaded Settings instance.
+    """
+    global _settings
+    _settings = Settings.load_from_yaml(Path("config.yaml"))
+    return _settings
