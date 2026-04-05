@@ -2,6 +2,8 @@ name: Trigger Deploy
 
 # Syncs to geoqiao.github.io via sync.yml (listens for issue events)
 
+# Renamed from github_blog to escaping
+
 on:
   issues:
     types: [opened, edited]
