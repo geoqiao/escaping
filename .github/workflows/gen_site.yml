@@ -56,25 +56,16 @@ jobs:
         env:
           G_T: ${{ secrets.G_T }}
         run: |
-          # Clone existing geoqiao.github.io
-          git clone --depth 1 https://x-access-token:$G_T@github.com/geoqiao/geoqiao.github.io.git _deploy
+          # Clone geoqiao.github.io
+          git clone https://x-access-token:$G_T@github.com/geoqiao/geoqiao.github.io.git _deploy
 
           # Copy generated site contents
           cp -r _site/* _deploy/
 
-          # Remove .git to prepare for fresh push
-          rm -rf _deploy/.git
-
-          # Initialize fresh git repo
+          # Commit and push from the clone
           cd _deploy
-          git init
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git remote add origin https://x-access-token:$G_T@github.com/geoqiao/geoqiao.github.io.git
-
-          # Add all files and commit
-          git add .
+          git add -A
           git commit -m "deploy: update site from github_blog @$GITHUB_SHA"
-
-          # Force push to main branch
-          git push -f origin main
+          git push origin main
