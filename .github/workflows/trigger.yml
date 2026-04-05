@@ -1,6 +1,6 @@
 name: Trigger Deploy
 
-# Syncs to geoqiao.github.io via sync.yml
+# Syncs to geoqiao.github.io via sync.yml (listens for issue events)
 
 on:
   issues:
