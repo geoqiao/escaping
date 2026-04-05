@@ -39,8 +39,9 @@ jobs:
         run: uv python install 3.11
 
       - name: Generate contents
-        run: |
-          uv run blog-gen ${{ secrets.G_T }} ${{ github.repository }}
+        run: uv run blog-gen
+        env:
+          G_T: ${{ secrets.G_T }}
 
       - name: Prepare site
         run: |
