@@ -18,7 +18,7 @@
 | `templates/PaperMod/static/css/papermod.css` | Modify | TOC active style, progress bar style, typography, copy button style |
 | `templates/PaperMod/post.html` | Modify | Add `<div id="reading-progress">` element |
 | `templates/PaperMod/about.html` | Replace | Fix to extend `base.html` |
-| `src/github_blog/services/render_service.py` | Modify | Add custom marko Image renderer for lazy loading |
+| `src/escaping/services/render_service.py` | Modify | Add custom marko Image renderer for lazy loading |
 | `tests/test_slug.py` | Create | Unit tests for slug generation |
 | `tests/test_config.py` | Create | Unit tests for config validation |
 | `tests/test_renderer.py` | Create | Smoke tests for render_service.py |
@@ -429,11 +429,11 @@ Currently `about.html` is a standalone HTML document — no nav, no dark mode, n
 
 - [ ] **Step 2: Check that render_service renders about.html**
 
-  Look at `src/github_blog/services/render_service.py` — confirm there is a `render_about()` method or similar. If not, check `cli.py` for where `about.html` is generated. Add the render call if it is currently missing.
+  Look at `src/escaping/services/render_service.py` — confirm there is a `render_about()` method or similar. If not, check `cli.py` for where `about.html` is generated. Add the render call if it is currently missing.
 
   Grep for about in cli.py:
   ```bash
-  grep -n "about" src/github_blog/cli.py src/github_blog/services/render_service.py
+  grep -n "about" src/escaping/cli.py src/escaping/services/render_service.py
   ```
 
   If no render call exists, add to `render_service.py`:
@@ -467,7 +467,7 @@ Currently `about.html` is a standalone HTML document — no nav, no dark mode, n
 - [ ] **Step 4: Commit**
 
   ```bash
-  git add templates/PaperMod/about.html src/github_blog/services/render_service.py src/github_blog/cli.py
+  git add templates/PaperMod/about.html src/escaping/services/render_service.py src/escaping/cli.py
   git commit -m "fix: rewrite about.html to extend base.html with nav, dark mode, and OG tags"
   ```
 
@@ -500,7 +500,7 @@ Currently `about.html` is a standalone HTML document — no nav, no dark mode, n
   Create `tests/test_slug.py`:
 
   ```python
-  from src.github_blog.utils.slug import generate_slug
+  from src.escaping.utils.slug import generate_slug
 
 
   def test_no_tags_returns_issue_number():
@@ -547,19 +547,19 @@ Currently `about.html` is a standalone HTML document — no nav, no dark mode, n
 
   def test_settings_loads_from_yaml():
       """settings object should load without error from config.yaml"""
-      from src.github_blog.config import settings
+      from src.escaping.config import settings
       assert settings.blog.title
       assert settings.blog.url
       assert settings.github.name
 
 
   def test_settings_has_content_dir():
-      from src.github_blog.config import settings
+      from src.escaping.config import settings
       assert settings.blog.content_dir is not None
 
 
   def test_settings_page_size_positive():
-      from src.github_blog.config import settings
+      from src.escaping.config import settings
       assert settings.blog.page_size > 0
   ```
 
@@ -656,7 +656,7 @@ These are smoke tests that call `RenderService` methods with minimal fixture dat
 
   import pytest
 
-  from src.github_blog.services.render_service import RenderService
+  from src.escaping.services.render_service import RenderService
 
 
   @pytest.fixture
@@ -740,7 +740,7 @@ These are smoke tests that call `RenderService` methods with minimal fixture dat
 ## Task 8: Image Lazy Loading
 
 **Files:**
-- Modify: `src/github_blog/services/render_service.py`
+- Modify: `src/escaping/services/render_service.py`
 
 marko allows overriding the renderer for individual element types. We add a custom `Image` renderer that injects `loading="lazy"` on every `<img>` tag.
 
@@ -764,7 +764,7 @@ marko allows overriding the renderer for individual element types. We add a cust
 
 - [ ] **Step 3: Add lazy image renderer to render_service.py**
 
-  In `src/github_blog/services/render_service.py`, add the following imports and class before the `RenderService` class definition:
+  In `src/escaping/services/render_service.py`, add the following imports and class before the `RenderService` class definition:
 
   ```python
   from marko.html_renderer import HTMLRenderer
@@ -809,7 +809,7 @@ marko allows overriding the renderer for individual element types. We add a cust
 - [ ] **Step 6: Commit**
 
   ```bash
-  git add src/github_blog/services/render_service.py tests/test_renderer.py
+  git add src/escaping/services/render_service.py tests/test_renderer.py
   git commit -m "feat: add loading=lazy to all images via custom marko renderer"
   ```
 

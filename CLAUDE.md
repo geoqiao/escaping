@@ -14,13 +14,13 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 | Repository | Role | Contents |
 |-----------|------|----------|
-| `github_blog` | Code repository | Source code, workflows (gen_site.yml, trigger.yml), templates |
+| `escaping` | Code repository | Source code, workflows (gen_site.yml, trigger.yml), templates |
 | `geoqiao.github.io` | Content repository | Issues (blog posts), trigger.yml (received via sync) |
 
 ### Core Components
 
 ```
-src/github_blog/
+src/escaping/
 ├── cli.py                 # BlogGenerator class - orchestrates the build
 ├── config.py              # Pydantic settings from config.yaml
 ├── services/
@@ -33,8 +33,8 @@ src/github_blog/
 
 ```
 Issue 更新 → geoqiao.github.io/trigger.yml
-         → 发送 dispatch 到 github_blog
-         → github_blog/gen_site.yml 生成网站
+         → 发送 dispatch 到 escaping
+         → escaping/gen_site.yml 生成网站
          → 直接 push 到 geoqiao.github.io main 分支
          → GitHub Pages 从 branch 自动部署
 ```
@@ -283,9 +283,9 @@ Static assets use absolute paths: `/templates/BearMinimal/static/css/style.css`
 
 1. `trigger.yml` (in geoqiao.github.io):
    - Listens for issue events (opened, edited, comment created/edited)
-   - Sends repository_dispatch to github_blog
+   - Sends repository_dispatch to escaping
 
-2. `gen_site.yml` (in github_blog):
+2. `gen_site.yml` (in escaping):
    - Receives dispatch, generates site
    - Pushes generated files to geoqiao.github.io main branch
 
@@ -313,7 +313,7 @@ theme:
 4. **Theme Switching**: After switching themes in `config.yaml`, regenerate and copy static files. See "Local Preview Workflow" above.
 5. **Mobile Comments**: Utterances comments (injected in `post.html` via `<script src="https://utteranc.es/client.js" ...>`) have iOS Safari compatibility handling with specific error messages for "Disable Cross-Site Tracking" setting
 6. **Configuration**: Internal paths (`output/`, `blog/`, `atom.xml`) are now hardcoded; only customize site metadata and theme
-7. **Dual-Repo**: Code lives in github_blog, content (Issues) lives in geoqiao.github.io
+7. **Dual-Repo**: Code lives in escaping, content (Issues) lives in geoqiao.github.io
 
 ## Task Execution
 

@@ -1,10 +1,10 @@
-# github-blog 🚀
+# escaping 🚀
 
 > 中文版本: [README.md](./README.md)
 
 ## Introduction
 
-`github-blog` is a minimalist and highly automated personal blog framework. It turns GitHub Issues into a powerful CMS, leverages GitHub Actions for automated builds, and deploys via GitHub Pages.
+`escaping` is a minimalist and highly automated personal blog framework. It turns GitHub Issues into a powerful CMS, leverages GitHub Actions for automated builds, and deploys via GitHub Pages.
 
 **Key Features**:
 
@@ -20,7 +20,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ github_blog (Code Repository - Source code lives here)      │
+│ escaping (Code Repository - Source code lives here)      │
 │                                                             │
 │ ├── src/                  # Python source                   │
 │ ├── templates/            # Theme templates (BearMinimal)    │
@@ -51,8 +51,8 @@
 **Complete Flow**:
 
 1. Create or edit an Issue in `geoqiao.github.io` (your blog post)
-2. `trigger.yml` detects the event, sends dispatch to `github_blog`
-3. `github_blog`'s `gen_site.yml` runs:
+2. `trigger.yml` detects the event, sends dispatch to `escaping`
+3. `escaping`'s `gen_site.yml` runs:
    - Fetches Issues
    - Generates static HTML
    - Pushes to `geoqiao.github.io` main branch
@@ -69,7 +69,7 @@ Create Issue (with labels)
         │
         ▼
 ┌─────────────────┐     dispatch      ┌─────────────────┐
-│ geoqiao.github.io│ ──────────────→  │  github_blog     │
+│ geoqiao.github.io│ ──────────────→  │  escaping     │
 │ trigger.yml     │                  │  gen_site.yml   │
 └─────────────────┘                  └────────┬────────┘
                                                │
@@ -87,7 +87,7 @@ Create Issue (with labels)
                                       └─────────────────┘
 ```
 
-1. **Fork the repo**: Fork `github-blog` to your GitHub account
+1. **Fork the repo**: Fork `escaping` to your GitHub account
 2. **Configure GitHub Pages**:
    - Go to `Settings -> Pages`
    - Source: **Deploy from a branch**
@@ -102,8 +102,8 @@ Create Issue (with labels)
 
 ```bash
 # Clone repository
-git clone https://github.com/geoqiao/github_blog.git
-cd github_blog
+git clone https://github.com/geoqiao/escaping.git
+cd escaping
 
 # Install dependencies
 uv sync

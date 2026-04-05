@@ -26,4 +26,4 @@ jobs:
             -H "Authorization: token $G_T" \
             -H "Content-Type: application/json" \
             https://api.github.com/repos/geoqiao/geoqiao.github.io/contents/.github/workflows/trigger.yml \
-            -d "{\"message\":\"sync: update trigger.yml from github-blog\",\"content\":\"$CONTENT\"}"
+            -d "{\"message\":\"sync: update trigger.yml from escaping\",\"content\":\"$CONTENT\"}"

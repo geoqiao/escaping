@@ -71,5 +71,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
-          git commit -m "deploy: update site from github_blog @$GITHUB_SHA"
+          git commit -m "deploy: update site from escaping @$GITHUB_SHA"
           git push origin main

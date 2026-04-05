@@ -4,7 +4,7 @@ AI coding agents 的工作指南（双语项目，中文为主）。
 
 ## 项目概览
 
-`github-blog` 是一个基于 Python 的静态博客生成器，将 GitHub Issues 作为 CMS（内容管理系统）。
+`escaping` 是一个基于 Python 的静态博客生成器，将 GitHub Issues 作为 CMS（内容管理系统）。
 
 **核心特性：**
 - 📝 **以 Issue 为博文**：直接在 GitHub Issues 中写作，支持标签分类
@@ -39,7 +39,7 @@ AI coding agents 的工作指南（双语项目，中文为主）。
 ## 项目结构
 
 ```
-github-blog/
+escaping/
 ├── src/github_blog/           # 主源代码
 │   ├── __init__.py
 │   ├── cli.py                 # CLI 入口，BlogGenerator 主类

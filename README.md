@@ -1,10 +1,10 @@
-# github-blog 🚀
+# escaping 🚀
 
 > English version: [README_en.md](./README_en.md)
 
 ## 简介
 
-`github-blog` 是一个极致简洁、自动化程度极高的个人博客框架。它将 GitHub Issues 作为后端编辑器，利用 GitHub Actions 自动触发构建，并最终通过 GitHub Pages 进行分发。
+`escaping` 是一个极致简洁、自动化程度极高的个人博客框架。它将 GitHub Issues 作为后端编辑器，利用 GitHub Actions 自动触发构建，并最终通过 GitHub Pages 进行分发。
 
 **核心特性**：
 
@@ -20,7 +20,7 @@
 
 ```
 ┌─────────────────────────────────────────────────────────────┐
-│ github_blog (代码仓库 - 所有源码在这里维护)                   │
+│ escaping (代码仓库 - 所有源码在这里维护)                      │
 │                                                             │
 │ ├── src/                  # Python 源代码                   │
 │ ├── templates/            # 主题模板 (BearMinimal)           │
@@ -51,8 +51,8 @@
 **完整流程**：
 
 1. 在 `geoqiao.github.io` 创建或编辑 Issue（博客文章）
-2. `trigger.yml` 检测到事件，发送 dispatch 到 `github_blog`
-3. `github_blog` 的 `gen_site.yml` 运行：
+2. `trigger.yml` 检测到事件，发送 dispatch 到 `escaping`
+3. `escaping` 的 `gen_site.yml` 运行：
    - 拉取 Issues
    - 生成静态 HTML
    - 推送到 `geoqiao.github.io` 的 main 分支
@@ -69,7 +69,7 @@
         │
         ▼
 ┌─────────────────┐     dispatch      ┌─────────────────┐
-│ geoqiao.github.io│ ──────────────→  │  github_blog     │
+│ geoqiao.github.io│ ──────────────→  │  escaping       │
 │ trigger.yml     │                  │  gen_site.yml   │
 └─────────────────┘                  └────────┬────────┘
                                                │
@@ -87,7 +87,7 @@
                                       └─────────────────┘
 ```
 
-1. **Fork 仓库**：Fork `github-blog` 到你的 GitHub 账号
+1. **Fork 仓库**：Fork `escaping` 到你的 GitHub 账号
 2. **配置 GitHub Pages**：
    - 进入 `Settings -> Pages`
    - Source 选择 **Deploy from a branch**
@@ -102,8 +102,8 @@
 
 ```bash
 # Clone 仓库
-git clone https://github.com/geoqiao/github_blog.git
-cd github_blog
+git clone https://github.com/geoqiao/escaping.git
+cd escaping
 
 # 安装依赖
 uv sync

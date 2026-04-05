@@ -116,12 +116,12 @@ about:
 # ============================================
 branding:
   show_powered_by: true
-  powered_by_text: github_blog
-  powered_by_url: https://github.com/username/github-blog
+  powered_by_text: escaping
+  powered_by_url: https://github.com/username/escaping
   show_intro: true
   intro_text: This is a static blog system based on GitHub Issues.
   source_link_text: View source code →
-  source_link_url: https://github.com/username/github-blog
+  source_link_url: https://github.com/username/escaping
 
 # ============================================
 # Advanced (optional)

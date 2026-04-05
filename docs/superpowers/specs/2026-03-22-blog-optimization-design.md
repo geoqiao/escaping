@@ -64,10 +64,10 @@ Frontend changes are confined to:
 - `templates/PaperMod/post.html` — add progress bar element
 
 Backend changes are confined to:
-- `src/github_blog/cli.py` — incremental build logic, asset fingerprinting + minification orchestration
-- `src/github_blog/services/render_service.py` — marko renderer extension (lazy-load images), feedgen RSS changes
-- new `src/github_blog/build_cache.py` — incremental build cache helper
-- new `src/github_blog/assets.py` — asset fingerprinting + minification helpers
+- `src/escaping/cli.py` — incremental build logic, asset fingerprinting + minification orchestration
+- `src/escaping/services/render_service.py` — marko renderer extension (lazy-load images), feedgen RSS changes
+- new `src/escaping/build_cache.py` — incremental build cache helper
+- new `src/escaping/assets.py` — asset fingerprinting + minification helpers
 - `tests/` — new test files
 
 ---
@@ -159,9 +159,9 @@ These changes directly affect every post page read.
 
 **What:** All `<img>` tags in rendered post HTML get `loading="lazy"`.
 
-**How:** Extend the marko renderer in `src/github_blog/services/render_service.py` — add a custom `Image` renderer class that injects `loading="lazy"` into the rendered `<img>` tag.
+**How:** Extend the marko renderer in `src/escaping/services/render_service.py` — add a custom `Image` renderer class that injects `loading="lazy"` into the rendered `<img>` tag.
 
-**Files:** `src/github_blog/services/render_service.py`
+**Files:** `src/escaping/services/render_service.py`
 
 ---
 
@@ -179,7 +179,7 @@ These changes directly affect every post page read.
 5. Always invalidate cache if `config.yaml` or any template changes (compare template mtimes)
 6. Support a `--force` CLI flag in `cli.py` that bypasses the cache entirely and rebuilds all pages
 
-**Files:** `src/github_blog/cli.py`, new `src/github_blog/build_cache.py`
+**Files:** `src/escaping/cli.py`, new `src/escaping/build_cache.py`
 
 #### Asset Fingerprinting
 
@@ -191,7 +191,7 @@ These changes directly affect every post page read.
 3. Inject the hashed filename into a Jinja2 context variable (`asset_url('papermod.css')` helper)
 4. Templates reference `{{ asset_url('papermod.css') }}`
 
-**Files:** `src/github_blog/assets.py` (new helper), `src/github_blog/cli.py` (calls helper), and these templates that reference static assets: `base.html`, `home.html`, `about.html`
+**Files:** `src/escaping/assets.py` (new helper), `src/escaping/cli.py` (calls helper), and these templates that reference static assets: `base.html`, `home.html`, `about.html`
 
 #### CSS/JS Minification
 
@@ -201,7 +201,7 @@ These changes directly affect every post page read.
 
 **New dependencies:** `rcssmin`, `rjsmin` (add to `pyproject.toml`)
 
-**Files:** `src/github_blog/assets.py` (new helper), `pyproject.toml`
+**Files:** `src/escaping/assets.py` (new helper), `pyproject.toml`
 
 ---
 
@@ -219,7 +219,7 @@ These changes directly affect every post page read.
 
 **New dependency:** Fuse.js (bundled in `static/js/`, no CDN)
 
-**Files:** `templates/PaperMod/search.html`, `src/github_blog/cli.py`, `base.html`, `static/js/fuse.min.js`
+**Files:** `templates/PaperMod/search.html`, `src/escaping/cli.py`, `base.html`, `static/js/fuse.min.js`
 
 #### RSS Enhancement
 
@@ -227,7 +227,7 @@ These changes directly affect every post page read.
 
 **How:** Update `feedgen` usage in the feed builder to set `entry.content()` with the full rendered HTML. Add a feed generation loop over all tags.
 
-**Files:** `src/github_blog/services/render_service.py` (where feedgen is called)
+**Files:** `src/escaping/services/render_service.py` (where feedgen is called)
 
 #### Lighthouse Audit + Accessibility
 
