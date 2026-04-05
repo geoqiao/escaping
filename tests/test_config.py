@@ -2,6 +2,9 @@
 
 from pathlib import Path
 
+import pytest
+from pydantic import ValidationError
+
 
 class TestGithubConfig:
     """Tests for GithubConfig section."""
@@ -20,13 +23,6 @@ class TestGithubConfig:
         cfg = GithubConfig(repo="geoqiao/blog")
         assert cfg.username == "geoqiao"
 
-    def test_username_optional_when_missing_slash(self):
-        """When repo has no slash, username returns repo as-is."""
-        from github_blog.config import GithubConfig
-
-        cfg = GithubConfig(repo="some-repo")
-        assert cfg.username == "some-repo"
-
     def test_resolve_username_method(self):
         """resolve_username returns username."""
         from github_blog.config import GithubConfig
@@ -41,6 +37,13 @@ class TestGithubConfig:
         # Valid repos have slashes
         cfg = GithubConfig(repo="geoqiao/geoqiao.github.io")
         assert "/" in cfg.repo
+
+    def test_github_config_invalid_repo(self):
+        """Test invalid repo format raises error."""
+        from github_blog.config import GithubConfig
+
+        with pytest.raises(ValidationError):
+            GithubConfig(repo="invalid-no-slash")
 
 
 class TestBlogConfig:

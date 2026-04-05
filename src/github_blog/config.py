@@ -16,7 +16,7 @@ from pathlib import Path
 from typing import Optional
 
 import yaml
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import BaseModel, Field, HttpUrl, field_validator
 from pydantic_settings import SettingsConfigDict
 
 logger = logging.getLogger(__name__)
@@ -27,6 +27,13 @@ class GithubConfig(BaseModel):
 
     repo: str
     _username: Optional[str] = None
+
+    @field_validator("repo")
+    @classmethod
+    def validate_repo(cls, v: str) -> str:
+        if "/" not in v:
+            raise ValueError("repo must be in 'username/repo' format")
+        return v
 
     @property
     def username(self) -> str:
