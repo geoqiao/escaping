@@ -28,6 +28,7 @@ jobs:
     # Only allow repository owner to trigger builds via issues (security)
     if: github.event_name != 'issues' || github.repository_owner_id == github.event.issue.user.id
     outputs:
+      artifact_url: ${{ steps.upload.outputs.artifact_url }}
       run_id: ${{ steps.upload.outputs.run_id }}
     steps:
       - name: Checkout
@@ -65,13 +66,21 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     steps:
-      - name: Trigger geoqiao.github.io deploy
+      - name: Get artifact download URL
+        id: artifact
+        run: |
+          ARTIFACT_URL=$(gh api repos/geoqiao/github_blog/actions/runs/${{ needs.build.outputs.run_id }}/artifacts --jq '.artifacts[0].archive_download_url')
+          echo "artifact_url=$ARTIFACT_URL" >> $GITHUB_OUTPUT
         env:
-          G_T: ${{ secrets.G_T }}
+          GH_TOKEN: ${{ secrets.G_T }}
+
+      - name: Trigger geoqiao.github.io deploy
         run: |
           curl -L -X POST \
             -H "Accept: application/vnd.github+json" \
             -H "Authorization: Bearer $G_T" \
             -H "X-GitHub-Api-Version: 2022-11-28" \
             https://api.github.com/repos/geoqiao/geoqiao.github.io/dispatches \
-            -d '{"event_type":"deploy","client_payload":{"run_id":"${{ needs.build.outputs.run_id }}"}}'
+            -d '{"event_type":"deploy","client_payload":{"artifact_url":"${{ steps.artifact.outputs.artifact_url }}"}}'
+        env:
+          G_T: ${{ secrets.G_T }}
