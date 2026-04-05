@@ -1,19 +1,22 @@
 # ============================================
-# 核心配置（必填）
+# 仓库配置（必填）
+# ============================================
+github:
+  repo: geoqiao/geoqiao.github.io
+  username: geoqiao
+
+# ============================================
+# 博客配置（必填）
 # ============================================
 blog:
   title: geoqiao's Blog
-  description: |
-    个人博客，记录技术与生活。
-    基于 GitHub Issues + Python + Jinja2 构建。
   url: https://geoqiao.github.io/
   author: geoqiao
 
-github:
-  repo: geoqiao/geoqiao.github.io
-
+# ============================================
+# 关于配置（需要修改）
+# ============================================
 about:
-  # 头像 URL，建议使用正方形图片，会显示为圆形
   avatar: https://github.com/geoqiao.png
   bio: |
     你好，我是 geoqiao。
@@ -30,33 +33,49 @@ about:
       url: https://twitter.com/geoqiao
 
 # ============================================
-# 个性化配置（可选，有合理默认值）
+# 使用声明（开源相关，建议保留）
 # ============================================
-theme:
-  name: BearMinimal
-
-navigation:
-  items:
-    - name: Blog
-      url: /blog/
-    - name: Tags
-      url: /tag/
-    - name: About
-      url: /about.html
-    - name: RSS
-      url: /atom.xml
+branding:
+  show_powered_by: true
+  powered_by_text: github_blog
+  powered_by_url: https://github.com/geoqiao/github-blog
+  show_intro: true
+  intro_text: This is a static blog system based on GitHub Issues.
+  source_link_text: View source code →
+  source_link_url: https://github.com/geoqiao/github-blog
 
 # ============================================
-# 高级配置（可选，一般不需要修改）
+# 生成路径配置
 # ============================================
-advanced:
+paths:
+  output: output
+  theme: BearMinimal
+  blog: blog
+  tag: tag
+  rss: atom.xml
+  about: about.html
   page_size: 10
   home_post_count: 10
   language: zh-CN
 
 # ============================================
-# SEO 配置（可选）
+# SEO 配置
 # ============================================
-GoogleSearchConsole:
-  content: DRggZlykSzc8M9TyaS0BPSRE7Kvw8W9hHt5pZrIMm3Y
-  verify: true
+seo:
+  google_search_console: DRggZlykSzc8M9TyaS0BPSRE7Kvw8W9hHt5pZrIMm3Y
+  enable_sitemap: true
+  enable_robots: true
+
+# ============================================
+# 评论配置
+# ============================================
+comments:
+  provider: utterances
+  repo: ""
+  theme: github-light
+
+# ============================================
+# 安全配置
+# ============================================
+security:
+  token_env: G_T
