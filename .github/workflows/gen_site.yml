@@ -59,11 +59,15 @@ jobs:
           # Clone geoqiao.github.io
           git clone https://x-access-token:$G_T@github.com/geoqiao/geoqiao.github.io.git _deploy
 
-          # Copy generated site contents
-          cp -r _site/* _deploy/
-
-          # Commit and push from the clone
+          # Remove old files (templates, .github, etc.) except .git
           cd _deploy
+          rm -rf templates .github *.md *.yaml 2>/dev/null || true
+          find . -maxdepth 1 -type f ! -name '.git' -delete 2>/dev/null || true
+
+          # Copy generated site contents
+          cp -r ../_site/* .
+
+          # Commit and push
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add -A
