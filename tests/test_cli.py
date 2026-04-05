@@ -47,6 +47,11 @@ def test_blog_generator_integration(mock_render_get_settings, mock_get_settings,
     mock_settings = MagicMock()
     mock_settings.paths.page_size = 2
     mock_settings.paths.home_post_count = 10
+    mock_settings.paths.output = "output"
+    mock_settings.paths.blog = "blog"
+    mock_settings.paths.tag = "tag"
+    mock_settings.paths.about = "about.html"
+    mock_settings.paths.rss = "atom.xml"
     mock_settings.blog.url = "https://example.com"
     mock_settings.blog.title = "Test Blog"
     mock_settings.blog.description = "Test Description"
@@ -57,8 +62,6 @@ def test_blog_generator_integration(mock_render_get_settings, mock_get_settings,
     mock_settings.paths.theme_path = str(real_template_path)
     mock_settings.paths.theme_url_path = "/templates/BearMinimal"
     mock_settings.paths.seo_path = str(real_seo_path)
-    mock_settings.paths.blog = "blog"
-    mock_settings.paths.rss = "atom.xml"
     mock_settings.seo.google_search_console = ""
     mock_settings.about.avatar = ""
     mock_settings.about.bio = "Test bio"
