@@ -26,10 +26,11 @@ jobs:
           mkdir -p _pages/.github/workflows
           cp .github/workflows/trigger.yml _pages/.github/workflows/
 
-          # Commit and push
+          # Commit and push with token in URL
           cd _pages
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
+          git remote set-url origin https://x-access-token:$G_T@github.com/geoqiao/geoqiao.github.io.git
           git add .
           git commit -m "sync: update trigger.yml from github-blog"
           git push --force-with-lease
