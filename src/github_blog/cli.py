@@ -1,11 +1,13 @@
+import os
 import shutil
 import sys
 from pathlib import Path
+from typing import Optional
 
 import structlog
 from github.Issue import Issue
 
-from .config import Settings, get_settings
+from .config import Settings, get_settings, load_settings
 from .services.github_service import GitHubService
 from .services.render_service import RenderService
 from .utils.slug import generate_slug_from_title
@@ -17,13 +19,17 @@ CONTENT_DIR = Path("output")
 BLOG_DIR = "blog"
 RSS_ATOM_PATH = "atom.xml"
 
+# Environment variable for GitHub token
+TOKEN_ENV_VAR = "G_T"  # noqa: S105
+
 
 class BlogGenerator:
-    def __init__(self, token: str, repo_name: str):
+    def __init__(self, token: str, repo_name: Optional[str] = None):
         self.gh = GitHubService(token)
         self.repo_name = repo_name
-        self.render = RenderService()
+        # Initialize settings before RenderService, which also calls get_settings()
         self.settings: Settings = get_settings()
+        self.render = RenderService()
 
     def generate(self):
         logger.info("start_generation", repo=self.repo_name)
@@ -31,7 +37,7 @@ class BlogGenerator:
             repo = self.gh.get_repo(self.repo_name)
             issues = self.gh.get_user_issues(repo)
 
-            # 为每个 issue 生成 slug (基于 title，稳定且可读)
+            # 为每个 issue 生成 slug (基于 title，稳定且可读)  # noqa: RUF003
             issue_slugs = {}
             for issue in issues:
                 slug = generate_slug_from_title(issue.number, issue.title)
@@ -128,7 +134,9 @@ class BlogGenerator:
                     content, encoding="utf-8"
                 )
 
-            (CONTENT_DIR / BLOG_DIR / "page" / f"{i}.html").write_text(content, encoding="utf-8")
+            (CONTENT_DIR / BLOG_DIR / "page" / f"{i}.html").write_text(
+                content, encoding="utf-8"
+            )
 
     def _generate_tag_pages(
         self, issues: list[Issue], tags: list[str], issue_slugs: dict[str, str]
@@ -153,16 +161,32 @@ class BlogGenerator:
                 content = self.render.render_tag_page(
                     tag, tag_issues, tags, issue_slugs
                 )
-                (CONTENT_DIR / "tag" / f"{tag}.html").write_text(content, encoding="utf-8")
+                (CONTENT_DIR / "tag" / f"{tag}.html").write_text(
+                    content, encoding="utf-8"
+                )
 
 
 def run_cli():
     import argparse
 
     parser = argparse.ArgumentParser(description="GitHub Blog Generator")
-    parser.add_argument("token", help="GitHub Personal Access Token")
-    parser.add_argument("repo", help="GitHub Repository (e.g., user/repo)")
+    parser.add_argument(
+        "--repo",
+        help="GitHub Repository (e.g., user/repo). Overrides config.yaml if provided.",
+    )
     args = parser.parse_args()
 
-    generator = BlogGenerator(args.token, args.repo)
+    # Read token from G_T environment variable
+    token = os.environ.get(TOKEN_ENV_VAR)
+    if not token:
+        logger.error("missing_token", env_var=TOKEN_ENV_VAR)
+        sys.exit(1)
+
+    # Load settings from config.yaml
+    settings = load_settings()
+
+    # Use CLI repo if provided, otherwise use config repo
+    repo_name = args.repo if args.repo else settings.github.repo
+
+    generator = BlogGenerator(token, repo_name)
     generator.generate()

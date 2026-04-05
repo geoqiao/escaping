@@ -1,10 +1,13 @@
 import os
 import shutil
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-from github_blog.cli import BlogGenerator
+import pytest
+
+from github_blog.cli import BlogGenerator, run_cli
 
 
 def _make_mock_issue(number, title, body="body", labels=None):
@@ -14,9 +17,9 @@ def _make_mock_issue(number, title, body="body", labels=None):
     issue.body = body
     label_mocks = []
     if labels:
-        for l in labels:
+        for label in labels:
             m = MagicMock()
-            m.name = l
+            m.name = label
             label_mocks.append(m)
     issue.labels = label_mocks
     # Use different timestamps to ensure stable sorting (newest first)
@@ -123,3 +126,129 @@ def test_blog_generator_integration(mock_get_settings, mock_gh_service_class, tm
         project_output = project_root / "output"
         if project_output.exists():
             shutil.rmtree(project_output)
+
+
+class TestNewCLI:
+    """Tests for the new CLI behavior (token from G_T env, repo from config or --repo flag)."""
+
+    def test_cli_requires_token(self, monkeypatch, capsys):
+        """Exit if no G_T environment variable is set."""
+        # Ensure G_T is not set
+        monkeypatch.delenv("G_T", raising=False)
+
+        # Set sys.argv to simulate CLI invocation
+        monkeypatch.setattr(sys, "argv", ["blog-gen"])
+
+        # Run CLI and expect SystemExit
+        with pytest.raises(SystemExit) as exc_info:
+            run_cli()
+
+        # Should exit with code 1 (no token)
+        assert exc_info.value.code == 1
+
+    def test_cli_uses_g_t_env_token(self, monkeypatch, tmp_path):
+        """Token is read from G_T environment variable."""
+        test_token = "ghp_testtoken123"  # noqa: S105
+
+        # Set G_T env var
+        monkeypatch.setenv("G_T", test_token)
+
+        # Set sys.argv to simulate CLI invocation
+        monkeypatch.setattr(sys, "argv", ["blog-gen"])
+
+        # Create a fake config.yaml in tmp_path and chdir there
+        monkeypatch.chdir(tmp_path)
+        config_content = """github:
+  repo: user/repo
+blog:
+  title: Test Blog
+  url: https://example.com
+  author: Test
+about:
+  bio: Test bio
+"""
+        (tmp_path / "config.yaml").write_text(config_content)
+
+        # Mock BlogGenerator to capture what was passed
+        with patch("github_blog.cli.BlogGenerator") as mock_generator_class:
+            mock_generator = MagicMock()
+            mock_generator_class.return_value = mock_generator
+
+            run_cli()
+
+            # Verify BlogGenerator was called with the token from G_T
+            mock_generator_class.assert_called_once_with(test_token, "user/repo")
+            mock_generator.generate.assert_called_once()
+
+    def test_cli_repo_from_config(self, monkeypatch, tmp_path):
+        """Repo is read from config.yaml when not provided via CLI."""
+        test_token = "ghp_testtoken456"  # noqa: S105
+
+        # Set G_T env var
+        monkeypatch.setenv("G_T", test_token)
+
+        # Set sys.argv to simulate CLI invocation
+        monkeypatch.setattr(sys, "argv", ["blog-gen"])
+
+        # Create config.yaml with specific repo
+        config_repo = "myorg/myrepo"
+        config_content = f"""github:
+  repo: {config_repo}
+blog:
+  title: Test Blog
+  url: https://example.com
+  author: Test
+about:
+  bio: Test bio
+"""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "config.yaml").write_text(config_content)
+
+        # Mock BlogGenerator
+        with patch("github_blog.cli.BlogGenerator") as mock_generator_class:
+            mock_generator = MagicMock()
+            mock_generator_class.return_value = mock_generator
+
+            run_cli()
+
+            # Verify BlogGenerator was called with repo from config
+            mock_generator_class.assert_called_once_with(test_token, config_repo)
+            mock_generator.generate.assert_called_once()
+
+    def test_cli_repo_cli_override(self, monkeypatch, tmp_path):
+        """--repo CLI flag overrides repo from config.yaml."""
+        test_token = "ghp_testtoken789"  # noqa: S105
+
+        # Set G_T env var
+        monkeypatch.setenv("G_T", test_token)
+
+        # Override repo via CLI
+        cli_repo = "override/override-repo"
+
+        # Set sys.argv to simulate CLI invocation with --repo flag
+        monkeypatch.setattr(sys, "argv", ["blog-gen", "--repo", cli_repo])
+
+        # Create config.yaml with one repo (should be overridden)
+        config_repo = "original/original-repo"
+        config_content = f"""github:
+  repo: {config_repo}
+blog:
+  title: Test Blog
+  url: https://example.com
+  author: Test
+about:
+  bio: Test bio
+"""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "config.yaml").write_text(config_content)
+
+        # Mock BlogGenerator
+        with patch("github_blog.cli.BlogGenerator") as mock_generator_class:
+            mock_generator = MagicMock()
+            mock_generator_class.return_value = mock_generator
+
+            run_cli()
+
+            # Verify BlogGenerator was called with CLI repo, not config repo
+            mock_generator_class.assert_called_once_with(test_token, cli_repo)
+            mock_generator.generate.assert_called_once()
