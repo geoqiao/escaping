@@ -176,6 +176,7 @@ backup/
 .ruff_cache/
 .trae/
 .superpowers/
+.worktrees/
 .claude/
 .claude.local.md
 .opencode/
