@@ -32,8 +32,8 @@ def _make_mock_issue(number, title, body="body", labels=None):
 def test_blog_generator_integration(mock_gh_service_class, tmp_path):
     # Get absolute path to the project root to find real templates
     project_root = Path(__file__).parent.parent.absolute()
-    # Use BearMinimal theme (the current default) for integration test
-    real_template_path = project_root / "templates" / "BearMinimal"
+    # Use Escape1 theme (the current default) for integration test
+    real_template_path = project_root / "templates" / "Escape1"
     real_seo_path = project_root / "templates" / "seo"
 
     # Setup mock settings
@@ -52,9 +52,9 @@ def test_blog_generator_integration(mock_gh_service_class, tmp_path):
     mock_settings.github.username = "user"
     mock_settings.github.repo = "user/repo"
     # Use the absolute path to real templates
-    mock_settings.paths.theme = "BearMinimal"
+    mock_settings.paths.theme = "Escape1"
     mock_settings.paths.theme_path = str(real_template_path)
-    mock_settings.paths.theme_url_path = "/templates/BearMinimal"
+    mock_settings.paths.theme_url_path = "/templates/Escape1"
     mock_settings.paths.seo_path = str(real_seo_path)
     mock_settings.seo.google_search_console = ""
     mock_settings.about.avatar = ""
@@ -105,7 +105,7 @@ def test_blog_generator_integration(mock_gh_service_class, tmp_path):
                 path_str = str(path)
                 if "templates/seo" in path_str:
                     return FileSystemLoader(str(real_seo_path))
-                if "templates/BearMinimal" in path_str or "BearMinimal" in path_str:
+                if "templates/Escape1" in path_str or "Escape1" in path_str:
                     return FileSystemLoader(str(real_template_path))
                 return FileSystemLoader(path)
 
@@ -135,7 +135,7 @@ def test_blog_generator_integration(mock_gh_service_class, tmp_path):
         assert "/blog/2-post-two.html" in index_content
 
         # Verify theme static assets were copied into output
-        theme_static_dir = output_dir / "templates" / "BearMinimal" / "static"
+        theme_static_dir = output_dir / "templates" / "Escape1" / "static"
         assert theme_static_dir.exists(), "Theme static directory should be copied to output"
         assert (theme_static_dir / "css" / "style.css").exists(), "Theme CSS should be present"
     finally:

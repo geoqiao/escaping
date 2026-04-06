@@ -1,4 +1,4 @@
-# BearMinimal Theme
+# Escape1 Theme
 
 A minimal, clean, and configurable blog theme for github-blog.
 
@@ -17,7 +17,7 @@ A minimal, clean, and configurable blog theme for github-blog.
 2. Set your theme path in config.yaml:
    ```yaml
    theme:
-     path: "templates/BearMinimal"
+     path: "templates/Escape1"
      seo: "templates/seo"
    ```
 3. Run the generator:
@@ -65,7 +65,7 @@ In about page content, you can use these variables:
 ## File Structure
 
 ```
-BearMinimal/
+Escape1/
 ├── base.html          # Base template with navigation
 ├── home.html          # Homepage (uses home config)
 ├── index.html         # Blog post list (uses pagination_config)

@@ -108,7 +108,7 @@ class PathsConfig(BaseModel):
     """File paths and URL configuration."""
 
     output: str = "output"
-    theme: str = "BearMinimal"
+    theme: str = "Escape1"
     blog: str = "blog"
     tag: str = "tag"
     rss: str = "atom.xml"

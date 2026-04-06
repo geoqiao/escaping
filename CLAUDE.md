@@ -15,7 +15,7 @@ src/github_blog/
 │   └── render_service.py
 └── utils/slug.py    # Chinese→pinyin slug generation
 
-templates/BearMinimal/    # Single built-in theme
+templates/Escape1/    # Single built-in theme
 ├── post.html
 ├── static/css/style.css
 └── ...
@@ -33,7 +33,7 @@ uv run blog-gen                        # Generate site
 uv run python -m http.server 8000      # Serve from project root
 
 # Copy theme assets for local preview
-cp -r templates/BearMinimal output/templates/
+cp -r templates/Escape1 output/templates/
 
 # Test & quality (TDD required)
 uv run pytest -v
@@ -48,7 +48,7 @@ uv run ty
 
 - **TDD Workflow:** Write test → Run (fails) → Write code → Run (passes) → Refactor
 - **Slug format:** `{number}-{slugified-title}`, e.g. `1-shu-ju-fen-xi`
-- **Template paths:** Absolute paths only — `/templates/BearMinimal/static/...`
+- **Template paths:** Absolute paths only — `/templates/Escape1/static/...`
 
 ## Configuration
 

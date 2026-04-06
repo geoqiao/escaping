@@ -195,7 +195,7 @@ class TestPathsConfig:
 
         cfg = PathsConfig()
         assert cfg.output == "output"
-        assert cfg.theme == "BearMinimal"
+        assert cfg.theme == "Escape1"
         assert cfg.blog == "blog"
         assert cfg.tag == "tag"
         assert cfg.rss == "atom.xml"
@@ -233,8 +233,8 @@ class TestPathsConfig:
         """theme_path returns Path to theme directory."""
         from github_blog.config import PathsConfig
 
-        cfg = PathsConfig(theme="BearMinimal")
-        assert cfg.theme_path == Path("templates/BearMinimal")
+        cfg = PathsConfig(theme="Escape1")
+        assert cfg.theme_path == Path("templates/Escape1")
 
     def test_seo_path_property(self):
         """seo_path returns Path to SEO templates."""
@@ -247,8 +247,8 @@ class TestPathsConfig:
         """theme_url_path returns URL path for theme assets."""
         from github_blog.config import PathsConfig
 
-        cfg = PathsConfig(theme="BearMinimal")
-        assert cfg.theme_url_path == "/templates/BearMinimal"
+        cfg = PathsConfig(theme="Escape1")
+        assert cfg.theme_url_path == "/templates/Escape1"
 
 
 class TestSeoConfig:

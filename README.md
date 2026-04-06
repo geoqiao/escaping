@@ -10,7 +10,7 @@
 
 - 📝 **以 Issue 为博文**：直接在 GitHub Issues 中写作，支持标签分类。
 - 🤖 **全自动化流**：无需本地部署，Issue 更新即刻触发自动构建。
-- 🎨 **优雅 UI**：内置精美的 BearMinimal 主题，支持暗色模式。
+- 🎨 **优雅 UI**：内置精美的 Escape1 主题，支持暗色模式。
 - 🔍 **SEO 友好**：自动生成 `sitemap.xml`、`robots.txt` 以及语义化的 URL (Slugs)。
 - ⚡ **性能卓越**：基于 Python 3.11 和 `uv` 构建，生成速度极快。
 
@@ -23,7 +23,7 @@
 │ escaping (代码仓库 - 所有源码在这里维护)                      │
 │                                                             │
 │ ├── src/                  # Python 源代码                   │
-│ ├── templates/            # 主题模板 (BearMinimal)           │
+│ ├── templates/            # 主题模板 (Escape1)           │
 │ ├── .github/workflows/    # CI/CD 工作流                    │
 │ └── config.yaml           # 博客配置                        │
 └─────────────────────────────────────────────────────────────┘
@@ -138,7 +138,7 @@ about:
 
 ## 主题
 
-内置主题：`BearMinimal`（简洁优雅，支持暗色模式）
+内置主题：`Escape1`（简洁优雅，支持暗色模式）
 
 ---
 

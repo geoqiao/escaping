@@ -1,4 +1,4 @@
-"""Template integrity tests for BearMinimal theme."""
+"""Template integrity tests for Escape1 theme."""
 
 from datetime import datetime, timezone
 from pathlib import Path
@@ -7,7 +7,7 @@ import pytest
 from jinja2 import Environment, FileSystemLoader
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
-THEME = "BearMinimal"
+THEME = "Escape1"
 
 REQUIRED_TEMPLATES = [
     "base.html",
@@ -36,7 +36,7 @@ def full_context():
         "meta_description": "Test description",
         "github_name": "testuser",
         "github_repo": "testuser/testrepo",
-        "theme_path": "/templates/BearMinimal",
+        "theme_path": "/templates/Escape1",
         "rss_atom_path": "atom.xml",
         "about_avatar": "",
         "about_bio": "Test bio",

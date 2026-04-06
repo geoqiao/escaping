@@ -1,15 +1,16 @@
-# escape2 Theme
+# Escape2 Theme
 
 A dark, terminal-inspired blog theme for github-blog. Inspired by the [Nightfall](https://github.com/LordMathis/hugo-theme-nightfall) Hugo theme.
 
 ## Aesthetic
 
 - Retro-futuristic terminal vibe
-- Deep dark backgrounds with amber accent (`#FFB300`)
+- Deep dark backgrounds with cool blue accent (`#80AADD`)
 - JetBrains Mono for headers and code
 - Source Sans 3 for body text
 - Blinking terminal cursor in the logo
 - Post cards with glowing left border on hover
+- Dark mode only
 
 ## Templates
 
@@ -24,7 +25,7 @@ A dark, terminal-inspired blog theme for github-blog. Inspired by the [Nightfall
 ## Files
 
 ```
-templates/escape2/
+templates/Escape2/
 ├── base.html
 ├── home.html
 ├── index.html
@@ -36,10 +37,9 @@ templates/escape2/
 └── static/
     ├── css/
     │   ├── style.css
-    │   └── prism.css
+    │   └── prism-dracula.css
     ├── js/
-    │   ├── prism.js
-    │   └── theme.js
+    │   └── prism.js
     └── images/
         └── favicon.png
 ```
@@ -50,5 +50,5 @@ Set in `config.yaml`:
 
 ```yaml
 theme:
-  name: escape2
+  name: Escape2
 ```

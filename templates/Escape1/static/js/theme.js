@@ -1,4 +1,4 @@
-// BearMinimal Theme Toggle
+// Escape1 Theme Toggle
 (function() {
     'use strict';
 

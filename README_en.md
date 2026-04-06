@@ -10,7 +10,7 @@
 
 - 📝 **Issue-based Writing**: Write directly in GitHub Issues with label support.
 - 🤖 **Zero-Ops Workflow**: No local setup required; build triggers automatically on issue updates.
-- 🎨 **Elegant UI**: Built-in BearMinimal theme with dark mode support.
+- 🎨 **Elegant UI**: Built-in Escape1 theme with dark mode support.
 - 🔍 **SEO Ready**: Automated generation of `sitemap.xml`, `robots.txt`, and human-friendly slugs.
 - ⚡ **High Performance**: Powered by Python 3.11 and `uv` for lightning-fast site generation.
 
@@ -23,7 +23,7 @@
 │ escaping (Code Repository - Source code lives here)      │
 │                                                             │
 │ ├── src/                  # Python source                   │
-│ ├── templates/            # Theme templates (BearMinimal)    │
+│ ├── templates/            # Theme templates (Escape1)    │
 │ ├── .github/workflows/    # CI/CD workflows                 │
 │ └── config.yaml           # Blog configuration              │
 └─────────────────────────────────────────────────────────────┘
@@ -138,7 +138,7 @@ about:
 
 ## Themes
 
-Built-in theme: `BearMinimal` (clean, minimal design with dark mode)
+Built-in theme: `Escape1` (clean, minimal design with dark mode)
 
 ---
 

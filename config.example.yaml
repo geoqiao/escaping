@@ -51,14 +51,14 @@ about:
 # Theme (optional)
 # ============================================
 # theme:
-#   name: BearMinimal
+#   name: Escape1
 
 # ============================================
 # Paths (optional)
 # ============================================
 # paths:
 #   output: output
-#   theme: BearMinimal
+#   theme: Escape1
 #   blog: blog
 #   tag: tag
 #   rss: atom.xml

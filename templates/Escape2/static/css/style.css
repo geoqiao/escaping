@@ -5,28 +5,6 @@
 
 /* CSS Variables */
 :root {
-  --bg: #faf8f5;
-  --bg-elevated: #f0ede8;
-  --bg-card: #e8e4dd;
-  --text: #1a1b1e;
-  --text-muted: #5c5f66;
-  --accent: #80AADD;
-  --accent-hover: #5a94d0;
-  --border: #d4cfc6;
-  --code-bg: #eae6df;
-  --code-text: #1a1b1e;
-  --header-bg: #e8e4dd;
-  --footer-bg: #e8e4dd;
-
-  --font-header: 'JetBrains Mono', 'Fira Mono', monospace;
-  --font-body: 'Source Sans 3', 'Open Sans', sans-serif;
-  --font-code: 'JetBrains Mono', 'Fira Mono', monospace;
-
-  --width: 760px;
-  --break-large: 992px;
-}
-
-html[data-theme="dark"] {
   --bg: #292a2d;
   --bg-elevated: #252627;
   --bg-card: #2f2f2f;
@@ -39,6 +17,13 @@ html[data-theme="dark"] {
   --code-text: #f8f8ff;
   --header-bg: #252627;
   --footer-bg: #252627;
+
+  --font-header: 'JetBrains Mono', 'Fira Mono', monospace;
+  --font-body: 'Source Sans 3', 'Open Sans', sans-serif;
+  --font-code: 'JetBrains Mono', 'Fira Mono', monospace;
+
+  --width: 760px;
+  --break-large: 992px;
 }
 
 /* Base */
@@ -58,7 +43,6 @@ body {
   line-height: 1.65;
   color: var(--text);
   background-color: var(--bg);
-  transition: background-color 0.3s ease, color 0.3s ease;
 }
 
 a {
@@ -125,7 +109,7 @@ h1, h2, h3, h4, h5, h6 {
 .header {
   font-family: var(--font-header);
   height: 60px;
-  max-width: var(--width);
+  max-width: calc(var(--width) + 40px);
   margin: 0 auto;
   padding: 0 20px;
   display: flex;
@@ -182,10 +166,6 @@ h1, h2, h3, h4, h5, h6 {
 
 .headerLinks a:hover {
   color: var(--accent);
-}
-
-.theme-toggle {
-  display: none;
 }
 
 /* Mobile hamburger */
@@ -586,6 +566,7 @@ h1, h2, h3, h4, h5, h6 {
   overflow-x: auto;
   margin: 0 0 1.25rem;
   border: 1px solid var(--border);
+  position: relative;
 }
 
 .post-content pre code {
@@ -593,6 +574,41 @@ h1, h2, h3, h4, h5, h6 {
   padding: 0;
   font-size: 0.85rem;
   line-height: 1.6;
+}
+
+/* PrismJS copy-to-clipboard button */
+/* PrismJS toolbar + copy button positioning */
+.post-content div.code-toolbar {
+  position: relative;
+}
+
+.post-content div.code-toolbar > .toolbar {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  opacity: 0;
+  transition: opacity 0.2s ease;
+}
+
+.post-content div.code-toolbar:hover > .toolbar {
+  opacity: 1;
+}
+
+.post-content div.code-toolbar > .toolbar > .toolbar-item > button.copy-to-clipboard-button {
+  padding: 0.25rem 0.6rem;
+  font-size: 0.75rem;
+  font-family: var(--font-body);
+  color: var(--text-muted);
+  background-color: var(--bg-card);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+.post-content div.code-toolbar > .toolbar > .toolbar-item > button.copy-to-clipboard-button:hover {
+  color: var(--text);
+  background-color: var(--bg-elevated);
 }
 
 .post-content blockquote {
@@ -749,7 +765,6 @@ h1, h2, h3, h4, h5, h6 {
 /* Print styles */
 @media print {
   .headerWrapper,
-  .theme-toggle,
   .hamb,
   .footer,
   .comments {
@@ -775,86 +790,24 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Dark mode code syntax overrides for Prism */
-html[data-theme="dark"] code[class*="language-"],
-html[data-theme="dark"] pre[class*="language-"] {
-  color: #f0f0f5;
+/* Prism code syntax overrides */
+code[class*="language-"],
+pre[class*="language-"] {
   text-shadow: none;
 }
 
-html[data-theme="dark"] pre[class*="language-"] {
+pre[class*="language-"] {
   background: var(--code-bg);
 }
 
-html[data-theme="dark"] :not(pre) > code[class*="language-"] {
-  background-color: rgba(255, 255, 255, 0.06);
-  color: #f0f0f5;
+:not(pre) > code[class*="language-"] {
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
-html[data-theme="dark"] .token.comment,
-html[data-theme="dark"] .token.prolog,
-html[data-theme="dark"] .token.doctype,
-html[data-theme="dark"] .token.cdata {
-  color: #6a737d;
-}
-
-html[data-theme="dark"] .token.punctuation {
-  color: #d1d5db;
-}
-
-html[data-theme="dark"] .token.namespace {
-  opacity: .7;
-}
-
-html[data-theme="dark"] .token.property,
-html[data-theme="dark"] .token.tag,
-html[data-theme="dark"] .token.boolean,
-html[data-theme="dark"] .token.number,
-html[data-theme="dark"] .token.constant,
-html[data-theme="dark"] .token.symbol,
-html[data-theme="dark"] .token.deleted {
-  color: #79c0ff;
-}
-
-html[data-theme="dark"] .token.selector,
-html[data-theme="dark"] .token.attr-name,
-html[data-theme="dark"] .token.string,
-html[data-theme="dark"] .token.char,
-html[data-theme="dark"] .token.builtin,
-html[data-theme="dark"] .token.inserted {
-  color: #a5d6ff;
-}
-
-html[data-theme="dark"] .token.operator,
-html[data-theme="dark"] .token.entity,
-html[data-theme="dark"] .token.url,
-html[data-theme="dark"] .language-css .token.string,
-html[data-theme="dark"] .style .token.string {
-  color: #d2a8ff;
-  background: transparent;
-}
-
-html[data-theme="dark"] .token.atrule,
-html[data-theme="dark"] .token.attr-value,
-html[data-theme="dark"] .token.keyword {
-  color: #ff7b72;
-}
-
-html[data-theme="dark"] .token.function,
-html[data-theme="dark"] .token.class-name {
-  color: #d2a8ff;
-}
-
-html[data-theme="dark"] .token.regex,
-html[data-theme="dark"] .token.important,
-html[data-theme="dark"] .token.variable {
-  color: #ffa657;
-}
-
-html[data-theme="dark"] code[class*="language-"] ::selection,
-html[data-theme="dark"] code[class*="language-"]::selection,
-html[data-theme="dark"] pre[class*="language-"] ::selection,
-html[data-theme="dark"] pre[class*="language-"]::selection {
+code[class*="language-"] ::selection,
+code[class*="language-"]::selection,
+pre[class*="language-"] ::selection,
+pre[class*="language-"]::selection {
   text-shadow: none;
-  background: rgba(255, 179, 0, 0.25);
+  background: rgba(128, 170, 221, 0.35);
 }

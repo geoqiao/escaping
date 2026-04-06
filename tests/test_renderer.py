@@ -11,9 +11,9 @@ from github_blog.services.render_service import RenderService
 def render():
     project_root = Path(__file__).parent.parent.absolute()
     settings = MagicMock()
-    settings.paths.theme_path = project_root / "templates" / "BearMinimal"
+    settings.paths.theme_path = project_root / "templates" / "Escape1"
     settings.paths.seo_path = project_root / "templates" / "seo"
-    settings.paths.theme_url_path = "/templates/BearMinimal"
+    settings.paths.theme_url_path = "/templates/Escape1"
     settings.paths.rss = "atom.xml"
     settings.paths.blog = "blog"
     settings.paths.home_post_count = 10
