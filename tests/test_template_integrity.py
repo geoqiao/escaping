@@ -37,6 +37,8 @@ def full_context():
         "github_name": "testuser",
         "github_repo": "testuser/testrepo",
         "theme_path": "/templates/Escape1",
+        "language": "en",
+        "skip_link_text": "Skip to main content",
         "rss_atom_path": "atom.xml",
         "about_avatar": "",
         "about_bio": "Test bio",
@@ -137,3 +139,112 @@ def test_all_templates_render(full_context):
 
         html = template.render(**ctx)
         assert isinstance(html, str), f"{template_name} failed"
+
+
+class TestEscape2Templates:
+    """Template integrity tests for Escape2 theme."""
+
+    @pytest.fixture
+    def full_context_e2(self):
+        return {
+            "blog_title": "Test Blog",
+            "blog_url": "https://test.com",
+            "author_name": "Test Author",
+            "meta_description": "Test description",
+            "github_name": "testuser",
+            "github_repo": "testuser/testrepo",
+            "theme_path": "/templates/Escape2",
+            "language": "en",
+            "skip_link_text": "Skip to main content",
+            "rss_atom_path": "atom.xml",
+            "about_avatar": "",
+            "about_bio": "Test bio",
+            "about_expertise": [],
+            "about_links": [],
+            "navigation": MockNavigation(),
+            "google_search_verification": "",
+            "branding": {
+                "show_powered_by": True,
+                "powered_by_text": "github_blog",
+                "powered_by_url": "https://github.com/geoqiao/github-blog",
+                "show_intro": True,
+                "intro_text": "This is a static blog system.",
+                "source_link_text": "View source code →",
+                "source_link_url": "https://github.com/geoqiao/github-blog",
+            },
+            "comments": {
+                "provider": "utterances",
+                "repo": "testuser/testrepo",
+                "theme": "github-light",
+            },
+        }
+
+    def test_all_required_templates_exist(self):
+        theme_path = PROJECT_ROOT / "templates" / "Escape2"
+        for template in REQUIRED_TEMPLATES:
+            assert (theme_path / template).exists()
+
+    def test_base_template_has_branding_footer(self, full_context_e2):
+        theme_path = PROJECT_ROOT / "templates" / "Escape2"
+        env = Environment(loader=FileSystemLoader(str(theme_path)), autoescape=True)
+        template = env.get_template("base.html")
+        html = template.render(**full_context_e2)
+        assert "github_blog" in html
+
+    def test_home_template_has_branding_intro(self, full_context_e2):
+        theme_path = PROJECT_ROOT / "templates" / "Escape2"
+        env = Environment(loader=FileSystemLoader(str(theme_path)), autoescape=True)
+        template = env.get_template("home.html")
+        full_context_e2["issues"] = []
+        full_context_e2["issue_slugs"] = {}
+        html = template.render(**full_context_e2)
+        assert "github_blog" in html
+
+    def test_all_templates_render(self, full_context_e2):
+        theme_path = PROJECT_ROOT / "templates" / "Escape2"
+        env = Environment(loader=FileSystemLoader(str(theme_path)), autoescape=True)
+
+        mock_issue = type(
+            "MockIssue",
+            (),
+            {
+                "number": 1,
+                "title": "Test",
+                "body": "Body",
+                "labels": [],
+                "created_at": datetime(2024, 1, 1, tzinfo=timezone.utc),
+                "updated_at": datetime(2024, 1, 1, tzinfo=timezone.utc),
+            },
+        )()
+
+        for template_name in REQUIRED_TEMPLATES:
+            template = env.get_template(template_name)
+            ctx = dict(full_context_e2)
+
+            if template_name == "post.html":
+                ctx.update(
+                    {"issue": mock_issue, "slug": "1-test", "html_body": "<p>Test</p>"}
+                )
+            elif template_name in ["index.html", "tag.html"]:
+                ctx.update(
+                    {
+                        "issues": [mock_issue],
+                        "issue_slugs": {"1": "1-test"},
+                        "tags": ["python"],
+                        "pagination": {
+                            "page": 1,
+                            "pages": 1,
+                            "has_prev": False,
+                            "has_next": False,
+                        },
+                    }
+                )
+            elif template_name == "tags.html":
+                ctx.update(
+                    {"tags": ["python"], "tag_items": [{"name": "python", "count": 1}]}
+                )
+            elif template_name == "home.html":
+                ctx.update({"issues": [mock_issue], "issue_slugs": {"1": "1-test"}})
+
+            html = template.render(**ctx)
+            assert isinstance(html, str), f"{template_name} failed"

@@ -14,6 +14,7 @@ def render():
     settings.paths.theme_path = project_root / "templates" / "Escape1"
     settings.paths.seo_path = project_root / "templates" / "seo"
     settings.paths.theme_url_path = "/templates/Escape1"
+    settings.paths.language = "en"
     settings.paths.rss = "atom.xml"
     settings.paths.blog = "blog"
     settings.paths.home_post_count = 10

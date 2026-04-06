@@ -49,6 +49,7 @@ class RenderService:
             "google_search_verification": self.settings.seo.google_search_console,
             "theme_path": self.settings.paths.theme_url_path,
             "language": self.settings.paths.language,
+            "skip_link_text": "Skip to main content",
             "navigation": self.settings.navigation,
             "about_avatar": self.settings.about.avatar,
             "about_bio": self.settings.about.bio,

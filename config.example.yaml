@@ -49,16 +49,17 @@ about:
 
 # ============================================
 # Theme (optional)
+# Built-in themes: Escape1 (minimal), Escape2 (dark terminal)
 # ============================================
 # theme:
-#   name: Escape1
+#   name: Escape2
 
 # ============================================
 # Paths (optional)
 # ============================================
 # paths:
 #   output: output
-#   theme: Escape1
+#   theme: Escape2
 #   blog: blog
 #   tag: tag
 #   rss: atom.xml
