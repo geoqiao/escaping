@@ -11,14 +11,14 @@
     {% for issue in issues[:home_post_count] %}
     <article class="post-card">
         <h3 class="post-title">
-            <a href="/blog/{{ issue_slugs[issue.number] }}/">{{ issue.title }}</a>
+            <a href="/blog/{{ issue_slugs[issue.number|string] }}.html">{{ issue.title }}</a>
         </h3>
         <div class="post-meta">
             <span class="date">{{ issue.created_at.strftime('%Y-%m-%d') }}</span>
             {% if issue.labels %}
             <span class="tags">
                 {% for label in issue.labels[:3] %}
-                <span class="tag">{{ label.name }}</span>
+                <a class="tag" href="/tag/{{ label.name }}/">{{ label.name }}</a>
                 {% endfor %}
             </span>
             {% endif %}

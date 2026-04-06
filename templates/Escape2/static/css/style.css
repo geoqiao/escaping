@@ -61,7 +61,7 @@ header {
   font-family: var(--font-mono);
   font-size: 1rem;
   color: var(--accent);
-  margin-bottom: 1rem;
+  margin-bottom: 0.75rem;
 }
 
 .nav-links {
@@ -176,23 +176,99 @@ footer a:hover {
   line-height: 1.8;
 }
 
+/* ===== Markdown Content Styling ===== */
+.post-content h1,
+.post-content h2,
+.post-content h3,
+.post-content h4,
+.post-content h5,
+.post-content h6 {
+  color: var(--text);
+  margin-top: 1.5em;
+  margin-bottom: 0.5em;
+  line-height: 1.3;
+}
+
+.post-content h1 { font-size: 1.8rem; }
+.post-content h2 { font-size: 1.5rem; border-bottom: 1px solid var(--border); padding-bottom: 0.3em; }
+.post-content h3 { font-size: 1.25rem; }
+.post-content h4 { font-size: 1.1rem; }
+
+.post-content p {
+  margin: 1em 0;
+}
+
+.post-content a {
+  color: var(--accent);
+  text-decoration: none;
+}
+
+.post-content a:hover {
+  text-decoration: underline;
+}
+
+.post-content ul,
+.post-content ol {
+  margin: 1em 0;
+  padding-left: 1.5em;
+}
+
+.post-content li {
+  margin: 0.5em 0;
+}
+
+.post-content blockquote {
+  margin: 1em 0;
+  padding: 0.5em 1em;
+  border-left: 3px solid var(--accent);
+  background: var(--bg);
+  color: var(--text-muted);
+}
+
+.post-content img {
+  max-width: 100%;
+  height: auto;
+  border-radius: 8px;
+  margin: 1em 0;
+}
+
+.post-content hr {
+  border: none;
+  border-top: 1px solid var(--border);
+  margin: 2em 0;
+}
+
+.post-content table {
+  width: 100%;
+  border-collapse: collapse;
+  margin: 1em 0;
+}
+
+.post-content th,
+.post-content td {
+  border: 1px solid var(--border);
+  padding: 0.5em 1em;
+  text-align: left;
+}
+
+.post-content th {
+  background: var(--bg);
+}
+
 /* ===== Tags ===== */
 .tag {
   display: inline-block;
-  padding: 0.2rem 0.5rem;
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 4px;
-  font-size: 0.8rem;
+  font-size: 0.85rem;
   color: var(--accent);
   text-decoration: none;
-  margin-right: 0.5rem;
+  margin-right: 0.75rem;
   margin-bottom: 0.5rem;
+  transition: color 0.2s ease;
 }
 
 .tag:hover {
-  background: var(--accent);
-  color: var(--bg);
+  color: var(--accent-hover);
+  text-decoration: underline;
 }
 
 /* ===== Pagination ===== */
@@ -277,44 +353,101 @@ code {
 }
 
 /* ===== About Page ===== */
-.about-header {
-  display: flex;
-  gap: 2rem;
-  align-items: center;
-  margin-bottom: 2rem;
+.about-content {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: var(--card-padding);
 }
 
-.avatar {
-  width: 100px;
-  height: 100px;
+.about-content h1 {
+  margin: 0 0 1.5rem 0;
+  font-size: 1.5rem;
+}
+
+.about-avatar {
+  margin-bottom: 1.5rem;
+}
+
+.about-avatar .avatar-img {
+  width: 120px;
+  height: 120px;
   border-radius: 50%;
-  border: 2px solid var(--accent);
+  border: 3px solid var(--accent);
 }
 
-.bio {
-  color: var(--text-muted);
+.about-section {
+  margin: 1.5rem 0;
 }
 
-.expertise ul,
-.links ul {
+.about-section h2 {
+  font-size: 1.2rem;
+  color: var(--accent);
+  margin-bottom: 0.75rem;
+}
+
+.about-section ul {
   list-style: none;
   padding: 0;
+  margin: 0;
 }
 
-.expertise li,
-.links li {
+.about-section li {
   margin: 0.5rem 0;
+  padding-left: 1em;
+  border-left: 2px solid var(--border);
 }
 
-.links a {
+.about-section a {
   color: var(--accent);
+  text-decoration: none;
+}
+
+.about-section a:hover {
+  text-decoration: underline;
+}
+
+.contact-list li {
+  border-left: none;
+  padding-left: 0;
 }
 
 /* ===== Tag Cloud ===== */
+.tags-page {
+  background: var(--bg-card);
+  border-radius: 8px;
+  padding: var(--card-padding);
+}
+
 .tag-cloud {
   display: flex;
   flex-wrap: wrap;
-  gap: 0.5rem;
+  gap: 1rem;
+  margin-top: 1.5rem;
+}
+
+.tag-item {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  font-size: var(--size, 1rem);
+  color: var(--text);
+  text-decoration: none;
+  padding: 0.3rem 0.8rem;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  transition: all 0.2s ease;
+}
+
+.tag-item:hover {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.tag-count {
+  font-size: 0.75em;
+  color: var(--text-muted);
+  margin-left: 0.2rem;
 }
 
 /* ===== Comments ===== */

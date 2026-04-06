@@ -6,8 +6,8 @@
     
     <div class="tag-cloud">
         {% for tag in tag_items %}
-        <a href="/tag/{{ tag.name }}/" class="tag" style="font-size: {{ 0.8 + tag.count * 0.2 }}rem;">
-            {{ tag.name }} ({{ tag.count }})
+        <a href="/tag/{{ tag.name }}/" class="tag-item" style="--size: {{ 0.9 + tag.count * 0.15 }}rem;">
+            {{ tag.name }}<span class="tag-count">{{ tag.count }}</span>
         </a>
         {% endfor %}
     </div>

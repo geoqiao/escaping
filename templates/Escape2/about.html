@@ -1,37 +1,52 @@
 {% extends "base.html" %}
 
+{% block title %}About - {{ blog_title }}{% endblock %}
+
 {% block content %}
-<section class="about-page">
+<div class="about-content">
     <h1>About</h1>
-    
-    <div class="about-header">
-        <img src="{{ about_avatar }}" alt="{{ author_name }}" class="avatar">
-        <div>
-            <h2>{{ author_name }}</h2>
-            <p class="bio">{{ about_bio }}</p>
-        </div>
+
+    {% if about_avatar %}
+    <div class="about-avatar">
+        <img src="{{ about_avatar }}" alt="{{ author_name }}" class="avatar-img">
     </div>
-    
+    {% endif %}
+
+    {% if about_bio %}
+    <section class="about-section">
+        {% for line in about_bio.split('\n') %}
+        {% if line.strip() %}
+        <p>{{ line | replace('{{ author_name }}', author_name) | replace('{{ github_name }}', github_name) | replace('{{ blog_url }}', blog_url) }}</p>
+        {% endif %}
+        {% endfor %}
+    </section>
+    {% endif %}
+
     {% if about_expertise %}
-    <div class="expertise">
-        <h3>Expertise</h3>
+    <section class="about-section">
+        <h2>Expertise</h2>
         <ul>
             {% for item in about_expertise %}
             <li>{{ item }}</li>
             {% endfor %}
         </ul>
-    </div>
+    </section>
     {% endif %}
-    
+
     {% if about_links %}
-    <div class="links">
-        <h3>Links</h3>
-        <ul>
+    <section class="about-section">
+        <h2>Links</h2>
+        <ul class="contact-list">
             {% for link in about_links %}
-            <li><a href="{{ link.url }}" target="_blank">{{ link.name }}</a></li>
+            <li>
+                <strong>{{ link.name }}</strong>:
+                <a href="{{ link.url | replace('{{ github_name }}', github_name) | replace('{{ blog_url }}', blog_url) }}">
+                    {{ link.url | replace('{{ github_name }}', github_name) | replace('{{ blog_url }}', blog_url) }}
+                </a>
+            </li>
             {% endfor %}
         </ul>
-    </div>
+    </section>
     {% endif %}
-</section>
+</div>
 {% endblock %}
