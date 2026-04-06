@@ -33,8 +33,9 @@ class BlogGenerator:
                 slug = generate_slug_from_title(issue.number, issue.title)
                 issue_slugs[str(issue.number)] = slug
 
-            # 目录初始化
+            # 目录初始化 + 复制主题静态资源
             self._init_dirs()
+            self._copy_theme_assets()
 
             # 渲染文章
             for issue in issues:
@@ -89,6 +90,22 @@ class BlogGenerator:
     def _save_post(self, slug: str, content: str):
         path = Path(self.settings.paths.output) / self.settings.paths.blog / f"{slug}.html"
         path.write_text(content, encoding="utf-8")
+
+    def _copy_theme_assets(self):
+        """Copy theme static assets into output directory."""
+        theme_name = self.settings.paths.theme
+        output_dir = Path(self.settings.paths.output)
+        theme_src = Path("templates") / theme_name
+
+        static_src = theme_src / "static"
+        static_dst = output_dir / "templates" / theme_name / "static"
+        if static_src.exists():
+            shutil.copytree(static_src, static_dst, dirs_exist_ok=True)
+
+        images_src = theme_src / "images"
+        images_dst = output_dir / "templates" / theme_name / "images"
+        if images_src.exists():
+            shutil.copytree(images_src, images_dst, dirs_exist_ok=True)
 
     def _collect_tags(self, issues: list[Issue]) -> list[str]:
         tagset = set()
