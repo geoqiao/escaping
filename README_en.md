@@ -10,7 +10,7 @@
 
 - 📝 **Issue-based Writing**: Write directly in GitHub Issues with label support.
 - 🤖 **Zero-Ops Workflow**: No local setup required; build triggers automatically on issue updates.
-- 🎨 **Elegant UI**: Built-in Escape1 theme with dark mode support.
+- 🎨 **Elegant UI**: Built-in Escape1 (minimal light/dark) and Escape2 (dark terminal) themes.
 - 🔍 **SEO Ready**: Automated generation of `sitemap.xml`, `robots.txt`, and human-friendly slugs.
 - ⚡ **High Performance**: Powered by Python 3.11 and `uv` for lightning-fast site generation.
 
@@ -23,7 +23,7 @@
 │ escaping (Code Repository - Source code lives here)      │
 │                                                             │
 │ ├── src/                  # Python source                   │
-│ ├── templates/            # Theme templates (Escape1)    │
+│ ├── templates/            # Theme templates (Escape1 / Escape2) │
 │ ├── .github/workflows/    # CI/CD workflows                 │
 │ └── config.yaml           # Blog configuration              │
 └─────────────────────────────────────────────────────────────┘
@@ -110,7 +110,7 @@ uv sync
 
 # Local preview
 export G_T=your_token
-uv run blog-gen
+uv run blog-gen            # theme static assets are copied automatically
 uv run python -m http.server 8000
 ```
 
@@ -138,7 +138,15 @@ about:
 
 ## Themes
 
-Built-in theme: `Escape1` (clean, minimal design with dark mode)
+- `Escape1`: clean, minimal design with light / dark toggle
+- `Escape2`: dark-only terminal aesthetic using JetBrains Mono and a cold-blue accent
+
+Set in `config.yaml`:
+
+```yaml
+paths:
+  theme: Escape2
+```
 
 ---
 

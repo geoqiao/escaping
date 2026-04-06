@@ -15,7 +15,8 @@ src/github_blog/
 │   └── render_service.py
 └── utils/slug.py    # Chinese→pinyin slug generation
 
-templates/Escape1/    # Single built-in theme
+templates/Escape1/        # Minimal theme (light/dark)
+templates/Escape2/        # Dark-only terminal theme
 ├── post.html
 ├── static/css/style.css
 └── ...
@@ -32,9 +33,6 @@ export G_T=ghp_xxxxx
 uv run blog-gen                        # Generate site
 uv run python -m http.server 8000      # Serve from project root
 
-# Copy theme assets for local preview
-cp -r templates/Escape1 output/templates/
-
 # Test & quality (TDD required)
 uv run pytest -v
 uv run pytest tests/test_cli.py -v
@@ -48,7 +46,7 @@ uv run ty
 
 - **TDD Workflow:** Write test → Run (fails) → Write code → Run (passes) → Refactor
 - **Slug format:** `{number}-{slugified-title}`, e.g. `1-shu-ju-fen-xi`
-- **Template paths:** Absolute paths only — `/templates/Escape1/static/...`
+- **Template paths:** Absolute paths only — `/templates/Escape2/static/...`
 
 ## Configuration
 
