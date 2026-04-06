@@ -1,25 +1,26 @@
 <!DOCTYPE html>
-<html lang="{{ language }}">
+<html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{% block description %}{{ meta_description }}{% endblock %}">
     <title>{% block title %}{{ blog_title }}{% endblock %}</title>
 
     <!-- Fonts -->
     <link rel="preconnect" href="https://fonts.googleapis.com">
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
     <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
-
+    
     <!-- CSS -->
     <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
     <link rel="stylesheet" href="{{ theme_path }}/static/css/prism.css" />
-
+    
     <!-- Favicon -->
     <link rel="icon" href="{{ theme_path }}/static/images/favicon.png" type="image/png">
-
+    
     <!-- RSS -->
     <link rel="alternate" type="application/rss+xml" title="{{ blog_title }}" href="{{ blog_url }}/{{ rss_atom_path }}">
-
+    
     {% block extra_head %}{% endblock %}
 </head>
 <body>
@@ -32,22 +33,22 @@
             <a href="/atom.xml">RSS</a>
         </nav>
     </header>
-
+    
     <main>
         <div class="container">
             {% block content %}{% endblock %}
         </div>
     </main>
-
+    
     <footer>
         <div class="container">
-            <p>&copy; {{ year }} {{ author_name }}</p>
+            <p>&copy; 2026 {{ author_name }}</p>
             {% if branding.show_powered_by %}
             <p>Built with <a href="{{ branding.powered_by_url }}" target="_blank">{{ branding.powered_by_text }}</a></p>
             {% endif %}
         </div>
     </footer>
-
+    
     <!-- JS -->
     <script src="{{ theme_path }}/static/js/prism.js"></script>
 </body>
