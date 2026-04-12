@@ -74,6 +74,12 @@ class RenderService:
         }
 
     def markdown_to_html(self, md_str: str) -> str:
+        # Remove tag links that point to GitHub "new issue" pages so tags render as plain text
+        md_str = re.sub(
+            r"\[(#[\w-]+)\]\(https://github\.com/[^/]+/[^/]+/issues/new[^\)]*\)",
+            r"\1",
+            md_str,
+        )
         return self.markdown.convert(md_str)
 
     def render_post(self, issue: Issue, slug: str, html_body: str) -> str:

@@ -121,6 +121,23 @@ def test_image_has_lazy_loading(render):
     assert '<img loading="lazy"' in html
 
 
+def test_markdown_to_html_strips_tag_new_issue_links(render):
+    md = "Tags: [#blog](https://github.com/geoqiao/geoqiao.github.io/issues/new#blog) [#python](https://github.com/geoqiao/geoqiao.github.io/issues/new?label=python)"
+    html = render.markdown_to_html(md)
+    assert "#blog" in html
+    assert "#python" in html
+    assert '<a href="https://github.com/geoqiao/geoqiao.github.io/issues/new' not in html
+    assert "<a" not in html
+
+
+def test_markdown_to_html_keeps_normal_links(render):
+    md = "See [rye](https://github.com/mitsuhiko/rye) and [#blog](https://github.com/geoqiao/geoqiao.github.io/issues/new#blog)"
+    html = render.markdown_to_html(md)
+    assert '<a href="https://github.com/mitsuhiko/rye">rye</a>' in html
+    assert "#blog" in html
+    assert '<a href="https://github.com/geoqiao/geoqiao.github.io/issues/new' not in html
+
+
 def test_render_index_pagination(render):
     issues = [_make_issue(number=i) for i in range(1, 11)]
     pagination = {

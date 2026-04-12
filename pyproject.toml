@@ -63,3 +63,7 @@ indent-style = "space"
 testpaths = ["tests"]
 python_files = "test_*.py"
 addopts = "--cov=src --cov-report=term-missing"
+
+[tool.pyright]
+venvPath = "."
+venv = ".venv"
