@@ -122,7 +122,7 @@ uv run python -m http.server 8000
 
 ```yaml
 github:
-  repo: username/username.github.io  # 你的 Issues 仓库
+  repo: username/username.github.io # 你的 Issues 仓库
 
 blog:
   title: 我的博客
