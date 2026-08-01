@@ -153,13 +153,31 @@ uv run ty                # 类型检查
 ```yaml
 github:
   repo: user/user.github.io # Issues 仓库
-  username: user # GitHub 用户名
+  allowed_authors:
+    - user
 
-blog:
+site:
   title: "Blog Title"
-  url: https://example.com
+  url: https://example.com/
   author: "Author Name"
   description: "Description"
+  language: zh-CN
+  navigation:
+    items:
+      - name: Blog
+        url: /blog/
+      - name: Tags
+        url: /tag/
+
+profile:
+  avatar: https://github.com/user.png
+  bio: "个人简介"
+  links:
+    - name: GitHub
+      url: https://github.com/user
+
+about:
+  issue_number: 1
 
 paths:
   output: output # 输出目录
@@ -168,17 +186,8 @@ paths:
   tag: tag # 标签子目录
   rss: atom.xml # RSS 文件名
   about: about.html
+  page: page
   page_size: 10 # 每页文章数
-  home_post_count: 10
-  language: zh-CN
-
-about:
-  avatar: https://github.com/user.png
-  bio: "个人简介"
-  expertise: ["技能1", "技能2"]
-  links:
-    - name: GitHub
-      url: https://github.com/user
 
 comments:
   provider: utterances # 评论 provider

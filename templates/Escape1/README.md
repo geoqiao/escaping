@@ -14,46 +14,41 @@ A minimal, clean, and configurable blog theme for github-blog.
 ## Quick Start
 
 1. Copy `config.example.yaml` to `config.yaml` and customize
-2. Set your theme path in config.yaml:
+2. Set your theme in config.yaml:
    ```yaml
-   theme:
-     path: "templates/Escape1"
-     seo: "templates/seo"
+   paths:
+     theme: Escape1
    ```
 3. Run the generator:
    ```bash
-   uv run blog-gen <TOKEN> <REPO>
+   export G_T=ghp_xxxxx
+   uv run blog-gen
    ```
 
 ## Configuration
 
 All text content is configurable via `config.yaml`:
 
-### Home Page (`home`)
-- `intro_line1` - First intro paragraph
-- `intro_line2` - Second intro paragraph
-- `source_code_text` - Source code link text
-- `source_code_url` - Source code link URL
-- `recent_posts_title` - Recent posts section title
-- `view_all_text` - "View all" link text
-- `post_count` - Number of posts to show on home page
+### Branding (`branding`)
+- `intro_text` - Intro paragraph
+- `intro_text2` - Second intro line
+- `source_link_text` - Source code link text
+- `source_link_url` - Source code link URL
+- `show_powered_by` - Show "powered by" footer
+- `powered_by_text` / `powered_by_url` - Powered-by link
 
-### About Page (`about`)
-- `page_title` - Page title
-- `sections` - Array of sections with `title`, `type`, and `content`
-  - `type: paragraphs` - Multiple paragraphs
-  - `type: list` - Bullet list
-  - `type: contact` - Contact links
+### Site Profile (`profile`)
+- `avatar` - Avatar image URL
+- `bio` - Short bio text
+- `links` - List of links with `name` and `url`
 
-### Navigation (`navigation`)
-- `items` - Array of navigation links with `name` and `url`
-
-### Pagination (`pagination`)
-- `prev_text` - Previous page button text
-- `next_text` - Next page button text
-
-### Tags Page (`tags`)
-- `page_title` - Page title
+### Site Identity (`site`)
+- `title` - Site title
+- `author` - Author display name
+- `url` - Canonical HTTPS origin
+- `description` - Site description
+- `language` - Language code
+- `navigation.items` - Navigation links with `name` and `url`
 
 ## Variable Substitution
 
@@ -67,11 +62,11 @@ In about page content, you can use these variables:
 ```
 Escape1/
 ├── base.html          # Base template with navigation
-├── home.html          # Homepage (uses home config)
-├── index.html         # Blog post list (uses pagination_config)
+├── home.html          # Homepage (uses branding config)
+├── index.html         # Blog post list (uses pagination)
 ├── post.html          # Individual post
-├── about.html         # About page (uses about config)
-├── tags.html          # Tag index (uses tags_config)
+├── about.html         # About page (uses profile config)
+├── tags.html          # Tag index
 ├── tag.html           # Single tag page
 └── static/
     ├── css/style.css  # Main stylesheet

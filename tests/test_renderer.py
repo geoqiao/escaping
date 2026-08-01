@@ -17,22 +17,20 @@ def render() -> Any:  # noqa: ANN401
     settings.paths.theme_path = project_root / "templates" / "Escape1"
     settings.paths.seo_path = project_root / "templates" / "seo"
     settings.paths.theme_url_path = "/templates/Escape1"
-    settings.paths.language = "en"
     settings.paths.rss = "atom.xml"
     settings.paths.blog = "blog"
-    settings.paths.home_post_count = 10
-    settings.blog.title = "Test Blog"
-    settings.blog.url = "https://example.com"
-    settings.blog.author = "Author"
-    settings.blog.description = "Test Description"
+    settings.site.title = "Test Blog"
+    settings.site.url = "https://example.com"
+    settings.site.author = "Author"
+    settings.site.description = "Test Description"
+    settings.site.language = "en"
     settings.github.username = "user"
     settings.github.repo = "user/repo"
     settings.seo.google_search_console = ""
-    settings.about.avatar = ""
-    settings.about.bio = "Test bio"
-    settings.about.expertise = ["Skill 1", "Skill 2"]
-    settings.about.links = []
-    settings.navigation.items = []
+    settings.profile.avatar = ""
+    settings.profile.bio = "Test bio"
+    settings.profile.links = []
+    settings.site.navigation.items = []
     settings.branding.show_powered_by = True
     settings.branding.powered_by_text = "Powered by"
     settings.branding.powered_by_url = "https://github.com/geoqiao/github-blog"
@@ -50,7 +48,12 @@ def render() -> Any:  # noqa: ANN401
     return RenderService(settings)
 
 
-def _make_issue(number: int = 1, title: str = "Test Post", body: str = "Hello **world**", labels: list[str] | None = None) -> Any:  # noqa: ANN401
+def _make_issue(
+    number: int = 1,
+    title: str = "Test Post",
+    body: str = "Hello **world**",
+    labels: list[str] | None = None,
+) -> Any:  # noqa: ANN401
     issue = MagicMock()
     issue.number = number
     issue.title = title

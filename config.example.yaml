@@ -1,25 +1,41 @@
 # ============================================
 # Core (required)
 # ============================================
-blog:
-  title: "Blog Title"
-  description: Short description
-  url: https://example.com
-  author: Your Name
-
 github:
-  repo: username/repo
+  repo: username/username.github.io
+  allowed_authors:
+    - username
 
-about:
-  avatar: https://example.com/avatar.jpg
+site:
+  title: "Blog Title"
+  url: https://username.github.io/
+  author: Your Name
+  description: Short description
+  language: en
+  # navigation:          # optional
+  #   items:
+  #     - name: Blog
+  #       url: /blog/
+  #     - name: Tags
+  #       url: /tag/
+  #     - name: About
+  #       url: /about.html
+  #     - name: RSS
+  #       url: /atom.xml
+
+profile:
+  avatar: https://github.com/username.png
   bio: |
     A short bio about yourself.
-  expertise:
-    - Python
-    - DevOps
   links:
     - name: GitHub
       url: https://github.com/username
+
+about:
+  issue_number: 1
+
+security:
+  token_env: G_T
 
 # ============================================
 # Branding (optional)
@@ -30,32 +46,14 @@ about:
 #   powered_by_url: https://github.com/geoqiao/github-blog
 #   show_intro: false
 #   intro_text: ""
+#   intro_text2: Generated with Python + Jinja2, deployed via GitHub Actions.
 #   source_link_text: View Source
 #   source_link_url: ""
 
 # ============================================
-# Navigation (optional)
-# ============================================
-# navigation:
-#   items:
-#     - name: Blog
-#       url: /blog/
-#     - name: Tags
-#       url: /tag/
-#     - name: About
-#       url: /about.html
-#     - name: RSS
-#       url: /atom.xml
-
-# ============================================
-# Theme (optional)
-# Built-in themes: Escape1 (minimal), Escape2 (dark terminal)
-# ============================================
-# theme:
-#   name: Escape2
-
-# ============================================
 # Paths (optional)
+# Built-in themes: Escape1 (minimal), Escape2 (dark terminal)
+# page_size is a positive integer, default 10
 # ============================================
 # paths:
 #   output: output
@@ -64,9 +62,8 @@ about:
 #   tag: tag
 #   rss: atom.xml
 #   about: about.html
+#   page: page
 #   page_size: 10
-#   home_post_count: 10
-#   language: en
 
 # ============================================
 # SEO (optional)
@@ -78,15 +75,36 @@ about:
 
 # ============================================
 # Comments (optional)
+# repo falls back to github.repo when empty
+# theme_mode: auto follows the blog theme
 # ============================================
 # comments:
 #   provider: utterances
-#   repo: username/repo
+#   repo: ""
 #   theme: github-light
 #   theme_mode: auto
 
 # ============================================
-# Security (optional)
+# Projects (optional)
 # ============================================
-# security:
-#   token_env: G_T
+# projects:
+#   - slug: my-project
+#     title: My Project
+#     repository: username/project
+#     summary: A great project
+#     featured: true
+#     order: 1
+#     fallback_metadata:
+#       stars: 100
+#       forks: 10
+#       language: Python
+#       topics:
+#         - web
+
+# ============================================
+# Theme lock (optional)
+# ============================================
+# theme_lock:
+#   repository: org/theme
+#   commit: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
+#   api_version: "1"

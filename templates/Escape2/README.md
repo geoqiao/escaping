@@ -49,6 +49,6 @@ templates/Escape2/
 Set in `config.yaml`:
 
 ```yaml
-theme:
-  name: Escape2
+paths:
+  theme: Escape2
 ```

@@ -3,34 +3,52 @@
 # ============================================
 github:
   repo: geoqiao/geoqiao.github.io
-  username: geoqiao
+  allowed_authors:
+    - geoqiao
 
 # ============================================
-# 博客配置（必填）
+# 站点身份配置（必填）
+# 拥有标题、作者显示名、规范 HTTPS 源、描述、语言和导航
 # ============================================
-blog:
+site:
   title: geoqiao's Blog
-  url: https://geoqiao.github.io/
+  url: https://geoqiao.me/
   author: geoqiao
+  description: ""
+  language: zh-CN
+  navigation:
+    items:
+      - name: Blog
+        url: /blog/
+      - name: Tags
+        url: /tag/
+      - name: About
+        url: /about.html
+      - name: RSS
+        url: /atom.xml
 
 # ============================================
-# 关于配置（需要修改）
+# 站点档案（Site Profile）
+# 仅包含头像、简介和链接；详细 About 叙述属于 About Issue Content
 # ============================================
-about:
+profile:
   avatar: https://github.com/geoqiao.png
   bio: |
     你好，我是 geoqiao。
     一名金融行业的贷后策略分析师，喜欢折腾工具，也享受用代码解决重复性工作。
     工作之余，我喜欢记录生活中的碎片。
-  expertise:
-    - 金融数据分析
-    - 贷后策略与风控
-    - Python 自动化工具
   links:
     - name: GitHub
       url: https://github.com/geoqiao
     - name: Twitter/X
       url: https://twitter.com/geoqiao
+
+# ============================================
+# About Issue 选择（必填）
+# 通过不可变 Issue 编号选择 About 内容
+# ============================================
+about:
+  issue_number: 1
 
 # ============================================
 # 使用声明（开源相关，建议保留）
@@ -42,11 +60,13 @@ branding:
   show_intro: true
   intro_text: Escaping is a static blog system based on GitHub Issues.
   intro_text2: Generated with Python + Jinja2, deployed via GitHub Actions.
-  source_link_text: View source code →
+  source_link_text: View source code ->
   source_link_url: https://github.com/geoqiao/escaping
 
 # ============================================
 # 生成路径配置
+# page_size 为正整数，默认 10
+# Home 最近 Blog 数量在 v1 固定为 5，不可配置
 # ============================================
 paths:
   output: output
@@ -55,9 +75,8 @@ paths:
   tag: tag
   rss: atom.xml
   about: about.html
+  page: page
   page_size: 10
-  home_post_count: 10
-  language: zh-CN
 
 # ============================================
 # SEO 配置
@@ -69,15 +88,18 @@ seo:
 
 # ============================================
 # 评论配置
+# repo 留空时回退到 github.repo
+# theme_mode: auto 跟随博客主题
 # ============================================
 comments:
   provider: utterances
   repo: ""
   theme: github-light
-  theme_mode: auto # "auto" = follow blog theme (github-light/photon-dark), or specific theme name
+  theme_mode: auto
 
 # ============================================
 # 安全配置
+# token_env 动态决定 Token 环境变量名，不硬编码
 # ============================================
 security:
   token_env: G_T

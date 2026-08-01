@@ -1,6 +1,6 @@
 # Migration Guide: Config Refactor
 
-This is a breaking change. Follow these steps to migrate from the old config format to the new three-tier structure.
+This is a breaking change. Follow these steps to migrate from the old config format to the new strict structure.
 
 ## What's Changed
 
@@ -28,7 +28,7 @@ For CI/CD (GitHub Actions), `G_T` is automatically available as a secret environ
 
 ### config.yaml Structure
 
-The old `config.yaml` format is no longer supported. You must migrate to the new structure.
+The old `config.yaml` format is no longer supported. You must migrate to the new strict structure.
 
 **Old Structure (unsupported):**
 ```yaml
@@ -59,10 +59,10 @@ theme:
 home:
   intro_line1: "..."
   intro_line2: "..."
-  source_code_text: "View Source →"
+  source_code_text: "View Source ->"
   source_code_url: "https://github.com/..."
   recent_posts_title: "Recent Posts"
-  view_all_text: "View all posts →"
+  view_all_text: "View all posts ->"
   post_count: 10
 
 about:
@@ -79,7 +79,7 @@ navigation:
 
 pagination:
   prev_text: "← Prev"
-  next_text: "Next →"
+  next_text: "Next ->"
 
 tags:
   page_title: "Tags"
@@ -91,28 +91,43 @@ tags:
 # Core (required)
 # ============================================
 github:
-  repo: username/repo
+  repo: username/username.github.io
+  allowed_authors:
+    - username
 
-blog:
+site:
   title: "Blog Title"
   url: https://username.github.io/
   author: Your Name
+  description: A short description
+  language: en
+  # navigation:          # optional
+  #   items:
+  #     - name: Blog
+  #       url: /blog/
+  #     - name: Tags
+  #       url: /tag/
+  #     - name: About
+  #       url: /about.html
+  #     - name: RSS
+  #       url: /atom.xml
 
-about:
+profile:
   avatar: https://github.com/username.png
   bio: |
     A short bio about yourself.
-  expertise:
-    - Python
-    - DevOps
   links:
     - name: GitHub
       url: https://github.com/username
-    - name: Twitter/X
-      url: https://twitter.com/username
+
+about:
+  issue_number: 1
+
+security:
+  token_env: G_T
 
 # ============================================
-# Personalization (optional)
+# Branding (optional)
 # ============================================
 branding:
   show_powered_by: true
@@ -120,22 +135,22 @@ branding:
   powered_by_url: https://github.com/username/escaping
   show_intro: true
   intro_text: This is a static blog system based on GitHub Issues.
-  source_link_text: View source code →
+  intro_text2: Generated with Python + Jinja2, deployed via GitHub Actions.
+  source_link_text: View source code ->
   source_link_url: https://github.com/username/escaping
 
 # ============================================
-# Advanced (optional)
+# Paths (optional)
 # ============================================
 paths:
   output: output
-  theme: BearMinimal
+  theme: Escape1
   blog: blog
   tag: tag
   rss: atom.xml
   about: about.html
+  page: page
   page_size: 10
-  home_post_count: 10
-  language: en
 
 # ============================================
 # SEO (optional)
@@ -147,17 +162,14 @@ seo:
 
 # ============================================
 # Comments (optional)
+# repo falls back to github.repo when empty
+# theme_mode: auto follows the blog theme
 # ============================================
 comments:
   provider: utterances
-  repo: username/repo
+  repo: ""
   theme: github-light
-
-# ============================================
-# Security (optional)
-# ============================================
-security:
-  token_env: G_T
+  theme_mode: auto
 ```
 
 ## Migration Steps
@@ -174,8 +186,10 @@ security:
 
 3. **Copy over your personal information**
    - Set `github.repo` to your repository (e.g., `username/username.github.io`)
-   - Set `blog.title`, `blog.url`, `blog.author`
-   - Set `about.avatar`, `about.bio`, `about.expertise`, `about.links`
+   - Set `github.allowed_authors` to your GitHub username
+   - Set `site.title`, `site.url`, `site.author`, `site.description`
+   - Set `profile.avatar`, `profile.bio`, `profile.links`
+   - Set `about.issue_number` to the Issue number for your About page
    - Set `seo.google_search_console` if you have a verification code
 
 4. **Set `G_T` environment variable**
@@ -194,19 +208,22 @@ The following old config sections are **no longer supported**:
 
 | Old Section | Reason |
 |-------------|--------|
-| `blog.content_dir` | Internal path, now hardcoded to `output/` |
-| `blog.blog_dir` | Internal path, now hardcoded to `blog/` |
-| `blog.rss_atom_path` | Internal path, now hardcoded to `atom.xml` |
+| `blog.content_dir` | Internal path, now in `paths.output` |
+| `blog.blog_dir` | Internal path, now in `paths.blog` |
+| `blog.rss_atom_path` | Internal path, now in `paths.rss` |
 | `blog.author.email` | Not used in templates |
 | `GoogleSearchConsole` | Use `seo.google_search_console` instead |
 | `theme.path` | Internal path, now uses `paths.theme` |
 | `theme.seo` | Removed (SEO is now automatic) |
-| `home.*` | Replaced with `branding.*` and `about.*` |
-| `about.page_title` | Now uses `blog.title` |
-| `about.sections` | Restructured to `about.bio`, `about.expertise`, `about.links` |
-| `navigation` | Now auto-generated with defaults |
+| `home.*` | Replaced with `branding.*` and `profile.*` |
+| `about.page_title` | Now uses `site.title` |
+| `about.sections` | About narrative is now Issue-authored; profile data is in `profile` |
+| `about.expertise` | Removed; expertise belongs to About Issue Content |
+| `navigation` | Now under `site.navigation` |
 | `pagination.*` | Removed (pagination is automatic) |
-| `tags.page_title` | Now uses `blog.title` |
+| `tags.page_title` | Now uses `site.title` |
+| `blog.*` (top-level) | Replaced by `site.*` for identity and `profile.*` for profile |
+| `github.name` | Derived from `github.repo` |
 
 ## Custom Themes
 
@@ -250,14 +267,14 @@ In your `post.html`, the utterances script now uses `comments` instead of hardco
         theme="{{ comments.theme }}">
 ```
 
-## Internal Paths (Now Hardcoded)
+## Internal Paths
 
-The following paths are now hardcoded and should not be configured:
+The following paths are configurable via `paths.*` but have safe defaults:
 
-- `output/` - Site output directory
+- `output/` - Site output directory (must be in the allowed output-root set)
 - `blog/` - Blog post directory
 - `tag/` - Tag pages directory
 - `atom.xml` - RSS feed filename
 - `about.html` - About page filename
 
-Only customize `paths.theme` if you have a custom theme directory.
+Customize `paths.theme` to use a different theme directory (e.g., `Escape1` or `Escape2`).

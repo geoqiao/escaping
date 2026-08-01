@@ -6,12 +6,20 @@ from pathlib import Path
 import structlog
 from github.Issue import Issue
 
-from .config import Settings
+from .config import GithubConfig, Settings
+from .output_safety import (
+    OutputContainmentError,
+    validate_output_child_name,
+    validate_output_containment,
+)
 from .services.github_service import GitHubService
 from .services.render_service import RenderService
 from .utils.slug import generate_slug_from_title
 
 logger = structlog.get_logger()
+
+# Home recent Blog count is fixed at 5 for v1 (not configurable).
+HOME_POST_COUNT = 5
 
 
 class BlogGenerator:
@@ -33,6 +41,20 @@ class BlogGenerator:
                 slug = generate_slug_from_title(issue.number, issue.title)
                 issue_slugs[str(issue.number)] = slug
 
+            # Validate output containment before any filesystem mutation
+            try:
+                validate_output_containment(self.settings.paths.output, Path.cwd())
+            except OutputContainmentError as e:
+                logger.error("output_containment_failed", error=str(e))
+                sys.exit(1)
+
+            # Validate tag names before any filesystem mutation
+            try:
+                tags = self._collect_tags(issues)
+            except OutputContainmentError as e:
+                logger.error("tag_validation_failed", error=str(e))
+                sys.exit(1)
+
             # Initialize directories and copy theme static assets
             self._init_dirs()
             self._copy_theme_assets()
@@ -46,11 +68,10 @@ class BlogGenerator:
                 self._save_post(issue_slugs[str(issue.number)], content)
 
             # Render post index page
-            tags = self._collect_tags(issues)
             self._generate_index(issues, tags, issue_slugs)
 
             # Render landing page (placed in output/ root)
-            post_count = self.settings.paths.home_post_count
+            post_count = HOME_POST_COUNT
             home_content = self.render.render_home(issues[:post_count], issue_slugs)
             (Path(self.settings.paths.output) / "index.html").write_text(
                 home_content, encoding="utf-8"
@@ -126,6 +147,7 @@ class BlogGenerator:
         for issue in issues:
             if issue.labels:
                 for label in issue.labels:
+                    validate_output_child_name(label.name, "tag")
                     tagset.add(label.name)
         return sorted(tagset)
 
@@ -220,8 +242,17 @@ def run_cli() -> None:
         logger.error("missing_token", env_var=settings.security.token_env)
         sys.exit(1)
 
-    # Use CLI repo if provided, otherwise use config repo
-    repo_name = args.repo if args.repo else settings.github.repo
+    # If --repo override is provided, validate it with the same strict
+    # GithubConfig rules and update settings so the override propagates
+    # everywhere: fetch source, template/common context, and Utterances
+    # fallback.  allowed_authors from config is preserved.
+    if args.repo:
+        settings.github = GithubConfig(
+            repo=args.repo,
+            allowed_authors=settings.github.allowed_authors,
+        )
+
+    repo_name = settings.github.repo
 
     generator = BlogGenerator(token, repo_name, settings)
     generator.generate()

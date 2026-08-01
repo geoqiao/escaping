@@ -11,7 +11,9 @@ import pytest
 from github_blog.cli import BlogGenerator, run_cli
 
 
-def _make_mock_issue(number: int, title: str, body: str = "body", labels: list[str] | None = None) -> MagicMock:
+def _make_mock_issue(
+    number: int, title: str, body: str = "body", labels: list[str] | None = None
+) -> MagicMock:
     issue = MagicMock()
     issue.number = number
     issue.title = title
@@ -30,7 +32,9 @@ def _make_mock_issue(number: int, title: str, body: str = "body", labels: list[s
 
 
 @patch("github_blog.cli.GitHubService")
-def test_blog_generator_integration(mock_gh_service_class: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_blog_generator_integration(
+    mock_gh_service_class: MagicMock, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     # Get absolute path to the project root to find real templates
     project_root = Path(__file__).parent.parent.absolute()
     # Use Escape1 theme (the current default) for integration test
@@ -40,16 +44,16 @@ def test_blog_generator_integration(mock_gh_service_class: MagicMock, tmp_path: 
     # Setup mock settings
     mock_settings = MagicMock()
     mock_settings.paths.page_size = 2
-    mock_settings.paths.home_post_count = 10
     mock_settings.paths.output = "output"
     mock_settings.paths.blog = "blog"
     mock_settings.paths.tag = "tag"
     mock_settings.paths.about = "about.html"
     mock_settings.paths.rss = "atom.xml"
-    mock_settings.blog.url = "https://example.com"
-    mock_settings.blog.title = "Test Blog"
-    mock_settings.blog.description = "Test Description"
-    mock_settings.blog.author = "Author"
+    mock_settings.site.url = "https://example.com"
+    mock_settings.site.title = "Test Blog"
+    mock_settings.site.description = "Test Description"
+    mock_settings.site.author = "Author"
+    mock_settings.site.language = "en"
     mock_settings.github.username = "user"
     mock_settings.github.repo = "user/repo"
     # Use the absolute path to real templates
@@ -60,11 +64,10 @@ def test_blog_generator_integration(mock_gh_service_class: MagicMock, tmp_path: 
     mock_settings.paths.theme_images_dst = Path("output/templates/Escape1/images")
     mock_settings.paths.seo_path = str(real_seo_path)
     mock_settings.seo.google_search_console = ""
-    mock_settings.about.avatar = ""
-    mock_settings.about.bio = "Test bio"
-    mock_settings.about.expertise = ["Skill 1", "Skill 2"]
-    mock_settings.about.links = []
-    mock_settings.navigation.items = []
+    mock_settings.profile.avatar = ""
+    mock_settings.profile.bio = "Test bio"
+    mock_settings.profile.links = []
+    mock_settings.site.navigation.items = []
     mock_settings.branding.show_powered_by = True
     mock_settings.branding.powered_by_text = "Powered by"
     mock_settings.branding.powered_by_url = "https://github.com/geoqiao/github-blog"
@@ -163,7 +166,9 @@ def test_blog_generator_integration(mock_gh_service_class: MagicMock, tmp_path: 
 class TestNewCLI:
     """Tests for the new CLI behavior (token from G_T env, repo from config or --repo flag)."""
 
-    def test_cli_requires_token(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_cli_requires_token(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """Exit if the configured token environment variable is not set."""
         # Ensure G_T is not set
         monkeypatch.delenv("G_T", raising=False)
@@ -175,12 +180,16 @@ class TestNewCLI:
         monkeypatch.chdir(tmp_path)
         config_content = """github:
   repo: user/repo
-blog:
+  allowed_authors:
+    - user
+site:
   title: Test Blog
   url: https://example.com
   author: Test
 about:
-  bio: Test bio
+  issue_number: 1
+security:
+  token_env: G_T
 """
         (tmp_path / "config.yaml").write_text(config_content)
 
@@ -191,7 +200,9 @@ about:
         # Should exit with code 1 (no token)
         assert exc_info.value.code == 1
 
-    def test_cli_uses_g_t_env_token(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_cli_uses_g_t_env_token(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """Token is read from G_T environment variable."""
         test_token = "ghp_testtoken123"  # noqa: S105
 
@@ -205,12 +216,16 @@ about:
         monkeypatch.chdir(tmp_path)
         config_content = """github:
   repo: user/repo
-blog:
+  allowed_authors:
+    - user
+site:
   title: Test Blog
   url: https://example.com
   author: Test
 about:
-  bio: Test bio
+  issue_number: 1
+security:
+  token_env: G_T
 """
         (tmp_path / "config.yaml").write_text(config_content)
 
@@ -228,7 +243,9 @@ about:
             assert call_args.args[2] is not None
             mock_generator.generate.assert_called_once()
 
-    def test_cli_repo_from_config(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_cli_repo_from_config(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """Repo is read from config.yaml when not provided via CLI."""
         test_token = "ghp_testtoken456"  # noqa: S105
 
@@ -242,12 +259,16 @@ about:
         config_repo = "myorg/myrepo"
         config_content = f"""github:
   repo: {config_repo}
-blog:
+  allowed_authors:
+    - myorg
+site:
   title: Test Blog
   url: https://example.com
   author: Test
 about:
-  bio: Test bio
+  issue_number: 1
+security:
+  token_env: G_T
 """
         monkeypatch.chdir(tmp_path)
         (tmp_path / "config.yaml").write_text(config_content)
@@ -266,7 +287,9 @@ about:
             assert call_args.args[2] is not None
             mock_generator.generate.assert_called_once()
 
-    def test_cli_repo_cli_override(self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path) -> None:
+    def test_cli_repo_cli_override(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
         """--repo CLI flag overrides repo from config.yaml."""
         test_token = "ghp_testtoken789"  # noqa: S105
 
@@ -283,12 +306,16 @@ about:
         config_repo = "original/original-repo"
         config_content = f"""github:
   repo: {config_repo}
-blog:
+  allowed_authors:
+    - original
+site:
   title: Test Blog
   url: https://example.com
   author: Test
 about:
-  bio: Test bio
+  issue_number: 1
+security:
+  token_env: G_T
 """
         monkeypatch.chdir(tmp_path)
         (tmp_path / "config.yaml").write_text(config_content)
@@ -306,6 +333,79 @@ about:
             assert call_args.args[1] == cli_repo
             assert call_args.args[2] is not None
             mock_generator.generate.assert_called_once()
+
+    def test_cli_repo_override_validates_and_propagates(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """--repo override is validated with GithubConfig rules and propagates
+        to settings.github so context/fallback use it everywhere."""
+        test_token = "ghp_testtoken000"  # noqa: S105
+        monkeypatch.setenv("G_T", test_token)
+
+        cli_repo = "userB/repoB"
+        monkeypatch.setattr(sys, "argv", ["blog-gen", "--repo", cli_repo])
+
+        config_content = """github:
+  repo: userA/repoA
+  allowed_authors:
+    - userA
+site:
+  title: Test Blog
+  url: https://example.com
+  author: Test
+about:
+  issue_number: 1
+security:
+  token_env: G_T
+"""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "config.yaml").write_text(config_content)
+
+        with patch("github_blog.cli.BlogGenerator") as mock_generator_class:
+            mock_generator = MagicMock()
+            mock_generator_class.return_value = mock_generator
+
+            run_cli()
+
+            call_args = mock_generator_class.call_args
+            settings = call_args.args[2]
+            # Override propagated to settings.github
+            assert settings.github.repo == "userB/repoB"
+            assert settings.github.username == "userB"
+            # allowed_authors preserved from config
+            assert settings.github.allowed_authors == ["userA"]
+            # Comments fallback uses override repo
+            assert (settings.comments.repo or settings.github.repo) == "userB/repoB"
+
+    def test_cli_invalid_repo_override_raises(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """An invalid --repo format must raise ValidationError, not proceed."""
+        from pydantic import ValidationError
+
+        test_token = "ghp_testtoken111"  # noqa: S105
+        monkeypatch.setenv("G_T", test_token)
+
+        monkeypatch.setattr(sys, "argv", ["blog-gen", "--repo", "invalid-no-slash"])
+
+        config_content = """github:
+  repo: userA/repoA
+  allowed_authors:
+    - userA
+site:
+  title: Test Blog
+  url: https://example.com
+  author: Test
+about:
+  issue_number: 1
+security:
+  token_env: G_T
+"""
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "config.yaml").write_text(config_content)
+
+        with pytest.raises(ValidationError, match="owner/repo"):
+            run_cli()
 
 
 def test_copy_theme_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -338,3 +438,249 @@ def test_copy_theme_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     assert (
         tmp_path / "output" / "templates" / "FakeTheme" / "images" / "favicon.png"
     ).exists()
+
+
+class TestCompilerOutputSafety:
+    """An unsafe output config must fail before _init_dirs, rendering, copying, or writes."""
+
+    @patch("github_blog.cli.GitHubService")
+    def test_unsafe_output_root_fails_before_init_dirs(
+        self,
+        mock_gh_service_class: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """An output root outside the allowed set must fail before any mutation.
+
+        This test creates a real Settings with ``paths.output: src`` (a
+        protected root) and verifies that ``generate()`` exits before
+        ``_init_dirs`` is reached - no files are deleted or created.
+        """
+        from github_blog.config import Settings
+
+        monkeypatch.chdir(tmp_path)
+
+        # Create a "src" directory with an important file to prove it survives.
+        src_dir = tmp_path / "src"
+        src_dir.mkdir()
+        important = src_dir / "important.py"
+        important.write_text("# important")
+
+        # Load a real Settings object with an unsafe output root.
+        config_content = """
+github:
+  repo: user/repo
+  allowed_authors:
+    - user
+site:
+  title: Test Blog
+  url: https://example.com/
+  author: Test
+about:
+  issue_number: 1
+security:
+  token_env: G_T
+paths:
+  output: src
+"""
+        (tmp_path / "config.yaml").write_text(config_content)
+        settings = Settings.load_from_yaml(tmp_path / "config.yaml")
+
+        # Mock GitHubService so no real API calls are made.
+        mock_gh = mock_gh_service_class.return_value
+        mock_repo = MagicMock()
+        mock_gh.get_repo.return_value = mock_repo
+        mock_gh.get_user_issues.return_value = []
+
+        generator = BlogGenerator("fake-token", "user/repo", settings)
+
+        with pytest.raises(SystemExit) as exc_info:
+            generator.generate()
+        assert exc_info.value.code == 1
+
+        # The important file must still exist - _init_dirs was NOT called.
+        assert important.exists()
+        assert important.read_text() == "# important"
+
+        # No output files should have been created in src/.
+        assert not (src_dir / "index.html").exists()
+        assert not (src_dir / "atom.xml").exists()
+        assert not (src_dir / "sitemap.xml").exists()
+        assert not (src_dir / "blog").exists()
+        assert not (src_dir / "tag").exists()
+
+    @patch("github_blog.cli.GitHubService")
+    def test_symlink_output_fails_before_init_dirs(
+        self,
+        mock_gh_service_class: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A symlink output root must fail before any mutation."""
+        import os
+
+        from github_blog.config import Settings
+
+        monkeypatch.chdir(tmp_path)
+
+        # Create a real directory and a symlink pointing to it (inside repo).
+        real_output = tmp_path / "real_output"
+        real_output.mkdir()
+        (real_output / "keep.txt").write_text("keep")
+
+        link = tmp_path / "output"
+        os.symlink(real_output, link)
+
+        config_content = """
+github:
+  repo: user/repo
+  allowed_authors:
+    - user
+site:
+  title: Test Blog
+  url: https://example.com/
+  author: Test
+about:
+  issue_number: 1
+security:
+  token_env: G_T
+"""
+        (tmp_path / "config.yaml").write_text(config_content)
+        settings = Settings.load_from_yaml(tmp_path / "config.yaml")
+
+        mock_gh = mock_gh_service_class.return_value
+        mock_repo = MagicMock()
+        mock_gh.get_repo.return_value = mock_repo
+        mock_gh.get_user_issues.return_value = []
+
+        generator = BlogGenerator("fake-token", "user/repo", settings)
+
+        with pytest.raises(SystemExit) as exc_info:
+            generator.generate()
+        assert exc_info.value.code == 1
+
+        # The symlink target's contents must survive.
+        assert (real_output / "keep.txt").exists()
+        assert (real_output / "keep.txt").read_text() == "keep"
+        # No output files created through the symlink.
+        assert not (real_output / "index.html").exists()
+
+    @patch("github_blog.cli.GitHubService")
+    def test_malicious_label_fails_before_init_dirs(
+        self,
+        mock_gh_service_class: MagicMock,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """A label-derived tag with path-escaping components must fail before _init_dirs.
+
+        Malicious labels containing ``/``, ``\\``, ``.``/``..`` or escaping
+        components must be rejected before output deletion or rendering.
+        This regression proves existing output survives.
+        """
+        from github_blog.config import Settings
+
+        monkeypatch.chdir(tmp_path)
+
+        # Create existing output with a file that must survive.
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        (output_dir / "keep.txt").write_text("survive")
+
+        config_content = """
+github:
+  repo: user/repo
+  allowed_authors:
+    - user
+site:
+  title: Test Blog
+  url: https://example.com/
+  author: Test
+about:
+  issue_number: 1
+security:
+  token_env: G_T
+"""
+        (tmp_path / "config.yaml").write_text(config_content)
+        settings = Settings.load_from_yaml(tmp_path / "config.yaml")
+
+        mock_gh = mock_gh_service_class.return_value
+        mock_repo = MagicMock()
+        mock_gh.get_repo.return_value = mock_repo
+        mock_gh.get_user_issues.return_value = [
+            _make_mock_issue(1, "Safe Title", labels=["../../etc/passwd"]),
+        ]
+
+        generator = BlogGenerator("fake-token", "user/repo", settings)
+
+        with pytest.raises(SystemExit) as exc_info:
+            generator.generate()
+        assert exc_info.value.code == 1
+
+        # Existing output must survive - _init_dirs was NOT called.
+        assert (output_dir / "keep.txt").exists()
+        assert (output_dir / "keep.txt").read_text() == "survive"
+        # No new files created.
+        assert not (output_dir / "index.html").exists()
+        assert not (output_dir / "blog").exists()
+        assert not (output_dir / "tag").exists()
+
+    @patch("github_blog.cli.GitHubService")
+    @pytest.mark.parametrize(
+        "malicious_label",
+        [
+            "foo/bar",
+            "foo\\bar",
+            ".",
+            "..",
+            "../etc",
+            "/etc/passwd",
+        ],
+    )
+    def test_malicious_labels_rejected(
+        self,
+        mock_gh_service_class: MagicMock,
+        malicious_label: str,
+        tmp_path: Path,
+        monkeypatch: pytest.MonkeyPatch,
+    ) -> None:
+        """Each malicious label variant must fail before filesystem mutation."""
+        from github_blog.config import Settings
+
+        monkeypatch.chdir(tmp_path)
+        output_dir = tmp_path / "output"
+        output_dir.mkdir()
+        (output_dir / "keep.txt").write_text("survive")
+
+        config_content = """
+github:
+  repo: user/repo
+  allowed_authors:
+    - user
+site:
+  title: Test Blog
+  url: https://example.com/
+  author: Test
+about:
+  issue_number: 1
+security:
+  token_env: G_T
+"""
+        (tmp_path / "config.yaml").write_text(config_content)
+        settings = Settings.load_from_yaml(tmp_path / "config.yaml")
+
+        mock_gh = mock_gh_service_class.return_value
+        mock_repo = MagicMock()
+        mock_gh.get_repo.return_value = mock_repo
+        mock_gh.get_user_issues.return_value = [
+            _make_mock_issue(1, "Title", labels=[malicious_label]),
+        ]
+
+        generator = BlogGenerator("fake-token", "user/repo", settings)
+
+        with pytest.raises(SystemExit) as exc_info:
+            generator.generate()
+        assert exc_info.value.code == 1
+
+        assert (output_dir / "keep.txt").exists()
+        assert (output_dir / "keep.txt").read_text() == "survive"

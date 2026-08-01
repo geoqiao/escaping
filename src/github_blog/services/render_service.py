@@ -39,22 +39,24 @@ class RenderService:
     def _get_common_context(self) -> dict[str, Any]:
         """Return context variables shared by all templates."""
         return {
-            "blog_title": self.settings.blog.title,
+            "blog_title": self.settings.site.title,
             "github_name": self.settings.github.username,
             "github_repo": self.settings.github.repo,
-            "blog_url": str(self.settings.blog.url),
+            "blog_url": str(self.settings.site.url),
             "rss_atom_path": self.settings.paths.rss,
-            "author_name": self.settings.blog.author,
-            "meta_description": self.settings.blog.description,
+            "author_name": self.settings.site.author,
+            "meta_description": self.settings.site.description,
             "google_search_verification": self.settings.seo.google_search_console,
             "theme_path": self.settings.paths.theme_url_path,
-            "language": self.settings.paths.language,
+            "language": self.settings.site.language,
             "skip_link_text": "Skip to main content",
-            "navigation": self.settings.navigation,
-            "about_avatar": self.settings.about.avatar,
-            "about_bio": self.settings.about.bio,
-            "about_expertise": self.settings.about.expertise,
-            "about_links": self.settings.about.links,
+            "navigation": self.settings.site.navigation,
+            "about_avatar": self.settings.profile.avatar,
+            "about_bio": self.settings.profile.bio,
+            # expertise comes from About Issue Content in the new architecture;
+            # empty list until content compilation is implemented.
+            "about_expertise": [],
+            "about_links": self.settings.profile.links,
             "branding": {
                 "show_powered_by": self.settings.branding.show_powered_by,
                 "powered_by_text": self.settings.branding.powered_by_text,
@@ -112,7 +114,6 @@ class RenderService:
         return template.render(
             issues=issues,
             issue_slugs=issue_slugs,
-            home_post_count=self.settings.paths.home_post_count,
             **self._get_common_context(),
         )
 
@@ -134,18 +135,18 @@ class RenderService:
 
     def generate_rss(self, issues: list[Issue], issue_slugs: dict[str, str]) -> str:
         fg = FeedGenerator()
-        fg.id(str(self.settings.blog.url))
-        fg.title(self.settings.blog.title)
+        fg.id(str(self.settings.site.url))
+        fg.title(self.settings.site.title)
         fg.author(
             {
-                "name": self.settings.blog.author,
+                "name": self.settings.site.author,
             }
         )
-        fg.link(href=str(self.settings.blog.url), rel="alternate")
-        fg.description(self.settings.blog.description)
+        fg.link(href=str(self.settings.site.url), rel="alternate")
+        fg.description(self.settings.site.description)
 
         blog_dir_str = self.settings.paths.blog
-        base_url = str(self.settings.blog.url).rstrip("/")
+        base_url = str(self.settings.site.url).rstrip("/")
         for issue in issues:
             slug = issue_slugs[str(issue.number)]
             fe = fg.add_entry()
@@ -175,7 +176,7 @@ class RenderService:
         ]
 
         return template.render(
-            base_url=str(self.settings.blog.url).rstrip("/"),
+            base_url=str(self.settings.site.url).rstrip("/"),
             blog_dir=self.settings.paths.blog,
             blog_items=blog_items,
             tags=tags,
@@ -184,7 +185,7 @@ class RenderService:
 
     def render_robots(self) -> str:
         template = self.seo_env.get_template("robots.txt.j2")
-        return template.render(base_url=str(self.settings.blog.url).rstrip("/"))
+        return template.render(base_url=str(self.settings.site.url).rstrip("/"))
 
     def render_about(self) -> str:
         template = self.env.get_template("about.html")

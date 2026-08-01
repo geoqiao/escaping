@@ -123,16 +123,31 @@ uv run python -m http.server 8000
 ```yaml
 github:
   repo: username/username.github.io # 你的 Issues 仓库
+  allowed_authors:
+    - username
 
-blog:
+site:
   title: 我的博客
   url: https://username.github.io/
   author: 你的名字
+  description: 博客描述
+  language: zh-CN
 
-about:
+profile:
   avatar: https://github.com/username.png
   bio: 个人简介
+  links:
+    - name: GitHub
+      url: https://github.com/username
+
+about:
+  issue_number: 1
+
+security:
+  token_env: G_T
 ```
+
+完整的可选配置项见 `config.example.yaml`。
 
 ---
 

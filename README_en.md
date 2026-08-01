@@ -123,16 +123,31 @@ Edit `config.yaml`:
 ```yaml
 github:
   repo: username/username.github.io  # Your Issues repository
+  allowed_authors:
+    - username
 
-blog:
+site:
   title: My Blog
   url: https://username.github.io/
   author: Your Name
+  description: Blog description
+  language: en
 
-about:
+profile:
   avatar: https://github.com/username.png
   bio: Your bio here
+  links:
+    - name: GitHub
+      url: https://github.com/username
+
+about:
+  issue_number: 1
+
+security:
+  token_env: G_T
 ```
+
+See `config.example.yaml` for all optional configuration sections.
 
 ---
 
