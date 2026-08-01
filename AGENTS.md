@@ -2,6 +2,29 @@
 
 AI coding agents 的工作指南（中文为主）。
 
+## Agent skills
+
+### Issue tracker
+
+Issues 与 specs 使用 Local Markdown，存放于 `.scratch/<feature-slug>/`。详见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+使用五个默认 triage labels：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+本仓库采用 single-context 布局：根目录 `CONTEXT.md` 与 `docs/adr/`。详见 `docs/agents/domain.md`。
+
+## 关键实现约束
+
+- `Settings` 必须显式注入 `BlogGenerator` 与 `RenderService`，不要引入全局配置单例。
+- GitHub Token 环境变量名由 `settings.security.token_env` 动态决定，不得将 `G_T` 硬编码到实现中。
+- 模板静态资源通过 `{{ theme_path }}` 生成以 `/` 开头的绝对 URL。
+- Utterances 会注入带 `loading="lazy"` 的 iframe；Safari 在父元素高度为零时可能不加载，因此 `post.html` 中保留了移除该属性的兼容处理。
+- `comments.theme_mode: auto` 通过 `postMessage` 与 `MutationObserver` 跟随博客主题，修改评论模板时必须保留该行为。
+- `geoqiao.github.io` 的 GitHub Pages 发布源是 `main` 分支根目录。
+
 ## 项目概览
 
 `escaping` 是一个基于 Python 的静态博客生成器，将 GitHub Issues 作为 CMS（内容管理系统）。
@@ -336,7 +359,7 @@ GitHub Issues → geoqiao.github.io (trigger.yml) → escaping (gen_site.yml) �
 
 ## 参考资源
 
-- **TDD Skill**: `.claude/skills/my-coding-guidelines/SKILL.md`
+- **TDD 流程**：见本文件的“ TDD 开发流程（必须遵守）”章节
 - **PR 模板**: `.github/pull_request_template.md`
 - **README**: `README.md`
 

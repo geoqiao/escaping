@@ -1,3 +1,6 @@
+# macOS metadata
+.DS_Store
+
 # Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
@@ -162,7 +165,6 @@ cython_debug/
 #.idea/
 
 # Generated site content (deployed via GitHub Actions)
-docs/
 contents/
 output/
 /index.html
@@ -182,6 +184,7 @@ backup/
 .opencode/
 
 # AI / MCP / IDE tools
+.pi-subagents/
 .playwright-mcp/
 .cursor/
 .copilot/

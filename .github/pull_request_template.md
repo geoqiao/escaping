@@ -14,7 +14,7 @@
 ---
 
 ## 基本信息
-- [ ] 我已阅读 `/.claude/skills/my-coding-guidelines/SKILL.md`
+- [ ] 我已阅读 `AGENTS.md` 中的 TDD 开发流程
 - [ ] 我已查看本次改动的文件 git 历史 (`git log --oneline -- 文件`)
 
 ### 模板/CSS 改动
