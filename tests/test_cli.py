@@ -316,6 +316,33 @@ security:
             assert call_args.args[2] is not None
             mock_generator.generate.assert_called_once()
 
+    def test_cli_custom_token_env(
+        self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
+    ) -> None:
+        """Token is read from a custom env var specified by security.token_env."""
+        custom_token = "ghp_customtoken456"  # noqa: S105
+        monkeypatch.setenv("BLOG_TOKEN", custom_token)
+        monkeypatch.delenv("G_T", raising=False)
+        monkeypatch.setattr(sys, "argv", ["blog-gen"])
+        monkeypatch.chdir(tmp_path)
+        (tmp_path / "config.yaml").write_text("""github:
+  repo: user/repo
+  allowed_authors:
+    - user
+site:
+  title: Test Blog
+  url: https://example.com
+  author: Test
+about:
+  issue_number: 1
+security:
+  token_env: BLOG_TOKEN
+""")
+        with patch("github_blog.cli.BlogGenerator") as mock_generator_class:
+            mock_generator_class.return_value = MagicMock()
+            run_cli()
+            assert mock_generator_class.call_args.args[0] == custom_token
+
     def test_cli_repo_from_config(
         self, monkeypatch: pytest.MonkeyPatch, tmp_path: Path
     ) -> None:
