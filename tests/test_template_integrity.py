@@ -87,3 +87,31 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
     assert "/templates/" + theme + "/static/" in combined
     assert "created_date:" not in combined and "slug:" not in combined
     assert "<script>alert" not in combined
+
+    comment_pages = {
+        "blog": ("blog/post/index.html", 1),
+        "idea": ("ideas/2/index.html", 2),
+        "about": ("about/index.html", 10),
+    }
+    for page_name, (output_path, issue_number) in comment_pages.items():
+        rendered = html[output_path]
+        assert rendered.count('id="comments-container"') == 1, page_name
+        assert f"script.setAttribute('issue-number', '{issue_number}')" in rendered, (
+            page_name
+        )
+        message_start = rendered.index("window.addEventListener('message'")
+        message_end = rendered.index("\n    });", message_start)
+        message_handler = rendered[message_start:message_end]
+        assert "e.origin !== 'https://utteranc.es'" in message_handler, page_name
+        assert "e.source !== iframe.contentWindow" in message_handler, page_name
+        resize_start = message_handler.index("if (e.data.type === 'resize')")
+        error_start = message_handler.index("} else if (e.data.type === 'error')")
+        assert (
+            "loadingMsg.style.display = 'none';"
+            in message_handler[resize_start:error_start]
+        ), page_name
+        assert "e.data.type === 'error'" in message_handler, page_name
+        assert "showError();" in message_handler[error_start:], page_name
+        timeout_start = rendered.index("setTimeout(function()")
+        timeout_end = rendered.index("}, 20000);", timeout_start)
+        assert "showError();" in rendered[timeout_start:timeout_end], page_name

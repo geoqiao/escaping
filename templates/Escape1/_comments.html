@@ -1,50 +1,155 @@
 <div class="comments" id="comments-container">
     <p class="comments-loading">Loading comments...</p>
-    <noscript><p class="comments-error">Please enable JavaScript to view comments.</p></noscript>
+    <noscript>
+        <p class="comments-error">Please enable JavaScript to view comments.</p>
+    </noscript>
 </div>
+
 <script>
 (function() {
     'use strict';
+
     var container = document.getElementById('comments-container');
     var loadingMsg = container.querySelector('.comments-loading');
+
+    // Detect iOS Safari / WebKit
+    var isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+    var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
+    var isWebKit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome|CriOS/.test(navigator.userAgent);
+
     var commentsTheme = '{{ comments.theme }}';
     var commentsThemeMode = '{{ comments.theme_mode }}';
     var LIGHT_THEME = 'github-light';
     var DARK_THEME = 'photon-dark';
-    function getCurrentBlogTheme() { return document.documentElement.getAttribute('data-theme') || 'dark'; }
-    function getUtterancesTheme() { return commentsThemeMode === 'auto' ? (getCurrentBlogTheme() === 'dark' ? DARK_THEME : LIGHT_THEME) : commentsTheme; }
+
+    function getCurrentBlogTheme() {
+        return document.documentElement.getAttribute('data-theme') || 'light';
+    }
+
+    function getUtterancesTheme() {
+        if (commentsThemeMode === 'auto') {
+            return getCurrentBlogTheme() === 'dark' ? DARK_THEME : LIGHT_THEME;
+        }
+        return commentsTheme;
+    }
+
     function updateUtterancesTheme() {
         var iframe = container.querySelector('iframe');
-        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({type: 'set-theme', theme: getUtterancesTheme()}, 'https://utteranc.es');
+        if (iframe && iframe.contentWindow) {
+            iframe.contentWindow.postMessage({
+                type: 'set-theme',
+                theme: getUtterancesTheme()
+            }, 'https://utteranc.es');
+        }
     }
+
+    // Fix Safari lazy-loading bug: IntersectionObserver may skip lazy iframes
+    // in zero-height parents. Patch insertAdjacentHTML and watch for lazily-created iframes.
     var originalInsertAdjacentHTML = Element.prototype.insertAdjacentHTML;
     Element.prototype.insertAdjacentHTML = function(position, text) {
-        if (typeof text === 'string' && text.indexOf('<iframe') !== -1 && text.indexOf('loading="lazy"') !== -1) text = text.replace(/loading="lazy"/g, '');
+        if (typeof text === 'string' && text.indexOf('<iframe') !== -1 && text.indexOf('loading="lazy"') !== -1) {
+            text = text.replace(/loading="lazy"/g, '');
+        }
         return originalInsertAdjacentHTML.call(this, position, text);
     };
+
     var lazyObserver = new MutationObserver(function(mutations) {
-        mutations.forEach(function(mutation) { mutation.addedNodes.forEach(function(node) {
-            if (node.nodeType === 1) {
-                if (node.tagName === 'IFRAME' && node.getAttribute('loading') === 'lazy') node.removeAttribute('loading');
-                var iframes = node.querySelectorAll ? node.querySelectorAll('iframe[loading="lazy"]') : [];
-                for (var i = 0; i < iframes.length; i++) iframes[i].removeAttribute('loading');
-            }
-        }); });
+        mutations.forEach(function(mutation) {
+            mutation.addedNodes.forEach(function(node) {
+                if (node.nodeType === 1) {
+                    if (node.tagName === 'IFRAME' && node.getAttribute('loading') === 'lazy') {
+                        node.removeAttribute('loading');
+                    }
+                    var iframes = node.querySelectorAll ? node.querySelectorAll('iframe[loading="lazy"]') : [];
+                    for (var i = 0; i < iframes.length; i++) {
+                        iframes[i].removeAttribute('loading');
+                    }
+                }
+            });
+        });
     });
-    lazyObserver.observe(container, {childList: true, subtree: true});
+    lazyObserver.observe(container, { childList: true, subtree: true });
+
+    // Load Utterances dynamically
     var script = document.createElement('script');
     script.src = 'https://utteranc.es/client.js';
     script.setAttribute('repo', '{{ comments.repo }}');
     script.setAttribute('issue-number', '{{ comments_issue_number }}');
     script.setAttribute('theme', getUtterancesTheme());
     script.async = true;
+
+    var checkInterval;
+    var checkCount = 0;
+    var resizeReceived = false;
+
+    function checkIframe() {
+        checkCount++;
+        var maxChecks = (isIOS || isSafari || isWebKit) ? 100 : 75;
+        if (checkCount > maxChecks) {
+            clearInterval(checkInterval);
+            showError();
+            return false;
+        }
+        return false;
+    }
+
+    function showError() {
+        if (!loadingMsg) return;
+        var msg = 'Comments may not be available.';
+        if (isIOS || isSafari || isWebKit) {
+            msg += '<br><small>iOS Safari may block third-party content.<br>Try turning off "Prevent Cross-Site Tracking" in Settings -> Safari -> Privacy & Security</small>';
+        }
+        loadingMsg.innerHTML = msg + '<br><a href="https://github.com/{{ github_repo }}/issues/{{ comments_issue_number }}" target="_blank" rel="noopener">View or add comment on GitHub \u2192</a>';
+        loadingMsg.className = 'comments-error';
+    }
+
     script.onload = function() {
+        checkInterval = setInterval(checkIframe, 200);
         if (commentsThemeMode === 'auto') {
-            var observer = new MutationObserver(function(mutations) { mutations.forEach(function(mutation) { if (mutation.attributeName === 'data-theme') updateUtterancesTheme(); }); });
-            observer.observe(document.documentElement, {attributes: true});
+            var observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.attributeName === 'data-theme') {
+                        updateUtterancesTheme();
+                    }
+                });
+            });
+            observer.observe(document.documentElement, { attributes: true });
         }
     };
-    script.onerror = function() { if (loadingMsg) loadingMsg.textContent = 'Comments may not be available.'; };
+
+    script.onerror = function() {
+        clearInterval(checkInterval);
+        showError();
+    };
+
+    // Only Utterances messages from this page's iframe may change loading state.
+    window.addEventListener('message', function(e) {
+        if (e.origin !== 'https://utteranc.es') return;
+        var iframe = container.querySelector('iframe');
+        if (!iframe || e.source !== iframe.contentWindow) return;
+        if (!e.data) return;
+
+        if (e.data.type === 'resize') {
+            resizeReceived = true;
+            if (loadingMsg) {
+                loadingMsg.style.display = 'none';
+            }
+            clearInterval(checkInterval);
+        } else if (e.data.type === 'error') {
+            resizeReceived = true;
+            clearInterval(checkInterval);
+            showError();
+        }
+    });
+
     container.appendChild(script);
+
+    // Absolute fallback after 20 seconds
+    setTimeout(function() {
+        clearInterval(checkInterval);
+        if (!resizeReceived && loadingMsg) {
+            showError();
+        }
+    }, 20000);
 })();
 </script>
