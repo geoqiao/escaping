@@ -17,7 +17,7 @@ from github_blog.site_model import SiteModelBuilder
 _THEMES = ("Escape1", "Escape2", "geoqiao.me")
 
 
-def _settings(theme: str = "geoqiao.me") -> Settings:
+def _settings(theme: str = "geoqiao.me", *, profile_avatar: str = "") -> Settings:
     data: dict[str, object] = {
         "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
         "site": {
@@ -48,6 +48,8 @@ def _settings(theme: str = "geoqiao.me") -> Settings:
             }
         ],
     }
+    if profile_avatar:
+        data["profile"] = {"avatar": profile_avatar}
     if theme == "geoqiao.me":
         data["theme_lock"] = {
             "repository": "geoqiao/escaping",
@@ -166,4 +168,89 @@ def test_about_description_mismatch_fails_artifact_validation(
     diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
     assert any(
         diagnostic.code == "ABOUT_DESCRIPTION_MISMATCH" for diagnostic in diagnostics
+    )
+
+
+@pytest.mark.parametrize("theme", _THEMES)
+def test_missing_referenced_script_fails_artifact_validation(
+    theme: str, tmp_path: Path
+) -> None:
+    settings = _settings(theme)
+    site = _render_representative_site(settings, tmp_path)
+    script_path = tmp_path / "templates" / theme / "static" / "js" / "prism.js"
+    script_path.unlink()
+
+    diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
+    assert any(
+        diagnostic.code == "MISSING_ASSET" and "prism.js" in diagnostic.message
+        for diagnostic in diagnostics
+    )
+
+
+@pytest.mark.parametrize("theme", _THEMES)
+def test_missing_same_origin_absolute_asset_fails_artifact_validation(
+    theme: str, tmp_path: Path
+) -> None:
+    settings = _settings(theme)
+    site = _render_representative_site(settings, tmp_path)
+    asset_dir = tmp_path / "templates" / theme / "static" / "css"
+    asset_path = asset_dir / "absolute.css"
+    asset_path.write_text("", encoding="utf-8")
+    about_path = tmp_path / "about" / "index.html"
+    about_html = about_path.read_text(encoding="utf-8")
+    reference = (
+        f'<link rel="stylesheet" href="https://geoqiao.me/templates/{theme}'
+        '/static/css/absolute.css?cache=1#style">'
+    )
+    about_path.write_text(
+        about_html.replace("</head>", f"{reference}</head>", 1), encoding="utf-8"
+    )
+    assert SiteArtifactValidator(settings, site).validate(tmp_path) == []
+    asset_path.unlink()
+
+    diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
+    assert any(
+        diagnostic.code == "MISSING_ASSET" and "absolute.css" in diagnostic.message
+        for diagnostic in diagnostics
+    )
+
+
+@pytest.mark.parametrize("theme", _THEMES)
+def test_missing_referenced_image_fails_artifact_validation(
+    theme: str, tmp_path: Path
+) -> None:
+    profile_avatar = (
+        f"https://geoqiao.me/templates/{theme}/static/images/profile.png?cache=1#avatar"
+    )
+    settings = _settings(theme, profile_avatar=profile_avatar)
+    site = _render_representative_site(settings, tmp_path)
+    image_dir = tmp_path / "templates" / theme / "static" / "images"
+    image_bytes = (image_dir / "favicon.png").read_bytes()
+    for filename in ("profile.png", "responsive.png", "other.png"):
+        (image_dir / filename).write_bytes(image_bytes)
+
+    about_path = tmp_path / "about" / "index.html"
+    about_html = about_path.read_text(encoding="utf-8")
+    srcset = (
+        f"/templates/{theme}/static/images/responsive.png?width=1 1x,"
+        f" /templates/{theme}/static/images/other.png#wide 2x"
+    )
+    about_html = about_html.replace(
+        f'src="{profile_avatar}"',
+        f'src="{profile_avatar}" srcset="{srcset}"',
+        1,
+    )
+    about_path.write_text(about_html, encoding="utf-8")
+    assert SiteArtifactValidator(settings, site).validate(tmp_path) == []
+
+    (image_dir / "profile.png").unlink()
+    (image_dir / "responsive.png").unlink()
+    diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
+    assert any(
+        diagnostic.code == "MISSING_ASSET" and "profile.png" in diagnostic.message
+        for diagnostic in diagnostics
+    )
+    assert any(
+        diagnostic.code == "MISSING_ASSET" and "responsive.png" in diagnostic.message
+        for diagnostic in diagnostics
     )

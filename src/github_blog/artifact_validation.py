@@ -5,7 +5,7 @@ import re
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urlsplit
+from urllib.parse import urljoin, urlsplit
 
 from .build_result import Diagnostic
 from .config import Settings
@@ -17,10 +17,20 @@ _FRONT_MATTER_FIELD_RE = re.compile(r"^\s*(?:slug|created_date):\s*", re.MULTILI
 _FRONT_MATTER_DELIMITER_RE = re.compile(r"^\s*---\s*$", re.MULTILINE)
 
 
+def _srcset_urls(value: str) -> list[str]:
+    urls = []
+    for candidate in value.split(","):
+        parts = candidate.strip().split()
+        if parts:
+            urls.append(parts[0])
+    return urls
+
+
 class _HTMLProbe(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
         self.links: list[tuple[str, str]] = []
+        self.resources: list[tuple[str, str]] = []
         self.canonical: list[str] = []
         self.meta: dict[str, str] = {}
         self.json_ld: list[str] = []
@@ -33,6 +43,10 @@ class _HTMLProbe(HTMLParser):
         values = {key: value or "" for key, value in attrs}
         if tag in {"a", "link"} and values.get("href"):
             self.links.append((tag, values["href"]))
+        if tag in {"script", "img", "source"} and values.get("src"):
+            self.resources.append((tag, values["src"]))
+        if tag == "img" and values.get("srcset"):
+            self.resources.extend((tag, url) for url in _srcset_urls(values["srcset"]))
         if tag == "link" and values.get("rel", "").casefold() == "canonical":
             self.canonical.append(values.get("href", ""))
         if tag == "meta":
@@ -122,7 +136,20 @@ class SiteArtifactValidator:
             )
             if route.name == "about":
                 self._validate_about_description(output_path, probe, diagnostics)
-            self._validate_links(output_path, probe.links, candidate_dir, diagnostics)
+            self._validate_links(
+                output_path,
+                route.canonical_url,
+                probe.links,
+                candidate_dir,
+                diagnostics,
+            )
+            self._validate_resources(
+                output_path,
+                route.canonical_url,
+                probe.resources,
+                candidate_dir,
+                diagnostics,
+            )
             self._validate_json_ld(
                 output_path, probe.json_ld, route.canonical_url, diagnostics
             )
@@ -178,22 +205,28 @@ class SiteArtifactValidator:
     def _validate_links(
         self,
         output_path: str,
+        current_url: str,
         links: list[tuple[str, str]],
         candidate_dir: Path,
         diagnostics: list[Diagnostic],
     ) -> None:
         for tag, value in links:
             parsed = urlsplit(value)
-            if parsed.scheme or parsed.netloc or value.startswith("#"):
+            if value.startswith("#"):
                 continue
-            if not value.startswith("/"):
+            if parsed.scheme or parsed.netloc:
+                path = self._internal_resource_path(value, current_url)
+                if path is None:
+                    continue
+            elif not value.startswith("/"):
                 diagnostics.append(
                     self._error(
                         "RELATIVE_LINK", f"{output_path}: relative {tag} link {value!r}"
                     )
                 )
                 continue
-            path = parsed.path
+            else:
+                path = parsed.path
             static_prefix = f"/templates/{self.settings.paths.theme}/"
             if path.startswith(static_prefix):
                 asset = candidate_dir / path.lstrip("/")
@@ -211,6 +244,49 @@ class SiteArtifactValidator:
                         f"{output_path}: unregistered link {path}",
                     )
                 )
+
+    def _validate_resources(
+        self,
+        output_path: str,
+        current_url: str,
+        resources: list[tuple[str, str]],
+        candidate_dir: Path,
+        diagnostics: list[Diagnostic],
+    ) -> None:
+        static_prefix = f"/templates/{self.settings.paths.theme}/"
+        for tag, value in resources:
+            path = self._internal_resource_path(value, current_url)
+            if path is None:
+                continue
+            if path.startswith(static_prefix):
+                asset = candidate_dir / path.lstrip("/")
+                if not asset.is_file():
+                    diagnostics.append(
+                        self._error(
+                            "MISSING_ASSET",
+                            f"{output_path}: missing {tag} resource {path}",
+                        )
+                    )
+                continue
+            if self.site.routes.route_for_path(path) is None:
+                diagnostics.append(
+                    self._error(
+                        "BROKEN_INTERNAL_LINK",
+                        f"{output_path}: unregistered {tag} resource {path}",
+                    )
+                )
+
+    def _internal_resource_path(self, value: str, current_url: str) -> str | None:
+        if not value or value.startswith("#"):
+            return None
+        resolved = urlsplit(urljoin(current_url, value))
+        origin = urlsplit(self.site.routes.origin)
+        if (
+            resolved.scheme.casefold() != origin.scheme.casefold()
+            or resolved.netloc.casefold() != origin.netloc.casefold()
+        ):
+            return None
+        return resolved.path or "/"
 
     def _validate_json_ld(
         self,
