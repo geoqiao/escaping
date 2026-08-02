@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import json
+import re
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
@@ -12,6 +13,8 @@ from .models.site import SiteModel
 
 _ATOM_NS = "http://www.w3.org/2005/Atom"
 _SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
+_FRONT_MATTER_FIELD_RE = re.compile(r"^\s*(?:slug|created_date):\s*", re.MULTILINE)
+_FRONT_MATTER_DELIMITER_RE = re.compile(r"^\s*---\s*$", re.MULTILINE)
 
 
 class _HTMLProbe(HTMLParser):
@@ -21,8 +24,10 @@ class _HTMLProbe(HTMLParser):
         self.canonical: list[str] = []
         self.meta: dict[str, str] = {}
         self.json_ld: list[str] = []
+        self.visible_text: list[str] = []
         self._script_type = ""
         self._script_data: list[str] = []
+        self._ignored_text_depth = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {key: value or "" for key, value in attrs}
@@ -34,6 +39,8 @@ class _HTMLProbe(HTMLParser):
             key = values.get("property") or values.get("name")
             if key and values.get("content"):
                 self.meta[key.casefold()] = values["content"]
+        if tag in {"code", "pre", "script", "style"}:
+            self._ignored_text_depth += 1
         if tag == "script":
             self._script_type = values.get("type", "")
             self._script_data = []
@@ -41,12 +48,16 @@ class _HTMLProbe(HTMLParser):
     def handle_data(self, data: str) -> None:
         if self._script_type == "application/ld+json":
             self._script_data.append(data)
+        if self._ignored_text_depth == 0:
+            self.visible_text.append(data)
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "script" and self._script_type == "application/ld+json":
             self.json_ld.append("".join(self._script_data))
             self._script_type = ""
             self._script_data = []
+        if tag in {"code", "pre", "script", "style"}:
+            self._ignored_text_depth = max(0, self._ignored_text_depth - 1)
 
 
 class SiteArtifactValidator:
@@ -97,7 +108,10 @@ class SiteArtifactValidator:
                     self._error("HTML_READ_FAILED", f"{output_path}: {exc}")
                 )
                 continue
-            if "created_date:" in text or "slug:" in text or "\n---\n" in text:
+            visible_text = "\n".join(probe.visible_text)
+            if _FRONT_MATTER_FIELD_RE.search(
+                visible_text
+            ) or _FRONT_MATTER_DELIMITER_RE.search(visible_text):
                 diagnostics.append(
                     self._error(
                         "FRONT_MATTER_LEAK", f"front matter leaked into {output_path}"

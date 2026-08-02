@@ -224,6 +224,13 @@ def _clean_attr_value(attr: str, value: str) -> str | None:
     if attr in _URL_ATTRS:
         if not _is_safe_url(value):
             return None
+        if attr == "href":
+            stripped = value.strip()
+            parsed = urlparse(stripped)
+            if stripped and not stripped.startswith(("/", "#")) and not parsed.scheme:
+                # A bare relative link has no stable base in a static site. Keep
+                # the authored text, but do not emit a broken link.
+                return None
         return value
     return value
 

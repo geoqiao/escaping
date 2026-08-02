@@ -65,6 +65,12 @@ def test_misc_safe_content() -> None:
     assert sanitize_html("") == ""
 
 
+def test_bare_relative_href_is_removed() -> None:
+    result = sanitize_html('<a href="not-a-site-route">text</a>')
+    assert 'href="not-a-site-route"' not in result
+    assert ">text</a>" in result
+
+
 @pytest.mark.parametrize(
     "html, must_absent",
     [

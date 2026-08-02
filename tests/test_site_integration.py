@@ -60,7 +60,10 @@ def _snapshot(
         number=number,
         title={"blog": "A Blog", "idea": "An Idea", "about": "About"}[kind],
         author="geoqiao",
-        body=f"---\n{metadata}\n---\n\n# Content\n\nA **safe** body.",
+        body=(
+            f"---\n{metadata}\n---\n\n# Content\n\nA **safe** body."
+            + ("\n\n```yaml\n---\nslug: example\n---\n```" if kind == "blog" else "")
+        ),
         labels=(f"type:{kind}", "published", *labels),
         created_at=created,
         updated_at=created,
