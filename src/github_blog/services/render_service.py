@@ -14,6 +14,7 @@ from marko.inline import Image
 from ..config import Settings
 from ..models.blog_archive import ArchiveEntry, ArchivePage, ArchivePageRoute
 from ..models.blog_post import BlogPost, BlogTag
+from ..models.content import AboutPage, Idea
 from ..models.home_page import (
     HomeNavigationLink,
     HomePage,
@@ -22,6 +23,7 @@ from ..models.home_page import (
     HomeProfileLink,
     HomeRoute,
 )
+from ..models.projects import ProjectsPage
 from ..models.tag_taxonomy import (
     TagArchive,
     TagArchiveEntry,
@@ -445,10 +447,31 @@ class RenderService:
         return template.render(base_url=str(self.settings.site.url).rstrip("/"))
 
     def render_about(self) -> str:
+        """Render the legacy profile-only About page (strict builds use render_about_page)."""
         template = self.env.get_template("about.html")
-        return template.render(
-            **self._get_common_context(),
-        )
+        return template.render(**self._get_common_context())
+
+    def render_ideas(self, ideas: tuple[Idea, ...]) -> str:
+        """Render the Ideas index from compiled internal models."""
+        template = self.env.get_template("ideas.html")
+        return template.render(ideas=ideas, **self._get_common_context())
+
+    def render_idea(self, idea: Idea) -> str:
+        """Render one Issue-number keyed Idea detail page."""
+        template = self.env.get_template("idea.html")
+        return template.render(idea=idea, **self._get_common_context())
+
+    def render_about_page(self, about: AboutPage | None) -> str:
+        """Render the configured Issue-backed About page."""
+        if about is None:
+            raise ValueError("an AboutPage is required for strict rendering")
+        template = self.env.get_template("about.html")
+        return template.render(about_page=about, **self._get_common_context())
+
+    def render_projects(self, projects: ProjectsPage) -> str:
+        """Render the curated Projects catalog, including its empty state."""
+        template = self.env.get_template("projects.html")
+        return template.render(projects=projects, **self._get_common_context())
 
     def render_tags_page(
         self,
