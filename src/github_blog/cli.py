@@ -354,7 +354,9 @@ class BlogGenerator:
     ) -> None:
         page_size = self.settings.paths.page_size
         pages = [issues[i : i + page_size] for i in range(0, len(issues), page_size)]
-        total_pages = max(1, len(pages))
+        if not pages:
+            pages = [[]]
+        total_pages = len(pages)
 
         page_dir = self._build_dir / self.settings.paths.blog / self.settings.paths.page
         page_dir.mkdir(parents=True, exist_ok=True)

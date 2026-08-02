@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block canonical %}
-<link rel="canonical" href="{{ blog_url }}blog/" />
+<link rel="canonical" href="{{ archive_page.canonical_url }}" />
 {% endblock %}
 
 {% block content %}
@@ -10,38 +10,41 @@
 </div>
 
 <div class="postsList" role="list">
-    {% for issue in issues %}
-    {% set slug = issue_slugs[issue.number|string] %}
+    {% if archive_page.entries %}
+    {% for entry in archive_page.entries %}
     <article class="postListItem" role="listitem">
-        <a class="postListLink" href="/blog/{{ slug }}.html">
+        <a class="postListLink" href="{{ entry.detail_path }}">
             <div class="postHeader">
-                <span class="postTitle">{{ issue.title }}</span>
-                <time class="postDate" datetime="{{ issue.created_at.strftime('%Y-%m-%d') }}">{{ issue.created_at.strftime('%Y-%m-%d') }}</time>
+                <span class="postTitle">{{ entry.title }}</span>
+                <time class="postDate" datetime="{{ entry.created_date }}">{{ entry.created_date }}</time>
             </div>
         </a>
-        {% if issue.labels %}
+        {% if entry.tags %}
         <div class="postTags">
-            {% for label in issue.labels %}
-            <a href="/tag/{{ label.name }}.html" class="tag">{{ label.name }}</a>
+            {% for tag in entry.tags %}
+            <a href="{{ tag.path }}" class="tag">{{ tag.name }}</a>
             {% endfor %}
         </div>
         {% endif %}
     </article>
     {% endfor %}
+    {% else %}
+    <p class="empty-state">No blog posts yet.</p>
+    {% endif %}
 </div>
 
-{% if pagination and pagination.pages > 1 %}
+{% if archive_page.total_pages > 1 %}
 <nav class="pagination">
-    {% if pagination.has_prev %}
-    <a href="/blog/page/{{ pagination.prev_num }}.html" class="pagination-prev">← prev</a>
+    {% if archive_page.prev_route %}
+    <a href="{{ archive_page.prev_route.canonical_path }}" class="pagination-prev">← prev</a>
     {% else %}
     <span class="pagination-prev disabled">← prev</span>
     {% endif %}
 
-    <span class="pagination-info">{{ pagination.page }} / {{ pagination.pages }}</span>
+    <span class="pagination-info">{{ archive_page.page_number }} / {{ archive_page.total_pages }}</span>
 
-    {% if pagination.has_next %}
-    <a href="/blog/page/{{ pagination.next_num }}.html" class="pagination-next">next →</a>
+    {% if archive_page.next_route %}
+    <a href="{{ archive_page.next_route.canonical_path }}" class="pagination-next">next →</a>
     {% else %}
     <span class="pagination-next disabled">next →</span>
     {% endif %}

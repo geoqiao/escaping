@@ -6,6 +6,7 @@ from pathlib import Path
 import pytest
 from jinja2 import Environment, FileSystemLoader
 
+from github_blog.models.blog_archive import ArchiveEntry, ArchivePage, ArchivePageRoute
 from github_blog.models.blog_post import BlogPost, BlogTag
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
@@ -85,6 +86,26 @@ def _make_blog_post() -> BlogPost:
     )
 
 
+def _make_archive_page() -> ArchivePage:
+    """Create an internal ArchivePage for index template tests."""
+    return ArchivePage(
+        page_number=1,
+        total_pages=1,
+        route=ArchivePageRoute("/blog/", "blog/index.html"),
+        canonical_url="https://test.com/blog/",
+        prev_route=None,
+        next_route=None,
+        entries=(
+            ArchiveEntry(
+                title="Test",
+                created_date="2024-01-01",
+                detail_path="/blog/test/",
+                tags=(BlogTag(name="python", path="/tags/python/"),),
+            ),
+        ),
+    )
+
+
 def test_all_required_templates_exist() -> None:
     """Verify all required templates exist."""
     theme_path = PROJECT_ROOT / "templates" / THEME
@@ -136,18 +157,14 @@ def test_all_templates_render(full_context: dict[str, object]) -> None:
 
         if template_name == "post.html":
             ctx.update({"post": _make_blog_post()})
-        elif template_name in ["index.html", "tag.html"]:
+        elif template_name == "index.html":
+            ctx.update({"archive_page": _make_archive_page()})
+        elif template_name == "tag.html":
             ctx.update(
                 {
                     "issues": [mock_issue],
                     "issue_slugs": {"1": "1-test"},
                     "tags": ["python"],
-                    "pagination": {
-                        "page": 1,
-                        "pages": 1,
-                        "has_prev": False,
-                        "has_next": False,
-                    },
                 }
             )
         elif template_name == "tags.html":
@@ -321,18 +338,14 @@ class TestEscape2Templates:
 
             if template_name == "post.html":
                 ctx.update({"post": self._make_blog_post()})
-            elif template_name in ["index.html", "tag.html"]:
+            elif template_name == "index.html":
+                ctx.update({"archive_page": _make_archive_page()})
+            elif template_name == "tag.html":
                 ctx.update(
                     {
                         "issues": [mock_issue],
                         "issue_slugs": {"1": "1-test"},
                         "tags": ["python"],
-                        "pagination": {
-                            "page": 1,
-                            "pages": 1,
-                            "has_prev": False,
-                            "has_next": False,
-                        },
                     }
                 )
             elif template_name == "tags.html":

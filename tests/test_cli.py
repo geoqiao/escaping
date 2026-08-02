@@ -47,6 +47,7 @@ def test_blog_generator_integration(
     mock_settings.paths.output = "output"
     mock_settings.paths.blog = "blog"
     mock_settings.paths.tag = "tag"
+    mock_settings.paths.page = "page"
     mock_settings.paths.about = "about.html"
     mock_settings.paths.rss = "atom.xml"
     mock_settings.site.url = "https://example.com"
@@ -126,6 +127,8 @@ def test_blog_generator_integration(
         blog_dir = output_dir / "blog"
         assert (blog_dir / "1-post-one.html").exists()
         assert (blog_dir / "2-post-two.html").exists()
+        assert (blog_dir / "index.html").exists()
+        assert (blog_dir / "page" / "1.html").exists()
         # Strict directory-index paths must NOT exist
         assert not (blog_dir / "my-first-post").exists()
         assert not (blog_dir / "second-post").exists()
@@ -142,6 +145,13 @@ def test_blog_generator_integration(
         index_content = (output_dir / "index.html").read_text()
         assert "/blog/1-post-one.html" in index_content
         assert "/blog/2-post-two.html" in index_content
+
+        # Legacy archive adapter keeps the existing artifacts and .html links,
+        # while using a canonical that matches the primary page-one artifact.
+        archive_content = (blog_dir / "index.html").read_text()
+        assert 'href="https://example.com/blog/"' in archive_content
+        assert 'href="/blog/1-post-one.html"' in archive_content
+        assert 'href="/blog/2-post-two.html"' in archive_content
 
         # Verify legacy detail page canonical path matches the .html file writer
         post1_content = (blog_dir / "1-post-one.html").read_text()
@@ -183,6 +193,47 @@ def test_blog_generator_integration(
         project_output = project_root / "output"
         if project_output.exists():
             shutil.rmtree(project_output)
+
+
+def test_legacy_generate_index_writes_empty_archive(tmp_path: Path) -> None:
+    """Legacy writer still emits intentional page-one artifacts when empty."""
+    settings = MagicMock()
+    settings.paths.output = "output"
+    settings.paths.blog = "blog"
+    settings.paths.page = "page"
+    settings.paths.page_size = 10
+    render_service = MagicMock()
+    render_service.render_index.return_value = "<html>Empty archive</html>"
+    generator = BlogGenerator(
+        "fake-token",
+        "user/repo",
+        settings,
+        github_service=MagicMock(),
+        render_service=render_service,
+    )
+    generator._build_dir = tmp_path
+
+    generator._generate_index([], [], {})
+
+    assert (tmp_path / "blog" / "index.html").read_text() == (
+        "<html>Empty archive</html>"
+    )
+    assert (tmp_path / "blog" / "page" / "1.html").read_text() == (
+        "<html>Empty archive</html>"
+    )
+    render_service.render_index.assert_called_once_with(
+        [],
+        [],
+        {
+            "page": 1,
+            "pages": 1,
+            "has_prev": False,
+            "has_next": False,
+            "prev_num": 0,
+            "next_num": 2,
+        },
+        {},
+    )
 
 
 class TestNewCLI:

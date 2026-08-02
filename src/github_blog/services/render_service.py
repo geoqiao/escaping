@@ -12,6 +12,7 @@ from marko.html_renderer import HTMLRenderer
 from marko.inline import Image
 
 from ..config import Settings
+from ..models.blog_archive import ArchiveEntry, ArchivePage, ArchivePageRoute
 from ..models.blog_post import BlogPost, BlogTag
 from ..utils.html_sanitizer import sanitize_html
 
@@ -140,6 +141,14 @@ class RenderService:
             **self._get_common_context(),
         )
 
+    def render_blog_archive(self, page: ArchivePage) -> str:
+        """Render an archive page from the internal page/entry model only."""
+        template = self.env.get_template("index.html")
+        return template.render(
+            archive_page=page,
+            **self._get_common_context(),
+        )
+
     def render_index(
         self,
         issues: list[Issue],
@@ -147,14 +156,71 @@ class RenderService:
         pagination: dict[str, Any],
         issue_slugs: dict[str, str],
     ) -> str:
-        template = self.env.get_template("index.html")
-        return template.render(
-            issues=issues,
-            issue_slugs=issue_slugs,
-            tags=tags,
-            pagination=pagination,
-            **self._get_common_context(),
+        """Adapt the legacy index inputs to the internal archive model.
+
+        The default CLI continues to write its existing ``.html`` artifacts,
+        while the archive template receives no PyGithub objects, label
+        objects, pagination dictionary, or auxiliary slug map. Detail, tag,
+        pagination, output, and canonical paths are all resolved here before
+        delegating to :meth:`render_blog_archive`.
+        """
+        page_number = int(pagination["page"])
+        total_pages = int(pagination["pages"])
+        route = self._legacy_archive_route(page_number)
+        page = ArchivePage(
+            page_number=page_number,
+            total_pages=total_pages,
+            route=route,
+            canonical_url=(
+                f"{str(self.settings.site.url).rstrip('/')}{route.canonical_path}"
+            ),
+            prev_route=(
+                self._legacy_pagination_route(int(pagination["prev_num"]))
+                if pagination["has_prev"]
+                else None
+            ),
+            next_route=(
+                self._legacy_pagination_route(int(pagination["next_num"]))
+                if pagination["has_next"]
+                else None
+            ),
+            entries=tuple(
+                ArchiveEntry(
+                    title=issue.title or "",
+                    created_date=issue.created_at.strftime("%Y-%m-%d"),
+                    detail_path=(
+                        f"/{self.settings.paths.blog}/"
+                        f"{issue_slugs[str(issue.number)]}.html"
+                    ),
+                    tags=tuple(
+                        BlogTag(
+                            name=label.name,
+                            path=f"/{self.settings.paths.tag}/{label.name}.html",
+                        )
+                        for label in (issue.labels or [])
+                    ),
+                )
+                for issue in issues
+            ),
         )
+        return self.render_blog_archive(page)
+
+    def _legacy_archive_route(self, page_number: int) -> ArchivePageRoute:
+        """Return the canonical/output route for a legacy archive page."""
+        blog_dir = self.settings.paths.blog
+        if page_number == 1:
+            return ArchivePageRoute(
+                canonical_path=f"/{blog_dir}/",
+                output_path=f"{blog_dir}/index.html",
+            )
+        return self._legacy_pagination_route(page_number)
+
+    def _legacy_pagination_route(self, page_number: int) -> ArchivePageRoute:
+        """Return a legacy ``.html`` pagination link/output route."""
+        blog_dir = self.settings.paths.blog
+        page_dir = self.settings.paths.page
+        path = f"{blog_dir}/{page_dir}/{page_number}.html"
+        return ArchivePageRoute(canonical_path=f"/{path}", output_path=path)
 
     def render_home(self, issues: list[Issue], issue_slugs: dict[str, str]) -> str:
         template = self.env.get_template("home.html")
