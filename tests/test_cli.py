@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -81,14 +82,21 @@ class _FakeGitHub:
 
 
 def test_strict_cli_generates_directory_routes_and_seo(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.chdir(_ROOT)
-    output = _ROOT / "output"
-    if output.exists():
-        import shutil
-
-        shutil.rmtree(output)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    shutil.copytree(
+        _ROOT / "templates" / "geoqiao.me", repo / "templates" / "geoqiao.me"
+    )
+    shutil.copytree(
+        _ROOT / "templates" / "overrides" / "geoqiao.me",
+        repo / "templates" / "overrides" / "geoqiao.me",
+    )
+    sentinel = tmp_path / "outside-sentinel.txt"
+    sentinel.write_text("keep", encoding="utf-8")
+    monkeypatch.chdir(repo)
+    output = repo / "output"
     result = SiteCompiler(
         "unused",
         "geoqiao/site",
@@ -103,17 +111,26 @@ def test_strict_cli_generates_directory_routes_and_seo(
     assert (output / "atom.xml").exists()
     assert "https://geoqiao.me" in (output / "sitemap.xml").read_text()
     assert not (output / "blog" / "post.html").exists()
-    import shutil
-
-    shutil.rmtree(output)
+    assert sentinel.read_text(encoding="utf-8") == "keep"
 
 
 def test_content_error_preserves_existing_output(
-    monkeypatch: pytest.MonkeyPatch,
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    monkeypatch.chdir(_ROOT)
-    output = _ROOT / "output"
-    output.mkdir(exist_ok=True)
+    repo = tmp_path / "repo"
+    repo.mkdir()
+    shutil.copytree(
+        _ROOT / "templates" / "geoqiao.me", repo / "templates" / "geoqiao.me"
+    )
+    shutil.copytree(
+        _ROOT / "templates" / "overrides" / "geoqiao.me",
+        repo / "templates" / "overrides" / "geoqiao.me",
+    )
+    outside_sentinel = tmp_path / "outside-sentinel.txt"
+    outside_sentinel.write_text("keep", encoding="utf-8")
+    monkeypatch.chdir(repo)
+    output = repo / "output"
+    output.mkdir()
     sentinel = output / "index.html"
     sentinel.write_text("old", encoding="utf-8")
     bad = _valid_snapshots()
@@ -126,6 +143,4 @@ def test_content_error_preserves_existing_output(
     ).generate()
     assert not result.success
     assert sentinel.read_text(encoding="utf-8") == "old"
-    import shutil
-
-    shutil.rmtree(output)
+    assert outside_sentinel.read_text(encoding="utf-8") == "keep"
