@@ -121,11 +121,11 @@ uv run blog-gen
 uv run blog-gen --repo user/repo
 
 # 本地预览（必须从项目根目录启动）
-uv run python -m http.server 8000
+uv run python -m http.server 8000 --directory output
 # 访问 http://localhost:8000
 ```
 
-⚠️ **重要**：必须从项目根目录启动服务器，不要从 `output/` 启动。静态资源在 `output/templates/{theme}/` 下。
+⚠️ **重要**：必须从项目根目录启动服务器，但要把 `output/` 指定为 HTTP document root；不要把 `/output/` 当作站点前缀访问。静态资源在 `output/templates/{theme}/` 下。
 
 ### 测试
 
@@ -310,13 +310,13 @@ GitHub Issues → geoqiao.github.io (trigger.yml) → escaping (gen_site.yml) �
 
 1. 编辑 `templates/{Escape1,Escape2}/static/css/style.css`
 2. 运行 `tests/test_template_integrity.py` 确保一致性
-3. 本地验证：`uv run python -m http.server 8000`
+3. 本地验证：`uv run python -m http.server 8000 --directory output`
 
 ### 添加新页面类型
 
 1. 在 `RenderService` 中添加渲染方法
 2. 创建对应的模板文件
-3. 在 `BlogGenerator.generate()` 中添加调用
+3. 在 `SiteCompiler.generate()` 中接通调用
 4. 编写测试
 
 ---
@@ -361,7 +361,7 @@ GitHub Issues → geoqiao.github.io (trigger.yml) → escaping (gen_site.yml) �
 1. ✅ **TDD 优先**：先写测试再写代码
 2. ✅ **查看历史**：`git log --oneline -- 文件`
 3. ✅ **理解设计**：`git diff HEAD~n -- 文件`
-4. ✅ **本地验证**：`uv run python -m http.server`
+4. ✅ **本地验证**：`uv run python -m http.server 8000 --directory output`
 5. ✅ **谨慎重构**：不随意改原本工作的路径
 6. ✅ **小步提交**：方便回滚
 
@@ -383,7 +383,7 @@ uv run pytest -v                    # 1. 确保测试通过
 # 修改代码
 uv run pytest -v                    # 2. 验证修改
 uv run ruff check . && uv run ty    # 3. 代码检查
-uv run python -m http.server 8000   # 4. 本地验证
+uv run python -m http.server 8000 --directory output   # 4. 本地验证
 
 # 本地生成
 export G_T=ghp_xxx && uv run blog-gen

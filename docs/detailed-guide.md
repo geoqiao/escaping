@@ -56,13 +56,16 @@ the Safari workaround that removes lazy loading from injected iframes.
 uv sync
 export G_T=ghp_xxx
 uv run blog-gen
-uv run python -m http.server 8000
+# Run from the repository root; serve generated output as the document root.
+uv run python -m http.server 8000 --directory output
 uv run pytest -q
 uv run ruff check src/github_blog tests
 uv run ruff format --check src/github_blog tests
 uv run ty check
 ```
 
-Build output is staged and published only after full validation. Unsafe output
+Build output is staged and published only after full validation. For local
+smoke tests, map `output/` to the HTTP document root; do not browse through an
+`/output/` URL, or root routes such as `/blog/` will not resolve. Unsafe output
 roots and failed builds preserve the previous output tree. Historical `.html`
 Blog routes are intentionally not generated, aliased, or redirected.

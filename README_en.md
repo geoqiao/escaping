@@ -30,7 +30,8 @@ HTML goes through the allowlist sanitizer.
 uv sync
 export G_T=ghp_xxx
 uv run blog-gen
-uv run python -m http.server 8000
+# Run from the repository root; serve output as the document root.
+uv run python -m http.server 8000 --directory output
 ```
 
 `security.token_env` selects the token environment variable dynamically. Strict
@@ -50,5 +51,7 @@ git diff --check
 ```
 
 After generation, inspect Home, Blog, Ideas, About, Projects, Tags, Atom,
-sitemap, and robots. Historical `.html` Blog URLs have no aliases or redirects;
+sitemap, and robots. Serve `output/` as the document root rather than opening
+`/output/`; otherwise root routes such as `/blog/` and `/ideas/` return 404.
+Historical `.html` Blog URLs have no aliases or redirects;
 see `docs/adr/0003-drop-legacy-html-urls.md`.

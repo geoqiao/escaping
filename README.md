@@ -27,7 +27,8 @@ front matter 剥离后经过 Markdown 渲染和 HTML allowlist sanitization。
 uv sync
 export G_T=ghp_xxx
 uv run blog-gen
-uv run python -m http.server 8000
+# 必须从仓库根目录启动，把 output 作为站点根目录
+uv run python -m http.server 8000 --directory output
 ```
 
 `security.token_env` 动态决定 token 环境变量名。strict build 要求
@@ -46,5 +47,5 @@ git diff --check
 ```
 
 生成站点后应检查 Home、Blog、Ideas、About、Projects、Tags、Atom、sitemap 和
-robots；旧 `.html` Blog URL 不生成 alias 或 redirect，详见
+robots。不要访问 `/output/`：站点根目录应直接映射到 `output/`，否则 `/blog/`、`/ideas/` 等根路由会 404。旧 `.html` Blog URL 不生成 alias 或 redirect，详见
 `docs/adr/0003-drop-legacy-html-urls.md`。

@@ -74,6 +74,7 @@ parser or second content pipeline.
 ```bash
 export G_T=ghp_xxxxx
 uv run blog-gen
+uv run python -m http.server 8000 --directory output
 uv run pytest -q
 uv run ruff check src/github_blog tests
 uv run ruff format --check src/github_blog tests
