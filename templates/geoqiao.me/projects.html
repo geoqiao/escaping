@@ -1,4 +1,35 @@
 {% extends 'base.html' %}
+
 {% block title %}Projects - {{ blog_title }}{% endblock %}
-{% block canonical %}<link rel="canonical" href="{{ projects.canonical_url }}" />{% endblock %}
-{% block content %}<section class="postsList"><div class="listHeader"><h1>Projects</h1></div>{% if projects.projects %}{% for project in projects.projects %}<article class="postListItem"><a class="postListLink" href="{{ project.url }}"><div class="postHeader"><span class="postTitle">{{ project.title }}</span>{% if project.language %}<span class="postDate">{{ project.language }}</span>{% endif %}</div></a><p>{{ project.summary }}</p><div class="postTags">{% if project.stars is not none %}<span class="tag">★ {{ project.stars }}</span>{% endif %}{% if project.forks is not none %}<span class="tag">⑂ {{ project.forks }}</span>{% endif %}{% for topic in project.topics %}<span class="tag">{{ topic }}</span>{% endfor %}</div></article>{% endfor %}{% else %}<p class="empty-state">No projects yet.</p>{% endif %}</section>{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ projects.canonical_url }}">{% endblock %}
+{% block page_key %}projects{% endblock %}
+
+{% block content %}
+<section class="project-list">
+    <header class="quiet-page-head">
+        <h1>Projects</h1>
+        <p>持续维护、也持续修正的工具与作品。</p>
+    </header>
+
+    {% if projects.projects %}
+    <div class="project-rows">
+        {% for project in projects.projects %}
+        <article class="project-row">
+            <p class="utility-label">{% if project.featured %}FEATURED{% else %}PROJECT{% endif %}{% if project.language %} / {{ project.language }}{% endif %}</p>
+            <h2><a href="{{ project.url }}">{{ project.title }} ↗</a></h2>
+            <p>{{ project.summary }}</p>
+            {% if project.stars is not none or project.forks is not none or project.topics %}
+            <div class="project-meta">
+                {% if project.stars is not none %}<span>★ {{ project.stars }}</span>{% endif %}
+                {% if project.forks is not none %}<span>⑂ {{ project.forks }}</span>{% endif %}
+                {% for topic in project.topics %}<span>#{{ topic }}</span>{% endfor %}
+            </div>
+            {% endif %}
+        </article>
+        {% endfor %}
+    </div>
+    {% else %}
+    <p class="empty-state">还没有公开的 Project。</p>
+    {% endif %}
+</section>
+{% endblock %}

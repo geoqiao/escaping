@@ -28,23 +28,19 @@ def _settings(theme: str) -> Settings:
         "paths": {"theme": theme},
         "security": {"token_env": "TOKEN"},
     }
-    if theme == "geoqiao.me":
-        data["theme_lock"] = {
-            "repository": "geoqiao/escaping",
-            "commit": "e30a52e89645e4e3cd0f1630653c248b9f203c7d",
-            "api_version": "1",
-        }
     return Settings.model_validate(data)
 
 
-def _snap(number: int, kind: str, metadata: str) -> IssueSnapshot:
+def _snap(
+    number: int, kind: str, metadata: str, *, labels: tuple[str, ...] = ()
+) -> IssueSnapshot:
     now = datetime(2026, 1, number, tzinfo=timezone.utc)
     return IssueSnapshot(
         number,
         kind.title(),
         "geoqiao",
         f"---\n{metadata}\n---\n\nBody **content**.",
-        (f"type:{kind}", "published"),
+        (f"type:{kind}", "published", *labels),
         now,
         now,
         False,
@@ -56,7 +52,10 @@ def _render_theme(theme: str) -> dict[str, str]:
     content = ContentCompiler(settings).compile(
         [
             _snap(
-                1, "blog", 'slug: post\ndescription: Post.\ncreated_date: "2026-01-01"'
+                1,
+                "blog",
+                'slug: post\ndescription: Post.\ncreated_date: "2026-01-01"',
+                labels=("tag:python",),
             ),
             _snap(2, "idea", 'description: Idea.\ncreated_date: "2026-01-02"'),
             _snap(10, "about", 'description: About.\ncreated_date: "2026-01-03"'),
@@ -146,6 +145,16 @@ class _MobileNavigationProbe(HTMLParser):
     def handle_data(self, data: str) -> None:
         if self._script_data is not None:
             self._script_data.append(data)
+
+
+def test_geoqiao_theme_renders_approved_quiet_ledger_identity() -> None:
+    html = _render_theme("geoqiao.me")
+    home = html["index.html"]
+
+    assert "演悲欢离合,当代岂无前代事?" in home
+    assert "观抑扬褒贬,座中常有剧中人。" in home
+    assert home.index('class="home-ledger-main"') < home.index('class="profile-rail"')
+    assert "ISSUE #1" in home
 
 
 @pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])

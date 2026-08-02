@@ -27,6 +27,7 @@ class ArchiveEntry:
     template never concatenates path segments.
 
     Attributes:
+        issue_number: Immutable GitHub Issue identity for display.
         title: Display title of the post.
         created_date: ``YYYY-MM-DD`` string for display.
         detail_path: Pre-computed canonical URL path to the detail page,
@@ -34,6 +35,7 @@ class ArchiveEntry:
         tags: Tuple of immutable ``BlogTag`` values (name + path).
     """
 
+    issue_number: int
     title: str
     created_date: str
     detail_path: str

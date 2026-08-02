@@ -77,6 +77,7 @@ class BlogArchiveBuilder:
             ),
             entries=tuple(
                 ArchiveEntry(
+                    issue_number=post.issue_number,
                     title=post.title,
                     created_date=post.created_date,
                     detail_path=post.canonical_path,

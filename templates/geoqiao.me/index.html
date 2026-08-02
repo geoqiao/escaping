@@ -1,53 +1,38 @@
 {% extends 'base.html' %}
 
-{% block canonical %}
-<link rel="canonical" href="{{ archive_page.canonical_url }}" />
-{% endblock %}
+{% block title %}Blog - {{ blog_title }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ archive_page.canonical_url }}">{% endblock %}
+{% block page_key %}blog{% endblock %}
 
 {% block content %}
-<div class="listHeader">
+<section class="quiet-page-head">
     <h1>Blog</h1>
-</div>
+    <p>关于 Python、数据分析、AI workflow，以及偶尔出现的生活碎片。</p>
+</section>
 
-<div class="postsList" role="list">
-    {% if archive_page.entries %}
+{% if archive_page.entries %}
+<div class="ledger-list archive-ledger" role="list">
     {% for entry in archive_page.entries %}
-    <article class="postListItem" role="listitem">
-        <a class="postListLink" href="{{ entry.detail_path }}">
-            <div class="postHeader">
-                <span class="postTitle">{{ entry.title }}</span>
-                <time class="postDate" datetime="{{ entry.created_date }}">{{ entry.created_date }}</time>
-            </div>
-        </a>
-        {% if entry.tags %}
-        <div class="postTags">
-            {% for tag in entry.tags %}
-            <a href="{{ tag.path }}" class="tag">{{ tag.name }}</a>
-            {% endfor %}
+    <article class="ledger-row" role="listitem">
+        <time datetime="{{ entry.created_date }}">{{ entry.created_date | replace('-', '.') }}</time>
+        <div class="ledger-track" aria-hidden="true"><span{% if loop.first %} class="is-live"{% endif %}></span></div>
+        <div class="ledger-entry">
+            <p class="issue-label">ISSUE #{{ entry.issue_number }}</p>
+            <h2><a href="{{ entry.detail_path }}">{{ entry.title }}</a></h2>
+            {% if entry.tags %}<div class="plain-tags">{% for tag in entry.tags %}<a href="{{ tag.path }}">#{{ tag.name }}</a>{% endfor %}</div>{% endif %}
         </div>
-        {% endif %}
     </article>
     {% endfor %}
-    {% else %}
-    <p class="empty-state">No blog posts yet.</p>
-    {% endif %}
 </div>
+{% else %}
+<p class="empty-state">还没有公开的 Blog。</p>
+{% endif %}
 
 {% if archive_page.total_pages > 1 %}
-<nav class="pagination">
-    {% if archive_page.prev_route %}
-    <a href="{{ archive_page.prev_route.canonical_path }}" class="pagination-prev">← prev</a>
-    {% else %}
-    <span class="pagination-prev disabled">← prev</span>
-    {% endif %}
-
-    <span class="pagination-info">{{ archive_page.page_number }} / {{ archive_page.total_pages }}</span>
-
-    {% if archive_page.next_route %}
-    <a href="{{ archive_page.next_route.canonical_path }}" class="pagination-next">next →</a>
-    {% else %}
-    <span class="pagination-next disabled">next →</span>
-    {% endif %}
+<nav class="pagination" aria-label="Blog pages">
+    {% if archive_page.prev_route %}<a href="{{ archive_page.prev_route.canonical_path }}">← prev</a>{% else %}<span class="disabled">← prev</span>{% endif %}
+    <span>{{ archive_page.page_number }} / {{ archive_page.total_pages }}</span>
+    {% if archive_page.next_route %}<a href="{{ archive_page.next_route.canonical_path }}">next →</a>{% else %}<span class="disabled">next →</span>{% endif %}
 </nav>
 {% endif %}
 {% endblock %}

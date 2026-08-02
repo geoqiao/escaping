@@ -122,6 +122,7 @@ class TagTaxonomyBuilder:
             index_route=index_route,
             entries=tuple(
                 TagArchiveEntry(
+                    issue_number=post.issue_number,
                     title=post.title,
                     created_date=post.created_date,
                     detail_path=post.canonical_path,

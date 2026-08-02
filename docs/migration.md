@@ -37,10 +37,6 @@ paths:
   output: output
   theme: geoqiao.me
   page_size: 10
-theme_lock:
-  repository: geoqiao/escaping
-  commit: <full-40-character-commit-sha>
-  api_version: "1"
 comments:
   provider: utterances
   repo: ""
@@ -50,7 +46,7 @@ security:
   token_env: GITHUB_TOKEN
 ```
 
-`paths` only controls the output directory, locked theme name, and page size.
+`paths` only controls the output directory, local theme name, and page size.
 Blog, Idea, About, Projects, Tags, Atom, sitemap, and robots paths are fixed
 by `RouteRegistry`; they are not configurable URL fragments.
 

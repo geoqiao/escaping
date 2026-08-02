@@ -62,18 +62,6 @@ class SiteCompiler:
     def generate(self) -> BuildResult:
         build_start = datetime.now(timezone.utc)
         diagnostics: list[Diagnostic] = []
-        if self.settings.theme_lock is None:
-            return BuildResult(
-                False,
-                (
-                    Diagnostic(
-                        "error",
-                        "THEME_LOCK_MISSING",
-                        "strict builds require an immutable theme_lock",
-                        field="theme_lock",
-                    ),
-                ),
-            )
         try:
             repository = self.github.get_repo(self.repo_name)
             snapshots = self.github.fetch_issue_snapshots(repository)

@@ -102,8 +102,8 @@ def test_manifest_mismatch_and_missing_contract_fail(tmp_path: Path) -> None:
         ThemeResolver(tmp_path, _lock(), theme_name="locked").resolve()
 
 
-@pytest.mark.parametrize("theme_name", ["Escape1", "Escape2", "geoqiao.me"])
-def test_shipped_themes_resolve_with_manifest(theme_name: str) -> None:
+@pytest.mark.parametrize("theme_name", ["Escape1", "Escape2"])
+def test_shipped_locked_themes_resolve_with_manifest(theme_name: str) -> None:
     from github_blog.theme import ThemeResolver
 
     source = ThemeResolver(

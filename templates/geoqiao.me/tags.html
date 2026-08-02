@@ -1,26 +1,27 @@
 {% extends 'base.html' %}
 
 {% block title %}Tags - {{ blog_title }}{% endblock %}
-
-{% block canonical %}
-<link rel="canonical" href="{{ tags_index.canonical_url }}" />
-{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ tags_index.canonical_url }}">{% endblock %}
+{% block page_key %}tags{% endblock %}
 
 {% block content %}
-<div class="listHeader">
-    <h1>Tags</h1>
-</div>
+<section class="quiet-tag-list">
+    <header class="quiet-page-head">
+        <h1>Tags</h1>
+        <p>按主题回看已经写下的内容。</p>
+    </header>
 
-<div class="tag-list">
     {% if tags_index.tags %}
-    {% for item in tags_index.tags %}
-    <span class="tag-item">
-        <a href="{{ item.route.canonical_path }}" class="tag">{{ item.name }}</a>
-        <span class="tag-count">{{ item.count }}</span>
-    </span>
-    {% endfor %}
+    <div class="tag-rows">
+        {% for item in tags_index.tags %}
+        <a class="tag-row" href="{{ item.route.canonical_path }}">
+            <span>#{{ item.name }}</span>
+            <small>{{ item.count }} {% if item.count == 1 %}entry{% else %}entries{% endif %}</small>
+        </a>
+        {% endfor %}
+    </div>
     {% else %}
-    <p class="empty-state">No blog tags yet.</p>
+    <p class="empty-state">还没有 Blog 标签。</p>
     {% endif %}
-</div>
+</section>
 {% endblock %}

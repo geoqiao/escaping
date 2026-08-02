@@ -1,16 +1,31 @@
 {% extends 'base.html' %}
+
 {% block title %}About - {{ blog_title }}{% endblock %}
 {% block description %}{{ about_page.description }}{% endblock %}
 {% block og_description %}{{ about_page.description }}{% endblock %}
 {% block twitter_description %}{{ about_page.description }}{% endblock %}
-{% block canonical %}<link rel="canonical" href="{{ about_page.canonical_url }}" />{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ about_page.canonical_url }}">{% endblock %}
+{% block page_key %}about{% endblock %}
+
 {% block content %}
-<article class="postWrapper">
-  <h1>About</h1>
-  {% if about_page.profile.avatar %}<div class="authorImageWrapper aboutAvatar"><img src="{{ about_page.profile.avatar }}" alt="{{ author_name }}" class="size-xs"></div>{% endif %}
-  {% if about_page.profile.bio %}<p class="intro-line">{{ about_page.profile.bio }}</p>{% endif %}
-  <div class="post-content">{{ about_page.body_html|safe }}</div>
-  {% if about_page.profile.links %}<section class="about-section"><h2>Links</h2><ul class="contact-list">{% for link in about_page.profile.links %}<li><a href="{{ link.url }}">{{ link.name }}</a></li>{% endfor %}</ul></section>{% endif %}
+<article class="quiet-about">
+    <header class="about-heading">
+        <div>
+            <p class="utility-label">ABOUT / ISSUE #{{ about_page.issue_number }}</p>
+            <h1>About</h1>
+            {% if about_page.profile.bio %}<p>{{ about_page.profile.bio }}</p>{% endif %}
+        </div>
+        {% if about_page.profile.avatar %}<div class="about-avatar-wrap"><img src="{{ about_page.profile.avatar }}" alt="{{ author_name }}" width="96" height="96"></div>{% endif %}
+    </header>
+
+    <div class="post-content">{{ about_page.body_html|safe }}</div>
+
+    {% if about_page.profile.links %}
+    <nav class="about-links" aria-label="Profile links">
+        {% for link in about_page.profile.links %}<a href="{{ link.url }}">{{ link.name }} ↗</a>{% endfor %}
+    </nav>
+    {% endif %}
 </article>
+
 {% set comments_issue_number = about_page.issue_number %}{% include '_comments.html' %}
 {% endblock %}

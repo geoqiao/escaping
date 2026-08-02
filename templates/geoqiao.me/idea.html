@@ -1,7 +1,29 @@
 {% extends 'base.html' %}
+
 {% block title %}{{ idea.title }} - {{ blog_title }}{% endblock %}
 {% block description %}{{ idea.description }}{% endblock %}
-{% block canonical %}<link rel="canonical" href="{{ idea.canonical_url }}" />{% endblock %}
-{% block og_type %}article{% endblock %}{% block og_url %}{{ idea.canonical_url }}{% endblock %}{% block og_title %}{{ idea.title }}{% endblock %}{% block og_description %}{{ idea.description }}{% endblock %}
-{% block twitter_url %}{{ idea.canonical_url }}{% endblock %}{% block twitter_title %}{{ idea.title }}{% endblock %}{% block twitter_description %}{{ idea.description }}{% endblock %}
-{% block content %}<article class="postWrapper"><h1>{{ idea.title }}</h1><section class="postMetadata"><dl><dt>created</dt><dd><time datetime="{{ idea.created_date }}">{{ idea.created_date }}</time></dd>{% if idea.tags %}<dt>tags</dt><dd>{% for tag in idea.tags %}<span class="tag">#{{ tag.name }}</span>{% endfor %}</dd>{% endif %}</dl></section><div class="post-content">{{ idea.body_html|safe }}</div></article>{% set comments_issue_number = idea.issue_number %}{% include '_comments.html' %}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ idea.canonical_url }}">{% endblock %}
+{% block og_type %}article{% endblock %}
+{% block og_url %}{{ idea.canonical_url }}{% endblock %}
+{% block og_title %}{{ idea.title }}{% endblock %}
+{% block og_description %}{{ idea.description }}{% endblock %}
+{% block twitter_url %}{{ idea.canonical_url }}{% endblock %}
+{% block twitter_title %}{{ idea.title }}{% endblock %}
+{% block twitter_description %}{{ idea.description }}{% endblock %}
+{% block page_key %}ideas{% endblock %}
+
+{% block content %}
+<article class="quiet-article idea-article">
+    <header class="article-heading">
+        <p class="utility-label">IDEA / ISSUE #{{ idea.issue_number }}</p>
+        <h1>{{ idea.title }}</h1>
+        <div class="article-meta">
+            <time datetime="{{ idea.created_date }}">{{ idea.created_date | replace('-', '.') }}</time>
+            {% if idea.tags %}<div class="plain-tags">{% for tag in idea.tags %}<span>#{{ tag.name }}</span>{% endfor %}</div>{% endif %}
+        </div>
+    </header>
+    <div class="post-content">{{ idea.body_html|safe }}</div>
+</article>
+
+{% set comments_issue_number = idea.issue_number %}{% include '_comments.html' %}
+{% endblock %}

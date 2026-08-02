@@ -116,6 +116,7 @@ class TestHomeBuilder:
         assert len(home.recent_posts) == HOME_POST_COUNT == 5
         slugs = [e.detail_path.split("/")[2] for e in home.recent_posts]
         assert slugs == ["post-7", "post-6", "post-5", "post-4", "post-3"]
+        assert [e.issue_number for e in home.recent_posts] == [7, 6, 5, 4, 3]
 
         # Identity from Settings.
         assert home.site_title == "Test Blog"

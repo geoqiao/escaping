@@ -40,11 +40,12 @@ front matter leakage, invalid XML, and origin mismatches.
 
 ## Themes and comments
 
-`ThemeResolver` accepts a full-SHA `theme_lock`, validates `theme.yaml`, and
-loads site overrides before the locked declarative theme with Jinja
-`StrictUndefined`. `Escape1`, `Escape2`, and `geoqiao.me` use the same content
-contract. The geoqiao.me theme follows the approved Escape2 visual baseline;
-see `docs/themes/geoqiao-me-v1-baseline.md`.
+Local themes load directly from `templates/<theme>/` with Jinja
+`StrictUndefined`. An optional `theme_lock` remains available for independently
+versioned external themes, but first-party themes do not require it. `Escape1`,
+`Escape2`, and `geoqiao.me` use the same content contract. The geoqiao.me theme
+follows the approved A2 Quiet Ledger baseline; see
+`docs/themes/geoqiao-me-v1-baseline.md`.
 
 The shared Utterances include binds comments by immutable Issue number, follows
 `comments.theme_mode: auto` with `postMessage` and `MutationObserver`, and keeps

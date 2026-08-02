@@ -1,58 +1,40 @@
 {% extends 'base.html' %}
 
 {% block title %}{{ post.title }} - {{ blog_title }}{% endblock %}
-
 {% block description %}{{ post.description }}{% endblock %}
-
-{% block canonical %}
-<link rel="canonical" href="{{ post.canonical_url }}" />
-{% endblock %}
-
+{% block canonical %}<link rel="canonical" href="{{ post.canonical_url }}">{% endblock %}
 {% block og_type %}article{% endblock %}
 {% block og_url %}{{ post.canonical_url }}{% endblock %}
 {% block og_title %}{{ post.title }}{% endblock %}
 {% block og_description %}{{ post.description }}{% endblock %}
-
 {% block twitter_url %}{{ post.canonical_url }}{% endblock %}
 {% block twitter_title %}{{ post.title }}{% endblock %}
 {% block twitter_description %}{{ post.description }}{% endblock %}
+{% block page_key %}blog{% endblock %}
 
 {% block content %}
-<article class="postWrapper">
-    <h1>{{ post.title }}</h1>
-
-    <section class="postMetadata">
-        <dl>
-            {% if post.tags %}
-            <dt>tags</dt>
-            <dd>
-                {% for tag in post.tags %}
-                <a href="{{ tag.path }}" class="tag">#{{ tag.name }}</a>{% if not loop.last %} {% endif %}
-                {% endfor %}
-            </dd>
-            {% endif %}
-            <dt>created</dt>
-            <dd><time datetime="{{ post.created_date }}">{{ post.created_date }}</time></dd>
-        </dl>
-    </section>
-
-    <div class="post-content">
-        {{ post.body_html|safe }}
-    </div>
+<article class="quiet-article">
+    <header class="article-heading">
+        <p class="utility-label">BLOG / ISSUE #{{ post.issue_number }}</p>
+        <h1>{{ post.title }}</h1>
+        <div class="article-meta">
+            <time datetime="{{ post.created_date }}">{{ post.created_date | replace('-', '.') }}</time>
+            {% if post.tags %}<div class="plain-tags">{% for tag in post.tags %}<a href="{{ tag.path }}">#{{ tag.name }}</a>{% endfor %}</div>{% endif %}
+        </div>
+    </header>
+    <div class="post-content">{{ post.body_html|safe }}</div>
 </article>
 
 {% set comments_issue_number = post.issue_number %}{% include '_comments.html' %}
 
 <script type="module">
   import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-
   document.querySelectorAll("pre code.language-mermaid").forEach((code) => {
     const pre = code.parentElement;
     pre.className = "mermaid";
     pre.textContent = code.textContent;
   });
-
-  mermaid.initialize({ startOnLoad: false });
+  mermaid.initialize({ startOnLoad: false, theme: document.documentElement.dataset.theme === "dark" ? "dark" : "default" });
   mermaid.run();
 </script>
 {% endblock %}

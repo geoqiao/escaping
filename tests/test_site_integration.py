@@ -50,12 +50,6 @@ def _settings(theme: str = "geoqiao.me", *, profile_avatar: str = "") -> Setting
     }
     if profile_avatar:
         data["profile"] = {"avatar": profile_avatar}
-    if theme == "geoqiao.me":
-        data["theme_lock"] = {
-            "repository": "geoqiao/escaping",
-            "commit": "e30a52e89645e4e3cd0f1630653c248b9f203c7d",
-            "api_version": "1",
-        }
     return Settings.model_validate(data)
 
 
@@ -129,8 +123,8 @@ def test_representative_content_compiles_to_valid_complete_artifact(
     assert not (tmp_path / "blog" / "a-blog.html").exists()
     for output_path in ("index.html", "blog/index.html"):
         rendered = (tmp_path / output_path).read_text(encoding="utf-8")
-        assert '<a href="/" class="terminal">' in rendered
-        assert 'href="https://geoqiao.me/" class="terminal"' not in rendered
+        assert '<a href="/"' in rendered
+        assert '<a href="https://geoqiao.me/"' not in rendered
 
 
 @pytest.mark.parametrize("theme", _THEMES)

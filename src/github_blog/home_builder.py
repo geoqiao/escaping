@@ -72,6 +72,7 @@ class HomeBuilder:
             navigation=self._build_navigation(),
             recent_posts=tuple(
                 HomePostEntry(
+                    issue_number=post.issue_number,
                     title=post.title,
                     created_date=post.created_date,
                     detail_path=post.canonical_path,

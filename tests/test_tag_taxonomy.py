@@ -172,6 +172,7 @@ def test_archive_order_routes_empty() -> None:
     # Archive order desc.
     archive = result.archives[0]
     assert [e.title for e in archive.entries] == ["New", "Old"]
+    assert [e.issue_number for e in archive.entries] == [2, 1]
 
     # Routes.
     assert result.index.route.canonical_path == "/tags/"
@@ -221,6 +222,7 @@ def test_theme_renderer_and_writers_tracer(theme: str, tmp_path: Path) -> None:
         ),
         entries=(
             TagArchiveEntry(
+                issue_number=41,
                 title="My Post",
                 created_date="2026-01-05",
                 detail_path="/blog/my-post/",

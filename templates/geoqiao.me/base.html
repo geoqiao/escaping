@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="{{ language }}" data-theme="dark">
+<html lang="{{ language }}">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -8,63 +8,62 @@
     <title>{% block title %}{{ blog_title }}{% endblock %}</title>
     {% block canonical %}{% endblock %}
 
-    <!-- Open Graph / Facebook -->
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
     <meta property="og:url" content="{% block og_url %}{{ page_canonical_url | default(blog_url) }}{% endblock %}">
     <meta property="og:site_name" content="{{ blog_title }}">
     <meta property="og:title" content="{% block og_title %}{{ blog_title }}{% endblock %}">
     <meta property="og:description" content="{% block og_description %}{{ meta_description }}{% endblock %}">
-    <meta property="og:image" content="{% block og_image %}{{ blog_url.rstrip('/') }}{{ theme_path }}/static/images/favicon.png{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ theme_favicon_url }}{% endblock %}">
 
-    <!-- Twitter -->
     <meta name="twitter:card" content="summary">
     <meta name="twitter:url" content="{% block twitter_url %}{{ page_canonical_url | default(blog_url) }}{% endblock %}">
     <meta name="twitter:title" content="{% block twitter_title %}{{ blog_title }}{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}{{ meta_description }}{% endblock %}">
-    <meta name="twitter:image" content="{% block twitter_image %}{{ blog_url.rstrip('/') }}{{ theme_path }}/static/images/favicon.png{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ theme_favicon_url }}{% endblock %}">
 
-    <link rel="preconnect" href="https://fonts.googleapis.com">
-    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
-
-    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
+    <script src="{{ theme_path }}/static/js/theme.js"></script>
     <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-nord.css">
-    <link rel="alternate" type="application/atom+xml" title="RSS" href="/{{ rss_atom_path }}">
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
+    <link rel="alternate" type="application/atom+xml" title="RSS" href="{{ atom_url }}">
     <link rel="icon" type="image/png" href="{{ theme_path }}/static/images/favicon.png">
     {% if structured_data is defined %}<script type="application/ld+json">{{ structured_data | tojson }}</script>{% endif %}
     {% block extra_head %}{% endblock %}
 </head>
-<body>
+<body data-page="{% block page_key %}home{% endblock %}">
     <a href="#main-content" class="skip-link">{{ skip_link_text }}</a>
-    <div class="flexWrapper">
-        <header class="headerWrapper">
-            <div class="header">
-                <a href="/" class="terminal">
-                    <span>{{ github_name }}@geoqiao.me ~ $</span><span class="cursor">_</span>
-                </a>
+    <div class="site-frame">
+        <header class="ledger-header">
+            <div class="ledger-header-inner">
+                <a href="{{ home_path }}" class="ledger-brand"><strong>{{ author_name }}</strong><span>/ notes</span></a>
                 <input class="side-menu" type="checkbox" id="side-menu">
                 <label class="hamb" for="side-menu" role="button" tabindex="0" aria-label="Toggle menu" aria-expanded="false" aria-controls="header-nav"><span class="hamb-line"></span></label>
-                <nav class="headerLinks" id="header-nav">
+                <nav class="ledger-nav" id="header-nav" aria-label="Primary navigation">
                     <ul>
+                        <li><a class="ledger-nav-link nav-home" href="{{ home_path }}">Home</a></li>
                         {% for item in navigation_items %}
-                        <li><a href="{{ item.url }}">~/{{ item.name }}</a></li>
+                        <li><a class="ledger-nav-link nav-{{ item.name | lower | replace('/', '-') }}" href="{{ item.url }}">{{ item.name }}</a></li>
                         {% endfor %}
+                        <li>
+                            <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">
+                                <span class="theme-toggle-icon" aria-hidden="true">◐</span><span data-theme-label>Dark</span>
+                            </button>
+                        </li>
                     </ul>
                 </nav>
             </div>
         </header>
 
-        <div class="content">
-            <main class="main" id="main-content">
+        <div class="site-content">
+            <main class="site-main" id="main-content" tabindex="-1">
                 {% block content %}{% endblock %}
             </main>
         </div>
 
         {% block footer %}
-        <footer class="footer">
-            <p>
-                &copy; {{ author_name }}{% if branding.show_powered_by %} · <a href="{{ branding.powered_by_url }}" class="footerLink">{{ branding.powered_by_text }}</a>{% endif %}
-            </p>
+        <footer class="ledger-footer">
+            <span>&copy; {{ author_name }}</span>
+            <a href="{{ atom_url }}">RSS</a>
+            {% if branding.show_powered_by %}<a href="{{ branding.powered_by_url }}">source ↗</a>{% endif %}
         </footer>
         {% endblock %}
     </div>

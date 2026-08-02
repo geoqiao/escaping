@@ -102,9 +102,3 @@ comments:
 # ============================================
 security:
   token_env: GITHUB_TOKEN
-
-# Theme is vendored in this repository and resolved through this immutable lock.
-theme_lock:
-  repository: geoqiao/escaping
-  commit: e30a52e89645e4e3cd0f1630653c248b9f203c7d
-  api_version: "1"

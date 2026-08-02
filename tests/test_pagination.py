@@ -94,6 +94,7 @@ class TestBlogArchiveBuilder:
 
         # Detail and tag links pre-computed from BlogPost.
         entry = pages[0].entries[0]
+        assert entry.issue_number == 2
         assert entry.detail_path == "/blog/sm/"
         assert entry.tags == tags
 

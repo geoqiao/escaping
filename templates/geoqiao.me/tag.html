@@ -1,35 +1,30 @@
 {% extends 'base.html' %}
 
 {% block title %}{{ tag_archive.tag_name }} - {{ blog_title }}{% endblock %}
-
-{% block canonical %}
-<link rel="canonical" href="{{ tag_archive.canonical_url }}" />
-{% endblock %}
-
+{% block canonical %}<link rel="canonical" href="{{ tag_archive.canonical_url }}">{% endblock %}
 {% block og_title %}{{ tag_archive.tag_name }} - {{ blog_title }}{% endblock %}
+{% block page_key %}tags{% endblock %}
 
 {% block content %}
-<div class="listHeader">
-    <h1>#{{ tag_archive.tag_name }}</h1>
-</div>
+<section class="tag-archive">
+    <header class="quiet-page-head">
+        <p class="utility-label">TAG ARCHIVE</p>
+        <h1>#{{ tag_archive.tag_name }}</h1>
+        <p><a href="{{ tag_archive.index_route.canonical_path }}">查看全部标签 ←</a></p>
+    </header>
 
-<div class="postsList" role="list">
-    {% for entry in tag_archive.entries %}
-    <article class="postListItem" role="listitem">
-        <a class="postListLink" href="{{ entry.detail_path }}">
-            <div class="postHeader">
-                <span class="postTitle">{{ entry.title }}</span>
-                <time class="postDate" datetime="{{ entry.created_date }}">{{ entry.created_date }}</time>
+    <div class="ledger-list" role="list">
+        {% for entry in tag_archive.entries %}
+        <article class="ledger-row" role="listitem">
+            <time datetime="{{ entry.created_date }}">{{ entry.created_date | replace('-', '.') }}</time>
+            <div class="ledger-track" aria-hidden="true"><span{% if loop.first %} class="is-live"{% endif %}></span></div>
+            <div class="ledger-entry">
+                <p class="issue-label">ISSUE #{{ entry.issue_number }}</p>
+                <h2><a href="{{ entry.detail_path }}">{{ entry.title }}</a></h2>
+                {% if entry.tags %}<div class="plain-tags">{% for tag in entry.tags %}<a href="{{ tag.path }}">#{{ tag.name }}</a>{% endfor %}</div>{% endif %}
             </div>
-        </a>
-        {% if entry.tags %}
-        <div class="postTags">
-            {% for tag in entry.tags %}
-            <a href="{{ tag.path }}" class="tag">{{ tag.name }}</a>
-            {% endfor %}
-        </div>
-        {% endif %}
-    </article>
-    {% endfor %}
-</div>
+        </article>
+        {% endfor %}
+    </div>
+</section>
 {% endblock %}

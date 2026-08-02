@@ -6,16 +6,11 @@ from pathlib import Path
 
 import pytest
 
-from github_blog.config import Settings, ThemeLockConfig
+from github_blog.config import Settings
 from github_blog.models.issue_snapshot import IssueSnapshot
 from github_blog.site_compiler import SiteCompiler
 
 _ROOT = Path(__file__).parent.parent
-_LOCK = ThemeLockConfig(
-    repository="geoqiao/escaping",
-    commit="e30a52e89645e4e3cd0f1630653c248b9f203c7d",
-    api_version="1",
-)
 
 
 def _settings() -> Settings:
@@ -31,7 +26,6 @@ def _settings() -> Settings:
             "about": {"issue_number": 10},
             "security": {"token_env": "TOKEN"},
             "paths": {"output": "output", "theme": "geoqiao.me"},
-            "theme_lock": _LOCK.model_dump(),
         }
     )
 
@@ -89,10 +83,6 @@ def test_strict_cli_generates_directory_routes_and_seo(
     shutil.copytree(
         _ROOT / "templates" / "geoqiao.me", repo / "templates" / "geoqiao.me"
     )
-    shutil.copytree(
-        _ROOT / "templates" / "overrides" / "geoqiao.me",
-        repo / "templates" / "overrides" / "geoqiao.me",
-    )
     sentinel = tmp_path / "outside-sentinel.txt"
     sentinel.write_text("keep", encoding="utf-8")
     monkeypatch.chdir(repo)
@@ -121,10 +111,6 @@ def test_content_error_preserves_existing_output(
     repo.mkdir()
     shutil.copytree(
         _ROOT / "templates" / "geoqiao.me", repo / "templates" / "geoqiao.me"
-    )
-    shutil.copytree(
-        _ROOT / "templates" / "overrides" / "geoqiao.me",
-        repo / "templates" / "overrides" / "geoqiao.me",
     )
     outside_sentinel = tmp_path / "outside-sentinel.txt"
     outside_sentinel.write_text("keep", encoding="utf-8")
