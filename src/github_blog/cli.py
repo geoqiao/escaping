@@ -26,9 +26,6 @@ from .utils.slug import generate_slug_from_title
 
 logger = structlog.get_logger()
 
-# Home recent Blog count is fixed at 5 for v1 (not configurable).
-HOME_POST_COUNT = 5
-
 
 class BlogGenerator:
     def __init__(
@@ -217,8 +214,9 @@ class BlogGenerator:
             self._generate_index(issues, tags, issue_slugs)
 
             # Render landing page (placed in staging root)
-            post_count = HOME_POST_COUNT
-            home_content = self.render.render_home(issues[:post_count], issue_slugs)
+            # Pass ALL issues; the adapter sorts by publication ordering
+            # and limits to the fixed v1 count of 5.
+            home_content = self.render.render_home(issues, issue_slugs)
             (self._build_dir / "index.html").write_text(home_content, encoding="utf-8")
 
             # Render tag pages

@@ -45,7 +45,7 @@
                 <label class="hamb" for="side-menu" aria-label="Toggle menu" aria-expanded="false" aria-controls="header-nav"><span class="hamb-line"></span></label>
                 <nav class="headerLinks" id="header-nav">
                     <ul>
-                        {% for item in navigation.items %}
+                        {% for item in navigation_items %}
                         <li><a href="{{ item.url }}">~/{{ item.name }}</a></li>
                         {% endfor %}
                     </ul>

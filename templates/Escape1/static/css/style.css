@@ -473,6 +473,10 @@ footer a:hover {
   text-align: right;
 }
 
+.home-title {
+  margin: 0 0 1rem;
+}
+
 .recent-posts {
   margin: 2rem 0;
 }

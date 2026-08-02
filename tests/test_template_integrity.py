@@ -8,6 +8,14 @@ from jinja2 import Environment, FileSystemLoader
 
 from github_blog.models.blog_archive import ArchiveEntry, ArchivePage, ArchivePageRoute
 from github_blog.models.blog_post import BlogPost, BlogTag
+from github_blog.models.home_page import (
+    HomeNavigationLink,
+    HomePage,
+    HomePostEntry,
+    HomeProfile,
+    HomeProfileLink,
+    HomeRoute,
+)
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 THEME = "Escape1"
@@ -48,6 +56,7 @@ def full_context() -> dict[str, object]:
         "about_expertise": [],
         "about_links": [],
         "navigation": MockNavigation(),
+        "navigation_items": [],
         "google_search_verification": "",
         "branding": {
             "show_powered_by": True,
@@ -106,6 +115,31 @@ def _make_archive_page() -> ArchivePage:
     )
 
 
+def _make_home_page() -> HomePage:
+    """Create an internal HomePage for home template tests."""
+    return HomePage(
+        route=HomeRoute(canonical_path="/", output_path="index.html"),
+        canonical_url="https://test.com/",
+        site_title="Test Blog",
+        site_author="Test Author",
+        site_description="Test description",
+        profile=HomeProfile(
+            avatar="",
+            bio="Test bio",
+            links=(HomeProfileLink(name="GitHub", url="https://github.com/test"),),
+        ),
+        navigation=(HomeNavigationLink(name="Blog", url="/blog/"),),
+        recent_posts=(
+            HomePostEntry(
+                title="Test Post",
+                created_date="2024-01-01",
+                detail_path="/blog/test-post/",
+                tags=(BlogTag(name="python", path="/tags/python/"),),
+            ),
+        ),
+    )
+
+
 def test_all_required_templates_exist() -> None:
     """Verify all required templates exist."""
     theme_path = PROJECT_ROOT / "templates" / THEME
@@ -123,14 +157,14 @@ def test_base_template_has_branding_footer(full_context: dict[str, object]) -> N
 
 
 def test_home_template_has_branding_intro(full_context: dict[str, object]) -> None:
-    """Verify home.html uses branding variables."""
+    """Verify home.html renders with the internal HomePage model."""
     theme_path = PROJECT_ROOT / "templates" / THEME
     env = Environment(loader=FileSystemLoader(str(theme_path)), autoescape=True)
     template = env.get_template("home.html")
-    full_context["issues"] = []
-    full_context["issue_slugs"] = {}
+    full_context["home_page"] = _make_home_page()
     html = template.render(**full_context)
-    assert "github_blog" in html
+    assert "Test Post" in html
+    assert 'href="/blog/"' in html
 
 
 def test_all_templates_render(full_context: dict[str, object]) -> None:
@@ -172,7 +206,7 @@ def test_all_templates_render(full_context: dict[str, object]) -> None:
                 {"tags": ["python"], "tag_items": [{"name": "python", "count": 1}]}
             )
         elif template_name == "home.html":
-            ctx.update({"issues": [mock_issue], "issue_slugs": {"1": "1-test"}})
+            ctx.update({"home_page": _make_home_page()})
 
         html = template.render(**ctx)
         assert isinstance(html, str), f"{template_name} failed"
@@ -211,6 +245,7 @@ def test_escape1_post_description_block_overridden() -> None:
         "about_expertise": [],
         "about_links": [],
         "navigation": MockNavigation(),
+        "navigation_items": [],
         "google_search_verification": "",
         "branding": {
             "show_powered_by": True,
@@ -254,6 +289,7 @@ class TestEscape2Templates:
             "about_expertise": [],
             "about_links": [],
             "navigation": MockNavigation(),
+            "navigation_items": [],
             "google_search_verification": "",
             "branding": {
                 "show_powered_by": True,
@@ -310,10 +346,10 @@ class TestEscape2Templates:
         theme_path = PROJECT_ROOT / "templates" / "Escape2"
         env = Environment(loader=FileSystemLoader(str(theme_path)), autoescape=True)
         template = env.get_template("home.html")
-        full_context_e2["issues"] = []
-        full_context_e2["issue_slugs"] = {}
+        full_context_e2["home_page"] = _make_home_page()
         html = template.render(**full_context_e2)
-        assert "github_blog" in html
+        assert "Test Post" in html
+        assert 'href="/blog/"' in html
 
     def test_all_templates_render(self, full_context_e2: dict[str, object]) -> None:
         theme_path = PROJECT_ROOT / "templates" / "Escape2"
@@ -353,7 +389,7 @@ class TestEscape2Templates:
                     {"tags": ["python"], "tag_items": [{"name": "python", "count": 1}]}
                 )
             elif template_name == "home.html":
-                ctx.update({"issues": [mock_issue], "issue_slugs": {"1": "1-test"}})
+                ctx.update({"home_page": _make_home_page()})
 
             html = template.render(**ctx)
             assert isinstance(html, str), f"{template_name} failed"
@@ -391,6 +427,7 @@ class TestEscape2Templates:
             "about_expertise": [],
             "about_links": [],
             "navigation": MockNavigation(),
+            "navigation_items": [],
             "google_search_verification": "",
             "branding": {
                 "show_powered_by": True,
@@ -451,6 +488,7 @@ class TestEscape2Templates:
             "about_expertise": [],
             "about_links": [],
             "navigation": MockNavigation(),
+            "navigation_items": [],
             "google_search_verification": "",
             "branding": {
                 "show_powered_by": True,
@@ -508,6 +546,7 @@ class TestEscape2Templates:
             "about_expertise": [],
             "about_links": [],
             "navigation": MockNavigation(),
+            "navigation_items": [],
             "google_search_verification": "",
             "branding": {
                 "show_powered_by": True,

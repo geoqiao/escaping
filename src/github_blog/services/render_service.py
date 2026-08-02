@@ -14,6 +14,14 @@ from marko.inline import Image
 from ..config import Settings
 from ..models.blog_archive import ArchiveEntry, ArchivePage, ArchivePageRoute
 from ..models.blog_post import BlogPost, BlogTag
+from ..models.home_page import (
+    HomeNavigationLink,
+    HomePage,
+    HomePostEntry,
+    HomeProfile,
+    HomeProfileLink,
+    HomeRoute,
+)
 from ..utils.html_sanitizer import sanitize_html
 
 
@@ -54,6 +62,7 @@ class RenderService:
             "language": self.settings.site.language,
             "skip_link_text": "Skip to main content",
             "navigation": self.settings.site.navigation,
+            "navigation_items": self.settings.site.navigation.items,
             "about_avatar": self.settings.profile.avatar,
             "about_bio": self.settings.profile.bio,
             # expertise comes from About Issue Content in the new architecture;
@@ -223,11 +232,90 @@ class RenderService:
         return ArchivePageRoute(canonical_path=f"/{path}", output_path=path)
 
     def render_home(self, issues: list[Issue], issue_slugs: dict[str, str]) -> str:
+        """Adapt the legacy Home inputs to the internal HomePage model.
+
+        The default CLI continues to write its existing ``.html`` artifacts,
+        while the home template receives no PyGithub objects, label objects,
+        or auxiliary slug map.  The adapter receives *all* issues, sorts them
+        by accepted publication ordering (``created_at`` desc with Issue
+        number desc tie-breaker), and limits to the fixed v1 count of 5 before
+        delegating to :meth:`render_home_page`.
+
+        Legacy detail and tag hrefs match the existing ``.html`` writer so
+        production pages are self-consistent.
+        """
+        from ..home_builder import HOME_POST_COUNT
+
+        sorted_issues = sorted(
+            issues,
+            key=lambda issue: (issue.created_at, issue.number),
+            reverse=True,
+        )
+        recent = sorted_issues[:HOME_POST_COUNT]
+
+        blog_dir = self.settings.paths.blog
+        tag_dir = self.settings.paths.tag
+        base_url = str(self.settings.site.url).rstrip("/")
+
+        home = HomePage(
+            route=HomeRoute(canonical_path="/", output_path="index.html"),
+            canonical_url=f"{base_url}/",
+            site_title=self.settings.site.title,
+            site_author=self.settings.site.author,
+            site_description=self.settings.site.description,
+            profile=HomeProfile(
+                avatar=self.settings.profile.avatar,
+                bio=self.settings.profile.bio,
+                links=tuple(
+                    HomeProfileLink(name=link.name, url=link.url)
+                    for link in self.settings.profile.links
+                ),
+            ),
+            navigation=tuple(
+                HomeNavigationLink(name=item.name, url=item.url)
+                for item in self.settings.site.navigation.items
+            ),
+            recent_posts=tuple(
+                HomePostEntry(
+                    title=issue.title or "",
+                    created_date=issue.created_at.strftime("%Y-%m-%d"),
+                    detail_path=(f"/{blog_dir}/{issue_slugs[str(issue.number)]}.html"),
+                    tags=tuple(
+                        BlogTag(
+                            name=label.name,
+                            path=f"/{tag_dir}/{label.name}.html",
+                        )
+                        for label in (issue.labels or [])
+                    ),
+                )
+                for issue in recent
+            ),
+        )
+        return self.render_home_page(home)
+
+    def render_home_page(self, home: HomePage) -> str:
+        """Render a Home page from the internal HomePage model only.
+
+        This is the new clean seam: the template consumes only ``HomePage``
+        and shared context.  No PyGithub object, Issue metadata, labels,
+        branding, or auxiliary slug map crosses into the template.
+
+        HomePage is the sole render source for Home identity/navigation:
+        title, author, description, origin, theme-shell identity, and
+        navigation are overridden with HomePage values so the base template
+        header/footer/meta/nav reflect the HomePage, not Settings.
+        """
+        context = self._get_common_context()
+        context["blog_title"] = home.site_title
+        context["author_name"] = home.site_author
+        context["github_name"] = home.site_author
+        context["meta_description"] = home.site_description
+        context["blog_url"] = home.canonical_url
+        context["navigation_items"] = home.navigation
         template = self.env.get_template("home.html")
         return template.render(
-            issues=issues,
-            issue_slugs=issue_slugs,
-            **self._get_common_context(),
+            home_page=home,
+            **context,
         )
 
     def render_tag_page(
