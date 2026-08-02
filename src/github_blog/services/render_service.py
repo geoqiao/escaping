@@ -74,6 +74,7 @@ class RenderService:
             "blog_url": str(self.settings.site.url),
             "site_origin": str(self.settings.site.url).rstrip("/"),
             "home_url": routes.url(home_route),
+            "home_path": home_route.canonical_path,
             "atom_url": routes.url(atom_route),
             "theme_favicon_url": (
                 f"{routes.origin}{theme_path}/static/images/favicon.png"
@@ -179,6 +180,7 @@ class RenderService:
                 "meta_description": home.site_description,
                 "blog_url": home.canonical_url,
                 "home_url": home.canonical_url,
+                "home_path": home.route.canonical_path,
                 "atom_url": home_routes.url(home_routes.atom()),
                 "page_canonical_url": home.canonical_url,
                 "theme_favicon_url": (

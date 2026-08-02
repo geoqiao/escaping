@@ -116,3 +116,7 @@ def test_representative_content_compiles_to_valid_complete_artifact(
     assert (tmp_path / "about" / "index.html").exists()
     assert (tmp_path / "projects" / "index.html").exists()
     assert not (tmp_path / "blog" / "a-blog.html").exists()
+    for output_path in ("index.html", "blog/index.html"):
+        rendered = (tmp_path / output_path).read_text(encoding="utf-8")
+        assert '<a href="/" class="terminal">' in rendered
+        assert 'href="https://geoqiao.me/" class="terminal"' not in rendered
