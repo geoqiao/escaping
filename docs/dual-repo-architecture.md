@@ -1,273 +1,112 @@
-# 双仓库架构计划
+# 双仓库架构与 Pages Artifact 部署
 
-> 本计划将 escaping 打造成唯一的代码维护仓库，通过自动化工作流同步到 geoqiao.github.io。
+## 当前职责
 
-## 背景
+`geoqiao.me` 使用两个仓库，但只有一个内容权威来源：
 
-**当前问题：**
-- 本地代码推送到 `geoqiao.github.io`，而非 `escaping`
-- `escaping` 长期未更新，代码落后
-- 维护者需要管理两份代码，容易混乱
+| 仓库 | 职责 |
+|---|---|
+| `geoqiao/escaping` | Site Compiler 源码、主题、配置和部署 workflow 模板 |
+| `geoqiao/geoqiao.github.io` | GitHub Issues 内容、Pages workflow、Pages 发布目标 |
 
-**目标：**
-- 在 `escaping` 维护所有代码
-- Issues 依然存放在 `geoqiao.github.io`
-- Issues 更新后自动触发部署
-- 用户可以从 `escaping` fork 并使用
+GitHub Issue 是 Blog、Idea、About 的唯一内容来源。`escaping` 只读 Issues，
+不会创建、编辑、删除、加标签或发布 Issue。
 
----
+## 生产流程
 
-## 仓库职责
-
-| 仓库 | 作用 | 存放内容 |
-|---|---|---|
-| `escaping` | 主开发仓库，所有代码在这里维护 | 源代码、workflows、templates |
-| `geoqiao.github.io` | Issues 存放 + GitHub Pages 部署 | Issues（博客文章）、接收 trigger.yml |
-
----
-
-## 架构图
-
-```
-┌─────────────────────────────────────────────────────────────┐
-│ escaping (主仓库，所有代码在这里维护)                     │
-│                                                             │
-│ ├── .github/workflows/                                     │
-│ │   ├── gen_site.yml    ✅ 在这里运行                      │
-│ │   ├── trigger.yml     ❌ 不运行，只同步到 geoqiao        │
-│ │   └── sync.yml        ✅ 检测 trigger.yml 变化并同步     │
-│ │                                                             │
-│ │   └── (其他源代码文件)                                      │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              │ sync.yml 自动同步
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│ geoqiao.github.io (Issues 存放 + GitHub Pages)              │
-│                                                             │
-│ ├── Issues (博客文章)                                       │
-│ └── .github/workflows/                                      │
-│     └── trigger.yml    ✅ 接收同步过来的 trigger             │
-│                                                             │
-│     (当 issues 更新/编辑时触发，发送 dispatch 到 escaping)  │
-└─────────────────────────────────────────────────────────────┘
-                              │
-                              │ repository_dispatch
-                              ▼
-┌─────────────────────────────────────────────────────────────┐
-│ escaping (接收 dispatch)                                 │
-│                                                             │
-│ gen_site.yml 被触发:                                        │
-│   1. 读取 geoqiao.github.io 的 issues                       │
-│   2. 生成静态网站                                           │
-│   3. 部署到 GitHub Pages (geoqiao.github.io)                │
-└─────────────────────────────────────────────────────────────┘
+```text
+geoqiao.github.io Issue event
+        │ opened / edited / labeled / unlabeled / closed / reopened
+        ▼
+geoqiao.github.io/.github/workflows/pages.yml
+        │ checkout geoqiao/escaping@main
+        │ GITHUB_TOKEN（GitHub Actions 短期 token）
+        ▼
+uv run blog-gen
+        │ SiteModel → RouteRegistry → validated output
+        ▼
+actions/upload-pages-artifact
+        ▼
+actions/deploy-pages
+        ▼
+GitHub Pages → https://geoqiao.me/
 ```
 
----
+Issue comments不触发静态构建，因为 Utterances 会实时读取评论。Open/closed 状态
+不决定发布状态；只有 `published` label 控制发布。
 
-## 工作流程
+## Workflow 所在位置
 
-### 流程 1: Issues 更新自动部署
+生产 workflow 必须位于内容/Pages 仓库：
 
-```
-1. geoqiao.github.io 的 issue 被创建/编辑
-        ↓
-2. geoqiao.github.io 的 trigger.yml 检测到事件
-        ↓
-3. trigger.yml 发送 repository_dispatch 到 escaping
-        ↓
-4. escaping 的 gen_site.yml 被触发
-        ↓
-5. gen_site.yml:
-   - 读取 geoqiao.github.io 的 issues
-   - 生成静态文件
-   - 部署到 GitHub Pages
+```text
+geoqiao/geoqiao.github.io/.github/workflows/pages.yml
 ```
 
-### 流程 2: 维护者更新 trigger.yml
+本仓库提供可复制的模板：
 
-```
-1. 维护者在 escaping 修改 .github/workflows/trigger.yml
-        ↓
-2. escaping 的 sync.yml 检测到 trigger.yml 变化
-        ↓
-3. sync.yml 自动将 trigger.yml 推送到 geoqiao.github.io
+```text
+docs/deployment/geoqiao-pages.yml
 ```
 
-### 流程 3: 普通用户使用
+模板使用：
 
+- `actions/checkout@v4`
+- `astral-sh/setup-uv@v6`
+- `actions/upload-pages-artifact@v3`
+- `actions/deploy-pages@v4`
+- `contents: read`
+- `issues: read`
+- `pages: write`
+- `id-token: write`
+- `GITHUB_TOKEN: ${{ github.token }}`
+
+模板不会 clone、push 生成文件，不使用个人 PAT、`G_T`、
+`repository_dispatch` 或 `issue_comment`。
+
+## Pages 设置
+
+在 `geoqiao.github.io` 的 Settings → Pages 中：
+
+1. Build and deployment → Source 选择 **GitHub Actions**；
+2. Custom domain 设置为 `geoqiao.me`；
+3. DNS 稳定后启用 **Enforce HTTPS**。
+
+`geoqiao.me` 的 apex DNS 应只保留 GitHub Pages 的四条 A 记录：
+
+```text
+185.199.108.153
+185.199.109.153
+185.199.110.153
+185.199.111.153
 ```
-1. 用户 Fork escaping
-2. 配置自己的 config.yaml (指向自己的 issues 仓库)
-3. 设置 G_T token
-4. Issues 更新 → 自动部署到自己的 GitHub Pages
-```
 
----
+可选的 `www` 应直接 CNAME 到 `geoqiao.github.io`。不得保留旧 Hostinger parking
+IP 或其它冲突的 A、AAAA、ALIAS、ANAME 记录。
 
-## 实施步骤
+## Token 规则
 
-### Step 1: 准备 G_T Token
-
-确认 Token 权限：
-- ✅ `repo` - 读取 issues
-- ✅ `workflow` - 触发 Actions
-- 已在 geoqiao.github.io 的 Secrets 中
-
-### Step 2: 修改 escaping 的 gen_site.yml
-
-添加 `repository_dispatch` 触发器：
+生产 workflow 不需要用户创建或保存个人 GitHub PAT。GitHub Actions 会提供短期的
+`GITHUB_TOKEN`，`config.yaml` 通过 `security.token_env` 动态读取它：
 
 ```yaml
-name: Generate Github_blog site
-
-on:
-  workflow_dispatch:
-  repository_dispatch:
-    types: [issue_update]
-  push:
-    branches:
-      - main
-  # ...
+security:
+  token_env: GITHUB_TOKEN
 ```
 
-### Step 3: 创建 sync.yml
+本地手动构建仍需要一个能读取公开或私有 Issues 的运行时凭证；凭证只通过环境变量
+注入，不写入配置、Issue、workflow 或日志。不要把密码、Token、Cookie 提交到仓库
+或发送给 Agent。
 
-在 `.github/workflows/sync.yml`：
+## 开发与切换顺序
 
-```yaml
-name: Sync Trigger to Geoqiao Pages
+1. 在 feature branch 完成并验证 strict compiler；
+2. 迁移历史 Issue Content：正文保持不变，只补齐 front matter 和控制 labels；
+3. 创建并配置唯一的 About Issue；
+4. 将模板复制到 `geoqiao.github.io/.github/workflows/pages.yml`；
+5. 在目标仓库手动运行一次 workflow，验证 Pages artifact；
+6. 确认本地构建、XML、链接、canonical、桌面/移动端 smoke 全部通过；
+7. 将 feature branch 合并到 `escaping/main`；
+8. 完成 Pages custom domain 和 HTTPS 线上验证。
 
-on:
-  push:
-    paths:
-      - '.github/workflows/trigger.yml'
-    branches:
-      - main
-
-jobs:
-  sync:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Push trigger.yml to geoqiao.github.io
-        env:
-          GH_TOKEN: ${{ secrets.G_T }}
-        run: |
-          git clone https://github.com/geoqiao/geoqiao.github.io.git _pages
-          mkdir -p _pages/.github/workflows
-          cp .github/workflows/trigger.yml _pages/.github/workflows/
-          cd _pages
-          git config user.name "github-actions"
-          git config user.email "github-actions@github.com"
-          git add .
-          git commit -m "sync: update trigger.yml"
-          git push
-```
-
-### Step 4: 创建 trigger.yml
-
-在 `.github/workflows/trigger.yml`：
-
-```yaml
-name: Trigger Deploy
-
-on:
-  issues:
-    types: [opened, edited]
-  issue_comment:
-    types: [created, edited]
-
-jobs:
-  trigger:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Trigger escaping
-        run: |
-          curl -L -X POST \
-            -H "Accept: application/vnd.github+json" \
-            -H "Authorization: Bearer ${{ secrets.G_T }}" \
-            https://api.github.com/repos/geoqiao/escaping/dispatches \
-            -d '{"event_type":"issue_update"}'
-```
-
-### Step 5: 将 trigger.yml 同步到 geoqiao.github.io
-
-运行一次 sync.yml（手动或自动），将初始的 trigger.yml 推送到 geoqiao.github.io。
-
-### Step 6: 修改本地 Git Remote
-
-```bash
-# 查看当前 remote
-git remote -v
-
-# 修改 origin 为 escaping
-git remote set-url origin git@github.com:geoqiao/escaping.git
-
-# 确认
-git remote -v
-
-# 推送
-git push origin main
-```
-
----
-
-## 文件变更清单
-
-| 操作 | 文件 | 说明 |
-|---|---|---|
-| 新增 | `.github/workflows/sync.yml` | 检测 trigger.yml 变化并同步 |
-| 新增 | `.github/workflows/trigger.yml` | 监听 issues 事件并发送 dispatch |
-| 修改 | `.github/workflows/gen_site.yml` | 添加 repository_dispatch 触发器 |
-| 无变更 | `templates/` | 主题文件不变 |
-| 无变更 | `src/` | 源代码不变 |
-| 无变更 | `config.yaml` | 配置不变 |
-
----
-
-## Token 配置检查清单
-
-- [ ] `G_T` token 有效期有效
-- [ ] `G_T` 有 `repo` scope
-- [ ] `G_T` 已添加到 geoqiao.github.io 的 Secrets
-- [ ] `G_T` 已添加到 escaping 的 Secrets（需要新增）
-
----
-
-## 用户使用说明
-
-### 对于想搭建自己博客的用户
-
-1. Fork `escaping`
-2. 在自己的 GitHub Pages 仓库（或任何存放 Issues 的仓库）发布 Issues
-3. 配置 `config.yaml` 中的 `github.repo` 为你的仓库地址
-4. 在仓库 Secrets 中添加 `G_T` token
-5. Issues 更新后自动部署
-
-### 对于贡献代码的开发者
-
-1. Fork `escaping`
-2. 修改代码并提交 PR
-3. PR merge 后，workflow 自动测试和部署
-
----
-
-## 回滚计划
-
-如果出现问题：
-1. 可以手动在 geoqiao.github.io 直接修改 trigger.yml
-2. 或者禁用 sync.yml 的自动同步
-3. 紧急情况下可以直接在 geoqiao.github.io 修改 workflow
-
----
-
-## 确认清单
-
-- [ ] 理解双仓库架构
-- [ ] Token 权限确认
-- [ ] 计划文档已阅读
-- [ ] 同意开始执行
+历史 `.html` URL 不保留 redirect 或兼容别名；旧的 branch-root 发布流程也不再保留。

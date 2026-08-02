@@ -41,7 +41,7 @@ def test_shipped_config_strict_load(filename: str) -> None:
     assert path.exists(), f"{filename} must exist"
     settings = Settings.load_from_yaml(path)
     assert settings.site.url.scheme == "https"
-    assert settings.security.token_env == "G_T"  # noqa: S105
+    assert settings.security.token_env == "GITHUB_TOKEN"  # noqa: S105
     assert settings.about.issue_number >= 1
     assert settings.theme_lock is not None
 

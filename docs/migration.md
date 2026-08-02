@@ -47,7 +47,7 @@ comments:
   theme: github-light
   theme_mode: auto
 security:
-  token_env: G_T
+  token_env: GITHUB_TOKEN
 ```
 
 `paths` only controls the output directory, locked theme name, and page size.
@@ -72,7 +72,7 @@ parser or second content pipeline.
 ## Local verification
 
 ```bash
-export G_T=ghp_xxxxx
+export GITHUB_TOKEN=ghp_xxxxx
 uv run blog-gen
 uv run python -m http.server 8000 --directory output
 uv run pytest -q

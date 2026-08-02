@@ -37,7 +37,7 @@ about:
   issue_number: 1
 
 security:
-  token_env: G_T
+  token_env: GITHUB_TOKEN
 
 # ============================================
 # Branding (optional)

@@ -101,7 +101,7 @@ comments:
 # token_env 动态决定 Token 环境变量名，不硬编码
 # ============================================
 security:
-  token_env: G_T
+  token_env: GITHUB_TOKEN
 
 # Theme is vendored in this repository and resolved through this immutable lock.
 theme_lock:

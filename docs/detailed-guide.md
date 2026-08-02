@@ -54,7 +54,7 @@ the Safari workaround that removes lazy loading from injected iframes.
 
 ```bash
 uv sync
-export G_T=ghp_xxx
+export GITHUB_TOKEN=ghp_xxx
 uv run blog-gen
 # Run from the repository root; serve generated output as the document root.
 uv run python -m http.server 8000 --directory output

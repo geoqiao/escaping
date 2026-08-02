@@ -1,0 +1,70 @@
+# Copy this file to geoqiao/geoqiao.github.io/.github/workflows/pages.yml.
+# The workflow intentionally lives in the content/site repository, not in
+# escaping. It checks out the strict compiler from escaping/main and publishes
+# the generated output as a GitHub Pages artifact.
+name: Build and deploy geoqiao.me
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened, edited, labeled, unlabeled, closed, reopened]
+  push:
+    branches: [main]
+    paths:
+      - ".github/workflows/pages.yml"
+      - "CNAME"
+
+concurrency:
+  group: pages
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - name: Checkout site repository
+        uses: actions/checkout@v4
+
+      - name: Checkout escaping compiler
+        uses: actions/checkout@v4
+        with:
+          repository: geoqiao/escaping
+          ref: main
+          path: compiler
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          version: "latest"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Generate site
+        working-directory: compiler
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: uv run --frozen blog-gen
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: compiler/output
+
+  deploy:
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

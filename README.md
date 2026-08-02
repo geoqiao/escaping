@@ -25,7 +25,7 @@ front matter 剥离后经过 Markdown 渲染和 HTML allowlist sanitization。
 
 ```bash
 uv sync
-export G_T=ghp_xxx
+export GITHUB_TOKEN=ghp_xxx
 uv run blog-gen
 # 必须从仓库根目录启动，把 output 作为站点根目录
 uv run python -m http.server 8000 --directory output

@@ -19,7 +19,7 @@ Issues 与 specs 使用 Local Markdown，存放于 `.scratch/<feature-slug>/`。
 ## 关键实现约束
 
 - `Settings` 必须显式注入 `BlogGenerator` 与 `RenderService`，不要引入全局配置单例。
-- GitHub Token 环境变量名由 `settings.security.token_env` 动态决定，不得将 `G_T` 硬编码到实现中。
+- GitHub Token 环境变量名由 `settings.security.token_env` 动态决定；生产 workflow 使用短期 `GITHUB_TOKEN`，不得硬编码个人 PAT。
 - 模板静态资源通过 `{{ theme_path }}` 生成以 `/` 开头的绝对 URL。
 - Utterances 会注入带 `loading="lazy"` 的 iframe；Safari 在父元素高度为零时可能不加载，因此 `post.html` 中保留了移除该属性的兼容处理。
 - `comments.theme_mode: auto` 通过 `postMessage` 与 `MutationObserver` 跟随博客主题，修改评论模板时必须保留该行为。
@@ -114,7 +114,7 @@ source .venv/bin/activate  # 激活虚拟环境（可选）
 
 ```bash
 # 本地生成博客（需要 GitHub Token）
-export G_T=ghp_xxx
+export GITHUB_TOKEN=ghp_xxx
 uv run blog-gen
 
 # 指定仓库（覆盖 config.yaml）
@@ -196,7 +196,7 @@ comments:
   theme_mode: auto # "auto" 跟随博客主题
 
 security:
-  token_env: G_T # Token 环境变量名
+  token_env: GITHUB_TOKEN # GitHub Actions short-lived token variable
 ```
 
 ---
@@ -251,7 +251,7 @@ ignore = ["E501"]
 
 ## 安全考虑
 
-1. **Token 安全**：GitHub Token 通过 `G_T` 环境变量注入，禁止硬编码
+1. **Token 安全**：生产 workflow 通过 `GITHUB_TOKEN` 注入短期 GitHub Token，禁止硬编码或使用个人 PAT
 2. **输入验证**：使用 Pydantic 模型验证所有配置
 3. **XSS 防护**：Jinja2 模板启用 `autoescape=True`，RSS 内容使用 CDATA
 4. **依赖安全**：Ruff `S`（bandit）规则检查安全问题
@@ -386,7 +386,7 @@ uv run ruff check . && uv run ty    # 3. 代码检查
 uv run python -m http.server 8000 --directory output   # 4. 本地验证
 
 # 本地生成
-export G_T=ghp_xxx && uv run blog-gen
+export GITHUB_TOKEN=ghp_xxx && uv run blog-gen
 
 # 调试
 uv run blog-gen 2>&1 | tail -50     # 查看日志

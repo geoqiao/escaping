@@ -28,7 +28,7 @@ HTML goes through the allowlist sanitizer.
 
 ```bash
 uv sync
-export G_T=ghp_xxx
+export GITHUB_TOKEN=ghp_xxx
 uv run blog-gen
 # Run from the repository root; serve output as the document root.
 uv run python -m http.server 8000 --directory output
