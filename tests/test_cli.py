@@ -425,9 +425,9 @@ def test_copy_theme_assets(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> N
     (images_dir / "favicon.png").write_text("fake png")
 
     mock_settings = MagicMock()
+    mock_settings.paths.output = "output"
+    mock_settings.paths.theme = "FakeTheme"
     mock_settings.paths.theme_path = theme_dir
-    mock_settings.paths.theme_static_dst = Path("output/templates/FakeTheme/static")
-    mock_settings.paths.theme_images_dst = Path("output/templates/FakeTheme/images")
 
     generator = BlogGenerator("fake-token", "user/repo", mock_settings)
     generator._copy_theme_assets()
@@ -494,9 +494,8 @@ paths:
 
         generator = BlogGenerator("fake-token", "user/repo", settings)
 
-        with pytest.raises(SystemExit) as exc_info:
-            generator.generate()
-        assert exc_info.value.code == 1
+        result = generator.generate()
+        assert not result.success
 
         # The important file must still exist - _init_dirs was NOT called.
         assert important.exists()
@@ -555,9 +554,8 @@ security:
 
         generator = BlogGenerator("fake-token", "user/repo", settings)
 
-        with pytest.raises(SystemExit) as exc_info:
-            generator.generate()
-        assert exc_info.value.code == 1
+        result = generator.generate()
+        assert not result.success
 
         # The symlink target's contents must survive.
         assert (real_output / "keep.txt").exists()
@@ -613,9 +611,8 @@ security:
 
         generator = BlogGenerator("fake-token", "user/repo", settings)
 
-        with pytest.raises(SystemExit) as exc_info:
-            generator.generate()
-        assert exc_info.value.code == 1
+        result = generator.generate()
+        assert not result.success
 
         # Existing output must survive - _init_dirs was NOT called.
         assert (output_dir / "keep.txt").exists()
@@ -678,9 +675,8 @@ security:
 
         generator = BlogGenerator("fake-token", "user/repo", settings)
 
-        with pytest.raises(SystemExit) as exc_info:
-            generator.generate()
-        assert exc_info.value.code == 1
+        result = generator.generate()
+        assert not result.success
 
         assert (output_dir / "keep.txt").exists()
         assert (output_dir / "keep.txt").read_text() == "survive"
