@@ -63,21 +63,25 @@ class RenderService:
         self.markdown = Markdown(extensions=[GFM, "pangu"], renderer=LazyImageRenderer)
 
     def _get_common_context(self) -> dict[str, Any]:
+        routes = self._active_routes or RouteRegistry(str(self.settings.site.url))
+        home_route = routes.home()
+        atom_route = routes.atom()
+        theme_path = self.settings.paths.theme_url_path
         return {
             "blog_title": self.settings.site.title,
             "github_name": self.settings.github.username,
             "github_repo": self.settings.github.repo,
             "blog_url": str(self.settings.site.url),
             "site_origin": str(self.settings.site.url).rstrip("/"),
-            "rss_atom_path": (
-                self._active_routes.route("atom").canonical_path.lstrip("/")
-                if self._active_routes is not None
-                else "atom.xml"
+            "home_url": routes.url(home_route),
+            "atom_url": routes.url(atom_route),
+            "theme_favicon_url": (
+                f"{routes.origin}{theme_path}/static/images/favicon.png"
             ),
             "author_name": self.settings.site.author,
             "meta_description": self.settings.site.description,
             "google_search_verification": self.settings.seo.google_search_console,
-            "theme_path": self.settings.paths.theme_url_path,
+            "theme_path": theme_path,
             "language": self.settings.site.language,
             "skip_link_text": "Skip to main content",
             "navigation": self.settings.site.navigation,
@@ -166,6 +170,7 @@ class RenderService:
 
     def render_home_page(self, home: HomePage) -> str:
         context = self._get_common_context()
+        home_routes = RouteRegistry(home.canonical_url)
         context.update(
             {
                 "blog_title": home.site_title,
@@ -173,7 +178,13 @@ class RenderService:
                 "github_name": home.site_author,
                 "meta_description": home.site_description,
                 "blog_url": home.canonical_url,
+                "home_url": home.canonical_url,
+                "atom_url": home_routes.url(home_routes.atom()),
                 "page_canonical_url": home.canonical_url,
+                "theme_favicon_url": (
+                    f"{home.canonical_url.rstrip('/')}"
+                    f"{self.settings.paths.theme_url_path}/static/images/favicon.png"
+                ),
                 "navigation_items": home.navigation,
                 "structured_data": self._home_json_ld(home),
             }

@@ -18,3 +18,4 @@
 ## Implementation Record
 - Added `ThemeResolver`/`ResolvedTheme` with full-SHA lock, cache-first resolution, exact-fetch callback, explicit update operation, manifest validation, override-first `ChoiceLoader`, and `StrictUndefined`.
 - Added manifests for Escape1, Escape2, and `geoqiao.me`; no executable theme extension API exists.
+- Added the repository-owned `templates/overrides/geoqiao.me/base.html` override to exercise override-first resolution without changing the locked theme snapshot.

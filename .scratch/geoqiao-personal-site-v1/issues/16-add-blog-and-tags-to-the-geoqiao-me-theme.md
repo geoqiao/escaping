@@ -15,3 +15,4 @@
 
 ## Implementation Record
 - `geoqiao.me` carries the Escape2 Blog/Tags templates and strict-path model contract; Ticket 18 now connects those models to the shared RouteRegistry and artifact validator.
+- Final Chrome smoke covered Blog and Tags at 1200×919 and 390×844; archive, tag, canonical, and asset links resolved from the generated output without horizontal overflow.

@@ -8,7 +8,6 @@ from .blog_archive import BlogArchiveBuilder
 from .build_result import Diagnostic
 from .config import Settings
 from .home_builder import HomeBuilder
-from .models.atom_feed import AtomFeedRoute
 from .models.blog_archive import ArchivePage, ArchivePageRoute
 from .models.content import ContentCompilationResult, ContentRoute
 from .models.home_page import HomeNavigationLink, HomePage, HomeRoute
@@ -89,18 +88,12 @@ class SiteModelBuilder:
             canonical_url=registry.url(registry.projects()),
         )
         feed_result = AtomFeedBuilder(
-            self.settings, build_start_time=build_start_time
+            self.settings,
+            build_start_time=build_start_time,
+            route_registry=registry,
         ).build(normalized_content.blogs)
         diagnostics.extend(feed_result.diagnostics)
-        feed = replace(
-            feed_result.feed,
-            route=AtomFeedRoute(
-                registry.atom().canonical_path, registry.atom().output_path
-            ),
-            self_url=registry.url(registry.atom()),
-            alternate_url=registry.url(registry.home()),
-            feed_id=registry.url(registry.home()),
-        )
+        feed = feed_result.feed
         return SiteModel(
             home=home,
             blogs=normalized_content.blogs,

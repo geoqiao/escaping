@@ -18,3 +18,4 @@
 - Added `SiteModel`, a shared `RouteRegistry`, strict `SiteCompiler`/CLI orchestration, and `SiteArtifactValidator` for complete output validation.
 - Replaced legacy render adapters and `.html` writers with directory-index routes; canonical, internal, Atom, sitemap, robots, OG, Twitter, and JSON-LD URLs resolve from the same registry.
 - Added the representative content-to-artifact tracer covering Home, Blog, Ideas, About, Projects, Tags, XML, sanitization, and comment Issue numbers.
+- Final generated artifact audit passed with 11 HTML pages, 106 internal links/canonicals, 11 sitemap URLs, valid Atom XML, HTTPS-only metadata, no front matter or dangerous script output, and Chrome desktop/mobile smoke across all six visitor-facing sections.

@@ -17,3 +17,4 @@
 ## Implementation Record
 - Added geoqiao.me Ideas/About/Projects templates from internal models and shared `_comments.html` behavior.
 - Content and theme tracers verify dates, tag isolation, profile composition, Issue-number binding, sanitization, and empty states.
+- Final Chrome smoke covered Ideas, About, and Projects at 1200×919 and 390×844; About rendered Issue 10 comments, and all three pages had intentional content with no horizontal overflow.

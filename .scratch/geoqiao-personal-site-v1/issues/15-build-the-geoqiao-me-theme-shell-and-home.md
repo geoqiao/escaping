@@ -17,3 +17,4 @@
 ## Implementation Record
 - Added `templates/geoqiao.me` as the Escape2-based declarative production theme, including Ideas/About/Projects and shared comments behavior.
 - Added a reduced-motion media rule and `geoqiao.me` terminal identity; full SiteModel/RouteRegistry wiring is completed in Ticket 18.
+- Final local artifact smoke passed in Chrome at 1200×919 and 390×844 for Home, with no horizontal overflow; the generated representative site used the locked theme and shared route outputs.

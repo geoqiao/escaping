@@ -40,6 +40,7 @@ from .models.atom_feed import (
     AtomFeedRoute,
 )
 from .models.blog_post import BlogPost
+from .routes import RouteRegistry
 
 # ---------------------------------------------------------------------------
 # Constants
@@ -47,12 +48,6 @@ from .models.blog_post import BlogPost
 
 #: Atom XML namespace (RFC 4287).
 _ATOM_NS: str = "http://www.w3.org/2005/Atom"
-
-#: Fixed feed route: canonical ``/atom.xml`` -> output ``atom.xml``.
-_ATOM_FEED_ROUTE: AtomFeedRoute = AtomFeedRoute(
-    canonical_path="/atom.xml",
-    output_path="atom.xml",
-)
 
 # Register the default namespace so ElementTree serialises elements
 # without a namespace prefix (standard Atom convention).
@@ -62,11 +57,6 @@ ET.register_namespace("", _ATOM_NS)
 # ---------------------------------------------------------------------------
 # Helpers
 # ---------------------------------------------------------------------------
-
-
-def _absolute_url(settings: Settings, canonical_path: str) -> str:
-    """Join the configured HTTPS origin and a pre-computed absolute path."""
-    return f"{str(settings.site.url).rstrip('/')}{canonical_path}"
 
 
 def _is_aware(dt: datetime) -> bool:
@@ -167,9 +157,23 @@ class AtomFeedBuilder:
         settings: Settings,
         *,
         build_start_time: datetime,
+        route_registry: RouteRegistry | None = None,
     ) -> None:
         self._settings = settings
         self._build_start_time = build_start_time
+        self._routes = route_registry or RouteRegistry(str(settings.site.url))
+        self._home_route = self._routes.home()
+        self._atom_route = self._routes.atom()
+
+    def _post_url(self, post: BlogPost) -> str:
+        route = self._routes.route_for_path(post.canonical_path)
+        if route is None:
+            route = self._routes.blog_detail(post.slug)
+        if route.canonical_path != post.canonical_path:
+            raise ValueError(
+                f"Blog post route is not registered: {post.canonical_path!r}"
+            )
+        return self._routes.url(route)
 
     def build(self, posts: Sequence[BlogPost]) -> AtomFeedResult:
         """Build the Atom feed, always returning a valid ``AtomFeed``.
@@ -256,7 +260,7 @@ class AtomFeedBuilder:
                 post_has_errors = True
 
             # XML 1.0 character validation for entry fields.
-            absolute_url = _absolute_url(self._settings, post.canonical_path)
+            absolute_url = self._post_url(post)
             for field_name, value in (
                 ("title", post.title),
                 ("summary", post.description),
@@ -301,10 +305,12 @@ class AtomFeedBuilder:
         entries = tuple(self._build_entry(post) for post in sorted_posts)
 
         feed = AtomFeed(
-            route=_ATOM_FEED_ROUTE,
-            self_url=_absolute_url(self._settings, _ATOM_FEED_ROUTE.canonical_path),
-            alternate_url=_absolute_url(self._settings, "/"),
-            feed_id=_absolute_url(self._settings, "/"),
+            route=AtomFeedRoute(
+                self._atom_route.canonical_path, self._atom_route.output_path
+            ),
+            self_url=self._routes.url(self._atom_route),
+            alternate_url=self._routes.url(self._home_route),
+            feed_id=self._routes.url(self._home_route),
             title=self._settings.site.title,
             subtitle=self._settings.site.description,
             author_name=self._settings.site.author,
@@ -319,7 +325,7 @@ class AtomFeedBuilder:
 
     def _build_entry(self, post: BlogPost) -> AtomEntry:
         """Build a single feed entry from a validated BlogPost."""
-        absolute_url = _absolute_url(self._settings, post.canonical_path)
+        absolute_url = self._post_url(post)
         return AtomEntry(
             id=absolute_url,
             title=post.title,

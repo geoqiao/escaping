@@ -28,7 +28,7 @@ def _settings(theme: str) -> Settings:
     if theme == "geoqiao.me":
         data["theme_lock"] = {
             "repository": "geoqiao/escaping",
-            "commit": "1003bd7a3a490a17b834ad5f056e56c281fd32ea",
+            "commit": "e30a52e89645e4e3cd0f1630653c248b9f203c7d",
             "api_version": "1",
         }
     return Settings.model_validate(data)
