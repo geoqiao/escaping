@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime, timezone
+from html.parser import HTMLParser
 
 import pytest
 
@@ -48,8 +49,7 @@ def _snap(number: int, kind: str, metadata: str) -> IssueSnapshot:
     )
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
-def test_theme_contract_renders_every_strict_page(theme: str) -> None:
+def _render_theme(theme: str) -> dict[str, str]:
     settings = _settings(theme)
     content = ContentCompiler(settings).compile(
         [
@@ -65,8 +65,13 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
         ProjectCompiler().compile([]),
         build_start_time=datetime(2026, 1, 20, tzinfo=timezone.utc),
     )
-    html = RenderService(settings).render_site(site)
     assert not site.has_errors
+    return RenderService(settings).render_site(site)
+
+
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
+def test_theme_contract_renders_every_strict_page(theme: str) -> None:
+    html = _render_theme(theme)
     assert set(html) >= {
         "index.html",
         "blog/index.html",
@@ -115,3 +120,49 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
         timeout_start = rendered.index("setTimeout(function()")
         timeout_end = rendered.index("}, 20000);", timeout_start)
         assert "showError();" in rendered[timeout_start:timeout_end], page_name
+
+
+class _MobileNavigationProbe(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.hamburger: dict[str, str | None] | None = None
+        self.scripts: list[str] = []
+        self._script_data: list[str] | None = None
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        if tag == "label" and "hamb" in (attributes.get("class") or "").split():
+            self.hamburger = attributes
+        if tag == "script":
+            self._script_data = []
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "script" and self._script_data is not None:
+            self.scripts.append("".join(self._script_data))
+            self._script_data = None
+
+    def handle_data(self, data: str) -> None:
+        if self._script_data is not None:
+            self._script_data.append(data)
+
+
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
+def test_mobile_navigation_is_keyboard_operable(theme: str) -> None:
+    probe = _MobileNavigationProbe()
+    probe.feed(_render_theme(theme)["index.html"])
+
+    assert probe.hamburger is not None
+    assert probe.hamburger["for"] == "side-menu"
+    assert probe.hamburger["role"] == "button"
+    assert probe.hamburger["tabindex"] == "0"
+    assert probe.hamburger["aria-expanded"] == "false"
+    assert probe.hamburger["aria-controls"] == "header-nav"
+
+    inline_scripts = "\n".join(probe.scripts)
+    assert "label.addEventListener('keydown'" in inline_scripts
+    assert "event.key === 'Enter'" in inline_scripts
+    assert "event.key === ' '" in inline_scripts
+    assert "event.preventDefault()" in inline_scripts
+    assert "checkbox.checked = !checkbox.checked" in inline_scripts
+    assert "checkbox.addEventListener('change'" in inline_scripts
+    assert "label.setAttribute('aria-expanded'" in inline_scripts

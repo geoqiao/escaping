@@ -35,7 +35,9 @@
         <div class="container">
             <nav>
                 <a href="{{ home_path }}" class="logo">{{ blog_title }}</a>
-                <ul class="nav-links">
+                <input class="side-menu" type="checkbox" id="side-menu">
+                <label class="hamb" for="side-menu" role="button" tabindex="0" aria-label="Toggle menu" aria-expanded="false" aria-controls="header-nav"><span class="hamb-line"></span></label>
+                <ul class="nav-links" id="header-nav">
                     {% for item in navigation_items %}
                     <li><a href="{{ item.url }}">{{ item.name }}</a></li>
                     {% endfor %}
@@ -61,5 +63,23 @@
 
     <script src="{{ theme_path }}/static/js/prism.js"></script>
     <script src="{{ theme_path }}/static/js/theme.js"></script>
+    <script>
+    (function() {
+        var checkbox = document.getElementById('side-menu');
+        var label = document.querySelector('.hamb');
+        if (checkbox && label) {
+            checkbox.addEventListener('change', function() {
+                label.setAttribute('aria-expanded', checkbox.checked ? 'true' : 'false');
+            });
+            label.addEventListener('keydown', function(event) {
+                if (event.key === 'Enter' || event.key === ' ') {
+                    event.preventDefault();
+                    checkbox.checked = !checkbox.checked;
+                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                }
+            });
+        }
+    })();
+    </script>
 </body>
 </html>

@@ -57,6 +57,7 @@ header {
 }
 
 nav {
+  position: relative;
   display: flex;
   justify-content: space-between;
   align-items: center;
@@ -92,6 +93,66 @@ nav {
 
 .nav-links a:hover {
   color: var(--link);
+}
+
+.hamb {
+  display: none;
+  cursor: pointer;
+  padding: 0.5rem;
+  border: 0;
+  background: none;
+  color: var(--text);
+}
+
+.hamb:focus-visible {
+  outline: 2px solid var(--link);
+  outline-offset: 2px;
+}
+
+.hamb-line {
+  background: var(--text);
+  display: block;
+  height: 2px;
+  position: relative;
+  width: 24px;
+}
+
+.hamb-line::before,
+.hamb-line::after {
+  background: var(--text);
+  content: "";
+  display: block;
+  height: 100%;
+  position: absolute;
+  transition: all 0.2s ease-out;
+  width: 100%;
+}
+
+.hamb-line::before { top: 5px; }
+.hamb-line::after { top: -5px; }
+
+.side-menu {
+  display: none;
+}
+
+.side-menu:checked ~ .nav-links {
+  max-height: 100vh;
+  opacity: 1;
+  padding: 1rem;
+}
+
+.side-menu:checked ~ .hamb .hamb-line {
+  background: transparent;
+}
+
+.side-menu:checked ~ .hamb .hamb-line::before {
+  transform: rotate(-45deg);
+  top: 0;
+}
+
+.side-menu:checked ~ .hamb .hamb-line::after {
+  transform: rotate(45deg);
+  top: 0;
 }
 
 .theme-toggle {
@@ -534,15 +595,28 @@ footer a:hover {
   }
 
   nav {
-    flex-direction: column;
-    align-items: flex-start;
+    flex-direction: row;
+    align-items: center;
   }
 
   .nav-links {
+    position: absolute;
+    top: 100%;
+    left: 0;
     width: 100%;
-    justify-content: flex-start;
-    flex-wrap: wrap;
+    flex-direction: column;
+    align-items: flex-start;
     gap: 1rem;
+    max-height: 0;
+    overflow: hidden;
+    opacity: 0;
+    padding: 0;
+    background: var(--bg);
+    transition: max-height 0.4s ease-out, opacity 0.3s ease-out;
+  }
+
+  .hamb {
+    display: block;
   }
 
   .post-header {
