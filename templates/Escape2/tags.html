@@ -3,7 +3,7 @@
 {% block title %}Tags - {{ blog_title }}{% endblock %}
 
 {% block canonical %}
-<link rel="canonical" href="{{ blog_url }}tag/" />
+<link rel="canonical" href="{{ tags_index.canonical_url }}" />
 {% endblock %}
 
 {% block content %}
@@ -12,11 +12,15 @@
 </div>
 
 <div class="tag-list">
-    {% for item in tag_items %}
+    {% if tags_index.tags %}
+    {% for item in tags_index.tags %}
     <span class="tag-item">
-        <a href="/tag/{{ item.name }}.html" class="tag">{{ item.name }}</a>
+        <a href="{{ item.route.canonical_path }}" class="tag">{{ item.name }}</a>
         <span class="tag-count">{{ item.count }}</span>
     </span>
     {% endfor %}
+    {% else %}
+    <p class="empty-state">No blog tags yet.</p>
+    {% endif %}
 </div>
 {% endblock %}

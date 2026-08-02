@@ -16,6 +16,14 @@ from github_blog.models.home_page import (
     HomeProfileLink,
     HomeRoute,
 )
+from github_blog.models.tag_taxonomy import (
+    TagArchive,
+    TagArchiveEntry,
+    TagArchiveRoute,
+    TagsIndex,
+    TagsIndexRoute,
+    TagSummary,
+)
 
 PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 THEME = "Escape1"
@@ -140,6 +148,51 @@ def _make_home_page() -> HomePage:
     )
 
 
+def _make_tags_index() -> TagsIndex:
+    """Create an internal TagsIndex for tags template tests."""
+    return TagsIndex(
+        route=TagsIndexRoute(
+            canonical_path="/tags/",
+            output_path="tags/index.html",
+        ),
+        canonical_url="https://test.com/tags/",
+        tags=(
+            TagSummary(
+                name="python",
+                count=1,
+                route=TagArchiveRoute(
+                    canonical_path="/tags/python/",
+                    output_path="tags/python/index.html",
+                ),
+            ),
+        ),
+    )
+
+
+def _make_tag_archive() -> TagArchive:
+    """Create an internal TagArchive for tag template tests."""
+    return TagArchive(
+        route=TagArchiveRoute(
+            canonical_path="/tags/python/",
+            output_path="tags/python/index.html",
+        ),
+        canonical_url="https://test.com/tags/python/",
+        tag_name="python",
+        index_route=TagsIndexRoute(
+            canonical_path="/tags/",
+            output_path="tags/index.html",
+        ),
+        entries=(
+            TagArchiveEntry(
+                title="Test",
+                created_date="2024-01-01",
+                detail_path="/blog/test/",
+                tags=(BlogTag(name="python", path="/tags/python/"),),
+            ),
+        ),
+    )
+
+
 def test_all_required_templates_exist() -> None:
     """Verify all required templates exist."""
     theme_path = PROJECT_ROOT / "templates" / THEME
@@ -172,19 +225,6 @@ def test_all_templates_render(full_context: dict[str, object]) -> None:
     theme_path = PROJECT_ROOT / "templates" / THEME
     env = Environment(loader=FileSystemLoader(str(theme_path)), autoescape=True)
 
-    mock_issue = type(
-        "MockIssue",
-        (),
-        {
-            "number": 1,
-            "title": "Test",
-            "body": "Body",
-            "labels": [],
-            "created_at": datetime(2024, 1, 1, tzinfo=timezone.utc),
-            "updated_at": datetime(2024, 1, 1, tzinfo=timezone.utc),
-        },
-    )()
-
     for template_name in REQUIRED_TEMPLATES:
         template = env.get_template(template_name)
         ctx = dict(full_context)
@@ -194,17 +234,9 @@ def test_all_templates_render(full_context: dict[str, object]) -> None:
         elif template_name == "index.html":
             ctx.update({"archive_page": _make_archive_page()})
         elif template_name == "tag.html":
-            ctx.update(
-                {
-                    "issues": [mock_issue],
-                    "issue_slugs": {"1": "1-test"},
-                    "tags": ["python"],
-                }
-            )
+            ctx.update({"tag_archive": _make_tag_archive()})
         elif template_name == "tags.html":
-            ctx.update(
-                {"tags": ["python"], "tag_items": [{"name": "python", "count": 1}]}
-            )
+            ctx.update({"tags_index": _make_tags_index()})
         elif template_name == "home.html":
             ctx.update({"home_page": _make_home_page()})
 
@@ -355,19 +387,6 @@ class TestEscape2Templates:
         theme_path = PROJECT_ROOT / "templates" / "Escape2"
         env = Environment(loader=FileSystemLoader(str(theme_path)), autoescape=True)
 
-        mock_issue = type(
-            "MockIssue",
-            (),
-            {
-                "number": 1,
-                "title": "Test",
-                "body": "Body",
-                "labels": [],
-                "created_at": datetime(2024, 1, 1, tzinfo=timezone.utc),
-                "updated_at": datetime(2024, 1, 1, tzinfo=timezone.utc),
-            },
-        )()
-
         for template_name in REQUIRED_TEMPLATES:
             template = env.get_template(template_name)
             ctx = dict(full_context_e2)
@@ -377,17 +396,9 @@ class TestEscape2Templates:
             elif template_name == "index.html":
                 ctx.update({"archive_page": _make_archive_page()})
             elif template_name == "tag.html":
-                ctx.update(
-                    {
-                        "issues": [mock_issue],
-                        "issue_slugs": {"1": "1-test"},
-                        "tags": ["python"],
-                    }
-                )
+                ctx.update({"tag_archive": _make_tag_archive()})
             elif template_name == "tags.html":
-                ctx.update(
-                    {"tags": ["python"], "tag_items": [{"name": "python", "count": 1}]}
-                )
+                ctx.update({"tags_index": _make_tags_index()})
             elif template_name == "home.html":
                 ctx.update({"home_page": _make_home_page()})
 

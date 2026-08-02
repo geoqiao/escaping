@@ -22,6 +22,14 @@ from ..models.home_page import (
     HomeProfileLink,
     HomeRoute,
 )
+from ..models.tag_taxonomy import (
+    TagArchive,
+    TagArchiveEntry,
+    TagArchiveRoute,
+    TagsIndex,
+    TagsIndexRoute,
+    TagSummary,
+)
 from ..utils.html_sanitizer import sanitize_html
 
 
@@ -325,12 +333,60 @@ class RenderService:
         tags: list[str],
         issue_slugs: dict[str, str],
     ) -> str:
+        """Adapt the legacy tag-page inputs to the internal TagArchive model.
+
+        The default CLI continues to write its existing ``.html`` artifacts,
+        while the tag template receives no PyGithub objects, label objects,
+        or auxiliary slug map.  Detail, tag, and canonical paths are all
+        resolved here before delegating to :meth:`render_tag_archive`.
+
+        Legacy detail and tag hrefs match the existing ``.html`` writer so
+        production pages are self-consistent.
+        """
+        tag_dir = self.settings.paths.tag
+        blog_dir = self.settings.paths.blog
+        base_url = str(self.settings.site.url).rstrip("/")
+        index_route = TagsIndexRoute(
+            canonical_path=f"/{tag_dir}/",
+            output_path=f"{tag_dir}/index.html",
+        )
+        archive = TagArchive(
+            route=TagArchiveRoute(
+                canonical_path=f"/{tag_dir}/{tag}.html",
+                output_path=f"{tag_dir}/{tag}.html",
+            ),
+            canonical_url=f"{base_url}/{tag_dir}/{tag}.html",
+            tag_name=tag,
+            index_route=index_route,
+            entries=tuple(
+                TagArchiveEntry(
+                    title=issue.title or "",
+                    created_date=issue.created_at.strftime("%Y-%m-%d"),
+                    detail_path=(f"/{blog_dir}/{issue_slugs[str(issue.number)]}.html"),
+                    tags=tuple(
+                        BlogTag(
+                            name=label.name,
+                            path=f"/{tag_dir}/{label.name}.html",
+                        )
+                        for label in (issue.labels or [])
+                    ),
+                )
+                for issue in issues
+            ),
+        )
+        return self.render_tag_archive(archive)
+
+    def render_tag_archive(self, archive: TagArchive) -> str:
+        """Render a tag archive page from the internal TagArchive model only.
+
+        This is the new clean seam: the template consumes only
+        ``TagArchive`` and shared context.  No PyGithub object, label
+        interpretation, YAML parsing, or auxiliary slug map crosses into
+        the template.
+        """
         template = self.env.get_template("tag.html")
         return template.render(
-            tag_name=tag,
-            issues=issues,
-            issue_slugs=issue_slugs,
-            tags=tags,
+            tag_archive=archive,
             **self._get_common_context(),
         )
 
@@ -399,10 +455,48 @@ class RenderService:
         tags: list[str],
         tag_counts: dict[str, int],
     ) -> str:
+        """Adapt the legacy tags-page inputs to the internal TagsIndex model.
+
+        The default CLI continues to write its existing ``.html`` artifacts,
+        while the tags template receives no PyGithub objects, label objects,
+        or auxiliary slug map.  Tag archive and canonical paths are all
+        resolved here before delegating to :meth:`render_tag_index`.
+
+        Legacy tag hrefs match the existing ``.html`` writer so production
+        pages are self-consistent.
+        """
+        tag_dir = self.settings.paths.tag
+        base_url = str(self.settings.site.url).rstrip("/")
+        index = TagsIndex(
+            route=TagsIndexRoute(
+                canonical_path=f"/{tag_dir}/",
+                output_path=f"{tag_dir}/index.html",
+            ),
+            canonical_url=f"{base_url}/{tag_dir}/",
+            tags=tuple(
+                TagSummary(
+                    name=tag,
+                    count=tag_counts.get(tag, 0),
+                    route=TagArchiveRoute(
+                        canonical_path=f"/{tag_dir}/{tag}.html",
+                        output_path=f"{tag_dir}/{tag}.html",
+                    ),
+                )
+                for tag in tags
+            ),
+        )
+        return self.render_tag_index(index)
+
+    def render_tag_index(self, index: TagsIndex) -> str:
+        """Render a Tags index page from the internal TagsIndex model only.
+
+        This is the new clean seam: the template consumes only
+        ``TagsIndex`` and shared context.  No PyGithub object, label
+        interpretation, YAML parsing, or auxiliary slug map crosses into
+        the template.
+        """
         template = self.env.get_template("tags.html")
-        tag_items = [{"name": tag, "count": tag_counts.get(tag, 0)} for tag in tags]
         return template.render(
-            tags=tags,
-            tag_items=tag_items,
+            tags_index=index,
             **self._get_common_context(),
         )

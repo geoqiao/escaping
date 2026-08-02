@@ -1,32 +1,31 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ tag_name }} - {{ blog_title }}{% endblock %}
+{% block title %}{{ tag_archive.tag_name }} - {{ blog_title }}{% endblock %}
 
 {% block canonical %}
-<link rel="canonical" href="{{ blog_url.rstrip('/') }}/tag/{{ tag_name }}.html" />
+<link rel="canonical" href="{{ tag_archive.canonical_url }}" />
 {% endblock %}
 
-{% block og_title %}{{ tag_name }} - {{ blog_title }}{% endblock %}
+{% block og_title %}{{ tag_archive.tag_name }} - {{ blog_title }}{% endblock %}
 
 {% block content %}
 <div class="listHeader">
-    <h1>#{{ tag_name }}</h1>
+    <h1>#{{ tag_archive.tag_name }}</h1>
 </div>
 
 <div class="postsList" role="list">
-    {% for issue in issues %}
-    {% set slug = issue_slugs[issue.number|string] %}
+    {% for entry in tag_archive.entries %}
     <article class="postListItem" role="listitem">
-        <a class="postListLink" href="/blog/{{ slug }}.html">
+        <a class="postListLink" href="{{ entry.detail_path }}">
             <div class="postHeader">
-                <span class="postTitle">{{ issue.title }}</span>
-                <time class="postDate" datetime="{{ issue.created_at.strftime('%Y-%m-%d') }}">{{ issue.created_at.strftime('%Y-%m-%d') }}</time>
+                <span class="postTitle">{{ entry.title }}</span>
+                <time class="postDate" datetime="{{ entry.created_date }}">{{ entry.created_date }}</time>
             </div>
         </a>
-        {% if issue.labels %}
+        {% if entry.tags %}
         <div class="postTags">
-            {% for label in issue.labels %}
-            <a href="/tag/{{ label.name }}.html" class="tag">{{ label.name }}</a>
+            {% for tag in entry.tags %}
+            <a href="{{ tag.path }}" class="tag">{{ tag.name }}</a>
             {% endfor %}
         </div>
         {% endif %}
