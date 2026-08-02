@@ -364,7 +364,10 @@ html[data-theme="dark"] pre[class*="language-"]::selection {
 }
 
 .post-content table {
+  display: block;
   width: 100%;
+  max-width: 100%;
+  overflow-x: auto;
   border-collapse: collapse;
   margin-bottom: 1.25rem;
 }

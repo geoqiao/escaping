@@ -1,7 +1,9 @@
 from __future__ import annotations
 
+import re
 from datetime import datetime, timezone
 from html.parser import HTMLParser
+from pathlib import Path
 
 import pytest
 
@@ -166,3 +168,23 @@ def test_mobile_navigation_is_keyboard_operable(theme: str) -> None:
     assert "checkbox.checked = !checkbox.checked" in inline_scripts
     assert "checkbox.addEventListener('change'" in inline_scripts
     assert "label.setAttribute('aria-expanded'" in inline_scripts
+
+
+def _css_rule(source: str, selector: str) -> str:
+    match = re.search(rf"{re.escape(selector)}\s*\{{([^}}]*)\}}", source)
+    if match is None:
+        pytest.fail(f"missing CSS rule: {selector}")
+    return match.group(1)
+
+
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
+def test_theme_contains_local_overflow_contract(theme: str) -> None:
+    css_path = Path("templates") / theme / "static" / "css" / "style.css"
+    css = css_path.read_text(encoding="utf-8")
+
+    table_rule = _css_rule(css, ".post-content table")
+    pre_rule = _css_rule(css, ".post-content pre")
+    assert "display: block" in table_rule
+    assert "max-width: 100%" in table_rule
+    assert "overflow-x: auto" in table_rule
+    assert "overflow-x: auto" in pre_rule
