@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -70,24 +68,6 @@ def _posts(count: int) -> list[BlogPost]:
 
 def _render(theme: str = "Escape1") -> RenderService:
     return RenderService(_settings(theme=theme))
-
-
-def _legacy_issue(
-    number: int,
-    *,
-    title: str | None = None,
-    labels: list[str] | None = None,
-) -> Any:  # noqa: ANN401
-    issue = MagicMock()
-    issue.number = number
-    issue.title = title or f"Post {number}"
-    issue.labels = []
-    for label_name in labels or []:
-        label = MagicMock()
-        label.name = label_name
-        issue.labels.append(label)
-    issue.created_at = datetime(2024, 1, number, tzinfo=timezone.utc)
-    return issue
 
 
 class TestBlogArchiveBuilder:
@@ -190,26 +170,3 @@ def test_theme_strict_renderer_and_writer_tracer(theme: str, tmp_path: Path) -> 
     )
     assert all(p.exists() for p in written)
     assert not (tmp_path / "blog/page/2.html").exists()
-
-
-def test_legacy_adapter_html_routes() -> None:
-    """Legacy render_index produces .html detail/tag hrefs and pagination."""
-    html = _render().render_index(
-        [_legacy_issue(1, title="Legacy", labels=["python"])],
-        tags=["python"],
-        pagination={
-            "page": 2,
-            "pages": 3,
-            "has_prev": True,
-            "has_next": True,
-            "prev_num": 1,
-            "next_num": 3,
-        },
-        issue_slugs={"1": "1-legacy"},
-    )
-    assert 'href="/blog/1-legacy.html"' in html
-    assert 'href="/tag/python.html"' in html
-    assert "/blog/1-legacy/" not in html
-    assert 'href="https://example.com/blog/page/2.html"' in html
-    assert 'href="/blog/page/1.html"' in html
-    assert 'href="/blog/page/3.html"' in html

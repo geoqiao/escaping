@@ -11,9 +11,8 @@ description, canonical origin), Site Profile (avatar, bio, links), and
 configured navigation.  No Markdown body, Issue metadata, labels, or
 branding enter the ``HomePage`` model.
 
-The default production CLI does not call this strict builder directly. It
-remains an expand/tracer seam while ``RenderService.render_home`` adapts
-the legacy pipeline to the same ``HomePage`` internal model.
+The strict SiteModel builder calls this component during every build; the
+renderer receives only the resulting ``HomePage`` model.
 """
 
 from __future__ import annotations
@@ -111,9 +110,8 @@ def write_home_page(
 ) -> tuple[Path, ...]:
     """Write a strict Home page to its pre-computed output path.
 
-    This tracer is deliberately not connected to the default CLI. It writes
-    the rendered page beneath ``output_dir`` using only
-    ``home.route.output_path``.
+    This focused writer remains useful for component tests. It writes the
+    rendered page beneath ``output_dir`` using the model route.
     """
     path = output_dir / home.route.output_path
     path.parent.mkdir(parents=True, exist_ok=True)

@@ -32,14 +32,6 @@ class GitHubService:
     @retry(
         stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
     )
-    def get_user_issues(self, repo: Repository) -> list[Issue]:
-        me = self.gh.get_user().login
-        issues = repo.get_issues(creator=me)  # type: ignore
-        return list(issues)
-
-    @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
-    )
     def fetch_issue_snapshots(self, repo: Repository) -> list[IssueSnapshot]:
         """Fetch open and closed Issues (state=all) as immutable snapshots.
 

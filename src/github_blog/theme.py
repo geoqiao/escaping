@@ -127,7 +127,12 @@ class ThemeResolver:
             return cache_path
 
         vendored_path = self.root / "templates" / self.theme_name
-        if vendored_path.is_dir():
+        marker = vendored_path / ".theme-commit"
+        if (
+            vendored_path.is_dir()
+            and marker.is_file()
+            and marker.read_text(encoding="utf-8").strip() == self.lock.commit
+        ):
             return vendored_path
 
         if self.fetch is None:

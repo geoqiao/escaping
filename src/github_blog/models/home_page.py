@@ -84,8 +84,8 @@ class HomeNavigationLink:
 class HomePostEntry:
     """A single recent-post summary for the Home page.
 
-    All URL paths are pre-computed by the producer (strict builder or
-    legacy adapter) so the template never concatenates path segments.
+    All URL paths are pre-computed by the RouteRegistry-backed builder so the
+    template never concatenates path segments.
 
     Attributes:
         title: Display title of the post.

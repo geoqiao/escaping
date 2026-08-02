@@ -3,17 +3,10 @@ from __future__ import annotations
 from datetime import datetime, timezone
 
 import pytest
-from pydantic import HttpUrl
 
-from github_blog.config import (
-    AboutConfig,
-    GithubConfig,
-    SecurityConfig,
-    Settings,
-    SiteConfig,
-    SiteProfileConfig,
-)
+from github_blog.config import Settings
 from github_blog.content_compiler import ContentCompiler
+from github_blog.models.content import ContentCompilationResult
 from github_blog.models.issue_snapshot import IssueSnapshot
 from github_blog.services.render_service import RenderService
 
@@ -21,17 +14,19 @@ _NOW = datetime(2026, 1, 10, tzinfo=timezone.utc)
 
 
 def _settings(theme: str = "Escape1", about_number: int = 10) -> Settings:
-    return Settings(
-        github=GithubConfig(repo="geoqiao/site", allowed_authors=["geoqiao"]),
-        site=SiteConfig(
-            title="geoqiao",
-            author="geoqiao",
-            url=HttpUrl("https://geoqiao.me/"),
-        ),
-        profile=SiteProfileConfig(avatar="/avatar.png", bio="Builder"),
-        about=AboutConfig(issue_number=about_number),
-        security=SecurityConfig(token_env="TEST_TOKEN"),  # noqa: S106
-        paths={"theme": theme},
+    return Settings.model_validate(
+        {
+            "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
+            "site": {
+                "title": "geoqiao",
+                "author": "geoqiao",
+                "url": "https://geoqiao.me/",
+            },
+            "profile": {"avatar": "/avatar.png", "bio": "Builder"},
+            "about": {"issue_number": about_number},
+            "security": {"token_env": "TEST_TOKEN"},
+            "paths": {"theme": theme},
+        }
     )
 
 
@@ -67,8 +62,8 @@ def _snapshot(
     )
 
 
-def _codes(result: object) -> set[str]:
-    return {d.code for d in result.diagnostics if d.severity == "error"}  # type: ignore[attr-defined]
+def _codes(result: ContentCompilationResult) -> set[str]:
+    return {d.code for d in result.diagnostics if d.severity == "error"}
 
 
 def test_compiles_blog_idea_and_configured_about_once() -> None:
@@ -150,6 +145,7 @@ def test_idea_about_content_to_render_tracer(theme: str) -> None:
 
     idea_index = renderer.render_ideas(result.ideas)
     idea_detail = renderer.render_idea(result.ideas[0])
+    assert result.about is not None
     about = renderer.render_about_page(result.about)
 
     assert "/ideas/2/" in idea_index

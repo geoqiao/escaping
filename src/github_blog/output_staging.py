@@ -1,9 +1,8 @@
 """Output staging and atomic publication.
 
-Renders candidate output into a temporary directory under the validated
-output boundary/parent, validates through a basic artifact-validation
-interface, and replaces final output atomically without exposing a
-partially copied tree.
+Keeps a fully rendered and validated candidate tree under the validated
+output boundary/parent, then replaces final output atomically without
+exposing a partially copied tree.
 
 When final output already exists, a true atomic directory exchange
 (platform-specific POSIX primitive: ``renamex_np`` on macOS,
@@ -37,15 +36,11 @@ import shutil
 import sys
 import uuid
 from pathlib import Path
-from typing import TYPE_CHECKING, Protocol
 
 import structlog
 
 from .build_result import Diagnostic
 from .output_safety import OutputContainmentError, validate_output_containment
-
-if TYPE_CHECKING:
-    from .config import Settings
 
 logger = structlog.get_logger()
 
@@ -148,55 +143,6 @@ class OutputStagingError(Exception):
     moved/symlinked/wrong-parent staging paths, and similar safety
     violations at mutation boundaries.
     """
-
-
-class ArtifactValidator(Protocol):
-    """Interface for validating candidate output artifacts.
-
-    Ticket 19 will deepen this with HTML/XML parsing, link checking,
-    canonical URL verification, and route consistency checks.
-    """
-
-    def validate(self, candidate_dir: Path) -> list[Diagnostic]:
-        """Validate candidate artifacts in *candidate_dir*.
-
-        Returns an empty list if all checks pass, or a list of
-        :class:`Diagnostic` instances describing validation failures
-        (errors and/or warnings).  Only errors (``severity == "error"``)
-        block publication; warnings are preserved but do not block.
-        """
-        ...
-
-
-class BasicArtifactValidator:
-    """Basic artifact validation -- checks for required files.
-
-    This is intentionally minimal; Ticket 19 will add deeper validation
-    covering HTML, XML, links, assets, canonical URLs, and routes.
-    """
-
-    REQUIRED_FILES: tuple[str, ...] = ("index.html",)
-
-    def __init__(self, settings: Settings) -> None:
-        # Settings are accepted for interface consistency with Ticket 19's
-        # deeper validator; the basic implementation does not need them.
-        self._settings = settings
-
-    def validate(self, candidate_dir: Path) -> list[Diagnostic]:
-        diagnostics: list[Diagnostic] = []
-        for required in self.REQUIRED_FILES:
-            if not (candidate_dir / required).is_file():
-                diagnostics.append(
-                    Diagnostic(
-                        severity="error",
-                        code="MISSING_REQUIRED_ARTIFACT",
-                        message=(
-                            f"Required artifact not found in candidate "
-                            f"output: {required}"
-                        ),
-                    )
-                )
-        return diagnostics
 
 
 class OutputStagingService:

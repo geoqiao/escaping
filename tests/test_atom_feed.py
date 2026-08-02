@@ -14,7 +14,6 @@ from github_blog.atom_feed import (
     render_atom_xml,
     write_atom_feed,
 )
-from github_blog.blog_compiler import BlogCompiler
 from github_blog.config import (
     AboutConfig,
     GithubConfig,
@@ -22,6 +21,7 @@ from github_blog.config import (
     Settings,
     SiteConfig,
 )
+from github_blog.content_compiler import ContentCompiler
 from github_blog.models.atom_feed import AtomEntry, AtomFeed, AtomFeedRoute
 from github_blog.models.blog_post import BlogPost
 from github_blog.models.issue_snapshot import IssueSnapshot
@@ -55,7 +55,7 @@ def _settings(
             author=site_author,
             description=site_description,
         ),
-        about=AboutConfig(issue_number=1),
+        about=AboutConfig(issue_number=99),
         security=SecurityConfig(token_env="G_T"),  # noqa: S106
     )
 
@@ -148,10 +148,15 @@ def test_membership_frontmatter_content() -> None:
     unauthorized = _snapshot(number=4, author="eve")
     pr = _snapshot(number=5, is_pull_request=True)
 
+    about = _snapshot(
+        number=99,
+        labels=("type:about", "published"),
+        body='---\ndescription: About\ncreated_date: "2026-01-01"\n---\nabout',
+    )
     posts = (
-        BlogCompiler(_settings())
-        .compile([valid, unpublished, idea, unauthorized, pr])
-        .posts
+        ContentCompiler(_settings())
+        .compile([valid, unpublished, idea, unauthorized, pr, about])
+        .blogs
     )
     result = _builder().build(list(posts))
 
@@ -334,7 +339,12 @@ def test_normal_unicode_valid() -> None:
 
 def test_compiler_to_builder_to_renderer_to_writer_tracer(tmp_path: Path) -> None:
     """Full pipeline tracer: compiler -> builder -> renderer -> writer."""
-    post = BlogCompiler(_settings()).compile([_snapshot()]).posts[0]
+    about = _snapshot(
+        number=99,
+        labels=("type:about", "published"),
+        body='---\ndescription: About\ncreated_date: "2026-01-01"\n---\nabout',
+    )
+    post = ContentCompiler(_settings()).compile([_snapshot(), about]).blogs[0]
     result = _builder().build([post])
 
     xml = render_atom_xml(result.feed)

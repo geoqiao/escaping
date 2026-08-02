@@ -14,4 +14,4 @@
 - [x] Theme-contract, sanitization, responsive, focus, reduced-motion, and representative content tests cover the new pages.
 
 ## Implementation Record
-- `geoqiao.me` carries the Escape2 Blog/Tags templates and strict-path model contract; the final strict RouteRegistry integration remains the next batch seam.
+- `geoqiao.me` carries the Escape2 Blog/Tags templates and strict-path model contract; Ticket 18 now connects those models to the shared RouteRegistry and artifact validator.

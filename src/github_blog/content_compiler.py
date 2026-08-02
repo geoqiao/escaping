@@ -14,6 +14,7 @@ from .models.blog_post import BlogPost, BlogTag
 from .models.content import AboutPage, ContentCompilationResult, Idea
 from .models.home_page import HomeProfile, HomeProfileLink
 from .models.issue_snapshot import IssueSnapshot
+from .routes import RouteCollisionError, RouteRegistry
 from .utils.frontmatter import FrontMatterError, ParsedFrontMatter, parse_front_matter
 from .utils.html_sanitizer import sanitize_html
 
@@ -48,10 +49,12 @@ class ContentCompiler:
         *,
         markdown_renderer: Callable[[str], str] | None = None,
         sanitizer: Callable[[str], str] | None = None,
+        route_registry: RouteRegistry | None = None,
     ) -> None:
         self._settings = settings
         self._render_markdown = markdown_renderer or _render_markdown
         self._sanitize = sanitizer or sanitize_html
+        self._routes = route_registry or RouteRegistry(str(settings.site.url))
 
     def compile(self, snapshots: Sequence[IssueSnapshot]) -> ContentCompilationResult:
         diagnostics: list[Diagnostic] = []
@@ -148,54 +151,65 @@ class ContentCompiler:
                 continue
             description = str(parsed.fields["description"])
             created_date = str(parsed.fields["created_date"])
-            tags = self._tags(snapshot.labels)
 
-            if content_type == "blog":
-                blogs.append(
-                    BlogPost(
-                        issue_number=snapshot.number,
-                        title=snapshot.title,
-                        slug=str(slug),
-                        description=description,
-                        created_date=created_date,
-                        published_at=snapshot.created_at,
-                        updated_at=snapshot.updated_at,
-                        tags=tags,
-                        body_html=body_html,
-                        canonical_path=f"/blog/{slug}/",
+            try:
+                if content_type == "blog":
+                    route = self._routes.blog_detail(str(slug))
+                    tags = self._tags(snapshot.labels, register_routes=True)
+                    blogs.append(
+                        BlogPost(
+                            issue_number=snapshot.number,
+                            title=snapshot.title,
+                            slug=str(slug),
+                            description=description,
+                            created_date=created_date,
+                            published_at=snapshot.created_at,
+                            updated_at=snapshot.updated_at,
+                            tags=tags,
+                            body_html=body_html,
+                            canonical_path=route.canonical_path,
+                            canonical_url=route.canonical_url,
+                        )
                     )
-                )
-            elif content_type == "idea":
-                ideas.append(
-                    Idea(
-                        issue_number=snapshot.number,
-                        title=snapshot.title,
-                        description=description,
-                        created_date=created_date,
-                        published_at=snapshot.created_at,
-                        updated_at=snapshot.updated_at,
-                        tags=tags,
-                        body_html=body_html,
-                        canonical_path=f"/ideas/{snapshot.number}/",
+                elif content_type == "idea":
+                    route = self._routes.idea(snapshot.number)
+                    ideas.append(
+                        Idea(
+                            issue_number=snapshot.number,
+                            title=snapshot.title,
+                            description=description,
+                            created_date=created_date,
+                            published_at=snapshot.created_at,
+                            updated_at=snapshot.updated_at,
+                            tags=self._tags(snapshot.labels, register_routes=False),
+                            body_html=body_html,
+                            canonical_path=route.canonical_path,
+                            canonical_url=route.canonical_url,
+                        )
                     )
-                )
-            else:
-                about_candidates.append(
-                    AboutPage(
-                        issue_number=snapshot.number,
-                        title=snapshot.title,
-                        description=description,
-                        body_html=body_html,
-                        canonical_path="/about/",
-                        profile=HomeProfile(
-                            avatar=self._settings.profile.avatar,
-                            bio=self._settings.profile.bio,
-                            links=tuple(
-                                HomeProfileLink(link.name, link.url)
-                                for link in self._settings.profile.links
+                else:
+                    route = self._routes.about()
+                    about_candidates.append(
+                        AboutPage(
+                            issue_number=snapshot.number,
+                            title=snapshot.title,
+                            description=description,
+                            body_html=body_html,
+                            canonical_path=route.canonical_path,
+                            canonical_url=route.canonical_url,
+                            profile=HomeProfile(
+                                avatar=self._settings.profile.avatar,
+                                bio=self._settings.profile.bio,
+                                links=tuple(
+                                    HomeProfileLink(link.name, link.url)
+                                    for link in self._settings.profile.links
+                                ),
                             ),
-                        ),
+                        )
                     )
+            except (RouteCollisionError, ValueError) as exc:
+                diagnostics.append(
+                    self._error(snapshot, "ROUTE_COLLISION", str(exc), "route")
                 )
 
         if not configured_seen:
@@ -234,12 +248,21 @@ class ContentCompiler:
         if has_errors:
             return ContentCompilationResult(diagnostics=tuple(diagnostics))
 
-        def sort_key(item: BlogPost | Idea) -> tuple[datetime, int]:
-            return item.published_at, item.issue_number
-
         return ContentCompilationResult(
-            blogs=tuple(sorted(blogs, key=sort_key, reverse=True)),
-            ideas=tuple(sorted(ideas, key=sort_key, reverse=True)),
+            blogs=tuple(
+                sorted(
+                    blogs,
+                    key=lambda post: (post.published_at, post.issue_number),
+                    reverse=True,
+                )
+            ),
+            ideas=tuple(
+                sorted(
+                    ideas,
+                    key=lambda idea: (idea.published_at, idea.issue_number),
+                    reverse=True,
+                )
+            ),
             about=configured_about,
             diagnostics=tuple(diagnostics),
         )
@@ -499,10 +522,19 @@ class ContentCompiler:
             return False
         return True
 
-    @staticmethod
-    def _tags(labels: tuple[str, ...]) -> tuple[BlogTag, ...]:
+    def _tags(
+        self, labels: tuple[str, ...], *, register_routes: bool
+    ) -> tuple[BlogTag, ...]:
         names = dict.fromkeys(_label_values(labels, "tag:"))
-        return tuple(BlogTag(name, f"/tags/{name}/") for name in names)
+        tags: list[BlogTag] = []
+        for name in names:
+            path = (
+                self._routes.tag(name).canonical_path
+                if register_routes
+                else f"/tags/{name}/"
+            )
+            tags.append(BlogTag(name, path))
+        return tuple(tags)
 
     @staticmethod
     def _error(

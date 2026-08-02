@@ -108,7 +108,11 @@ def test_shipped_themes_resolve_with_manifest(theme_name: str) -> None:
 
     source = ThemeResolver(
         Path.cwd(),
-        ThemeLockConfig(repository="owner/theme", commit="a" * 40, api_version="1"),
+        ThemeLockConfig(
+            repository="owner/theme",
+            commit="1003bd7a3a490a17b834ad5f056e56c281fd32ea",
+            api_version="1",
+        ),
         theme_name=theme_name,
     ).resolve()
     assert source.locked_dir.name == theme_name

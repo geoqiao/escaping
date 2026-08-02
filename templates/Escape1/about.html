@@ -1,8 +1,14 @@
 {% extends 'base.html' %}
 {% block title %}About - {{ blog_title }}{% endblock %}
-{% block description %}{% if about_page is defined %}{{ about_page.description }}{% else %}{{ meta_description }}{% endif %}{% endblock %}
-{% block canonical %}<link rel="canonical" href="{% if about_page is defined %}{{ blog_url.rstrip('/') }}{{ about_page.canonical_path }}{% else %}{{ blog_url.rstrip('/') }}/about.html{% endif %}" />{% endblock %}
+{% block description %}{{ about_page.description }}{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ about_page.canonical_url }}" />{% endblock %}
 {% block content %}
-{% if about_page is defined %}<article class="about-content"><h1>About</h1>{% if about_page.profile.avatar %}<div class="about-avatar"><img src="{{ about_page.profile.avatar }}" alt="{{ author_name }}" class="avatar-img"></div>{% endif %}{% if about_page.profile.bio %}<p>{{ about_page.profile.bio }}</p>{% endif %}<div class="post-content">{{ about_page.body_html|safe }}</div>{% if about_page.profile.links %}<section class="about-section"><h2>Links</h2><ul class="contact-list">{% for link in about_page.profile.links %}<li><a href="{{ link.url }}">{{ link.name }}</a></li>{% endfor %}</ul></section>{% endif %}</article>{% else %}<div class="about-content"><h1>About</h1>{% if about_avatar %}<div class="about-avatar"><img src="{{ about_avatar }}" alt="{{ author_name }}" class="avatar-img"></div>{% endif %}{% if about_bio %}<section class="about-section">{% for line in about_bio.split('\n') %}{% if line.strip() %}<p>{{ line }}</p>{% endif %}{% endfor %}</section>{% endif %}{% if about_links %}<section class="about-section"><h2>Links</h2><ul class="contact-list">{% for link in about_links %}<li><a href="{{ link.url }}">{{ link.name }}</a></li>{% endfor %}</ul></section>{% endif %}</div>{% endif %}
-{% if about_page is defined %}{% set comments_issue_number = about_page.issue_number %}{% include '_comments.html' %}{% endif %}
+<article class="about-content">
+  <h1>About</h1>
+  {% if about_page.profile.avatar %}<div class="about-avatar"><img src="{{ about_page.profile.avatar }}" alt="{{ author_name }}" class="avatar-img"></div>{% endif %}
+  {% if about_page.profile.bio %}<p>{{ about_page.profile.bio }}</p>{% endif %}
+  <div class="post-content">{{ about_page.body_html|safe }}</div>
+  {% if about_page.profile.links %}<section class="about-section"><h2>Links</h2><ul class="contact-list">{% for link in about_page.profile.links %}<li><a href="{{ link.url }}">{{ link.name }}</a></li>{% endfor %}</ul></section>{% endif %}
+</article>
+{% set comments_issue_number = about_page.issue_number %}{% include '_comments.html' %}
 {% endblock %}

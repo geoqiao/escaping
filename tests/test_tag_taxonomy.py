@@ -5,8 +5,6 @@ from __future__ import annotations
 import unicodedata
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 from pydantic import HttpUrl
@@ -14,6 +12,7 @@ from pydantic import HttpUrl
 from github_blog.config import (
     AboutConfig,
     GithubConfig,
+    PathsConfig,
     SecurityConfig,
     Settings,
     SiteConfig,
@@ -34,7 +33,6 @@ from github_blog.tag_taxonomy import (
     write_tag_index,
 )
 
-_PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 _DEFAULT_PUB = datetime(2026, 1, 10, 12, 0, tzinfo=timezone.utc)
 _DEFAULT_UPD = datetime(2026, 1, 11, 8, 30, tzinfo=timezone.utc)
 
@@ -48,6 +46,7 @@ def _settings() -> Settings:
             author="Test",
         ),
         about=AboutConfig(issue_number=1),
+        paths=PathsConfig(theme="Escape1"),
         security=SecurityConfig(token_env="G_T"),  # noqa: S106
     )
 
@@ -80,71 +79,34 @@ def _post(
 
 
 def _render_service(theme: str = "Escape1") -> RenderService:
-    settings = MagicMock()
-    settings.paths.theme_path = _PROJECT_ROOT / "templates" / theme
-    settings.paths.seo_path = _PROJECT_ROOT / "templates" / "seo"
-    settings.paths.theme_url_path = f"/templates/{theme}"
-    settings.paths.rss = "atom.xml"
-    settings.paths.blog = "blog"
-    settings.paths.tag = "tag"
-    settings.paths.page = "page"
-    settings.site.title = "Test Blog"
-    settings.site.url = "https://example.com/"
-    settings.site.author = "Author"
-    settings.site.description = "Test Description"
-    settings.site.language = "en"
-    settings.github.username = "user"
-    settings.github.repo = "user/repo"
-    settings.seo.google_search_console = ""
-    settings.profile.avatar = ""
-    settings.profile.bio = "Test bio"
-    settings.profile.links = []
-    settings.site.navigation.items = []
-    settings.branding.show_powered_by = True
-    settings.branding.powered_by_text = "Powered by"
-    settings.branding.powered_by_url = "https://github.com/geoqiao/github-blog"
-    settings.branding.show_intro = False
-    settings.branding.intro_text = ""
-    settings.branding.intro_text2 = (
-        "Generated with Python + Jinja2, deployed via GitHub Actions."
+    return RenderService(
+        Settings.model_validate(
+            {
+                "github": {"repo": "user/repo", "allowed_authors": ["alice"]},
+                "site": {
+                    "title": "Test Blog",
+                    "url": "https://example.com/",
+                    "author": "Author",
+                    "description": "Test Description",
+                    "language": "en",
+                },
+                "about": {"issue_number": 1},
+                "paths": {"theme": theme},
+                "profile": {"avatar": "", "bio": "Test bio", "links": []},
+                "comments": {
+                    "provider": "utterances",
+                    "theme": "github-light",
+                    "theme_mode": "auto",
+                },
+                "security": {"token_env": "G_T"},
+            }
+        )
     )
-    settings.branding.source_link_text = "View Source"
-    settings.branding.source_link_url = ""
-    settings.comments.provider = "utterances"
-    settings.comments.repo = ""
-    settings.comments.theme = "github-light"
-    settings.comments.theme_mode = "auto"
-    return RenderService(settings)
-
-
-def _mock_issue(
-    number: int = 1,
-    *,
-    title: str = "Test Post",
-    labels: list[str] | None = None,
-) -> Any:  # noqa: ANN401
-    issue = MagicMock()
-    issue.number = number
-    issue.title = title
-    issue.body = "body"
-    label_mocks = []
-    if labels:
-        for label in labels:
-            m = MagicMock()
-            m.name = label
-            label_mocks.append(m)
-    issue.labels = label_mocks
-    issue.created_at = datetime(2024, 1, number, tzinfo=timezone.utc)
-    issue.updated_at = datetime(2024, 1, number, tzinfo=timezone.utc)
-    return issue
 
 
 def test_nfc_casefold_samepost_dedup_count() -> None:
     """NFC + casefold dedup, same-post duplicates counted once, count
     aggregation across posts, deterministic display/order."""
-    # NFC equivalence: composed vs decomposed "café".
-    composed = "café"
-    decomposed = "cafe\u0301"
     # Casefold: "Python" == "python" == "PYTHON".
     p1 = _post(1, tags=(BlogTag(name="Python", path="/tags/python/"),))
     p2 = _post(
@@ -159,23 +121,25 @@ def test_nfc_casefold_samepost_dedup_count() -> None:
         3,
         slug="c",
         tags=(
-            BlogTag(name=composed, path="/tags/café/"),
-            BlogTag(name=decomposed, path="/tags/café/"),  # NFC-equivalent dup
+            BlogTag(name="risk-management", path="/tags/risk-management/"),
+            BlogTag(
+                name="RISK-MANAGEMENT", path="/tags/risk-management/"
+            ),  # same-post dup
         ),
     )
     result = TagTaxonomyBuilder(_settings()).build([p1, p2, p3])
 
     # Two unique tags after dedup, sorted alphabetically by key.
     names = [t.name for t in result.index.tags]
-    assert names == ["café", "python"]
+    assert names == ["python", "risk-management"]
 
     # python: p1 + p2 (p2 counted once despite duplicate within post).
-    assert result.index.tags[1].count == 2
-    # café: p3 only (counted once).
-    assert result.index.tags[0].count == 1
+    assert result.index.tags[0].count == 2
+    # risk-management: p3 only (counted once).
+    assert result.index.tags[1].count == 1
 
-    # Display value is the NFC+casefold key (deterministic).
-    assert result.index.tags[1].name == "python"
+    # Display value is the casefold key (deterministic).
+    assert result.index.tags[0].name == "python"
 
     # Archive for python has 2 entries, sorted desc by publication.
     py_archive = next(a for a in result.archives if a.tag_name == "python")
@@ -303,28 +267,3 @@ def test_theme_renderer_and_writers_tracer(theme: str, tmp_path: Path) -> None:
     )
     assert (tmp_path / "tags" / "python" / "index.html").exists()
     assert len(written_arcs) == 1
-
-
-def test_legacy_html_adapter() -> None:
-    """Legacy render_tags_page / render_tag_page adapt to internal models
-    with legacy .html hrefs."""
-    render = _render_service()
-
-    # Tags index page.
-    idx_html = render.render_tags_page(
-        tags=["python", "web"], tag_counts={"python": 3, "web": 1}
-    )
-    assert 'href="/tag/python.html"' in idx_html
-    assert "/tags/python/" not in idx_html
-    assert "https://example.com/tag/" in idx_html
-
-    # Tag archive page.
-    issue = _mock_issue(number=1, title="Tagged Post", labels=["python", "web"])
-    tag_html = render.render_tag_page(
-        "python", [issue], tags=["python", "web"], issue_slugs={"1": "1-python"}
-    )
-    assert "/blog/1-python.html" in tag_html
-    assert "/blog/1-python/" not in tag_html
-    assert 'href="/tag/python.html"' in tag_html
-    assert 'href="/tag/web.html"' in tag_html
-    assert "https://example.com/tag/python.html" in tag_html

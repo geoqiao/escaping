@@ -1,6 +1,6 @@
 {% extends 'base.html' %}
 {% block title %}Ideas - {{ blog_title }}{% endblock %}
-{% block canonical %}<link rel="canonical" href="{{ blog_url.rstrip('/') }}/ideas/" />{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ ideas_canonical_url }}" />{% endblock %}
 {% block content %}
 <section class="post-list">
     <h1>Ideas</h1>
@@ -8,7 +8,7 @@
     {% for idea in ideas %}
     <article class="post-item">
         <div class="post-header"><time class="post-date" datetime="{{ idea.created_date }}">{{ idea.created_date }}</time><h2 class="post-title"><a href="{{ idea.canonical_path }}">{{ idea.title }}</a></h2></div>
-        {% if idea.tags %}<div class="post-tags">{% for tag in idea.tags %}<a href="{{ tag.path }}" class="tag">{{ tag.name }}</a>{% endfor %}</div>{% endif %}
+        {% if idea.tags %}<div class="post-tags">{% for tag in idea.tags %}<span class="tag">{{ tag.name }}</span>{% endfor %}</div>{% endif %}
     </article>
     {% endfor %}
     {% else %}<p class="empty-state">No ideas yet.</p>{% endif %}

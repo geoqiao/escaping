@@ -20,9 +20,8 @@ Timestamp handling:
   clear error diagnostic and the offending post is excluded from
   entries.  The RFC 3339 / UTC representation uses a trailing ``Z``.
 
-The default production CLI does not call this strict builder. It remains
-an expand/tracer seam while ``RenderService.generate_rss`` retains the
-legacy production semantics.  Cutover is Ticket 22.
+The strict SiteModel builder calls this component during every build; the
+renderer receives only the resulting Atom model.
 """
 
 from __future__ import annotations

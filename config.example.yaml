@@ -16,12 +16,14 @@ site:
   #   items:
   #     - name: Blog
   #       url: /blog/
+  #     - name: Ideas
+  #       url: /ideas/
+  #     - name: Projects
+  #       url: /projects/
   #     - name: Tags
-  #       url: /tag/
+  #       url: /tags/
   #     - name: About
-  #       url: /about.html
-  #     - name: RSS
-  #       url: /atom.xml
+  #       url: /about/
 
 profile:
   avatar: https://github.com/username.png
@@ -52,17 +54,12 @@ security:
 
 # ============================================
 # Paths (optional)
-# Built-in themes: Escape1 (minimal), Escape2 (dark terminal)
+# Built-in themes: Escape1, Escape2, and geoqiao.me (Escape2 baseline)
 # page_size is a positive integer, default 10
 # ============================================
 # paths:
 #   output: output
-#   theme: Escape2
-#   blog: blog
-#   tag: tag
-#   rss: atom.xml
-#   about: about.html
-#   page: page
+#   theme: geoqiao.me
 #   page_size: 10
 
 # ============================================
@@ -102,9 +99,9 @@ security:
 #         - web
 
 # ============================================
-# Theme lock (optional)
+# Theme lock (required for strict builds)
 # ============================================
-# theme_lock:
-#   repository: org/theme
-#   commit: a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2
-#   api_version: "1"
+theme_lock:
+  repository: geoqiao/escaping
+  commit: 1003bd7a3a490a17b834ad5f056e56c281fd32ea
+  api_version: "1"

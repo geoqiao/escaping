@@ -6,7 +6,6 @@ from pathlib import Path
 
 import pytest
 import yaml
-import yaml.resolver
 from yaml.resolver import BaseResolver
 
 from github_blog.config import Settings
@@ -35,22 +34,7 @@ def _unique_key_loader() -> type[yaml.SafeLoader]:
     return UniqueKeyLoader
 
 
-def _migration_yaml() -> str:
-    """Extract the 'New Structure' YAML block from docs/migration.md."""
-    content = (_PROJECT_ROOT / "docs" / "migration.md").read_text(encoding="utf-8")
-    marker = "**New Structure (required):**"
-    idx = content.find(marker)
-    assert idx != -1, "migration guide must contain 'New Structure' block"
-    start = content.find("```yaml", idx) + len("```yaml")
-    end = content.find("```", start)
-    assert end != -1, "New Structure YAML block must be closed"
-    return content[start:end]
-
-
-@pytest.mark.parametrize(
-    "filename",
-    ["config.yaml", "config.example.yaml"],
-)
+@pytest.mark.parametrize("filename", ["config.yaml", "config.example.yaml"])
 def test_shipped_config_strict_load(filename: str) -> None:
     """Both shipped configs load under the strict Settings model."""
     path = _PROJECT_ROOT / filename
@@ -59,29 +43,11 @@ def test_shipped_config_strict_load(filename: str) -> None:
     assert settings.site.url.scheme == "https"
     assert settings.security.token_env == "G_T"  # noqa: S105
     assert settings.about.issue_number >= 1
+    assert settings.theme_lock is not None
 
 
-@pytest.mark.parametrize(
-    ("label", "yaml_text"),
-    [
-        ("config.yaml", (_PROJECT_ROOT / "config.yaml").read_text(encoding="utf-8")),
-        (
-            "config.example.yaml",
-            (_PROJECT_ROOT / "config.example.yaml").read_text(encoding="utf-8"),
-        ),
-        ("migration New Structure", _migration_yaml()),
-    ],
-)
-def test_no_duplicate_keys(label: str, yaml_text: str) -> None:
-    """Shipped configs and migration New Structure YAML have no duplicate keys."""
+@pytest.mark.parametrize("filename", ["config.yaml", "config.example.yaml"])
+def test_shipped_config_has_no_duplicate_keys(filename: str) -> None:
     loader = _unique_key_loader()
+    yaml_text = (_PROJECT_ROOT / filename).read_text(encoding="utf-8")
     yaml.load(yaml_text, Loader=loader)  # noqa: S506 - trusted local file
-
-
-def test_migration_yaml_instantiates_settings(tmp_path: Path) -> None:
-    """The migration 'New Structure' YAML instantiates Settings."""
-    yaml_file = tmp_path / "migration_config.yaml"
-    yaml_file.write_text(_migration_yaml())
-    settings = Settings.load_from_yaml(yaml_file)
-    assert settings.github.repo == "username/username.github.io"
-    assert settings.security.token_env == "G_T"  # noqa: S105

@@ -5,15 +5,15 @@
 {% block description %}{{ post.description }}{% endblock %}
 
 {% block canonical %}
-<link rel="canonical" href="{{ blog_url.rstrip('/') }}{{ post.canonical_path }}" />
+<link rel="canonical" href="{{ post.canonical_url }}" />
 {% endblock %}
 
 {% block og_type %}article{% endblock %}
-{% block og_url %}{{ blog_url.rstrip('/') }}{{ post.canonical_path }}{% endblock %}
+{% block og_url %}{{ post.canonical_url }}{% endblock %}
 {% block og_title %}{{ post.title }}{% endblock %}
 {% block og_description %}{{ post.description }}{% endblock %}
 
-{% block twitter_url %}{{ blog_url.rstrip('/') }}{{ post.canonical_path }}{% endblock %}
+{% block twitter_url %}{{ post.canonical_url }}{% endblock %}
 {% block twitter_title %}{{ post.title }}{% endblock %}
 {% block twitter_description %}{{ post.description }}{% endblock %}
 

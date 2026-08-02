@@ -26,9 +26,8 @@ from .blog_post import BlogTag
 class TagsIndexRoute:
     """Route for the Tags index page.
 
-    The producer (strict builder or legacy adapter) sets the values:
-    strict uses ``/tags/`` -> ``tags/index.html``; legacy uses
-    ``/tag/`` -> ``tag/index.html``.
+    The RouteRegistry-backed builder sets the values to ``/tags/`` and
+    ``tags/index.html``.
 
     Attributes:
         canonical_path: Canonical URL path (e.g. ``/tags/``).
@@ -43,9 +42,8 @@ class TagsIndexRoute:
 class TagArchiveRoute:
     """Route for a single tag archive page.
 
-    The producer sets the values: strict uses ``/tags/{key}/`` ->
-    ``tags/{key}/index.html``; legacy uses ``/tag/{name}.html`` ->
-    ``tag/{name}.html``.
+    The RouteRegistry-backed builder sets the values to ``/tags/{key}/``
+    and ``tags/{key}/index.html``.
 
     Attributes:
         canonical_path: Canonical URL path (e.g. ``/tags/python/``).
@@ -79,14 +77,14 @@ class TagSummary:
 class TagArchiveEntry:
     """A single post summary in a tag archive page.
 
-    All URL paths are pre-computed by the producer (strict builder or
-    legacy adapter) so the template never concatenates path segments.
+    All URL paths are pre-computed by the RouteRegistry-backed builder so
+    the template never concatenates path segments.
 
     Attributes:
         title: Display title of the post.
         created_date: ``YYYY-MM-DD`` string for display.
         detail_path: Pre-computed canonical URL path to the detail page
-            (e.g. ``/blog/my-slug/`` or ``/blog/1-my-slug.html``).
+            (e.g. ``/blog/my-slug/``).
         tags: Tuple of immutable ``BlogTag`` values (name + path).
     """
 

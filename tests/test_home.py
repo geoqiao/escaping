@@ -4,8 +4,6 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 from pathlib import Path
-from typing import Any
-from unittest.mock import MagicMock
 
 import pytest
 
@@ -32,8 +30,6 @@ def _settings(
     links: list[ProfileLink] | None = None,
     navigation: list[NavigationLink] | None = None,
     description: str = "Site description.",
-    blog: str = "blog",
-    tag: str = "tag",
 ) -> Settings:
     if links is None:
         links = [ProfileLink(name="GitHub", url="https://github.com/user")]
@@ -58,7 +54,7 @@ def _settings(
                 "links": [{"name": link.name, "url": link.url} for link in links],
             },
             "about": {"issue_number": 1},
-            "paths": {"theme": theme, "blog": blog, "tag": tag},
+            "paths": {"theme": theme},
             "security": {"token_env": "TEST_TOKEN"},
         }
     )
@@ -96,25 +92,6 @@ def _posts(count: int) -> list[BlogPost]:
 
 def _render(theme: str = "Escape1") -> RenderService:
     return RenderService(_settings(theme=theme))
-
-
-def _legacy_issue(
-    number: int,
-    *,
-    title: str | None = None,
-    labels: list[str] | None = None,
-    created_at: datetime | None = None,
-) -> Any:  # noqa: ANN401
-    issue = MagicMock()
-    issue.number = number
-    issue.title = title or f"Post {number}"
-    issue.labels = []
-    for label_name in labels or []:
-        label = MagicMock()
-        label.name = label_name
-        issue.labels.append(label)
-    issue.created_at = created_at or datetime(2024, 1, number, tzinfo=timezone.utc)
-    return issue
 
 
 class TestHomeBuilder:
@@ -239,28 +216,3 @@ def test_theme_sentinel_writer_homepage_is_sole_source(
     written = write_home_page(home, RenderService(settings).render_home_page, tmp_path)
     assert written == (tmp_path / "index.html",)
     assert written[0].exists()
-
-
-def test_legacy_adapter_html_and_order() -> None:
-    """Legacy render_home adapter: sorts all issues, limits to 5, .html hrefs."""
-    issues = [
-        _legacy_issue(i, created_at=datetime(2024, 1, i, tzinfo=timezone.utc))
-        for i in range(1, 8)
-    ]
-    issue_slugs = {str(i): f"{i}-test" for i in range(1, 8)}
-    html = _render().render_home(issues, issue_slugs)
-
-    # Only 5 newest (7,6,5,4,3) appear; 1 and 2 do not.
-    for i in [7, 6, 5, 4, 3]:
-        assert f"Post {i}" in html
-    assert "Post 1" not in html
-    assert "Post 2" not in html
-
-    # Legacy .html detail/tag hrefs.
-    assert 'href="/blog/7-test.html"' in html
-    assert "/blog/7-test/" not in html
-
-    # Empty state when no issues.
-    empty_html = _render().render_home([], {})
-    assert "No blog posts yet." in empty_html
-    assert 'href="https://example.com/"' in empty_html

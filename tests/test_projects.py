@@ -3,15 +3,7 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from github_blog.config import (
-    AboutConfig,
-    GithubConfig,
-    ProjectCatalogEntry,
-    ProjectFallbackMetadata,
-    SecurityConfig,
-    Settings,
-    SiteConfig,
-)
+from github_blog.config import ProjectCatalogEntry, ProjectFallbackMetadata, Settings
 from github_blog.projects import ProjectCompiler, ProjectEnrichment
 from github_blog.services.render_service import RenderService
 
@@ -48,7 +40,7 @@ def test_project_catalog_strict_validation() -> None:
     with pytest.raises(ValidationError):
         ProjectFallbackMetadata(stars=-1)
     with pytest.raises(ValidationError):
-        ProjectFallbackMetadata(topics=["ok", 2])
+        ProjectFallbackMetadata.model_validate({"topics": ["ok", 2]})
 
 
 def test_projects_sort_feature_and_use_github_links() -> None:
@@ -89,12 +81,18 @@ def test_empty_projects_page_renders_for_both_themes() -> None:
     page = ProjectCompiler().compile([])
     assert page.projects == ()
     for theme in ("Escape1", "Escape2"):
-        settings = Settings(
-            github=GithubConfig(repo="geoqiao/site", allowed_authors=["geoqiao"]),
-            site=SiteConfig(title="Site", author="G", url="https://geoqiao.me/"),
-            about=AboutConfig(issue_number=1),
-            security=SecurityConfig(token_env="TOKEN"),  # noqa: S106
-            paths={"theme": theme},
+        settings = Settings.model_validate(
+            {
+                "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
+                "site": {
+                    "title": "Site",
+                    "author": "G",
+                    "url": "https://geoqiao.me/",
+                },
+                "about": {"issue_number": 1},
+                "security": {"token_env": "TOKEN"},
+                "paths": {"theme": theme},
+            }
         )
         html = RenderService(settings).render_projects(page)
         assert "No projects yet" in html

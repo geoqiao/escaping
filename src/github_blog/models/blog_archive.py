@@ -23,14 +23,14 @@ from .blog_post import BlogTag
 class ArchiveEntry:
     """A single post summary in an archive page.
 
-    All URL paths are pre-computed by the producer (strict builder or
-    legacy adapter) so the template never concatenates path segments.
+    All URL paths are pre-computed by the RouteRegistry-backed builder so the
+    template never concatenates path segments.
 
     Attributes:
         title: Display title of the post.
         created_date: ``YYYY-MM-DD`` string for display.
-        detail_path: Pre-computed canonical URL path to the detail page
-            (e.g. ``/blog/my-slug/`` or ``/blog/1-my-slug.html``).
+        detail_path: Pre-computed canonical URL path to the detail page,
+            e.g. ``/blog/my-slug/``.
         tags: Tuple of immutable ``BlogTag`` values (name + path).
     """
 
@@ -46,12 +46,9 @@ class ArchivePageRoute:
 
     Attributes:
         canonical_path: Canonical URL path with trailing slash for
-            directory-index routes (``/blog/``, ``/blog/page/2/``) or
-            ``.html`` for legacy routes (``/blog/page/2.html``).
-        output_path: Relative filesystem path for the page's
-            ``index.html`` (``blog/index.html``,
-            ``blog/page/2/index.html``) or legacy ``.html`` file
-            (``blog/page/2.html``).
+            directory-index routes (``/blog/``, ``/blog/page/2/``).
+        output_path: Relative filesystem path for the page's directory
+            ``index.html`` (``blog/index.html``, ``blog/page/2/index.html``).
     """
 
     canonical_path: str

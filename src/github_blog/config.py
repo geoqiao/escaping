@@ -33,7 +33,6 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
-    ValidationInfo,
     field_validator,
 )
 
@@ -181,53 +180,26 @@ class AboutConfig(BaseModel):
 
 
 class PathsConfig(BaseModel):
-    """File-path and page-size configuration.
-
-    ``page_size`` is a positive integer with a default of 10.  Home recent
-    Blog count is fixed at 5 for v1 and is therefore not configurable here.
-    """
+    """Strict output, theme, and pagination configuration."""
 
     model_config = ConfigDict(extra="forbid")
 
     output: str = "output"
-    theme: str = "Escape1"
-    blog: str = "blog"
-    tag: str = "tag"
-    rss: str = "atom.xml"
-    about: str = "about.html"
-    page: str = "page"
+    theme: str = "geoqiao.me"
     page_size: int = Field(default=10, gt=0)
 
-    @field_validator("theme", "blog", "tag", "page", "rss", "about")
+    @field_validator("theme")
     @classmethod
-    def validate_child_names(cls, v: str, info: ValidationInfo) -> str:
-        """Ensure child path/name fields are safe single names/filenames."""
-        return validate_output_child_name(v, info.field_name or "path")
+    def validate_theme_name(cls, v: str) -> str:
+        return validate_output_child_name(v, "theme")
 
     @property
     def theme_path(self) -> Path:
-        """Return Path to theme directory."""
         return Path("templates") / self.theme
 
     @property
-    def seo_path(self) -> Path:
-        """Return Path to SEO templates."""
-        return Path("templates/seo")
-
-    @property
     def theme_url_path(self) -> str:
-        """Return URL path for theme assets."""
         return f"/templates/{self.theme}"
-
-    @property
-    def theme_static_dst(self) -> Path:
-        """Return destination Path for theme static assets in output."""
-        return Path(self.output) / "templates" / self.theme / "static"
-
-    @property
-    def theme_images_dst(self) -> Path:
-        """Return destination Path for theme images in output."""
-        return Path(self.output) / "templates" / self.theme / "images"
 
 
 class CommentsConfig(BaseModel):

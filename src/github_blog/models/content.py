@@ -25,6 +25,7 @@ class Idea:
     tags: tuple[BlogTag, ...]
     body_html: str
     canonical_path: str
+    canonical_url: str = ""
 
     @property
     def route(self) -> ContentRoute:
@@ -42,6 +43,7 @@ class AboutPage:
     body_html: str
     canonical_path: str
     profile: HomeProfile
+    canonical_url: str = ""
 
     @property
     def route(self) -> ContentRoute:

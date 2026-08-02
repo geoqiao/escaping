@@ -1,12 +1,12 @@
 {% extends 'base.html' %}
 {% block title %}Ideas - {{ blog_title }}{% endblock %}
-{% block canonical %}<link rel="canonical" href="{{ blog_url.rstrip('/') }}/ideas/" />{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ ideas_canonical_url }}" />{% endblock %}
 {% block content %}
 <section class="postsList">
     <div class="listHeader"><h1>Ideas</h1></div>
     {% if ideas %}
     {% for idea in ideas %}
-    <article class="postListItem"><a class="postListLink" href="{{ idea.canonical_path }}"><div class="postHeader"><span class="postTitle">{{ idea.title }}</span><time class="postDate" datetime="{{ idea.created_date }}">{{ idea.created_date }}</time></div></a>{% if idea.tags %}<div class="postTags">{% for tag in idea.tags %}<a href="{{ tag.path }}" class="tag">{{ tag.name }}</a>{% endfor %}</div>{% endif %}</article>
+    <article class="postListItem"><a class="postListLink" href="{{ idea.canonical_path }}"><div class="postHeader"><span class="postTitle">{{ idea.title }}</span><time class="postDate" datetime="{{ idea.created_date }}">{{ idea.created_date }}</time></div></a>{% if idea.tags %}<div class="postTags">{% for tag in idea.tags %}<span class="tag">{{ tag.name }}</span>{% endfor %}</div>{% endif %}</article>
     {% endfor %}
     {% else %}<p class="empty-state">No ideas yet.</p>{% endif %}
 </section>

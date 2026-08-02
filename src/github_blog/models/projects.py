@@ -27,6 +27,7 @@ class ProjectsPage:
     route: ContentRoute = field(
         default_factory=lambda: ContentRoute("/projects/", "projects/index.html")
     )
+    canonical_url: str = ""
 
     @property
     def canonical_path(self) -> str:

@@ -10,7 +10,7 @@
 
     <!-- Open Graph / Facebook -->
     <meta property="og:type" content="{% block og_type %}website{% endblock %}">
-    <meta property="og:url" content="{% block og_url %}{{ blog_url }}{% endblock %}">
+    <meta property="og:url" content="{% block og_url %}{{ page_canonical_url | default(blog_url) }}{% endblock %}">
     <meta property="og:site_name" content="{{ blog_title }}">
     <meta property="og:title" content="{% block og_title %}{{ blog_title }}{% endblock %}">
     <meta property="og:description" content="{% block og_description %}{{ meta_description }}{% endblock %}">
@@ -18,7 +18,7 @@
 
     <!-- Twitter -->
     <meta name="twitter:card" content="summary">
-    <meta name="twitter:url" content="{% block twitter_url %}{{ blog_url }}{% endblock %}">
+    <meta name="twitter:url" content="{% block twitter_url %}{{ page_canonical_url | default(blog_url) }}{% endblock %}">
     <meta name="twitter:title" content="{% block twitter_title %}{{ blog_title }}{% endblock %}">
     <meta name="twitter:description" content="{% block twitter_description %}{{ meta_description }}{% endblock %}">
     <meta name="twitter:image" content="{% block twitter_image %}{{ blog_url.rstrip('/') }}{{ theme_path }}/static/images/favicon.png{% endblock %}">
@@ -27,6 +27,7 @@
     <link rel="stylesheet" href="{{ theme_path }}/static/css/prism.css">
     <link rel="alternate" type="application/atom+xml" title="RSS" href="/{{ rss_atom_path }}">
     <link rel="icon" type="image/png" href="{{ theme_path }}/static/images/favicon.png">
+    {% if structured_data is defined %}<script type="application/ld+json">{{ structured_data | tojson }}</script>{% endif %}
     {% block extra_head %}{% endblock %}
 </head>
 <body>

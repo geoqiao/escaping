@@ -1,51 +1,38 @@
+from __future__ import annotations
+
+from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
 from github_blog.services.github_service import GitHubService
 
 
-def test_github_service_login_new_auth() -> None:
+def test_github_service_login_uses_supported_auth_api() -> None:
     with (
-        patch("github_blog.services.github_service.Github") as mock_github,
-        patch("github_blog.services.github_service.Auth") as mock_auth,
+        patch("github_blog.services.github_service.Github") as github,
+        patch("github_blog.services.github_service.Auth") as auth,
     ):
-        # Mock the presence of Auth.Token (modern PyGithub)
-        mock_auth.Token = MagicMock()
-
+        auth.Token = MagicMock()
         GitHubService("fake-token")
-
-        mock_auth.Token.assert_called_once_with("fake-token")
-        mock_github.assert_called_once()
-
-
-def test_github_service_login_old_auth() -> None:
-    with (
-        patch("github_blog.services.github_service.Github") as mock_github,
-        patch("github_blog.services.github_service.Auth", spec=[]),
-    ):
-        # Mock the absence of Auth.Token (older PyGithub)
-        GitHubService("fake-token")
-
-        mock_github.assert_called_once_with("fake-token")
+        auth.Token.assert_called_once_with("fake-token")
+        github.assert_called_once()
 
 
-@patch("github_blog.services.github_service.Github")
-def test_github_service_get_repo(mock_github_class: MagicMock) -> None:
-    mock_github_instance = mock_github_class.return_value
-    service = GitHubService("fake-token")
-
-    service.get_repo("user/repo")
-
-    mock_github_instance.get_repo.assert_called_once_with("user/repo")
-
-
-@patch("github_blog.services.github_service.Github")
-def test_github_service_get_user_issues(mock_github_class: MagicMock) -> None:
-    mock_github_instance = mock_github_class.return_value
-    mock_github_instance.get_user.return_value.login = "me"
-
-    service = GitHubService("fake-token")
-    mock_repo = MagicMock()
-
-    service.get_user_issues(mock_repo)
-
-    mock_repo.get_issues.assert_called_once_with(creator="me")
+def test_fetch_issue_snapshots_queries_all_states_and_isolates_fields() -> None:
+    with patch("github_blog.services.github_service.Github"):
+        issue = MagicMock()
+        issue.number = 7
+        issue.title = "Title"
+        issue.body = "Body"
+        issue.user.login = "geoqiao"
+        issue.labels = [MagicMock(name="ignored")]
+        issue.labels[0].name = "published"
+        issue.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        issue.updated_at = issue.created_at
+        issue._rawData = {"pull_request": {"url": "x"}}
+        repo = MagicMock()
+        repo.get_issues.return_value = [issue]
+        snapshots = GitHubService("fake-token").fetch_issue_snapshots(repo)
+        repo.get_issues.assert_called_once_with(state="all")
+        assert snapshots[0].number == 7
+        assert snapshots[0].labels == ("published",)
+        assert snapshots[0].is_pull_request

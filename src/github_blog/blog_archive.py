@@ -4,9 +4,8 @@ Takes validated ``BlogPost`` values and explicitly injected ``Settings``,
 sorts them deterministically, and produces immutable ``ArchivePage`` values
 with every route and link pre-computed before rendering.
 
-The default production CLI does not call this strict builder. It remains an
-expand/tracer seam while ``RenderService.render_index`` adapts the legacy
-pipeline to the same archive page model.
+The strict SiteModel builder calls this component during every build; the
+renderer receives only the resulting archive models.
 """
 
 from __future__ import annotations
@@ -115,9 +114,8 @@ def write_archive_pages(
 ) -> tuple[Path, ...]:
     """Write strict archive pages to their pre-computed output paths.
 
-    This tracer is deliberately not connected to the default CLI. It writes
-    each rendered page beneath ``output_dir`` using only
-    ``page.route.output_path``.
+    This focused writer remains useful for component tests. It writes each
+    rendered page beneath ``output_dir`` using the model route.
     """
     written: list[Path] = []
     for page in pages:

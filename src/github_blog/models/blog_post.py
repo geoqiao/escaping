@@ -12,25 +12,20 @@ bundles compiled posts with accumulated diagnostics.
 
 from __future__ import annotations
 
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
-
-from ..build_result import Diagnostic
 
 
 @dataclass(frozen=True)
 class BlogTag:
     """Immutable tag value carrying its own display name and canonical path.
 
-    Templates consume only ``name`` and ``path`` so they never need to
-    decide between legacy and strict URL schemes.  The producer (strict
-    BlogCompiler or legacy render_post adapter) is responsible for
-    computing the correct path.
+    Templates consume only ``name`` and ``path``; the RouteRegistry provides
+    the canonical path before this model reaches rendering.
 
     Attributes:
         name: Display name for rendering (e.g. ``python``).
-        path: Canonical URL path for the tag page
-            (e.g. ``/tags/python/`` or ``/tag/python.html``).
+        path: Canonical URL path for the tag page (e.g. ``/tags/python/``).
     """
 
     name: str
@@ -65,50 +60,4 @@ class BlogPost:
     tags: tuple[BlogTag, ...]
     body_html: str
     canonical_path: str
-
-    @property
-    def route(self) -> BlogRoute:
-        """Return the fixed BlogRoute for this post.
-
-        Blog routes are fixed: canonical ``/blog/{slug}/`` and output
-        ``blog/{slug}/index.html``.  They are not configurable.
-        """
-        return BlogRoute(
-            canonical_path=self.canonical_path,
-            output_path=f"blog/{self.slug}/index.html",
-        )
-
-
-@dataclass(frozen=True)
-class BlogRoute:
-    """A single Blog detail route mapping canonical URL to output path.
-
-    Attributes:
-        canonical_path: Canonical URL path with trailing slash,
-            e.g. ``/blog/my-slug/``.
-        output_path: Relative filesystem path for the directory
-            ``index.html``, e.g. ``blog/my-slug/index.html``.
-    """
-
-    canonical_path: str
-    output_path: str
-
-
-@dataclass(frozen=True)
-class BlogCompilationResult:
-    """Result of compiling Issue snapshots into Blog posts.
-
-    Attributes:
-        posts: Tuple of successfully compiled ``BlogPost`` values.
-            Empty when validation errors prevent compilation.
-        diagnostics: Tuple of accumulated diagnostics. Errors block
-            rendering; warnings do not.
-    """
-
-    posts: tuple[BlogPost, ...] = field(default_factory=tuple)
-    diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)
-
-    @property
-    def has_errors(self) -> bool:
-        """True when any diagnostic is an error."""
-        return any(d.severity == "error" for d in self.diagnostics)
+    canonical_url: str = ""

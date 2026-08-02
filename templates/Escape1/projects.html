@@ -1,4 +1,4 @@
 {% extends 'base.html' %}
 {% block title %}Projects - {{ blog_title }}{% endblock %}
-{% block canonical %}<link rel="canonical" href="{{ blog_url.rstrip('/') }}{{ projects.route.canonical_path }}" />{% endblock %}
+{% block canonical %}<link rel="canonical" href="{{ projects.canonical_url }}" />{% endblock %}
 {% block content %}<section class="post-list"><h1>Projects</h1>{% if projects.projects %}{% for project in projects.projects %}<article class="post-item"><h2 class="post-title"><a href="{{ project.url }}">{{ project.title }}</a></h2><p>{{ project.summary }}</p>{% if project.language %}<span class="tag">{{ project.language }}</span>{% endif %}{% if project.stars is not none %}<span class="tag">★ {{ project.stars }}</span>{% endif %}</article>{% endfor %}{% else %}<p class="empty-state">No projects yet.</p>{% endif %}</section>{% endblock %}
