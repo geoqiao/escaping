@@ -120,6 +120,8 @@ class SiteArtifactValidator:
             self._validate_page_metadata(
                 output_path, route.canonical_url, probe, diagnostics
             )
+            if route.name == "about":
+                self._validate_about_description(output_path, probe, diagnostics)
             self._validate_links(output_path, probe.links, candidate_dir, diagnostics)
             self._validate_json_ld(
                 output_path, probe.json_ld, route.canonical_url, diagnostics
@@ -152,6 +154,26 @@ class SiteArtifactValidator:
                         f"{output_path}: {key} must be {canonical_url}",
                     )
                 )
+
+    def _validate_about_description(
+        self,
+        output_path: str,
+        probe: _HTMLProbe,
+        diagnostics: list[Diagnostic],
+    ) -> None:
+        expected = self.site.about.description if self.site.about is not None else None
+        descriptions = (
+            probe.meta.get("description"),
+            probe.meta.get("og:description"),
+            probe.meta.get("twitter:description"),
+        )
+        if expected is None or descriptions != (expected, expected, expected):
+            diagnostics.append(
+                self._error(
+                    "ABOUT_DESCRIPTION_MISMATCH",
+                    f"{output_path}: description metadata must match About description",
+                )
+            )
 
     def _validate_links(
         self,

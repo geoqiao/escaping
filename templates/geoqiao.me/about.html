@@ -1,6 +1,8 @@
 {% extends 'base.html' %}
 {% block title %}About - {{ blog_title }}{% endblock %}
 {% block description %}{{ about_page.description }}{% endblock %}
+{% block og_description %}{{ about_page.description }}{% endblock %}
+{% block twitter_description %}{{ about_page.description }}{% endblock %}
 {% block canonical %}<link rel="canonical" href="{{ about_page.canonical_url }}" />{% endblock %}
 {% block content %}
 <article class="postWrapper">

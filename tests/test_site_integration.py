@@ -3,53 +3,58 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
+import pytest
+
 from github_blog.artifact_validation import SiteArtifactValidator
 from github_blog.config import Settings
 from github_blog.content_compiler import ContentCompiler
 from github_blog.models.issue_snapshot import IssueSnapshot
+from github_blog.models.site import SiteModel
 from github_blog.projects import ProjectCompiler
 from github_blog.services.render_service import RenderService
 from github_blog.site_model import SiteModelBuilder
 
+_THEMES = ("Escape1", "Escape2", "geoqiao.me")
 
-def _settings() -> Settings:
-    return Settings.model_validate(
-        {
-            "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
-            "site": {
-                "title": "geoqiao.me",
-                "author": "geoqiao",
-                "url": "https://geoqiao.me/",
-                "description": "A strict personal site.",
-                "navigation": {
-                    "items": [
-                        {"name": "Blog", "url": "/blog/"},
-                        {"name": "Ideas", "url": "/ideas/"},
-                        {"name": "Projects", "url": "/projects/"},
-                        {"name": "Tags", "url": "/tags/"},
-                        {"name": "About", "url": "/about/"},
-                    ]
-                },
+
+def _settings(theme: str = "geoqiao.me") -> Settings:
+    data: dict[str, object] = {
+        "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
+        "site": {
+            "title": "geoqiao.me",
+            "author": "geoqiao",
+            "url": "https://geoqiao.me/",
+            "description": "A strict personal site.",
+            "navigation": {
+                "items": [
+                    {"name": "Blog", "url": "/blog/"},
+                    {"name": "Ideas", "url": "/ideas/"},
+                    {"name": "Projects", "url": "/projects/"},
+                    {"name": "Tags", "url": "/tags/"},
+                    {"name": "About", "url": "/about/"},
+                ]
             },
-            "about": {"issue_number": 10},
-            "security": {"token_env": "TEST_TOKEN"},
-            "paths": {"theme": "geoqiao.me"},
-            "theme_lock": {
+        },
+        "about": {"issue_number": 10},
+        "security": {"token_env": "TEST_TOKEN"},
+        "paths": {"theme": theme},
+        "projects": [
+            {
+                "slug": "escaping",
+                "title": "Escaping",
                 "repository": "geoqiao/escaping",
-                "commit": "e30a52e89645e4e3cd0f1630653c248b9f203c7d",
-                "api_version": "1",
-            },
-            "projects": [
-                {
-                    "slug": "escaping",
-                    "title": "Escaping",
-                    "repository": "geoqiao/escaping",
-                    "summary": "A strict static site compiler.",
-                    "featured": True,
-                }
-            ],
+                "summary": "A strict static site compiler.",
+                "featured": True,
+            }
+        ],
+    }
+    if theme == "geoqiao.me":
+        data["theme_lock"] = {
+            "repository": "geoqiao/escaping",
+            "commit": "e30a52e89645e4e3cd0f1630653c248b9f203c7d",
+            "api_version": "1",
         }
-    )
+    return Settings.model_validate(data)
 
 
 def _snapshot(
@@ -71,10 +76,7 @@ def _snapshot(
     )
 
 
-def test_representative_content_compiles_to_valid_complete_artifact(
-    tmp_path: Path,
-) -> None:
-    settings = _settings()
+def _render_representative_site(settings: Settings, tmp_path: Path) -> SiteModel:
     snapshots = [
         _snapshot(
             1,
@@ -108,7 +110,14 @@ def test_representative_content_compiles_to_valid_complete_artifact(
         path = tmp_path / output_path
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(html, encoding="utf-8")
+    return site
 
+
+def test_representative_content_compiles_to_valid_complete_artifact(
+    tmp_path: Path,
+) -> None:
+    settings = _settings()
+    site = _render_representative_site(settings, tmp_path)
     diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
     assert diagnostics == []
     assert (tmp_path / "blog" / "a-blog" / "index.html").exists()
@@ -120,3 +129,41 @@ def test_representative_content_compiles_to_valid_complete_artifact(
         rendered = (tmp_path / output_path).read_text(encoding="utf-8")
         assert '<a href="/" class="terminal">' in rendered
         assert 'href="https://geoqiao.me/" class="terminal"' not in rendered
+
+
+@pytest.mark.parametrize("theme", _THEMES)
+def test_about_descriptions_match_issue_description(theme: str, tmp_path: Path) -> None:
+    settings = _settings(theme)
+    site = _render_representative_site(settings, tmp_path)
+
+    diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
+    assert diagnostics == []
+    about_html = (tmp_path / "about" / "index.html").read_text(encoding="utf-8")
+    for meta_tag in (
+        '<meta name="description" content="About description.">',
+        '<meta property="og:description" content="About description.">',
+        '<meta name="twitter:description" content="About description.">',
+    ):
+        assert meta_tag in about_html
+
+
+@pytest.mark.parametrize("theme", _THEMES)
+def test_about_description_mismatch_fails_artifact_validation(
+    theme: str, tmp_path: Path
+) -> None:
+    settings = _settings(theme)
+    site = _render_representative_site(settings, tmp_path)
+    about_path = tmp_path / "about" / "index.html"
+    about_html = about_path.read_text(encoding="utf-8")
+    broken_html = about_html.replace(
+        '<meta property="og:description" content="About description.">',
+        '<meta property="og:description" content="Wrong description.">',
+        1,
+    )
+    assert broken_html != about_html
+    about_path.write_text(broken_html, encoding="utf-8")
+
+    diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
+    assert any(
+        diagnostic.code == "ABOUT_DESCRIPTION_MISMATCH" for diagnostic in diagnostics
+    )
