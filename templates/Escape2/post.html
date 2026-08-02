@@ -1,41 +1,43 @@
 {% extends 'base.html' %}
 
-{% block title %}{{ issue.title }} - {{ blog_title }}{% endblock %}
+{% block title %}{{ post.title }} - {{ blog_title }}{% endblock %}
+
+{% block description %}{{ post.description }}{% endblock %}
 
 {% block canonical %}
-<link rel="canonical" href="{{ blog_url.rstrip('/') }}/blog/{{ slug }}.html" />
+<link rel="canonical" href="{{ blog_url.rstrip('/') }}{{ post.canonical_path }}" />
 {% endblock %}
 
 {% block og_type %}article{% endblock %}
-{% block og_url %}{{ blog_url.rstrip('/') }}/blog/{{ slug }}.html{% endblock %}
-{% block og_title %}{{ issue.title }}{% endblock %}
-{% block og_description %}{% if issue.labels %}Tags: {% for label in issue.labels %}{{ label.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ blog_title }}{% endif %}{% endblock %}
+{% block og_url %}{{ blog_url.rstrip('/') }}{{ post.canonical_path }}{% endblock %}
+{% block og_title %}{{ post.title }}{% endblock %}
+{% block og_description %}{{ post.description }}{% endblock %}
 
-{% block twitter_url %}{{ blog_url.rstrip('/') }}/blog/{{ slug }}.html{% endblock %}
-{% block twitter_title %}{{ issue.title }}{% endblock %}
-{% block twitter_description %}{% if issue.labels %}Tags: {% for label in issue.labels %}{{ label.name }}{% if not loop.last %}, {% endif %}{% endfor %}{% else %}{{ blog_title }}{% endif %}{% endblock %}
+{% block twitter_url %}{{ blog_url.rstrip('/') }}{{ post.canonical_path }}{% endblock %}
+{% block twitter_title %}{{ post.title }}{% endblock %}
+{% block twitter_description %}{{ post.description }}{% endblock %}
 
 {% block content %}
 <article class="postWrapper">
-    <h1>{{ issue.title }}</h1>
+    <h1>{{ post.title }}</h1>
 
     <section class="postMetadata">
         <dl>
-            {% if issue.labels %}
+            {% if post.tags %}
             <dt>tags</dt>
             <dd>
-                {% for label in issue.labels %}
-                <a href="/tag/{{ label.name }}.html" class="tag">#{{ label.name }}</a>{% if not loop.last %} {% endif %}
+                {% for tag in post.tags %}
+                <a href="{{ tag.path }}" class="tag">#{{ tag.name }}</a>{% if not loop.last %} {% endif %}
                 {% endfor %}
             </dd>
             {% endif %}
-            <dt>published</dt>
-            <dd><time datetime="{{ issue.created_at.strftime('%Y-%m-%d') }}">{{ issue.created_at.strftime('%Y-%m-%d') }}</time></dd>
+            <dt>created</dt>
+            <dd><time datetime="{{ post.created_date }}">{{ post.created_date }}</time></dd>
         </dl>
     </section>
 
     <div class="post-content">
-        {{ html_body|safe }}
+        {{ post.body_html|safe }}
     </div>
 </article>
 
@@ -58,10 +60,20 @@
     var isSafari = /^((?!chrome|android).)*safari/i.test(navigator.userAgent);
     var isWebKit = /AppleWebKit/.test(navigator.userAgent) && !/Chrome|CriOS/.test(navigator.userAgent);
 
+    var commentsTheme = '{{ comments.theme }}';
+    var commentsThemeMode = '{{ comments.theme_mode }}';
+    var LIGHT_THEME = 'github-light';
     var DARK_THEME = 'photon-dark';
 
+    function getCurrentBlogTheme() {
+        return document.documentElement.getAttribute('data-theme') || 'dark';
+    }
+
     function getUtterancesTheme() {
-        return DARK_THEME;
+        if (commentsThemeMode === 'auto') {
+            return getCurrentBlogTheme() === 'dark' ? DARK_THEME : LIGHT_THEME;
+        }
+        return commentsTheme;
     }
 
     function updateUtterancesTheme() {
@@ -107,7 +119,7 @@
     var script = document.createElement('script');
     script.src = 'https://utteranc.es/client.js';
     script.setAttribute('repo', '{{ comments.repo }}');
-    script.setAttribute('issue-number', '{{ issue.number }}');
+    script.setAttribute('issue-number', '{{ post.issue_number }}');
     script.setAttribute('theme', getUtterancesTheme());
     script.async = true;
 
@@ -133,14 +145,25 @@
         if (!loadingMsg) return;
         var msg = 'Comments may not be available.';
         if (isIOS || isSafari || isWebKit) {
-            msg += '<br><small>iOS Safari may block third-party content.<br>Try turning off "Prevent Cross-Site Tracking" in Settings → Safari → Privacy & Security</small>';
+            msg += '<br><small>iOS Safari may block third-party content.<br>Try turning off "Prevent Cross-Site Tracking" in Settings -> Safari -> Privacy & Security</small>';
         }
-        loadingMsg.innerHTML = msg + '<br><a href="https://github.com/{{ github_repo }}/issues/{{ issue.number }}" target="_blank" rel="noopener">View or add comment on GitHub →</a>';
+        loadingMsg.innerHTML = msg + '<br><a href="https://github.com/{{ github_repo }}/issues/{{ post.issue_number }}" target="_blank" rel="noopener">View or add comment on GitHub \u2192</a>';
         loadingMsg.className = 'comments-error';
     }
 
     script.onload = function() {
         checkInterval = setInterval(checkIframe, 200);
+        // Listen for theme changes if in auto mode
+        if (commentsThemeMode === 'auto') {
+            var observer = new MutationObserver(function(mutations) {
+                mutations.forEach(function(mutation) {
+                    if (mutation.attributeName === 'data-theme') {
+                        updateUtterancesTheme();
+                    }
+                });
+            });
+            observer.observe(document.documentElement, { attributes: true });
+        }
     };
 
     script.onerror = function() {

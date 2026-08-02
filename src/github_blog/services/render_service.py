@@ -12,6 +12,8 @@ from marko.html_renderer import HTMLRenderer
 from marko.inline import Image
 
 from ..config import Settings
+from ..models.blog_post import BlogPost, BlogTag
+from ..utils.html_sanitizer import sanitize_html
 
 
 class LazyImageRenderer(HTMLRenderer):
@@ -85,11 +87,56 @@ class RenderService:
         return self.markdown.convert(md_str)
 
     def render_post(self, issue: Issue, slug: str, html_body: str) -> str:
+        """Render a post detail page using the legacy path.
+
+        Constructs a ``BlogPost`` from the legacy ``issue`` / ``slug`` /
+        ``html_body`` parameters and delegates to :meth:`render_blog_detail`.
+        This keeps the legacy ``BlogGenerator.generate()`` flow working while
+        the post template consumes only ``BlogPost``.
+
+        The ``html_body`` is sanitized to ensure any direct legacy Markdown
+        conversion that reaches ``|safe`` in the template cannot inject
+        dangerous HTML.
+
+        Tags are wrapped in immutable ``BlogTag`` values whose ``path``
+        matches the legacy writer's ``/{tag_dir}/{label.name}.html`` so
+        detail tag hrefs point to the actual generated legacy tag files.
+        The description falls back to ``settings.site.description`` because
+        the legacy pipeline has no front-matter description.
+        """
+        labels = issue.labels or []
+        tag_dir = self.settings.paths.tag
+        tags = tuple(
+            BlogTag(
+                name=label.name,
+                path=f"/{tag_dir}/{label.name}.html",
+            )
+            for label in labels
+        )
+        post = BlogPost(
+            issue_number=issue.number,
+            title=issue.title or "",
+            slug=slug,
+            description=self.settings.site.description,
+            created_date=issue.created_at.strftime("%Y-%m-%d"),
+            published_at=issue.created_at,
+            updated_at=issue.updated_at,
+            tags=tags,
+            body_html=sanitize_html(html_body),
+            canonical_path=f"/{self.settings.paths.blog}/{slug}.html",
+        )
+        return self.render_blog_detail(post)
+
+    def render_blog_detail(self, post: BlogPost) -> str:
+        """Render a Blog detail page from a compiled ``BlogPost``.
+
+        This is the new clean seam: the template consumes only ``BlogPost``
+        and shared context.  No PyGithub object, label interpretation, YAML
+        parsing, or auxiliary slug map crosses into the template.
+        """
         template = self.env.get_template("post.html")
         return template.render(
-            issue=issue,
-            slug=slug,
-            html_body=html_body,
+            post=post,
             **self._get_common_context(),
         )
 

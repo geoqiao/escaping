@@ -121,11 +121,14 @@ def test_blog_generator_integration(
             generator = BlogGenerator("fake-token", "user/repo", mock_settings)
             generator.generate()
 
-        # Verify files were created in tmp_path/output
-        # Note: Slugs are now generated from title (not tags) for stability
+        # Verify legacy detail pages at .html paths (Ticket04 is tracer-only;
+        # the default pipeline must NOT cut over to strict directory-index routes).
         blog_dir = output_dir / "blog"
         assert (blog_dir / "1-post-one.html").exists()
         assert (blog_dir / "2-post-two.html").exists()
+        # Strict directory-index paths must NOT exist
+        assert not (blog_dir / "my-first-post").exists()
+        assert not (blog_dir / "second-post").exists()
         assert (output_dir / "index.html").exists()
         assert (output_dir / "tag" / "python.html").exists()
         assert (output_dir / "tag" / "web.html").exists()
@@ -135,10 +138,29 @@ def test_blog_generator_integration(
         assert (output_dir / "sitemap.xml").exists()
         assert (output_dir / "robots.txt").exists()
 
-        # Verify content of index.html for correct slugs (now title-based, new URL structure)
+        # Verify content of index.html for correct slugs (legacy paths use title-based slugs)
         index_content = (output_dir / "index.html").read_text()
         assert "/blog/1-post-one.html" in index_content
         assert "/blog/2-post-two.html" in index_content
+
+        # Verify legacy detail page canonical path matches the .html file writer
+        post1_content = (blog_dir / "1-post-one.html").read_text()
+        assert "Post One" in post1_content
+        assert "/blog/1-post-one.html" in post1_content
+        # Strict canonical (/blog/{slug}/) must NOT appear in legacy detail pages
+        assert "/blog/1-post-one/" not in post1_content
+
+        # Legacy detail tag href must point to the actual generated legacy
+        # tag file, not the strict /tags/{key}/ route.
+        assert 'href="/tag/python.html"' in post1_content
+        assert "/tags/python/" not in post1_content
+        # The referenced legacy tag file must actually exist on disk
+        assert (output_dir / "tag" / "python.html").exists()
+
+        post2_content = (blog_dir / "2-post-two.html").read_text()
+        assert 'href="/tag/python.html"' in post2_content
+        assert 'href="/tag/web.html"' in post2_content
+        assert (output_dir / "tag" / "web.html").exists()
 
         # Verify theme static assets were copied into output
         theme_static_dir = output_dir / "templates" / "Escape1" / "static"
