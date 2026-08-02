@@ -16,3 +16,6 @@
 ## Comments
 
 The site owner selected the currently configured Escape2 visual language as the v1 baseline. A prototype no longer gates implementation; broader visual exploration is deferred until the core site is stable.
+
+## Implementation Record
+- Status intentionally remains `wontfix`; the accepted Escape2 baseline is documented by Ticket 14 instead.

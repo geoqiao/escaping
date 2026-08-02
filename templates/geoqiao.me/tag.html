@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+
+{% block title %}{{ tag_archive.tag_name }} - {{ blog_title }}{% endblock %}
+
+{% block canonical %}
+<link rel="canonical" href="{{ tag_archive.canonical_url }}" />
+{% endblock %}
+
+{% block og_title %}{{ tag_archive.tag_name }} - {{ blog_title }}{% endblock %}
+
+{% block content %}
+<div class="listHeader">
+    <h1>#{{ tag_archive.tag_name }}</h1>
+</div>
+
+<div class="postsList" role="list">
+    {% for entry in tag_archive.entries %}
+    <article class="postListItem" role="listitem">
+        <a class="postListLink" href="{{ entry.detail_path }}">
+            <div class="postHeader">
+                <span class="postTitle">{{ entry.title }}</span>
+                <time class="postDate" datetime="{{ entry.created_date }}">{{ entry.created_date }}</time>
+            </div>
+        </a>
+        {% if entry.tags %}
+        <div class="postTags">
+            {% for tag in entry.tags %}
+            <a href="{{ tag.path }}" class="tag">{{ tag.name }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </article>
+    {% endfor %}
+</div>
+{% endblock %}

@@ -1,0 +1,63 @@
+{% extends 'base.html' %}
+
+{% block canonical %}
+<link rel="canonical" href="{{ home_page.canonical_url }}" />
+{% endblock %}
+
+{% block content %}
+{% if home_page.site_title or home_page.site_description or home_page.profile.avatar or home_page.profile.bio or home_page.profile.links or home_page.navigation %}
+<div class="home-intro">
+    {% if home_page.profile.avatar %}
+    <div class="authorImageWrapper">
+        <img src="{{ home_page.profile.avatar }}" alt="{{ home_page.site_author }}" class="size-xs">
+    </div>
+    {% endif %}
+    {% if home_page.site_title %}
+    <h1 class="home-title">{{ home_page.site_title }}</h1>
+    {% endif %}
+    {% if home_page.site_description %}
+    <p class="intro-line">{{ home_page.site_description }}</p>
+    {% endif %}
+    {% if home_page.profile.bio %}
+    <p class="intro-line">{{ home_page.profile.bio }}</p>
+    {% endif %}
+    {% if home_page.navigation %}
+    <p class="intro-line nav-actions">
+        {% for link in home_page.navigation %}
+        <a href="{{ link.url }}">{{ link.name }}</a>{% if not loop.last %} · {% endif %}
+        {% endfor %}
+    </p>
+    {% endif %}
+    {% if home_page.profile.links %}
+    <p class="intro-line source-link">
+        {% for link in home_page.profile.links %}
+        <a href="{{ link.url }}">{{ link.name }}</a>{% if not loop.last %} · {% endif %}
+        {% endfor %}
+    </p>
+    {% endif %}
+</div>
+{% endif %}
+
+<section class="recent-posts">
+    <h2>Recent Posts</h2>
+    {% if home_page.recent_posts %}
+    {% for post in home_page.recent_posts %}
+    <article class="home-post-item">
+        <div class="home-post-header">
+            <time class="home-post-date" datetime="{{ post.created_date }}">{{ post.created_date }}</time>
+            <h3 class="home-post-title"><a href="{{ post.detail_path }}">{{ post.title }}</a></h3>
+        </div>
+        {% if post.tags %}
+        <div class="home-post-tags">
+            {% for tag in post.tags %}
+            <a href="{{ tag.path }}" class="tag">{{ tag.name }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </article>
+    {% endfor %}
+    {% else %}
+    <p class="empty-state">No blog posts yet.</p>
+    {% endif %}
+</section>
+{% endblock %}

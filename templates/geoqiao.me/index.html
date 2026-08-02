@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block canonical %}
+<link rel="canonical" href="{{ archive_page.canonical_url }}" />
+{% endblock %}
+
+{% block content %}
+<div class="listHeader">
+    <h1>Blog</h1>
+</div>
+
+<div class="postsList" role="list">
+    {% if archive_page.entries %}
+    {% for entry in archive_page.entries %}
+    <article class="postListItem" role="listitem">
+        <a class="postListLink" href="{{ entry.detail_path }}">
+            <div class="postHeader">
+                <span class="postTitle">{{ entry.title }}</span>
+                <time class="postDate" datetime="{{ entry.created_date }}">{{ entry.created_date }}</time>
+            </div>
+        </a>
+        {% if entry.tags %}
+        <div class="postTags">
+            {% for tag in entry.tags %}
+            <a href="{{ tag.path }}" class="tag">{{ tag.name }}</a>
+            {% endfor %}
+        </div>
+        {% endif %}
+    </article>
+    {% endfor %}
+    {% else %}
+    <p class="empty-state">No blog posts yet.</p>
+    {% endif %}
+</div>
+
+{% if archive_page.total_pages > 1 %}
+<nav class="pagination">
+    {% if archive_page.prev_route %}
+    <a href="{{ archive_page.prev_route.canonical_path }}" class="pagination-prev">← prev</a>
+    {% else %}
+    <span class="pagination-prev disabled">← prev</span>
+    {% endif %}
+
+    <span class="pagination-info">{{ archive_page.page_number }} / {{ archive_page.total_pages }}</span>
+
+    {% if archive_page.next_route %}
+    <a href="{{ archive_page.next_route.canonical_path }}" class="pagination-next">next →</a>
+    {% else %}
+    <span class="pagination-next disabled">next →</span>
+    {% endif %}
+</nav>
+{% endif %}
+{% endblock %}

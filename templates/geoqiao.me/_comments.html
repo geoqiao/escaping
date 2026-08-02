@@ -1,0 +1,50 @@
+<div class="comments" id="comments-container">
+    <p class="comments-loading">Loading comments...</p>
+    <noscript><p class="comments-error">Please enable JavaScript to view comments.</p></noscript>
+</div>
+<script>
+(function() {
+    'use strict';
+    var container = document.getElementById('comments-container');
+    var loadingMsg = container.querySelector('.comments-loading');
+    var commentsTheme = '{{ comments.theme }}';
+    var commentsThemeMode = '{{ comments.theme_mode }}';
+    var LIGHT_THEME = 'github-light';
+    var DARK_THEME = 'photon-dark';
+    function getCurrentBlogTheme() { return document.documentElement.getAttribute('data-theme') || 'dark'; }
+    function getUtterancesTheme() { return commentsThemeMode === 'auto' ? (getCurrentBlogTheme() === 'dark' ? DARK_THEME : LIGHT_THEME) : commentsTheme; }
+    function updateUtterancesTheme() {
+        var iframe = container.querySelector('iframe');
+        if (iframe && iframe.contentWindow) iframe.contentWindow.postMessage({type: 'set-theme', theme: getUtterancesTheme()}, 'https://utteranc.es');
+    }
+    var originalInsertAdjacentHTML = Element.prototype.insertAdjacentHTML;
+    Element.prototype.insertAdjacentHTML = function(position, text) {
+        if (typeof text === 'string' && text.indexOf('<iframe') !== -1 && text.indexOf('loading="lazy"') !== -1) text = text.replace(/loading="lazy"/g, '');
+        return originalInsertAdjacentHTML.call(this, position, text);
+    };
+    var lazyObserver = new MutationObserver(function(mutations) {
+        mutations.forEach(function(mutation) { mutation.addedNodes.forEach(function(node) {
+            if (node.nodeType === 1) {
+                if (node.tagName === 'IFRAME' && node.getAttribute('loading') === 'lazy') node.removeAttribute('loading');
+                var iframes = node.querySelectorAll ? node.querySelectorAll('iframe[loading="lazy"]') : [];
+                for (var i = 0; i < iframes.length; i++) iframes[i].removeAttribute('loading');
+            }
+        }); });
+    });
+    lazyObserver.observe(container, {childList: true, subtree: true});
+    var script = document.createElement('script');
+    script.src = 'https://utteranc.es/client.js';
+    script.setAttribute('repo', '{{ comments.repo }}');
+    script.setAttribute('issue-number', '{{ comments_issue_number }}');
+    script.setAttribute('theme', getUtterancesTheme());
+    script.async = true;
+    script.onload = function() {
+        if (commentsThemeMode === 'auto') {
+            var observer = new MutationObserver(function(mutations) { mutations.forEach(function(mutation) { if (mutation.attributeName === 'data-theme') updateUtterancesTheme(); }); });
+            observer.observe(document.documentElement, {attributes: true});
+        }
+    };
+    script.onerror = function() { if (loadingMsg) loadingMsg.textContent = 'Comments may not be available.'; };
+    container.appendChild(script);
+})();
+</script>

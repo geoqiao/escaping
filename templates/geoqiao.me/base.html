@@ -1,0 +1,84 @@
+<!DOCTYPE html>
+<html lang="{{ language }}" data-theme="dark">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <meta name="description" content="{% block description %}{{ meta_description }}{% endblock %}">
+    <meta name="google-site-verification" content="{{ google_search_verification }}">
+    <title>{% block title %}{{ blog_title }}{% endblock %}</title>
+    {% block canonical %}{% endblock %}
+
+    <!-- Open Graph / Facebook -->
+    <meta property="og:type" content="{% block og_type %}website{% endblock %}">
+    <meta property="og:url" content="{% block og_url %}{{ blog_url }}{% endblock %}">
+    <meta property="og:site_name" content="{{ blog_title }}">
+    <meta property="og:title" content="{% block og_title %}{{ blog_title }}{% endblock %}">
+    <meta property="og:description" content="{% block og_description %}{{ meta_description }}{% endblock %}">
+    <meta property="og:image" content="{% block og_image %}{{ blog_url.rstrip('/') }}{{ theme_path }}/static/images/favicon.png{% endblock %}">
+
+    <!-- Twitter -->
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:url" content="{% block twitter_url %}{{ blog_url }}{% endblock %}">
+    <meta name="twitter:title" content="{% block twitter_title %}{{ blog_title }}{% endblock %}">
+    <meta name="twitter:description" content="{% block twitter_description %}{{ meta_description }}{% endblock %}">
+    <meta name="twitter:image" content="{% block twitter_image %}{{ blog_url.rstrip('/') }}{{ theme_path }}/static/images/favicon.png{% endblock %}">
+
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;700&family=Source+Sans+3:wght@400;600;700&display=swap" rel="stylesheet">
+
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-nord.css">
+    <link rel="alternate" type="application/atom+xml" title="RSS" href="/{{ rss_atom_path }}">
+    <link rel="icon" type="image/png" href="{{ theme_path }}/static/images/favicon.png">
+    {% block extra_head %}{% endblock %}
+</head>
+<body>
+    <a href="#main-content" class="skip-link">{{ skip_link_text }}</a>
+    <div class="flexWrapper">
+        <header class="headerWrapper">
+            <div class="header">
+                <a href="/" class="terminal">
+                    <span>{{ github_name }}@geoqiao.me ~ $</span><span class="cursor">_</span>
+                </a>
+                <input class="side-menu" type="checkbox" id="side-menu">
+                <label class="hamb" for="side-menu" aria-label="Toggle menu" aria-expanded="false" aria-controls="header-nav"><span class="hamb-line"></span></label>
+                <nav class="headerLinks" id="header-nav">
+                    <ul>
+                        {% for item in navigation_items %}
+                        <li><a href="{{ item.url }}">~/{{ item.name }}</a></li>
+                        {% endfor %}
+                    </ul>
+                </nav>
+            </div>
+        </header>
+
+        <div class="content">
+            <main class="main" id="main-content">
+                {% block content %}{% endblock %}
+            </main>
+        </div>
+
+        {% block footer %}
+        <footer class="footer">
+            <p>
+                &copy; {{ author_name }}{% if branding.show_powered_by %} · <a href="{{ branding.powered_by_url }}" class="footerLink">{{ branding.powered_by_text }}</a>{% endif %}
+            </p>
+        </footer>
+        {% endblock %}
+    </div>
+
+    <script src="{{ theme_path }}/static/js/prism.js"></script>
+    <script>
+    (function() {
+        var checkbox = document.getElementById('side-menu');
+        var label = document.querySelector('.hamb');
+        if (checkbox && label) {
+            checkbox.addEventListener('change', function() {
+                label.setAttribute('aria-expanded', checkbox.checked ? 'true' : 'false');
+            });
+        }
+    })();
+    </script>
+</body>
+</html>

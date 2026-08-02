@@ -1,0 +1,20 @@
+api_version: "1"
+capabilities:
+  - comments
+  - markdown
+  - responsive
+required_templates:
+  - base.html
+  - home.html
+  - index.html
+  - post.html
+  - tag.html
+  - tags.html
+  - ideas.html
+  - idea.html
+  - about.html
+  - projects.html
+required_assets:
+  - static/css
+  - static/js
+  - static/images

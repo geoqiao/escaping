@@ -1,5 +1,6 @@
 import re
 from datetime import datetime
+from pathlib import Path
 from typing import Any
 
 from feedgen.feed import FeedGenerator
@@ -11,7 +12,7 @@ from marko.ext.gfm import GFM
 from marko.html_renderer import HTMLRenderer
 from marko.inline import Image
 
-from ..config import Settings
+from ..config import Settings, ThemeLockConfig
 from ..models.blog_archive import ArchiveEntry, ArchivePage, ArchivePageRoute
 from ..models.blog_post import BlogPost, BlogTag
 from ..models.content import AboutPage, Idea
@@ -32,6 +33,7 @@ from ..models.tag_taxonomy import (
     TagsIndexRoute,
     TagSummary,
 )
+from ..theme import ResolvedTheme, ThemeResolver
 from ..utils.html_sanitizer import sanitize_html
 
 
@@ -47,10 +49,24 @@ class LazyImageRenderer(HTMLRenderer):
 class RenderService:
     def __init__(self, settings: Settings) -> None:
         self.settings = settings
-        self.env = Environment(
-            loader=FileSystemLoader(str(self.settings.paths.theme_path)),
-            autoescape=True,
-        )
+        configured_lock = getattr(settings, "theme_lock", None)
+        self.theme_source: ResolvedTheme | None = None
+        if isinstance(configured_lock, ThemeLockConfig):
+            override_dir = Path("templates") / "overrides" / settings.paths.theme
+            if not override_dir.is_dir():
+                override_dir = None
+            self.theme_source = ThemeResolver(
+                Path.cwd(),
+                configured_lock,
+                theme_name=settings.paths.theme,
+                override_dir=override_dir,
+            ).resolve()
+            self.env = self.theme_source.environment()
+        else:
+            self.env = Environment(
+                loader=FileSystemLoader(str(self.settings.paths.theme_path)),
+                autoescape=True,
+            )
         self.seo_env = Environment(
             loader=FileSystemLoader(str(self.settings.paths.seo_path)),
             autoescape=True,
