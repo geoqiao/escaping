@@ -217,11 +217,22 @@ Status: ready-for-agent
 - Comment changes do not trigger static rebuilds because comments are read live by the comment provider.
 - The sole canonical origin is `https://geoqiao.me`. Canonical, sitemap, Atom, Open Graph, Twitter Card, and JSON-LD URLs use the same route/origin builder. Home/About emit Person or WebSite structured data; Blog detail emits BlogPosting.
 - Deployment enables HTTPS for the custom domain and validates canonical output plus the old GitHub Pages host behavior without treating old `.html` paths as supported aliases.
-- Strict parser activation happens once, after the parser, models, routes, themes, artifact validation, and manual Issue migration are complete. No old parser or compatibility switch remains.
+- Development happens on a feature branch while production `main` remains stable. The feature branch integrates the strict parser directly and does not maintain a legacy `.html` pipeline or compatibility switch for intermediate commits. Before merge, parser, models, routes, themes, artifact validation, and migrated Issue Content are verified together as one complete cutover.
 
 ## Testing Decisions
 
-- Development follows the repository's mandatory TDD sequence: failing test, minimal implementation, passing test, then refactor.
+### Lean testing policy
+
+- `docs/agents/testing.md` is the normative execution guide for test scope and review cost.
+- Development uses focused TDD: one failing test for a user-visible behavior or meaningful safety boundary, minimal implementation, passing test, then refactor. Test-only refactors first record a green baseline and do not manufacture artificial failures.
+- Each behavior has one primary test owner. Parser, compiler, sanitizer, RouteRegistry, theme contract, GitHub adapter, output staging, and full-site integration do not repeat one another's complete matrices.
+- Each feature Ticket defaults to 3–6 logical tests. Themes are parameterized. Coverage percentage, private helpers, getters, dataclass mechanics, exact mock calls, and theoretical mutation completeness are not acceptance goals.
+- Every major content batch retains one real static-site tracer. Final confidence comes from generated artifacts, link/canonical/XML validation, and desktop/mobile browser smoke rather than mechanically expanding unit cases.
+- Reviewer findings block only for realistic security, data-loss, broken-artifact, contract, build, or deployment failures. New tests should normally strengthen an existing scenario instead of adding another function.
+
+### Required coverage domains
+
+- Development follows the repository's focused TDD sequence: failing contract test, minimal implementation, passing test, then refactor.
 - The primary test seam is SiteModelBuilder: concrete IssueSnapshot values and content policy go in; a SiteModel plus diagnostics comes out. These tests cover most content behavior without GitHub, templates, or filesystem I/O.
 - SiteModelBuilder tests cover Pull Request exclusion, author allowlist behavior, unpublished Issue skipping, exact type-label cardinality including unknown types, normalization rules, Blog/Idea tags, About tag rejection, the complete YAML envelope and 16 KiB limit, unknown fields, duplicate keys, required fields, body extraction, `created_date`, field length and plain-text constraints, slug lifecycle limits, singleton About failure matrix, sorting, tag aggregation, and route collisions.
 - Tests explicitly verify that unpublished malformed bodies are not parsed and do not produce diagnostics.

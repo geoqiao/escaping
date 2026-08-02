@@ -28,6 +28,10 @@ _Avoid_: Source post, local canonical, working copy
 The `escaping` capability that converts Issue Content and repository-owned site content into a validated static site.
 _Avoid_: Issue monitor, Issue Draft Uploader
 
+## Development and cutover
+
+The production `main` branch remains the stability boundary while the strict compiler is built on a feature branch. The feature branch does not maintain a second legacy `.html` pipeline for intermediate commits: Blog, Idea, About, Projects, themes, routes, and SEO are integrated directly into the target architecture and validated together before merge. Tests follow `docs/agents/testing.md` and favor one contract owner plus a small number of complete-site tracers over duplicated layer-by-layer matrices.
+
 **Site Orchestrator**:
 The automation layer that reacts to repository events, invokes the Site Compiler, and deploys its artifact.
 _Avoid_: escaping daemon, watcher
