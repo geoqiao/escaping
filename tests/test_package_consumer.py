@@ -24,7 +24,7 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
         env=uv_env,
     )
     wheel = next(dist.glob("*.whl"))
-    assert wheel.name.startswith("escaping-")
+    assert wheel.name.startswith("escpe-")
     with zipfile.ZipFile(wheel) as archive:
         names = archive.namelist()
         metadata = next(
@@ -37,7 +37,8 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
             for name in names
             if name.endswith(".dist-info/entry_points.txt")
         )
-    assert "Name: escaping\n" in metadata
+    assert "Name: escpe\n" in metadata
+    assert "Name: escaping\n" not in metadata
     assert "Name: github-blog\n" not in metadata
     assert not any(name.startswith("github_blog/") for name in names)
     assert "escpe = escaping.cli:run_cli\n" in entry_points

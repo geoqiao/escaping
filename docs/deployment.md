@@ -9,10 +9,12 @@ Theme. The generator owns only `config.example.yaml`, package resources, and the
 
 ## Consumer naming contract
 
-The distribution and import namespace are both `escaping`; the only console entry point is
-`escpe`. The former `github-blog`/`github_blog` names and `blog-gen` command are intentionally
-not shipped, so external Pages workflows and local automation must update their install/import/
-invocation references together with the generator pin.
+The product and GitHub repository are named `escaping`. Its Python distribution and only console
+entry point are named `escpe`, while the import namespace remains `escaping`. The distribution is
+intentionally not named `escaping` because that name belongs to an unrelated PyPI project. The
+former `github-blog`/`github_blog` names and `blog-gen` command are not shipped, so external Pages
+workflows and local automation must update their install/import/invocation references together
+with the generator pin.
 
 A production workflow must:
 
