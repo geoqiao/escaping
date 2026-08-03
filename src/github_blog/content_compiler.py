@@ -12,7 +12,6 @@ from .build_result import Diagnostic
 from .config import Settings
 from .models.blog_post import BlogPost, BlogTag
 from .models.content import AboutPage, ContentCompilationResult, Idea
-from .models.home_page import HomeProfile, HomeProfileLink
 from .models.issue_snapshot import IssueSnapshot
 from .routes import RouteCollisionError, RouteRegistry
 from .utils.frontmatter import FrontMatterError, ParsedFrontMatter, parse_front_matter
@@ -167,8 +166,7 @@ class ContentCompiler:
                             updated_at=snapshot.updated_at,
                             tags=tags,
                             body_html=body_html,
-                            canonical_path=route.canonical_path,
-                            canonical_url=route.canonical_url,
+                            route=route,
                         )
                     )
                 elif content_type == "idea":
@@ -183,8 +181,7 @@ class ContentCompiler:
                             updated_at=snapshot.updated_at,
                             tags=self._tags(snapshot.labels, register_routes=False),
                             body_html=body_html,
-                            canonical_path=route.canonical_path,
-                            canonical_url=route.canonical_url,
+                            route=route,
                         )
                     )
                 else:
@@ -195,16 +192,7 @@ class ContentCompiler:
                             title=snapshot.title,
                             description=description,
                             body_html=body_html,
-                            canonical_path=route.canonical_path,
-                            canonical_url=route.canonical_url,
-                            profile=HomeProfile(
-                                avatar=self._settings.profile.avatar,
-                                bio=self._settings.profile.bio,
-                                links=tuple(
-                                    HomeProfileLink(link.name, link.url)
-                                    for link in self._settings.profile.links
-                                ),
-                            ),
+                            route=route,
                         )
                     )
             except (RouteCollisionError, ValueError) as exc:

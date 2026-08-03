@@ -26,7 +26,8 @@ def run_cli() -> None:
     )
     args = parser.parse_args()
 
-    settings = Settings.load_from_yaml(args.config)
+    config_path = args.config.expanduser().absolute()
+    settings = Settings.load_from_yaml(config_path)
     if args.repo:
         settings.github = GithubConfig(
             repo=args.repo,
@@ -37,7 +38,12 @@ def run_cli() -> None:
         logger.error("missing_token", env_var=settings.security.token_env)
         sys.exit(1)
 
-    result = SiteCompiler(token, settings.github.repo, settings).generate()
+    result = SiteCompiler(
+        token,
+        settings.github.repo,
+        settings,
+        config_root=config_path.parent,
+    ).generate()
     for diagnostic in result.diagnostics:
         fields: dict[str, str | int] = {
             "code": diagnostic.code,
@@ -53,7 +59,3 @@ def run_cli() -> None:
             logger.warning("build_diagnostic", **fields)
     if not result.success:
         sys.exit(1)
-
-
-if __name__ == "__main__":
-    run_cli()

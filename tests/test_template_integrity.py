@@ -11,8 +11,12 @@ from github_blog.config import Settings
 from github_blog.content_compiler import ContentCompiler
 from github_blog.models.issue_snapshot import IssueSnapshot
 from github_blog.projects import ProjectCompiler
+from github_blog.routes import RouteRegistry
 from github_blog.services.render_service import RenderService
-from github_blog.site_model import SiteModelBuilder
+from github_blog.site_builder import SiteBuilder
+from github_blog.theme import ThemeLoader
+
+_ROOT = Path(__file__).parent.parent.absolute()
 
 
 def _settings(theme: str) -> Settings:
@@ -25,7 +29,7 @@ def _settings(theme: str) -> Settings:
             "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
         },
         "about": {"issue_number": 10},
-        "paths": {"theme": theme},
+        "theme": {"source": "builtin", "name": theme},
         "security": {"token_env": "TOKEN"},
     }
     return Settings.model_validate(data)
@@ -49,7 +53,8 @@ def _snap(
 
 def _render_theme(theme: str) -> dict[str, str]:
     settings = _settings(theme)
-    content = ContentCompiler(settings).compile(
+    routes = RouteRegistry(str(settings.site.url))
+    content = ContentCompiler(settings, route_registry=routes).compile(
         [
             _snap(
                 1,
@@ -61,13 +66,14 @@ def _render_theme(theme: str) -> dict[str, str]:
             _snap(10, "about", 'description: About.\ncreated_date: "2026-01-03"'),
         ]
     )
-    site = SiteModelBuilder(settings).build(
+    site = SiteBuilder(settings, route_registry=routes).build(
         content,
-        ProjectCompiler().compile([]),
+        ProjectCompiler().compile([], route=routes.projects()),
         build_start_time=datetime(2026, 1, 20, tzinfo=timezone.utc),
     )
     assert not site.has_errors
-    return RenderService(settings).render_site(site)
+    loaded_theme = ThemeLoader(_ROOT).load(settings.theme)
+    return RenderService(loaded_theme).render_site(site)
 
 
 @pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
@@ -88,8 +94,6 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
     }
     combined = "\n".join(value for key, value in html.items() if key.endswith(".html"))
     assert "issue-number" in combined and "2" in combined and "10" in combined
-    assert "MutationObserver" in combined
-    assert "insertAdjacentHTML" in combined
     assert "/templates/" + theme + "/static/" in combined
     assert "created_date:" not in combined and "slug:" not in combined
     assert "<script>alert" not in combined
@@ -102,25 +106,26 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
     for page_name, (output_path, issue_number) in comment_pages.items():
         rendered = html[output_path]
         assert rendered.count('id="comments-container"') == 1, page_name
-        assert f"script.setAttribute('issue-number', '{issue_number}')" in rendered, (
-            page_name
-        )
-        message_start = rendered.index("window.addEventListener('message'")
-        message_end = rendered.index("\n    });", message_start)
-        message_handler = rendered[message_start:message_end]
-        assert "e.origin !== 'https://utteranc.es'" in message_handler, page_name
-        assert "e.source !== iframe.contentWindow" in message_handler, page_name
-        resize_start = message_handler.index("if (e.data.type === 'resize')")
-        error_start = message_handler.index("} else if (e.data.type === 'error')")
-        assert (
-            "loadingMsg.style.display = 'none';"
-            in message_handler[resize_start:error_start]
-        ), page_name
-        assert "e.data.type === 'error'" in message_handler, page_name
-        assert "showError();" in message_handler[error_start:], page_name
-        timeout_start = rendered.index("setTimeout(function()")
-        timeout_end = rendered.index("}, 20000);", timeout_start)
-        assert "showError();" in rendered[timeout_start:timeout_end], page_name
+        assert f'{theme}/static/js/comments.js" defer' in rendered, page_name
+        assert f'data-issue-number="{issue_number}"' in rendered, page_name
+        assert 'data-comments-repo="geoqiao/site"' in rendered, page_name
+        assert 'data-comments-theme-mode="auto"' in rendered, page_name
+
+
+def test_shared_comments_script_preserves_browser_contract() -> None:
+    script = (_ROOT / "src/github_blog/static/comments.js").read_text(encoding="utf-8")
+
+    assert "Element.prototype.insertAdjacentHTML" in script
+    assert "MutationObserver" in script
+    assert 'removeAttribute("loading")' in script
+    assert ".contentWindow.postMessage(" in script
+    assert 'event.origin !== "https://utteranc.es"' in script
+    assert "event.source !== iframe.contentWindow" in script
+    assert 'event.data.type === "resize"' in script
+    assert 'loadingMsg.style.display = "none"' in script
+    assert 'event.data.type === "error"' in script
+    assert "showError();" in script
+    assert "}, 20000);" in script
 
 
 class _MobileNavigationProbe(HTMLParser):
@@ -190,8 +195,8 @@ def _css_rule(source: str, selector: str) -> str:
 
 @pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
 def test_theme_contains_local_overflow_contract(theme: str) -> None:
-    css_path = Path("templates") / theme / "static" / "css" / "style.css"
-    css = css_path.read_text(encoding="utf-8")
+    settings = _settings(theme)
+    css = ThemeLoader(_ROOT).load(settings.theme).read_text("static/css/style.css")
 
     table_rule = _css_rule(css, ".post-content table")
     pre_rule = _css_rule(css, ".post-content pre")

@@ -1,393 +1,144 @@
 # AGENTS.md
 
-AI coding agents 的工作指南（中文为主）。
+本文件是 `escaping` 仓库的 coding-agent 指南。以当前代码、测试和 domain docs 为准。
 
-## Agent skills
+## 产品与边界
 
-### Issue tracker
+`escaping` 是基于 GitHub Issues 的 opinionated personal-site generator。它生成 Home、
+Blog、Ideas、About、Projects、Tags、Atom、sitemap 和 robots。
 
-Issues 与 specs 使用 Local Markdown，存放于 `.scratch/<feature-slug>/`。详见 `docs/agents/issue-tracker.md`。
+仓库职责：
 
-### Triage labels
+- 生成器拥有 compiler、models、validators、`config.example.yaml` 和内置 Themes；
+- 站点仓库拥有真实 `config.yaml`、Pages workflow、`CNAME` 和可选本地 Theme；
+- Site Orchestrator pin 生成器 release/完整 SHA；生产 workflow 使用短期
+  `GITHUB_TOKEN`，不得硬编码 PAT。
 
-使用五个默认 triage labels：`needs-triage`、`needs-info`、`ready-for-agent`、`ready-for-human`、`wontfix`。详见 `docs/agents/triage-labels.md`。
+P3 产品决策未重新开启前，保留 Ideas 和 Projects，不引入 plugin system。
 
-### Domain docs
+## Domain 与任务文档
 
-本仓库采用 single-context 布局：根目录 `CONTEXT.md` 与 `docs/adr/`。详见 `docs/agents/domain.md`。
+- Ubiquitous language：`CONTEXT.md`
+- ADR：`docs/adr/`
+- Issue Content：`docs/contracts/issue-content-v1.md`
+- 测试策略：`docs/agents/testing.md`
+- Local Markdown tickets：`.scratch/<feature-slug>/`
+- Deployment contract：`docs/deployment.md`
 
 ## 关键实现约束
 
-- `Settings` 必须显式注入 `BlogGenerator` 与 `RenderService`，不要引入全局配置单例。
-- GitHub Token 环境变量名由 `settings.security.token_env` 动态决定；生产 workflow 使用短期 `GITHUB_TOKEN`，不得硬编码个人 PAT。
-- 模板静态资源通过 `{{ theme_path }}` 生成以 `/` 开头的绝对 URL。
-- Utterances 会注入带 `loading="lazy"` 的 iframe；Safari 在父元素高度为零时可能不加载，因此 `post.html` 中保留了移除该属性的兼容处理。
-- `comments.theme_mode: auto` 通过 `postMessage` 与 `MutationObserver` 跟随博客主题，修改评论模板时必须保留该行为。
-- `geoqiao.github.io` 的 GitHub Pages 发布源是 `main` 分支根目录。
+1. `Settings` 显式注入 compilation 和 `SiteBuilder`；禁止全局配置单例。
+2. Renderer 和 artifact validator 只读取 `SiteModel`；Theme 作为已加载依赖注入。
+3. `RouteRegistry` 构造唯一的 `Route`；页面直接持有完整 Route，不手工拼接输出路径。
+4. Config-relative Theme/output 路径以 Config 文件目录为根，不能依赖 process CWD。
+5. `ThemeLoader` 只加载 package resources 或本地目录；不得加入 Git/HTTP
+   fetch、cache、update 或 `theme_lock`。
+6. `geoqiao.me` 是默认内置 Theme；Escape1/Escape2 是内置替代 Themes。
+7. Theme 静态 URL 使用以 `/` 开头的 `{{ theme_path }}`。
+8. Utterances 行为位于共享 `src/github_blog/static/comments.js`。必须保留：
+   - immutable Issue number binding；
+   - `postMessage` + `MutationObserver` 自动主题同步；
+   - message origin/source 校验；
+   - Safari 注入 iframe `loading="lazy"` 移除兼容。
+9. 不得弱化 HTML sanitizer、output containment、artifact validator 或 atomic output
+   staging。
+10. GitHub Token 环境变量名由 `settings.security.token_env` 决定。
 
-## 项目概览
+## 当前结构
 
-`escaping` 是一个基于 Python 的静态博客生成器，将 GitHub Issues 作为 CMS（内容管理系统）。
-
-**核心特性：**
-
-- 📝 **以 Issue 为博文**：直接在 GitHub Issues 中写作，支持标签分类
-- 🤖 **全自动化流**：Issue 编辑/评论触发 GitHub Actions 自动构建
-- 🎨 **双主题**：Escape1（亮色/暗色切换）和 Escape2（暗色终端风格）
-- 🔍 **SEO 友好**：自动生成 sitemap.xml、robots.txt、Atom RSS
-- 🌐 **中文优化**：中文标题自动转拼音生成 URL slug
-- ⚡ **高性能**：基于 Python 3.9+ 和 uv 构建
-
-**在线示例：** https://geoqiao.github.io/
-
----
-
-## 技术栈
-
-| 组件       | 技术                | 用途               |
-| ---------- | ------------------- | ------------------ |
-| 编程语言   | Python >=3.9        | 核心运行时         |
-| 包管理     | uv                  | 依赖管理、虚拟环境 |
-| GitHub API | PyGithub            | 获取 Issues 数据   |
-| Markdown   | Marko (GFM + pangu) | Markdown 渲染      |
-| 类型检查   | ty                  | 静态类型检查       |
-| 模板引擎   | Jinja2              | HTML 模板渲染      |
-| 配置管理   | pydantic-settings   | YAML 配置解析      |
-| RSS 生成   | feedgen             | Atom 订阅生成      |
-| 日志       | structlog           | 结构化日志         |
-| 重试机制   | tenacity            | API 调用重试       |
-| 中文转拼音 | pypinyin            | URL slug 生成      |
-
----
-
-## 项目结构
-
-```
-escaping/
-├── src/github_blog/           # 主源代码
-│   ├── __init__.py
-│   ├── cli.py                 # CLI 入口，BlogGenerator 主类
-│   ├── config.py              # Pydantic 配置模型（8个配置section）
-│   ├── models/                # 数据模型（预留）
-│   ├── services/
-│   │   ├── github_service.py  # GitHub API 封装（含重试逻辑）
-│   │   └── render_service.py  # 模板渲染、RSS、站点地图
-│   └── utils/
-│       └── slug.py            # URL slug 生成（标题转拼音）
-├── templates/
-│   ├── Escape1/               # 亮色/暗色主题（classic minimal）
-│   │   ├── base.html, home.html, index.html, post.html
-│   │   ├── tag.html, tags.html, about.html
-│   │   └── static/css/style.css, static/js/, static/images/
-│   ├── Escape2/               # 暗色终端风格（nord配色）
-│   │   ├── (same structure as Escape1)
-│   │   └── static/css/style.css, static/js/, static/images/
-│   └── seo/                   # SEO 模板（sitemap.xml.j2, robots.txt.j2）
-├── tests/                     # 测试文件
-│   ├── test_cli.py            # CLI 集成测试
-│   ├── test_config.py         # 配置测试
-│   ├── test_github_service.py # GitHub API 测试
-│   ├── test_pagination.py     # 分页逻辑测试
-│   ├── test_renderer.py       # 渲染服务测试
-│   ├── test_slug.py           # URL slug 生成测试
-│   └── test_template_integrity.py  # 模板完整性测试（Escape1 + Escape2）
-├── config.yaml                # 博客配置
-├── pyproject.toml             # 项目配置、依赖、工具设置
-└── .github/workflows/
-    ├── gen_site.yml           # 生成并部署站点
-    ├── trigger.yml            # 监听 Issues 事件，触发 escaping
-    └── sync.yml               # 同步 trigger.yml 到目标仓库
+```text
+src/github_blog/
+├── content_compiler.py
+├── site_builder.py
+├── routes.py
+├── site_compiler.py
+├── artifact_validation.py
+├── output_staging.py
+├── theme.py
+├── static/comments.js
+├── themes/{geoqiao.me,Escape1,Escape2}/
+├── models/
+└── services/
+config.example.yaml
+tests/
 ```
 
----
+生成器仓库不应重新加入真实生产 `config.yaml` 或生产 Pages workflow。
 
-## 核心命令
+## 开发流程
 
-### 环境设置
+非平凡改动遵循：
+
+```text
+检查相关代码/调用者/文档
+→ 写一个证明用户行为或安全边界的失败测试
+→ 最小实现
+→ 运行通过
+→ 重构
+→ 全量验证
+→ review diff
+```
+
+测试原则：
+
+- 每个 Ticket 默认 3–6 个高信号逻辑测试；
+- 一个行为只有一个主要 owner；上层只保留真实 tracer；
+- 多 Theme 使用参数化 contract，禁止复制测试矩阵；
+- 不测试 private helper、mock 调用形状或 getter；
+- 优先完整静态站点、真实链接、wheel consumer 和浏览器行为；
+- 重构测试本身无需先制造失败，但必须先记录通过基线。
+
+## 常用命令
 
 ```bash
-uv sync                # 安装依赖
-source .venv/bin/activate  # 激活虚拟环境（可选）
+uv sync
+uv run pytest -q
+uv run ruff check src/github_blog tests
+uv run ruff format --check src/github_blog tests
+uv run ty check
+git diff --check
 ```
 
-### 本地开发
+本地生成：
 
 ```bash
-# 本地生成博客（需要 GitHub Token）
-export GITHUB_TOKEN=ghp_xxx
-uv run blog-gen
-
-# 指定仓库（覆盖 config.yaml）
-uv run blog-gen --repo user/repo
-
-# 本地预览（必须从项目根目录启动）
-uv run python -m http.server 8000 --directory output
-# 访问 http://localhost:8000
+export GITHUB_TOKEN=...
+uv run blog-gen --config /absolute/or/relative/site/config.yaml
+uv run python -m http.server 8000 --directory /path/to/site/output
 ```
 
-⚠️ **重要**：必须从项目根目录启动服务器，但要把 `output/` 指定为 HTTP document root；不要把 `/output/` 当作站点前缀访问。静态资源在 `output/templates/{theme}/` 下。
+`output/` 必须作为 HTTP document root；不要使用 `/output/` URL 前缀。
 
-### 测试
+## Config 与安全
+
+- Pydantic models 使用 `extra="forbid"`；未知字段应失败。
+- URL link 只允许 HTTPS、`mailto:`、root-relative 或 fragment；资源 URL 只允许
+  HTTPS/root-relative。
+- repository 使用 `owner/repo` 格式。
+- Jinja 使用 autoescape + `StrictUndefined`。
+- Markdown body 进入模板前必须经过 sanitizer。
+- 禁止通过删除校验或错误处理来简化代码。
+
+## Themes
+
+内置 Theme 位于 `src/github_blog/themes/<name>/`，每个 Theme 包含 `theme.yaml`、页面
+模板和 `static/`。共享评论逻辑不复制进 Theme source；构建时复制到所选 Theme 的
+输出 asset directory。
+
+修改 Theme 后运行：
 
 ```bash
-uv run pytest -v                          # 运行所有测试
-uv run pytest tests/test_config.py -v     # 运行特定测试文件
-uv run pytest --cov=src --cov-report=term-missing  # 带覆盖率
+uv run pytest -q tests/test_template_integrity.py tests/test_package_consumer.py
 ```
 
-### 代码质量检查
-
-```bash
-uv run ruff check .      # 代码检查（lint）
-uv run ruff check --fix .  # 自动修复
-uv run ruff format .     # 格式化代码
-uv run ty                # 类型检查
-```
-
----
-
-## 配置说明
-
-`config.yaml` 结构：
-
-```yaml
-github:
-  repo: user/user.github.io # Issues 仓库
-  allowed_authors:
-    - user
-
-site:
-  title: "Blog Title"
-  url: https://example.com/
-  author: "Author Name"
-  description: "Description"
-  language: zh-CN
-  navigation:
-    items:
-      - name: Blog
-        url: /blog/
-      - name: Tags
-        url: /tag/
-
-profile:
-  avatar: https://github.com/user.png
-  bio: "个人简介"
-  links:
-    - name: GitHub
-      url: https://github.com/user
-
-about:
-  issue_number: 1
-
-paths:
-  output: output # 输出目录
-  theme: Escape1 # 主题：Escape1 或 Escape2
-  blog: blog # 文章子目录
-  tag: tag # 标签子目录
-  rss: atom.xml # RSS 文件名
-  about: about.html
-  page: page
-  page_size: 10 # 每页文章数
-
-comments:
-  provider: utterances # 评论 provider
-  repo: "" # 评论仓库（留空则用 github.repo）
-  theme: github-light
-  theme_mode: auto # "auto" 跟随博客主题
-
-security:
-  token_env: GITHUB_TOKEN # GitHub Actions short-lived token variable
-```
-
----
-
-## 精简 TDD 开发流程（必须遵守）
-
-功能与 Bug 修复继续使用：
-
-```
-写一个能证明用户行为或安全边界的失败测试 → 最小实现 → 运行通过 → 重构
-```
-
-测试必须遵循 `docs/agents/testing.md`：
-
-- 每个 Ticket 默认 3–6 个高信号逻辑测试，不追求 100% coverage；
-- 一个行为只有一个主要测试 owner，上层只保留真实 tracer；
-- 两个主题使用参数化测试，禁止复制测试矩阵；
-- 不测试 private helper、getter、mock 调用形状或纯实现细节；
-- 优先验证完整静态站点、真实链接和浏览器行为。
-
-重构测试本身时不要求先制造失败；应先记录行为基线，精简后运行完整验证。
-
----
-
-## 代码风格规范
-
-- **双引号** 字符串（Ruff 强制）
-- **4 空格** 缩进
-- **行长限制禁用**（`E501` 规则忽略）
-- 使用**类型注解**
-- 使用 **structlog** 进行结构化日志
-
-### Ruff 配置
-
-```toml
-[tool.ruff.lint]
-select = ["E", "W", "F", "I", "N", "UP", "B", "A", "C4", "SIM", "S", "RUF"]
-ignore = ["E501"]
-
-[tool.ruff.lint.per-file-ignores]
-"tests/**/*.py" = ["S101"]
-```
-
-### 模板/CSS 规范
-
-- 检查现有样式：`grep "class=" templates/Escape1/*.html`
-- 保持与 `.tag`, `.post`, `.post-title` 等类一致
-- 使用 `{{ theme_path }}` 变量引用主题路径
-- 主题 CSS 文件：`templates/{Escape1,Escape2}/static/css/style.css`
-
----
-
-## 安全考虑
-
-1. **Token 安全**：生产 workflow 通过 `GITHUB_TOKEN` 注入短期 GitHub Token，禁止硬编码或使用个人 PAT
-2. **输入验证**：使用 Pydantic 模型验证所有配置
-3. **XSS 防护**：Jinja2 模板启用 `autoescape=True`，RSS 内容使用 CDATA
-4. **依赖安全**：Ruff `S`（bandit）规则检查安全问题
-
----
-
-## 部署流程
-
-### 完整架构
-
-```
-GitHub Issues → geoqiao.github.io (trigger.yml) → escaping (gen_site.yml) → geoqiao.github.io (main)
-```
-
-### GitHub Actions 工作流
-
-1. **gen_site.yml**（在 escaping 仓库）：
-   - 触发：Issue 创建/编辑、评论、push 到 main、手动触发
-   - 构建：安装 uv → 运行 `uv run blog-gen` → 复制到 `_site` → 推送到目标仓库
-
-2. **trigger.yml**（在 geoqiao.github.io 仓库）：
-   - 触发：Issue 创建/编辑、评论
-   - 发送 dispatch 到 escaping 仓库
-
-3. **sync.yml**（在 escaping 仓库）：
-   - 触发：push 修改 trigger.yml 时
-   - 同步 trigger.yml 到目标仓库
-
----
-
-## URL Slug 生成规则
-
-格式：`{issue_number}-{slugified-title}`
-
-- Issue number 保证 URL 稳定性和唯一性
-- 中文标题自动转换为拼音（如 "数据分析" → "shu-ju-fen-xi"）
-- 超长标题自动截断至 60 字符（在单词边界截断）
-
-**示例**：
-
-- `1-python-shu-ju-fen-xi-ru-men`（标题：Python 数据分析入门）
-- `2-hello-world-guide`（标题：Hello World Guide）
-
-**URL 结构**：`/{blog_dir}/{slug}.html` → 如 `/blog/1-python-shu-ju-fen-xi-ru-men.html`
-
----
-
-## 常见任务
-
-### 添加新模板变量
-
-1. 在 `RenderService._get_common_context()` 中添加变量
-2. 在模板中使用 `{{ variable_name }}`
-
-### 修改主题样式
-
-1. 编辑 `templates/{Escape1,Escape2}/static/css/style.css`
-2. 运行 `tests/test_template_integrity.py` 确保一致性
-3. 本地验证：`uv run python -m http.server 8000 --directory output`
-
-### 添加新页面类型
-
-1. 在 `RenderService` 中添加渲染方法
-2. 创建对应的模板文件
-3. 在 `SiteCompiler.generate()` 中接通调用
-4. 编写测试
-
----
-
-## 开发规范
-
-### Git 工作流
-
-- **小步提交**：方便回滚和审查
-- **避免频繁 `git commit --amend`**
-- **改动前查看历史**：`git log --oneline -- 文件`
-- **对比原始版本**：`git diff HEAD~n -- 文件`
-
-### 路径处理
-
-- 使用 `config.yaml` 配置路径，不硬编码
-- 相对路径优先
-- **避免 `Path.resolve()`**：可能破坏 GitHub Actions 中的路径逻辑
-
-### 模板/CSS 改动
-
-- 修改前检查现有样式
-- 保持与 `.tag`, `.post` 等类名一致
-- 不确定设计意图时先询问
-- 本地验证后再提交
-
----
-
-## 经验教训
-
-### URL Slug 重构教训
-
-**问题**：改 `{number}-{tag}` 为 `{number}-{title}` 时出现多个问题。
-
-**根本原因**：
-
-1. **没有先写测试**
-2. **测试覆盖不足**：只检查内容存在，不检查 CSS 类
-
-**教训清单**：
-
-1. ✅ **TDD 优先**：先写测试再写代码
-2. ✅ **查看历史**：`git log --oneline -- 文件`
-3. ✅ **理解设计**：`git diff HEAD~n -- 文件`
-4. ✅ **本地验证**：`uv run python -m http.server 8000 --directory output`
-5. ✅ **谨慎重构**：不随意改原本工作的路径
-6. ✅ **小步提交**：方便回滚
-
----
-
-## 参考资源
-
-- **TDD 流程**：见本文件的“ TDD 开发流程（必须遵守）”章节
-- **PR 模板**: `.github/pull_request_template.md`
-- **README**: `README.md`
-
----
-
-## 快速参考卡
-
-```bash
-# 开发循环
-uv run pytest -v                    # 1. 确保测试通过
-# 修改代码
-uv run pytest -v                    # 2. 验证修改
-uv run ruff check . && uv run ty    # 3. 代码检查
-uv run python -m http.server 8000 --directory output   # 4. 本地验证
-
-# 本地生成
-export GITHUB_TOKEN=ghp_xxx && uv run blog-gen
-
-# 调试
-uv run blog-gen 2>&1 | tail -50     # 查看日志
-```
+Theme contract 必须同时覆盖模板渲染、keyboard navigation、本地 overflow、comments
+container/script 和 package assets。
+
+## 部署保护
+
+- `geoqiao.github.io` 的发布源是 GitHub Pages artifact，不是 `main` 根目录。
+- 跨仓库迁移分支可以 push；未经单独确认不得 merge `main`、运行生产 deploy 或改变
+  Pages 设置。
+- workflow 必须 pin 完整 generator SHA/release，显式传入站点 Config，并上传站点仓库
+  Config-relative `output/`。
+- 生成器与站点不能原子变更；先验证兼容 consumer，再更新站点 pin，最后部署。

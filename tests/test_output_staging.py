@@ -2,7 +2,6 @@
 
 from __future__ import annotations
 
-import shutil
 from datetime import datetime, timezone
 from pathlib import Path
 from unittest.mock import patch
@@ -13,8 +12,6 @@ from github_blog.config import Settings
 from github_blog.models.issue_snapshot import IssueSnapshot
 from github_blog.output_staging import OutputStagingError, OutputStagingService
 from github_blog.site_compiler import SiteCompiler
-
-_ROOT = Path(__file__).parent.parent
 
 
 def _snapshot(number: int, body: str) -> IssueSnapshot:
@@ -52,7 +49,7 @@ def _settings() -> Settings:
                 "url": "https://geoqiao.me/",
             },
             "about": {"issue_number": 1},
-            "paths": {"output": "output", "theme": "geoqiao.me"},
+            "paths": {"output": "output"},
             "security": {"token_env": "TOKEN"},
         }
     )
@@ -108,14 +105,7 @@ def test_cleanup_rejects_unregistered_candidate(tmp_path: Path) -> None:
         service.cleanup(external)
 
 
-def test_strict_compiler_failure_preserves_existing_output(
-    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
-) -> None:
-    monkeypatch.chdir(tmp_path)
-    shutil.copytree(
-        _ROOT / "templates" / "geoqiao.me",
-        tmp_path / "templates" / "geoqiao.me",
-    )
+def test_strict_compiler_failure_preserves_existing_output(tmp_path: Path) -> None:
     output = tmp_path / "output"
     output.mkdir()
     sentinel = output / "index.html"
@@ -125,6 +115,7 @@ def test_strict_compiler_failure_preserves_existing_output(
         "unused",
         "geoqiao/site",
         _settings(),
+        config_root=tmp_path,
         github_service=_FakeGitHub([_snapshot(1, "not front matter")]),
     ).generate()
 

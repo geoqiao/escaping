@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
-from .content import ContentRoute
+from ..routes import Route
 
 
 @dataclass(frozen=True)
@@ -24,11 +24,12 @@ class Project:
 class ProjectsPage:
     projects: tuple[Project, ...]
     featured: tuple[Project, ...]
-    route: ContentRoute = field(
-        default_factory=lambda: ContentRoute("/projects/", "projects/index.html")
-    )
-    canonical_url: str = ""
+    route: Route
 
     @property
     def canonical_path(self) -> str:
         return self.route.canonical_path
+
+    @property
+    def canonical_url(self) -> str:
+        return self.route.canonical_url

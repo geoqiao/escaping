@@ -1,0 +1,11 @@
+<div class="comments" id="comments-container"
+     data-comments-repo="{{ comments.repo }}"
+     data-issue-number="{{ comments_issue_number }}"
+     data-source-repo="{{ github_repo }}"
+     data-comments-theme="{{ comments.theme }}"
+     data-comments-theme-mode="{{ comments.theme_mode }}"
+     data-blog-theme-default="dark">
+    <p class="comments-loading">Loading comments...</p>
+    <noscript><p class="comments-error">Please enable JavaScript to view comments.</p></noscript>
+</div>
+<script src="{{ theme_path }}/static/js/comments.js" defer></script>

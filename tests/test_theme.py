@@ -4,16 +4,16 @@ from pathlib import Path
 
 import pytest
 
-from github_blog.config import ThemeLockConfig
-from github_blog.theme import ThemeResolutionError, ThemeResolver
+from github_blog.config import BuiltinThemeConfig, LocalThemeConfig
+from github_blog.theme import ThemeLoader, ThemeResolutionError
 
 
-def _theme(root: Path, name: str = "locked") -> Path:
+def _theme(root: Path, name: str = "local") -> Path:
     theme = root / name
     (theme / "static" / "css").mkdir(parents=True)
     (theme / "static" / "js").mkdir()
     (theme / "static" / "images").mkdir()
-    for filename in (
+    templates = (
         "base.html",
         "home.html",
         "index.html",
@@ -24,111 +24,81 @@ def _theme(root: Path, name: str = "locked") -> Path:
         "idea.html",
         "about.html",
         "projects.html",
-    ):
+    )
+    for filename in templates:
         (theme / filename).write_text(
-            f"{filename} {{% block content %}}{{{{ value }}}}{{% endblock %}}"
+            f"{filename} {{% block content %}}{{{{ value }}}}{{% endblock %}}",
+            encoding="utf-8",
         )
-    (theme / "static" / "css" / "style.css").write_text("body {}")
+    (theme / "static" / "css" / "style.css").write_text("body {}", encoding="utf-8")
     (theme / "theme.yaml").write_text(
         "api_version: '1'\ncapabilities: [comments]\nrequired_templates:\n"
-        + "".join(
-            f"  - {filename}\n"
-            for filename in (
-                "base.html",
-                "home.html",
-                "index.html",
-                "post.html",
-                "tag.html",
-                "tags.html",
-                "ideas.html",
-                "idea.html",
-                "about.html",
-                "projects.html",
-            )
-        )
-        + "required_assets: [static/css, static/js, static/images]\n"
+        + "".join(f"  - {filename}\n" for filename in templates)
+        + "required_assets: [static/css, static/js, static/images]\n",
+        encoding="utf-8",
     )
     return theme
 
 
-def _lock() -> ThemeLockConfig:
-    return ThemeLockConfig(repository="owner/theme", commit="a" * 40, api_version="1")
+@pytest.mark.parametrize("name", ["geoqiao.me", "Escape1", "Escape2"])
+def test_builtin_theme_loads_and_copies_assets_outside_checkout(
+    name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    monkeypatch.chdir(tmp_path)
+
+    source = ThemeLoader(tmp_path).load(BuiltinThemeConfig(name=name))
+
+    assert source.environment().get_template("home.html")
+    assert source.environment().undefined.__name__ == "StrictUndefined"
+    assert source.asset_url_path == f"/templates/{name}"
+    source.copy_assets(tmp_path / "output")
+    assert (
+        tmp_path / "output" / "templates" / name / "static" / "css" / "style.css"
+    ).is_file()
 
 
-def test_resolver_uses_cache_and_merges_site_overrides_first(tmp_path: Path) -> None:
-    locked = _theme(tmp_path / "cache" / ("a" * 40))
-    override = tmp_path / "overrides"
-    override.mkdir()
-    (override / "base.html").write_text("override")
+def test_local_theme_resolves_from_config_root_instead_of_cwd(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config_root = tmp_path / "site"
+    _theme(config_root / "themes", "custom")
+    unrelated_cwd = tmp_path / "elsewhere"
+    unrelated_cwd.mkdir()
+    monkeypatch.chdir(unrelated_cwd)
 
-    source = ThemeResolver(
-        tmp_path, _lock(), theme_name="locked", override_dir=override
-    ).resolve()
-    assert source.template_dirs[0] == override
-    assert source.template_dirs[1] == locked
-    assert source.read_text("base.html") == "override"
-    assert source.read_text("home.html").startswith("home.html")
+    source = ThemeLoader(config_root).load(
+        LocalThemeConfig(name="custom", path=Path("themes/custom"))
+    )
 
-
-def test_resolver_fetches_exact_commit_only_when_cache_missing(tmp_path: Path) -> None:
-    calls: list[str] = []
-
-    def fetch(lock: ThemeLockConfig, destination: Path) -> None:
-        calls.append(lock.commit)
-        _theme(destination)
-
-    source = ThemeResolver(
-        tmp_path, _lock(), theme_name="locked", fetch=fetch
-    ).resolve()
-    assert calls == ["a" * 40]
-    assert source.lock.commit == "a" * 40
-
-    ThemeResolver(tmp_path, _lock(), theme_name="locked", fetch=fetch).resolve()
-    assert calls == ["a" * 40]
+    assert source.environment().get_template("home.html")
+    source.copy_assets(config_root / "output")
+    assert (
+        config_root / "output" / "templates" / "custom" / "static" / "css" / "style.css"
+    ).is_file()
 
 
-def test_manifest_mismatch_and_missing_contract_fail(tmp_path: Path) -> None:
-    theme = _theme(tmp_path / "cache" / ("a" * 40))
+def test_manifest_mismatch_missing_contract_and_unsafe_path_fail(
+    tmp_path: Path,
+) -> None:
+    theme = _theme(tmp_path / "themes", "broken")
+    declaration = LocalThemeConfig(name="broken", path=Path("themes/broken"))
     (theme / "theme.yaml").write_text(
-        "api_version: '2'\ncapabilities: []\nrequired_templates: [base.html]\nrequired_assets: []\n"
+        "api_version: '2'\ncapabilities: []\nrequired_templates: [base.html]\nrequired_assets: []\n",
+        encoding="utf-8",
     )
     with pytest.raises(ThemeResolutionError, match="api_version"):
-        ThemeResolver(tmp_path, _lock(), theme_name="locked").resolve()
+        ThemeLoader(tmp_path).load(declaration)
 
     (theme / "theme.yaml").write_text(
-        "api_version: '1'\ncapabilities: []\nrequired_templates: [missing.html]\nrequired_assets: []\n"
+        "api_version: '1'\ncapabilities: []\nrequired_templates: [missing.html]\nrequired_assets: []\n",
+        encoding="utf-8",
     )
     with pytest.raises(ThemeResolutionError, match=r"missing\.html"):
-        ThemeResolver(tmp_path, _lock(), theme_name="locked").resolve()
+        ThemeLoader(tmp_path).load(declaration)
 
-
-@pytest.mark.parametrize("theme_name", ["Escape1", "Escape2"])
-def test_shipped_locked_themes_resolve_with_manifest(theme_name: str) -> None:
-    from github_blog.theme import ThemeResolver
-
-    source = ThemeResolver(
-        Path.cwd(),
-        ThemeLockConfig(
-            repository="owner/theme",
-            commit="e30a52e89645e4e3cd0f1630653c248b9f203c7d",
-            api_version="1",
-        ),
-        theme_name=theme_name,
-    ).resolve()
-    assert source.locked_dir.name == theme_name
-    assert source.environment().get_template("home.html")
-
-
-def test_update_is_explicit_and_strict_undefined_is_available(tmp_path: Path) -> None:
-    _theme(tmp_path / "cache" / ("a" * 40))
-    resolver = ThemeResolver(tmp_path, _lock(), theme_name="locked")
-    assert resolver.resolve().environment().undefined.__name__ == "StrictUndefined"
-    with pytest.raises(ThemeResolutionError, match="explicit"):
-        resolver.update()
-
-    new_lock = ThemeLockConfig(
-        repository="owner/theme", commit="b" * 40, api_version="1"
+    (theme / "theme.yaml").write_text(
+        "api_version: '1'\ncapabilities: []\nrequired_templates: []\nrequired_assets: [/tmp]\n",
+        encoding="utf-8",
     )
-    resolver.update(new_lock, lambda lock, destination: _theme(destination))
-    assert resolver.lock.commit == "b" * 40
-    assert (tmp_path / "cache" / ("b" * 40)).exists()
+    with pytest.raises(ThemeResolutionError, match="unsafe theme resource path"):
+        ThemeLoader(tmp_path).load(declaration)

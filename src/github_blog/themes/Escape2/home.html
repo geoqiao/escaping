@@ -5,32 +5,32 @@
 {% endblock %}
 
 {% block content %}
-{% if home_page.site_title or home_page.site_description or home_page.profile.avatar or home_page.profile.bio or home_page.profile.links or home_page.navigation %}
+{% if metadata.title or metadata.description or metadata.profile.avatar or metadata.profile.bio or metadata.profile.links or metadata.navigation %}
 <div class="home-intro">
-    {% if home_page.profile.avatar %}
+    {% if metadata.profile.avatar %}
     <div class="authorImageWrapper">
-        <img src="{{ home_page.profile.avatar }}" alt="{{ home_page.site_author }}" class="size-xs">
+        <img src="{{ metadata.profile.avatar }}" alt="{{ metadata.author }}" class="size-xs">
     </div>
     {% endif %}
-    {% if home_page.site_title %}
-    <h1 class="home-title">{{ home_page.site_title }}</h1>
+    {% if metadata.title %}
+    <h1 class="home-title">{{ metadata.title }}</h1>
     {% endif %}
-    {% if home_page.site_description %}
-    <p class="intro-line">{{ home_page.site_description }}</p>
+    {% if metadata.description %}
+    <p class="intro-line">{{ metadata.description }}</p>
     {% endif %}
-    {% if home_page.profile.bio %}
-    <p class="intro-line">{{ home_page.profile.bio }}</p>
+    {% if metadata.profile.bio %}
+    <p class="intro-line">{{ metadata.profile.bio }}</p>
     {% endif %}
-    {% if home_page.navigation %}
+    {% if metadata.navigation %}
     <p class="intro-line nav-actions">
-        {% for link in home_page.navigation %}
+        {% for link in metadata.navigation %}
         <a href="{{ link.url }}">{{ link.name }}</a>{% if not loop.last %} · {% endif %}
         {% endfor %}
     </p>
     {% endif %}
-    {% if home_page.profile.links %}
+    {% if metadata.profile.links %}
     <p class="intro-line source-link">
-        {% for link in home_page.profile.links %}
+        {% for link in metadata.profile.links %}
         <a href="{{ link.url }}">{{ link.name }}</a>{% if not loop.last %} · {% endif %}
         {% endfor %}
     </p>

@@ -3,18 +3,18 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-import pytest
-
 from github_blog.artifact_validation import SiteArtifactValidator
 from github_blog.config import Settings
 from github_blog.content_compiler import ContentCompiler
 from github_blog.models.issue_snapshot import IssueSnapshot
 from github_blog.models.site import SiteModel
 from github_blog.projects import ProjectCompiler
+from github_blog.routes import RouteRegistry
 from github_blog.services.render_service import RenderService
-from github_blog.site_model import SiteModelBuilder
+from github_blog.site_builder import SiteBuilder
+from github_blog.theme import ThemeLoader
 
-_THEMES = ("Escape1", "Escape2", "geoqiao.me")
+_ROOT = Path(__file__).parent.parent.absolute()
 
 
 def _settings(theme: str = "geoqiao.me", *, profile_avatar: str = "") -> Settings:
@@ -37,7 +37,7 @@ def _settings(theme: str = "geoqiao.me", *, profile_avatar: str = "") -> Setting
         },
         "about": {"issue_number": 10},
         "security": {"token_env": "TEST_TOKEN"},
-        "paths": {"theme": theme},
+        "theme": {"source": "builtin", "name": theme},
         "projects": [
             {
                 "slug": "escaping",
@@ -92,15 +92,29 @@ def _render_representative_site(settings: Settings, tmp_path: Path) -> SiteModel
             'description: About description.\ncreated_date: "2026-01-03"',
         ),
     ]
-    content = ContentCompiler(settings).compile(snapshots)
-    site = SiteModelBuilder(settings).build(
+    routes = RouteRegistry(str(settings.site.url))
+    content = ContentCompiler(settings, route_registry=routes).compile(snapshots)
+    site = SiteBuilder(settings, route_registry=routes).build(
         content,
-        ProjectCompiler().compile(settings.projects),
+        ProjectCompiler().compile(settings.projects, route=routes.projects()),
         build_start_time=datetime(2026, 1, 20, tzinfo=timezone.utc),
     )
     assert not site.has_errors
+    assert site.home.route is site.routes.route("home")
+    assert site.blogs[0].route is site.routes.route("blog-detail-a-blog")
+    assert site.archives[0].route is site.routes.route("blog")
+    assert site.ideas[0].route is site.routes.route("idea-2")
+    assert site.about is not None
+    assert site.about.route is site.routes.route("about")
+    assert site.projects.route is site.routes.route("projects")
+    assert site.tags.route is site.routes.route("tags")
+    assert site.tag_archives[0].route is site.routes.route("tag-python")
+    assert site.feed.route is site.routes.route("atom")
+    assert site.metadata.title == settings.site.title
+    assert site.metadata.comments.repo == settings.github.repo
+    assert site.metadata.theme.name == settings.theme.name
 
-    renderer = RenderService(settings)
+    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
     renderer.copy_theme_assets(tmp_path)
     for output_path, html in renderer.render_site(site).items():
         path = tmp_path / output_path
@@ -114,7 +128,7 @@ def test_representative_content_compiles_to_valid_complete_artifact(
 ) -> None:
     settings = _settings()
     site = _render_representative_site(settings, tmp_path)
-    diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
+    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
     assert diagnostics == []
     assert (tmp_path / "blog" / "a-blog" / "index.html").exists()
     assert (tmp_path / "ideas" / "2" / "index.html").exists()
@@ -127,27 +141,10 @@ def test_representative_content_compiles_to_valid_complete_artifact(
         assert '<a href="https://geoqiao.me/"' not in rendered
 
 
-@pytest.mark.parametrize("theme", _THEMES)
-def test_about_descriptions_match_issue_description(theme: str, tmp_path: Path) -> None:
-    settings = _settings(theme)
-    site = _render_representative_site(settings, tmp_path)
-
-    diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
-    assert diagnostics == []
-    about_html = (tmp_path / "about" / "index.html").read_text(encoding="utf-8")
-    for meta_tag in (
-        '<meta name="description" content="About description.">',
-        '<meta property="og:description" content="About description.">',
-        '<meta name="twitter:description" content="About description.">',
-    ):
-        assert meta_tag in about_html
-
-
-@pytest.mark.parametrize("theme", _THEMES)
 def test_about_description_mismatch_fails_artifact_validation(
-    theme: str, tmp_path: Path
+    tmp_path: Path,
 ) -> None:
-    settings = _settings(theme)
+    settings = _settings()
     site = _render_representative_site(settings, tmp_path)
     about_path = tmp_path / "about" / "index.html"
     about_html = about_path.read_text(encoding="utf-8")
@@ -159,33 +156,34 @@ def test_about_description_mismatch_fails_artifact_validation(
     assert broken_html != about_html
     about_path.write_text(broken_html, encoding="utf-8")
 
-    diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
+    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
     assert any(
         diagnostic.code == "ABOUT_DESCRIPTION_MISMATCH" for diagnostic in diagnostics
     )
 
 
-@pytest.mark.parametrize("theme", _THEMES)
 def test_missing_referenced_script_fails_artifact_validation(
-    theme: str, tmp_path: Path
+    tmp_path: Path,
 ) -> None:
-    settings = _settings(theme)
+    settings = _settings()
     site = _render_representative_site(settings, tmp_path)
-    script_path = tmp_path / "templates" / theme / "static" / "js" / "prism.js"
+    script_path = (
+        tmp_path / "templates" / settings.theme.name / "static" / "js" / "prism.js"
+    )
     script_path.unlink()
 
-    diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
+    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
     assert any(
         diagnostic.code == "MISSING_ASSET" and "prism.js" in diagnostic.message
         for diagnostic in diagnostics
     )
 
 
-@pytest.mark.parametrize("theme", _THEMES)
 def test_missing_same_origin_absolute_asset_fails_artifact_validation(
-    theme: str, tmp_path: Path
+    tmp_path: Path,
 ) -> None:
-    settings = _settings(theme)
+    settings = _settings()
+    theme = settings.theme.name
     site = _render_representative_site(settings, tmp_path)
     asset_dir = tmp_path / "templates" / theme / "static" / "css"
     asset_path = asset_dir / "absolute.css"
@@ -199,24 +197,24 @@ def test_missing_same_origin_absolute_asset_fails_artifact_validation(
     about_path.write_text(
         about_html.replace("</head>", f"{reference}</head>", 1), encoding="utf-8"
     )
-    assert SiteArtifactValidator(settings, site).validate(tmp_path) == []
+    assert SiteArtifactValidator(site).validate(tmp_path) == []
     asset_path.unlink()
 
-    diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
+    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
     assert any(
         diagnostic.code == "MISSING_ASSET" and "absolute.css" in diagnostic.message
         for diagnostic in diagnostics
     )
 
 
-@pytest.mark.parametrize("theme", _THEMES)
 def test_missing_referenced_image_fails_artifact_validation(
-    theme: str, tmp_path: Path
+    tmp_path: Path,
 ) -> None:
+    theme = "geoqiao.me"
     profile_avatar = (
         f"https://geoqiao.me/templates/{theme}/static/images/profile.png?cache=1#avatar"
     )
-    settings = _settings(theme, profile_avatar=profile_avatar)
+    settings = _settings(profile_avatar=profile_avatar)
     site = _render_representative_site(settings, tmp_path)
     image_dir = tmp_path / "templates" / theme / "static" / "images"
     image_bytes = (image_dir / "favicon.png").read_bytes()
@@ -235,11 +233,11 @@ def test_missing_referenced_image_fails_artifact_validation(
         1,
     )
     about_path.write_text(about_html, encoding="utf-8")
-    assert SiteArtifactValidator(settings, site).validate(tmp_path) == []
+    assert SiteArtifactValidator(site).validate(tmp_path) == []
 
     (image_dir / "profile.png").unlink()
     (image_dir / "responsive.png").unlink()
-    diagnostics = SiteArtifactValidator(settings, site).validate(tmp_path)
+    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
     assert any(
         diagnostic.code == "MISSING_ASSET" and "profile.png" in diagnostic.message
         for diagnostic in diagnostics

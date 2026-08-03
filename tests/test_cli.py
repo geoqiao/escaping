@@ -1,16 +1,15 @@
 from __future__ import annotations
 
-import shutil
+import sys
 from datetime import datetime, timezone
 from pathlib import Path
 
 import pytest
 
+from github_blog.cli import run_cli
 from github_blog.config import Settings
 from github_blog.models.issue_snapshot import IssueSnapshot
 from github_blog.site_compiler import SiteCompiler
-
-_ROOT = Path(__file__).parent.parent
 
 
 def _settings() -> Settings:
@@ -25,7 +24,7 @@ def _settings() -> Settings:
             },
             "about": {"issue_number": 10},
             "security": {"token_env": "TOKEN"},
-            "paths": {"output": "output", "theme": "geoqiao.me"},
+            "paths": {"output": "output"},
         }
     )
 
@@ -75,22 +74,44 @@ class _FakeGitHub:
         return self.snapshots
 
 
+def test_cli_loads_an_explicit_config_and_reports_its_missing_token(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    site = tmp_path / "site"
+    site.mkdir()
+    config = site / "config.yaml"
+    config.write_text(
+        """github:\n  repo: geoqiao/site\n  allowed_authors: [geoqiao]\nsite:\n  title: Site\n  author: geoqiao\n  url: https://example.com/\nabout:\n  issue_number: 1\nsecurity:\n  token_env: CLI_TEST_TOKEN\n""",
+        encoding="utf-8",
+    )
+    unrelated_cwd = tmp_path / "elsewhere"
+    unrelated_cwd.mkdir()
+    monkeypatch.chdir(unrelated_cwd)
+    monkeypatch.delenv("CLI_TEST_TOKEN", raising=False)
+    monkeypatch.setattr(sys, "argv", ["blog-gen", "--config", str(config)])
+
+    with pytest.raises(SystemExit) as exc_info:
+        run_cli()
+
+    assert exc_info.value.code == 1
+
+
 def test_strict_cli_generates_directory_routes_and_seo(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
-    shutil.copytree(
-        _ROOT / "templates" / "geoqiao.me", repo / "templates" / "geoqiao.me"
-    )
+    unrelated_cwd = tmp_path / "elsewhere"
+    unrelated_cwd.mkdir()
     sentinel = tmp_path / "outside-sentinel.txt"
     sentinel.write_text("keep", encoding="utf-8")
-    monkeypatch.chdir(repo)
+    monkeypatch.chdir(unrelated_cwd)
     output = repo / "output"
     result = SiteCompiler(
         "unused",
         "geoqiao/site",
         _settings(),
+        config_root=repo,
         github_service=_FakeGitHub(_valid_snapshots()),
     ).generate()
     assert result.success
@@ -109,9 +130,6 @@ def test_content_error_preserves_existing_output(
 ) -> None:
     repo = tmp_path / "repo"
     repo.mkdir()
-    shutil.copytree(
-        _ROOT / "templates" / "geoqiao.me", repo / "templates" / "geoqiao.me"
-    )
     outside_sentinel = tmp_path / "outside-sentinel.txt"
     outside_sentinel.write_text("keep", encoding="utf-8")
     monkeypatch.chdir(repo)
@@ -125,6 +143,7 @@ def test_content_error_preserves_existing_output(
         "unused",
         "geoqiao/site",
         _settings(),
+        config_root=repo,
         github_service=_FakeGitHub(bad),
     ).generate()
     assert not result.success

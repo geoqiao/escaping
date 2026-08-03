@@ -13,7 +13,7 @@
         <section class="recent-posts" aria-labelledby="recent-posts-title">
             <header class="section-heading">
                 <h2 id="recent-posts-title">Recent Posts</h2>
-                {% for link in home_page.navigation %}{% if link.name == 'Blog' %}<a href="{{ link.url }}">完整归档 →</a>{% endif %}{% endfor %}
+                {% for link in metadata.navigation %}{% if link.name == 'Blog' %}<a href="{{ link.url }}">完整归档 →</a>{% endif %}{% endfor %}
             </header>
             {% if home_page.recent_posts %}
             <div class="ledger-list">
@@ -36,12 +36,12 @@
     </div>
 
     <aside class="profile-rail" aria-label="Site profile">
-        {% if home_page.profile.avatar %}<div class="profile-avatar-wrap"><img src="{{ home_page.profile.avatar }}" alt="{{ home_page.site_author }}" class="profile-avatar" width="112" height="112"></div>{% endif %}
+        {% if metadata.profile.avatar %}<div class="profile-avatar-wrap"><img src="{{ metadata.profile.avatar }}" alt="{{ metadata.author }}" class="profile-avatar" width="112" height="112"></div>{% endif %}
         <p class="utility-label">PROFILE / ACTIVE</p>
-        <h2>{{ home_page.site_author }}</h2>
+        <h2>{{ metadata.author }}</h2>
         <p class="profile-role">贷后策略分析师 / tool tinkerer</p>
-        {% if home_page.profile.bio %}<p class="profile-bio">{{ home_page.profile.bio }}</p>{% endif %}
-        {% if home_page.profile.links %}<div class="profile-links">{% for link in home_page.profile.links %}<a href="{{ link.url }}">{{ link.name }}</a>{% endfor %}</div>{% endif %}
+        {% if metadata.profile.bio %}<p class="profile-bio">{{ metadata.profile.bio }}</p>{% endif %}
+        {% if metadata.profile.links %}<div class="profile-links">{% for link in metadata.profile.links %}<a href="{{ link.url }}">{{ link.name }}</a>{% endfor %}</div>{% endif %}
         <div class="featured-project">
             <span>FEATURED PROJECT</span>
             <a href="{{ branding.source_link_url or branding.powered_by_url }}">escaping ↗</a>

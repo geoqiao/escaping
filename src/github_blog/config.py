@@ -10,12 +10,11 @@ Configuration contract (per accepted spec):
 - ``profile``: Site Profile — avatar, short bio, and links only.
 - ``about``: immutable About Issue selection by ``issue_number``.
 - ``paths``: output and page-size configuration (positive, default 10).
-- ``comments``: provider, repository fallback, theme, and ``theme_mode``.
+- ``theme``: explicit built-in package resource or Config-relative local source.
+- ``comments``: Utterances repository fallback, theme, and ``theme_mode``.
 - ``security``: dynamic token environment-variable name (no hard-coded default).
 - ``projects``: repository-owned project catalog entries with strict fields.
-- ``theme_lock``: optional immutable theme reference (repository, commit, API
-  version).
-- ``seo`` / ``branding``: preserved existing sections, now strict.
+- ``seo`` / ``branding``: active verification and attribution fields only.
 
 Settings are explicitly injected into compiler and rendering collaborators.
 No global settings singleton is introduced.
@@ -25,6 +24,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
+from typing import Annotated, Literal, Union
 from urllib.parse import urlparse, urlunparse
 
 import yaml
@@ -40,6 +40,68 @@ from .output_safety import validate_output_child_name
 
 #: Valid POSIX shell environment-variable identifier pattern.
 _ENV_VAR_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
+_REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9_.-]+$")
+_UTTERANCES_THEMES = frozenset(
+    {
+        "boxy-light",
+        "dark-blue",
+        "github-dark",
+        "github-dark-orange",
+        "github-light",
+        "gruvbox-dark",
+        "icy-dark",
+        "photon-dark",
+        "preferred-color-scheme",
+    }
+)
+
+
+def _validate_repository(value: str) -> str:
+    if not _REPOSITORY_PATTERN.fullmatch(value):
+        raise ValueError("repository must be in valid 'owner/repo' format")
+    return value
+
+
+def _validate_safe_href(value: str) -> str:
+    if (
+        not value
+        or "\\" in value
+        or any(
+            char.isspace() or ord(char) < 32 or 0x7F <= ord(char) <= 0x9F
+            for char in value
+        )
+    ):
+        raise ValueError("link URL contains whitespace, a backslash, or control data")
+
+    if value.startswith("#"):
+        if len(value) == 1:
+            raise ValueError("link fragment must not be empty")
+        return value
+
+    parsed = urlparse(value)
+    if value.startswith("/"):
+        if value.startswith("//") or parsed.scheme or parsed.netloc:
+            raise ValueError("protocol-relative links are not allowed")
+        return value
+
+    if parsed.scheme == "https" and parsed.hostname:
+        if parsed.username or parsed.password:
+            raise ValueError("HTTPS links must not contain userinfo")
+        return value
+
+    if parsed.scheme == "mailto" and parsed.path and not parsed.netloc:
+        return value
+
+    raise ValueError("link URL must be HTTPS, mailto, root-relative, or a fragment")
+
+
+def _validate_safe_resource_url(value: str) -> str:
+    if not value:
+        return value
+    validated = _validate_safe_href(value)
+    if validated.startswith("#") or urlparse(validated).scheme == "mailto":
+        raise ValueError("resource URL must be HTTPS or root-relative")
+    return validated
 
 
 class GithubConfig(BaseModel):
@@ -53,15 +115,7 @@ class GithubConfig(BaseModel):
     @field_validator("repo")
     @classmethod
     def validate_repo(cls, v: str) -> str:
-        parts = v.split("/")
-        if len(parts) != 2:
-            raise ValueError("repo must be in 'owner/repo' format")
-        owner, repo_name = parts
-        if not owner.strip():
-            raise ValueError("repo owner must not be empty or blank")
-        if not repo_name.strip():
-            raise ValueError("repo name must not be empty or blank")
-        return v
+        return _validate_repository(v)
 
     @field_validator("allowed_authors")
     @classmethod
@@ -84,13 +138,25 @@ class GithubConfig(BaseModel):
         return self.repo
 
 
-class NavigationLink(BaseModel):
-    """A single navigation link."""
+class Link(BaseModel):
+    """A named link whose rendered destination cannot execute script."""
 
     model_config = ConfigDict(extra="forbid")
 
     name: str
     url: str
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        if not v.strip():
+            raise ValueError("link name must not be empty or blank")
+        return v
+
+    @field_validator("url")
+    @classmethod
+    def validate_url(cls, v: str) -> str:
+        return _validate_safe_href(v)
 
 
 class NavigationConfig(BaseModel):
@@ -98,7 +164,7 @@ class NavigationConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    items: list[NavigationLink] = Field(default_factory=list)
+    items: list[Link] = Field(default_factory=list)
 
 
 class SiteConfig(BaseModel):
@@ -148,15 +214,6 @@ class SiteConfig(BaseModel):
         return urlunparse(("https", parsed.netloc, "/", "", "", ""))
 
 
-class ProfileLink(BaseModel):
-    """A link in the Site Profile."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    name: str
-    url: str
-
-
 class SiteProfileConfig(BaseModel):
     """Site Profile — avatar, short bio, and links only.
 
@@ -168,7 +225,12 @@ class SiteProfileConfig(BaseModel):
 
     avatar: str = ""
     bio: str = ""
-    links: list[ProfileLink] = Field(default_factory=list)
+    links: list[Link] = Field(default_factory=list)
+
+    @field_validator("avatar")
+    @classmethod
+    def validate_avatar(cls, v: str) -> str:
+        return _validate_safe_resource_url(v)
 
 
 class AboutConfig(BaseModel):
@@ -180,30 +242,57 @@ class AboutConfig(BaseModel):
 
 
 class PathsConfig(BaseModel):
-    """Strict output, theme, and pagination configuration."""
+    """Strict output and pagination configuration."""
 
     model_config = ConfigDict(extra="forbid")
 
     output: str = "output"
-    theme: str = "geoqiao.me"
     page_size: int = Field(default=10, gt=0)
 
-    @field_validator("theme")
+
+class BuiltinThemeConfig(BaseModel):
+    """A reference Theme shipped as a generator package resource."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: Literal["builtin"] = "builtin"
+    name: str = "geoqiao.me"
+
+    @field_validator("name")
     @classmethod
-    def validate_theme_name(cls, v: str) -> str:
-        return validate_output_child_name(v, "theme")
+    def validate_name(cls, v: str) -> str:
+        return validate_output_child_name(v, "theme name")
 
-    @property
-    def theme_path(self) -> Path:
-        return Path("templates") / self.theme
 
-    @property
-    def theme_url_path(self) -> str:
-        return f"/templates/{self.theme}"
+class LocalThemeConfig(BaseModel):
+    """A site-owned Theme directory relative to the Config root."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    source: Literal["local"] = "local"
+    name: str
+    path: Path
+
+    @field_validator("name")
+    @classmethod
+    def validate_name(cls, v: str) -> str:
+        return validate_output_child_name(v, "theme name")
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, v: Path) -> Path:
+        if v.is_absolute() or not v.parts or ".." in v.parts:
+            raise ValueError("local theme path must stay relative to the Config root")
+        return v
+
+
+ThemeConfig = Annotated[
+    Union[BuiltinThemeConfig, LocalThemeConfig], Field(discriminator="source")
+]
 
 
 class CommentsConfig(BaseModel):
-    """Comments provider configuration.
+    """Utterances comments configuration.
 
     ``repo`` falls back to ``github.repo`` when empty.  ``theme_mode: auto``
     follows the blog theme via postMessage / MutationObserver.
@@ -211,10 +300,21 @@ class CommentsConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    provider: str = "utterances"
     repo: str = ""
     theme: str = "github-light"
-    theme_mode: str = "auto"
+    theme_mode: Literal["auto", "fixed"] = "auto"
+
+    @field_validator("repo")
+    @classmethod
+    def validate_repo(cls, v: str) -> str:
+        return _validate_repository(v) if v else v
+
+    @field_validator("theme")
+    @classmethod
+    def validate_theme(cls, v: str) -> str:
+        if v not in _UTTERANCES_THEMES:
+            raise ValueError("unsupported Utterances theme")
+        return v
 
 
 class SecurityConfig(BaseModel):
@@ -248,8 +348,6 @@ class SeoConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     google_search_console: str = ""
-    enable_sitemap: bool = True
-    enable_robots: bool = True
 
 
 class BrandingConfig(BaseModel):
@@ -259,12 +357,13 @@ class BrandingConfig(BaseModel):
 
     show_powered_by: bool = True
     powered_by_text: str = "Powered by"
-    powered_by_url: str = "https://github.com/geoqiao/github-blog"
-    show_intro: bool = False
-    intro_text: str = ""
-    intro_text2: str = "Generated with Python + Jinja2, deployed via GitHub Actions."
-    source_link_text: str = "View Source"
+    powered_by_url: str = "https://github.com/geoqiao/escaping"
     source_link_url: str = ""
+
+    @field_validator("powered_by_url", "source_link_url")
+    @classmethod
+    def validate_link_url(cls, v: str) -> str:
+        return _validate_safe_href(v) if v else v
 
 
 class ProjectFallbackMetadata(BaseModel):
@@ -300,26 +399,10 @@ class ProjectCatalogEntry(BaseModel):
     order: int = 0
     fallback_metadata: ProjectFallbackMetadata | None = None
 
-
-class ThemeLockConfig(BaseModel):
-    """Immutable theme reference — repository, full commit, and API version.
-
-    Theme builds resolve site overrides before the locked theme.  Upgrades
-    happen only through an explicit theme update operation.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    repository: str
-    commit: str
-    api_version: str
-
-    @field_validator("commit")
+    @field_validator("repository")
     @classmethod
-    def validate_full_commit(cls, v: str) -> str:
-        if len(v) != 40 or not all(c in "0123456789abcdef" for c in v.lower()):
-            raise ValueError("commit must be a full 40-character hex SHA")
-        return v
+    def validate_repository(cls, v: str) -> str:
+        return _validate_repository(v)
 
 
 class Settings(BaseModel):
@@ -337,11 +420,11 @@ class Settings(BaseModel):
     about: AboutConfig
     branding: BrandingConfig = Field(default_factory=BrandingConfig)
     paths: PathsConfig = Field(default_factory=PathsConfig)
+    theme: ThemeConfig = Field(default_factory=BuiltinThemeConfig)
     seo: SeoConfig = Field(default_factory=SeoConfig)
     comments: CommentsConfig = Field(default_factory=CommentsConfig)
     security: SecurityConfig
     projects: list[ProjectCatalogEntry] = Field(default_factory=list)
-    theme_lock: ThemeLockConfig | None = None
 
     @classmethod
     def load_from_yaml(cls, yaml_path: Path) -> Settings:

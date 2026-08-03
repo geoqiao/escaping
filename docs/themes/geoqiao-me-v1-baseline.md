@@ -3,9 +3,9 @@
 ## Decision
 
 `geoqiao.me` uses the approved A2 Quiet Ledger direction as its production
-baseline. It is a first-party theme maintained directly in
-`templates/geoqiao.me/`; site-specific changes do not require a lock or an
-override layer.
+baseline and the generator's default built-in Theme. It is maintained as a
+package resource in `src/github_blog/themes/geoqiao.me/`; consumers receive it
+inside the wheel and may choose a Config-relative local Theme instead.
 
 ## Visual system
 
@@ -20,8 +20,9 @@ override layer.
   hierarchy without boxed cards or decorative row separators.
 - **Signature:** real GitHub Issue identity, a Coral marker, and a thin vertical
   trace.
-- **Comments:** Issue-number-bound Utterances follows `data-theme`; the Safari
-  lazy-iframe workaround remains intact.
+- **Comments:** the Theme declares only its container/default color mode; the
+  generator-owned shared `comments.js` binds Issue-number Utterances, follows
+  `data-theme`, and preserves the Safari lazy-iframe workaround.
 
 ## Accessibility and responsive requirements
 

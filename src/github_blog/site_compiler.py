@@ -19,7 +19,8 @@ from .projects import ProjectCompiler, ProjectEnrichment
 from .routes import RouteRegistry
 from .services.github_service import GitHubService
 from .services.render_service import RenderService
-from .site_model import SiteModelBuilder
+from .site_builder import SiteBuilder
+from .theme import ThemeLoader
 
 logger = structlog.get_logger()
 
@@ -47,6 +48,7 @@ class SiteCompiler:
         repo_name: str,
         settings: Settings,
         *,
+        config_root: Path,
         github_service: _GitHubSource | None = None,
         output_staging: OutputStagingService | None = None,
         project_enricher: Callable[[str], ProjectEnrichment] | None = None,
@@ -56,6 +58,9 @@ class SiteCompiler:
         )
         self.repo_name = repo_name
         self.settings = settings
+        if not config_root.is_absolute():
+            raise ValueError("SiteCompiler config_root must be absolute")
+        self.config_root = config_root
         self.output_staging = output_staging
         self.project_enricher = project_enricher
 
@@ -84,8 +89,8 @@ class SiteCompiler:
         )
         projects = ProjectCompiler(
             self.project_enricher or self._github_project_enricher
-        ).compile(self.settings.projects)
-        site = SiteModelBuilder(self.settings, route_registry=routes).build(
+        ).compile(self.settings.projects, route=routes.projects())
+        site = SiteBuilder(self.settings, route_registry=routes).build(
             content, projects, build_start_time=build_start
         )
         diagnostics.extend(site.diagnostics)
@@ -94,7 +99,7 @@ class SiteCompiler:
 
         try:
             staging = self.output_staging or OutputStagingService(
-                self.settings.paths.output, Path.cwd()
+                self.settings.paths.output, self.config_root
             )
         except OutputContainmentError as exc:
             return BuildResult(
@@ -108,13 +113,12 @@ class SiteCompiler:
         staging_dir: Path | None = None
         try:
             staging_dir = staging.create_staging_directory()
-            renderer = RenderService(self.settings)
+            theme = ThemeLoader(self.config_root).load(self.settings.theme)
+            renderer = RenderService(theme)
             renderer.copy_theme_assets(staging_dir)
             artifacts = renderer.render_site(site)
             self._write_artifacts(staging_dir, artifacts)
-            artifact_diagnostics = SiteArtifactValidator(self.settings, site).validate(
-                staging_dir
-            )
+            artifact_diagnostics = SiteArtifactValidator(site).validate(staging_dir)
             diagnostics.extend(artifact_diagnostics)
             if any(d.severity == "error" for d in artifact_diagnostics):
                 return self._fail_staging(staging, staging_dir, diagnostics)

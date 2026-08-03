@@ -3,9 +3,13 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from github_blog.config import ProjectCatalogEntry, ProjectFallbackMetadata, Settings
+from github_blog.config import ProjectCatalogEntry, ProjectFallbackMetadata
 from github_blog.projects import ProjectCompiler, ProjectEnrichment
-from github_blog.services.render_service import RenderService
+from github_blog.routes import Route, RouteRegistry
+
+
+def _projects_route() -> Route:
+    return RouteRegistry("https://geoqiao.me/").projects()
 
 
 def _entry(
@@ -49,7 +53,8 @@ def test_projects_sort_feature_and_use_github_links() -> None:
             _entry("z", order=1),
             _entry("a", order=1, featured=True),
             _entry("first", order=0),
-        ]
+        ],
+        route=_projects_route(),
     )
     assert [project.slug for project in page.projects] == ["first", "a", "z"]
     assert [project.slug for project in page.featured] == ["a"]
@@ -70,29 +75,9 @@ def test_enrichment_failure_falls_back_without_failing() -> None:
         raise RuntimeError("API unavailable")
 
     page = ProjectCompiler(enrich).compile(
-        [_entry("fallback", fallback=fallback), _entry("live")]
+        [_entry("fallback", fallback=fallback), _entry("live")],
+        route=_projects_route(),
     )
     values = {project.slug: project for project in page.projects}
     assert values["fallback"].stars == 7 and values["fallback"].topics == ("tools",)
     assert values["live"].stars == 10 and values["live"].language == "Rust"
-
-
-def test_empty_projects_page_renders_for_both_themes() -> None:
-    page = ProjectCompiler().compile([])
-    assert page.projects == ()
-    for theme in ("Escape1", "Escape2"):
-        settings = Settings.model_validate(
-            {
-                "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
-                "site": {
-                    "title": "Site",
-                    "author": "G",
-                    "url": "https://geoqiao.me/",
-                },
-                "about": {"issue_number": 1},
-                "security": {"token_env": "TOKEN"},
-                "paths": {"theme": theme},
-            }
-        )
-        html = RenderService(settings).render_projects(page)
-        assert "No projects yet" in html

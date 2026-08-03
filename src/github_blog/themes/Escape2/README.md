@@ -7,5 +7,5 @@ support.
 
 The declarative templates consume the strict SiteModel and RouteRegistry for
 Home, Blog, Ideas, About, Projects, Tags, and Issue-bound Utterances comments.
-The shared comments include preserves automatic theme synchronization and the
-Safari iframe workaround.
+The generator-owned shared `comments.js` preserves automatic theme
+synchronization and the Safari iframe workaround.

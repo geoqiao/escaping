@@ -13,16 +13,16 @@
         <div>
             <p class="utility-label">ABOUT / ISSUE #{{ about_page.issue_number }}</p>
             <h1>About</h1>
-            {% if about_page.profile.bio %}<p>{{ about_page.profile.bio }}</p>{% endif %}
+            {% if metadata.profile.bio %}<p>{{ metadata.profile.bio }}</p>{% endif %}
         </div>
-        {% if about_page.profile.avatar %}<div class="about-avatar-wrap"><img src="{{ about_page.profile.avatar }}" alt="{{ author_name }}" width="96" height="96"></div>{% endif %}
+        {% if metadata.profile.avatar %}<div class="about-avatar-wrap"><img src="{{ metadata.profile.avatar }}" alt="{{ author_name }}" width="96" height="96"></div>{% endif %}
     </header>
 
     <div class="post-content">{{ about_page.body_html|safe }}</div>
 
-    {% if about_page.profile.links %}
+    {% if metadata.profile.links %}
     <nav class="about-links" aria-label="Profile links">
-        {% for link in about_page.profile.links %}<a href="{{ link.url }}">{{ link.name }} ↗</a>{% endfor %}
+        {% for link in metadata.profile.links %}<a href="{{ link.url }}">{{ link.name }} ↗</a>{% endfor %}
     </nav>
     {% endif %}
 </article>

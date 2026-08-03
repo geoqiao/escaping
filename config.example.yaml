@@ -45,38 +45,43 @@ security:
 # branding:
 #   show_powered_by: true
 #   powered_by_text: Powered by
-#   powered_by_url: https://github.com/geoqiao/github-blog
-#   show_intro: false
-#   intro_text: ""
-#   intro_text2: Generated with Python + Jinja2, deployed via GitHub Actions.
-#   source_link_text: View Source
+#   powered_by_url: https://github.com/geoqiao/escaping
 #   source_link_url: ""
 
 # ============================================
 # Paths (optional)
-# Built-in themes: Escape1, Escape2, and geoqiao.me (Escape2 baseline)
 # page_size is a positive integer, default 10
 # ============================================
 # paths:
 #   output: output
-#   theme: geoqiao.me
 #   page_size: 10
+
+# ============================================
+# Theme (optional; defaults to built-in geoqiao.me)
+# Local Theme paths are relative to this Config file's directory.
+# ============================================
+theme:
+  source: builtin
+  name: geoqiao.me
+
+# Local Theme example:
+# theme:
+#   source: local
+#   name: my-theme
+#   path: theme
 
 # ============================================
 # SEO (optional)
 # ============================================
 # seo:
 #   google_search_console: ""
-#   enable_sitemap: true
-#   enable_robots: true
 
 # ============================================
 # Comments (optional)
 # repo falls back to github.repo when empty
-# theme_mode: auto follows the blog theme
+# theme_mode: auto follows the blog theme; fixed uses comments.theme
 # ============================================
 # comments:
-#   provider: utterances
 #   repo: ""
 #   theme: github-light
 #   theme_mode: auto

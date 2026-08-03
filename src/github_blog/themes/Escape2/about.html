@@ -7,10 +7,10 @@
 {% block content %}
 <article class="postWrapper">
   <h1>About</h1>
-  {% if about_page.profile.avatar %}<div class="authorImageWrapper aboutAvatar"><img src="{{ about_page.profile.avatar }}" alt="{{ author_name }}" class="size-xs"></div>{% endif %}
-  {% if about_page.profile.bio %}<p class="intro-line">{{ about_page.profile.bio }}</p>{% endif %}
+  {% if metadata.profile.avatar %}<div class="authorImageWrapper aboutAvatar"><img src="{{ metadata.profile.avatar }}" alt="{{ author_name }}" class="size-xs"></div>{% endif %}
+  {% if metadata.profile.bio %}<p class="intro-line">{{ metadata.profile.bio }}</p>{% endif %}
   <div class="post-content">{{ about_page.body_html|safe }}</div>
-  {% if about_page.profile.links %}<section class="about-section"><h2>Links</h2><ul class="contact-list">{% for link in about_page.profile.links %}<li><a href="{{ link.url }}">{{ link.name }}</a></li>{% endfor %}</ul></section>{% endif %}
+  {% if metadata.profile.links %}<section class="about-section"><h2>Links</h2><ul class="contact-list">{% for link in metadata.profile.links %}<li><a href="{{ link.url }}">{{ link.name }}</a></li>{% endfor %}</ul></section>{% endif %}
 </article>
 {% set comments_issue_number = about_page.issue_number %}{% include '_comments.html' %}
 {% endblock %}

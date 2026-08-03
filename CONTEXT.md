@@ -28,13 +28,17 @@ _Avoid_: Source post, local canonical, working copy
 The `escaping` capability that converts Issue Content and repository-owned site content into a validated static site.
 _Avoid_: Issue monitor, Issue Draft Uploader
 
-## Development and cutover
+**Site Config**:
+Repository-owned configuration for one generated site. Relative filesystem paths are interpreted from the Site Config directory, never from the caller's working directory.
+_Avoid_: Generator Config, global settings
 
-The production `main` branch remains the stability boundary while the strict compiler is built on a feature branch. The feature branch does not maintain a second legacy `.html` pipeline for intermediate commits: Blog, Idea, About, Projects, themes, routes, and SEO are integrated directly into the target architecture and validated together before merge. Tests follow `docs/agents/testing.md` and favor one contract owner plus a small number of complete-site tracers over duplicated layer-by-layer matrices.
+**Built-in Theme**:
+A manifest-validated Theme distributed as a Site Compiler package resource. `geoqiao.me` is the default; Escape1 and Escape2 are alternatives. Remote fetching and commit pinning are not ThemeLoader responsibilities.
+_Avoid_: Downloaded theme, compiler cache
 
 **Site Orchestrator**:
-The automation layer that reacts to repository events, invokes the Site Compiler, and deploys its artifact.
-_Avoid_: escaping daemon, watcher
+The site-repository automation layer that reacts to repository events, invokes a release/full-SHA-pinned Site Compiler with an explicit Site Config, and deploys its artifact.
+_Avoid_: escaping daemon, watcher, compiler workflow
 
 **Published Content**:
 Issue Content from an allowed author that carries the `published` label and satisfies exactly one supported content-type profile.

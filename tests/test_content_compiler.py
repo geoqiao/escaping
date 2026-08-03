@@ -8,12 +8,11 @@ from github_blog.config import Settings
 from github_blog.content_compiler import ContentCompiler
 from github_blog.models.content import ContentCompilationResult
 from github_blog.models.issue_snapshot import IssueSnapshot
-from github_blog.services.render_service import RenderService
 
 _NOW = datetime(2026, 1, 10, tzinfo=timezone.utc)
 
 
-def _settings(theme: str = "Escape1", about_number: int = 10) -> Settings:
+def _settings(about_number: int = 10) -> Settings:
     return Settings.model_validate(
         {
             "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
@@ -25,7 +24,6 @@ def _settings(theme: str = "Escape1", about_number: int = 10) -> Settings:
             "profile": {"avatar": "/avatar.png", "bio": "Builder"},
             "about": {"issue_number": about_number},
             "security": {"token_env": "TEST_TOKEN"},
-            "paths": {"theme": theme},
         }
     )
 
@@ -134,22 +132,3 @@ def test_missing_about_and_about_tags_fail() -> None:
         [_snapshot(10, "about", labels=("tag:profile",))]
     )
     assert "ABOUT_TAG_FORBIDDEN" in _codes(tagged)
-
-
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2"])
-def test_idea_about_content_to_render_tracer(theme: str) -> None:
-    result = ContentCompiler(_settings(theme)).compile(
-        [_snapshot(2, "idea", labels=("tag:tools",)), _snapshot(10, "about")]
-    )
-    renderer = RenderService(_settings(theme))
-
-    idea_index = renderer.render_ideas(result.ideas)
-    idea_detail = renderer.render_idea(result.ideas[0])
-    assert result.about is not None
-    about = renderer.render_about_page(result.about)
-
-    assert "/ideas/2/" in idea_index
-    assert "2026-01-02" in idea_detail and "issue-number" in idea_detail
-    assert "Builder" in about and "Visible <strong>body</strong>" in about
-    assert "2026-01-02" not in about
-    assert "issue-number" in about and "10" in about

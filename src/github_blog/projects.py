@@ -5,6 +5,7 @@ from dataclasses import dataclass
 
 from .config import ProjectCatalogEntry
 from .models.projects import Project, ProjectsPage
+from .routes import Route
 
 
 @dataclass(frozen=True)
@@ -23,7 +24,9 @@ class ProjectCompiler:
     ) -> None:
         self._enrich = enrich
 
-    def compile(self, entries: Sequence[ProjectCatalogEntry]) -> ProjectsPage:
+    def compile(
+        self, entries: Sequence[ProjectCatalogEntry], *, route: Route
+    ) -> ProjectsPage:
         projects: list[Project] = []
         for entry in sorted(entries, key=lambda value: (value.order, value.slug)):
             fallback = entry.fallback_metadata
@@ -66,5 +69,5 @@ class ProjectCompiler:
             )
         items = tuple(projects)
         return ProjectsPage(
-            items, tuple(project for project in items if project.featured)
+            items, tuple(project for project in items if project.featured), route
         )

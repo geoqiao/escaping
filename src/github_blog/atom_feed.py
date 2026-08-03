@@ -1,7 +1,7 @@
-"""Blog-only Atom feed builder, XML renderer, and writer (Ticket 08).
+"""Internal Blog-only Atom model builder and XML renderer.
 
-Takes validated ``BlogPost`` values and explicitly injected ``Settings``
-plus ``build_start_time``, sorts entries by accepted publication order
+The SiteBuilder supplies immutable Site metadata and ``build_start_time``;
+entries sort by accepted publication order
 (``published_at`` desc, ``issue_number`` desc), and produces an immutable
 ``AtomFeed`` with every URL pre-computed before rendering.
 
@@ -27,17 +27,15 @@ renderer receives only the resulting Atom model.
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from datetime import datetime, timezone
-from pathlib import Path
+from typing import Protocol
 
 from .build_result import Diagnostic
-from .config import Settings
 from .models.atom_feed import (
     AtomEntry,
     AtomFeed,
     AtomFeedResult,
-    AtomFeedRoute,
 )
 from .models.blog_post import BlogPost
 from .routes import RouteRegistry
@@ -52,6 +50,12 @@ _ATOM_NS: str = "http://www.w3.org/2005/Atom"
 # Register the default namespace so ElementTree serialises elements
 # without a namespace prefix (standard Atom convention).
 ET.register_namespace("", _ATOM_NS)
+
+
+class _AtomMetadata(Protocol):
+    title: str
+    description: str
+    author: str
 
 
 # ---------------------------------------------------------------------------
@@ -134,11 +138,11 @@ def _find_illegal_xml_char(value: str) -> int | None:
 
 
 # ---------------------------------------------------------------------------
-# AtomFeedBuilder
+# Internal feed builder
 # ---------------------------------------------------------------------------
 
 
-class AtomFeedBuilder:
+class _AtomFeedBuilder:
     """Build a strict Blog-only Atom feed from validated ``BlogPost`` values.
 
     The builder is the feed seam: validated posts, settings, and an
@@ -154,26 +158,23 @@ class AtomFeedBuilder:
 
     def __init__(
         self,
-        settings: Settings,
+        metadata: _AtomMetadata,
         *,
         build_start_time: datetime,
-        route_registry: RouteRegistry | None = None,
+        route_registry: RouteRegistry,
     ) -> None:
-        self._settings = settings
+        self._metadata = metadata
         self._build_start_time = build_start_time
-        self._routes = route_registry or RouteRegistry(str(settings.site.url))
-        self._home_route = self._routes.home()
+        self._routes = route_registry
         self._atom_route = self._routes.atom()
 
     def _post_url(self, post: BlogPost) -> str:
-        route = self._routes.route_for_path(post.canonical_path)
-        if route is None:
-            route = self._routes.blog_detail(post.slug)
-        if route.canonical_path != post.canonical_path:
+        expected = f"{self._routes.origin}{post.route.canonical_path}"
+        if post.route.canonical_url != expected:
             raise ValueError(
-                f"Blog post route is not registered: {post.canonical_path!r}"
+                f"Blog post Route uses a different site origin: {post.route.canonical_url!r}"
             )
-        return self._routes.url(route)
+        return post.route.canonical_url
 
     def build(self, posts: Sequence[BlogPost]) -> AtomFeedResult:
         """Build the Atom feed, always returning a valid ``AtomFeed``.
@@ -201,9 +202,9 @@ class AtomFeedBuilder:
 
         # Validate site-level XML 1.0 character validity.
         for field_name, value in (
-            ("title", self._settings.site.title),
-            ("subtitle", self._settings.site.description),
-            ("author_name", self._settings.site.author),
+            ("title", self._metadata.title),
+            ("subtitle", self._metadata.description),
+            ("author_name", self._metadata.author),
         ):
             pos = _find_illegal_xml_char(value)
             if pos is not None:
@@ -305,15 +306,7 @@ class AtomFeedBuilder:
         entries = tuple(self._build_entry(post) for post in sorted_posts)
 
         feed = AtomFeed(
-            route=AtomFeedRoute(
-                self._atom_route.canonical_path, self._atom_route.output_path
-            ),
-            self_url=self._routes.url(self._atom_route),
-            alternate_url=self._routes.url(self._home_route),
-            feed_id=self._routes.url(self._home_route),
-            title=self._settings.site.title,
-            subtitle=self._settings.site.description,
-            author_name=self._settings.site.author,
+            route=self._atom_route,
             updated=feed_updated,
             entries=entries,
         )
@@ -342,7 +335,9 @@ class AtomFeedBuilder:
 # ---------------------------------------------------------------------------
 
 
-def _validate_feed_xml_chars(feed: AtomFeed) -> None:
+def _validate_feed_xml_chars(
+    feed: AtomFeed, metadata: _AtomMetadata, home_url: str
+) -> None:
     """Raise :class:`AtomXmlError` if any feed field has illegal XML 1.0 chars.
 
     Defense-in-depth: the builder excludes invalid entries and accumulates
@@ -353,12 +348,12 @@ def _validate_feed_xml_chars(feed: AtomFeed) -> None:
     problems: list[str] = []
 
     for field_name, value in (
-        ("title", feed.title),
-        ("subtitle", feed.subtitle),
-        ("author_name", feed.author_name),
-        ("feed_id", feed.feed_id),
-        ("self_url", feed.self_url),
-        ("alternate_url", feed.alternate_url),
+        ("title", metadata.title),
+        ("subtitle", metadata.description),
+        ("author_name", metadata.author),
+        ("feed_id", home_url),
+        ("self_url", feed.route.canonical_url),
+        ("alternate_url", home_url),
     ):
         pos = _find_illegal_xml_char(value)
         if pos is not None:
@@ -390,7 +385,7 @@ def _validate_feed_xml_chars(feed: AtomFeed) -> None:
         )
 
 
-def render_atom_xml(feed: AtomFeed) -> str:
+def render_atom_xml(feed: AtomFeed, metadata: _AtomMetadata, home_url: str) -> str:
     """Render an ``AtomFeed`` as a valid Atom XML string (UTF-8).
 
     Produces a standard Atom 1.0 document with the correct XML namespace,
@@ -409,38 +404,38 @@ def render_atom_xml(feed: AtomFeed) -> str:
     """
     # Defense-in-depth: reject illegal XML 1.0 characters before
     # serialization so the renderer never returns unparseable XML.
-    _validate_feed_xml_chars(feed)
+    _validate_feed_xml_chars(feed, metadata, home_url)
 
     feed_elem = ET.Element(f"{{{_ATOM_NS}}}feed")
 
     # --- Feed-level elements -----------------------------------------------
     id_elem = ET.SubElement(feed_elem, f"{{{_ATOM_NS}}}id")
-    id_elem.text = feed.feed_id
+    id_elem.text = home_url
 
     title_elem = ET.SubElement(feed_elem, f"{{{_ATOM_NS}}}title")
-    title_elem.text = feed.title
+    title_elem.text = metadata.title
 
     # Self link (application/atom+xml)
     self_link = ET.SubElement(feed_elem, f"{{{_ATOM_NS}}}link")
     self_link.set("rel", "self")
     self_link.set("type", "application/atom+xml")
-    self_link.set("href", feed.self_url)
+    self_link.set("href", feed.route.canonical_url)
 
     # Alternate link (text/html)
     alt_link = ET.SubElement(feed_elem, f"{{{_ATOM_NS}}}link")
     alt_link.set("rel", "alternate")
     alt_link.set("type", "text/html")
-    alt_link.set("href", feed.alternate_url)
+    alt_link.set("href", home_url)
 
     # Author
     author_elem = ET.SubElement(feed_elem, f"{{{_ATOM_NS}}}author")
     name_elem = ET.SubElement(author_elem, f"{{{_ATOM_NS}}}name")
-    name_elem.text = feed.author_name
+    name_elem.text = metadata.author
 
     # Subtitle (site description)
-    if feed.subtitle:
+    if metadata.description:
         subtitle_elem = ET.SubElement(feed_elem, f"{{{_ATOM_NS}}}subtitle")
-        subtitle_elem.text = feed.subtitle
+        subtitle_elem.text = metadata.description
 
     # Feed-level updated
     updated_elem = ET.SubElement(feed_elem, f"{{{_ATOM_NS}}}updated")
@@ -481,33 +476,3 @@ def render_atom_xml(feed: AtomFeed) -> str:
         xml_declaration=True,
     )
     return xml_bytes.decode("utf-8")
-
-
-# ---------------------------------------------------------------------------
-# Writer tracer (strict, not connected to default CLI)
-# ---------------------------------------------------------------------------
-
-
-def write_atom_feed(
-    feed: AtomFeed,
-    render_xml: Callable[[AtomFeed], str],
-    output_dir: Path,
-) -> Path:
-    """Write the Atom feed XML to its pre-computed output path.
-
-    This tracer is deliberately not connected to the default CLI. It
-    writes the feed beneath ``output_dir`` using only
-    ``feed.route.output_path``.
-    """
-    path = output_dir / feed.route.output_path
-    path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(render_xml(feed), encoding="utf-8")
-    return path
-
-
-__all__ = [
-    "AtomFeedBuilder",
-    "AtomXmlError",
-    "render_atom_xml",
-    "write_atom_feed",
-]

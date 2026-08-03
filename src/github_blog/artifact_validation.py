@@ -8,7 +8,6 @@ from pathlib import Path
 from urllib.parse import urljoin, urlsplit
 
 from .build_result import Diagnostic
-from .config import Settings
 from .models.site import SiteModel
 
 _ATOM_NS = "http://www.w3.org/2005/Atom"
@@ -77,8 +76,7 @@ class _HTMLProbe(HTMLParser):
 class SiteArtifactValidator:
     """Validate rendered files against one SiteModel and RouteRegistry."""
 
-    def __init__(self, settings: Settings, site: SiteModel) -> None:
-        self.settings = settings
+    def __init__(self, site: SiteModel) -> None:
         self.site = site
 
     def validate(self, candidate_dir: Path) -> list[Diagnostic]:
@@ -227,7 +225,7 @@ class SiteArtifactValidator:
                 continue
             else:
                 path = parsed.path
-            static_prefix = f"/templates/{self.settings.paths.theme}/"
+            static_prefix = f"{self.site.metadata.theme.asset_path}/"
             if path.startswith(static_prefix):
                 asset = candidate_dir / path.lstrip("/")
                 if not asset.is_file():
@@ -253,7 +251,7 @@ class SiteArtifactValidator:
         candidate_dir: Path,
         diagnostics: list[Diagnostic],
     ) -> None:
-        static_prefix = f"/templates/{self.settings.paths.theme}/"
+        static_prefix = f"{self.site.metadata.theme.asset_path}/"
         for tag, value in resources:
             path = self._internal_resource_path(value, current_url)
             if path is None:

@@ -4,14 +4,8 @@ from dataclasses import dataclass, field
 from datetime import datetime
 
 from ..build_result import Diagnostic
+from ..routes import Route
 from .blog_post import BlogPost, BlogTag
-from .home_page import HomeProfile
-
-
-@dataclass(frozen=True)
-class ContentRoute:
-    canonical_path: str
-    output_path: str
 
 
 @dataclass(frozen=True)
@@ -24,15 +18,15 @@ class Idea:
     updated_at: datetime
     tags: tuple[BlogTag, ...]
     body_html: str
-    canonical_path: str
-    canonical_url: str = ""
+    route: Route
 
     @property
-    def route(self) -> ContentRoute:
-        return ContentRoute(
-            canonical_path=self.canonical_path,
-            output_path=f"ideas/{self.issue_number}/index.html",
-        )
+    def canonical_path(self) -> str:
+        return self.route.canonical_path
+
+    @property
+    def canonical_url(self) -> str:
+        return self.route.canonical_url
 
 
 @dataclass(frozen=True)
@@ -41,13 +35,15 @@ class AboutPage:
     title: str
     description: str
     body_html: str
-    canonical_path: str
-    profile: HomeProfile
-    canonical_url: str = ""
+    route: Route
 
     @property
-    def route(self) -> ContentRoute:
-        return ContentRoute(self.canonical_path, "about/index.html")
+    def canonical_path(self) -> str:
+        return self.route.canonical_path
+
+    @property
+    def canonical_url(self) -> str:
+        return self.route.canonical_url
 
 
 @dataclass(frozen=True)

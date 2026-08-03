@@ -1,21 +1,19 @@
-"""Tests that shipped executable YAML configs load under the strict model."""
+"""Contract tests for the generator's only shipped Config example."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-import pytest
 import yaml
 from yaml.resolver import BaseResolver
 
-from github_blog.config import Settings
+from github_blog.config import BuiltinThemeConfig, Settings
 
 _PROJECT_ROOT = Path(__file__).parent.parent
+_CONFIG_EXAMPLE = _PROJECT_ROOT / "config.example.yaml"
 
 
 def _unique_key_loader() -> type[yaml.SafeLoader]:
-    """Return a SafeLoader subclass that raises on duplicate mapping keys."""
-
     class UniqueKeyLoader(yaml.SafeLoader):
         pass
 
@@ -34,19 +32,17 @@ def _unique_key_loader() -> type[yaml.SafeLoader]:
     return UniqueKeyLoader
 
 
-@pytest.mark.parametrize("filename", ["config.yaml", "config.example.yaml"])
-def test_shipped_config_strict_load(filename: str) -> None:
-    """Both shipped configs load under the strict Settings model."""
-    path = _PROJECT_ROOT / filename
-    assert path.exists(), f"{filename} must exist"
-    settings = Settings.load_from_yaml(path)
+def test_example_config_strict_loads_with_default_theme() -> None:
+    settings = Settings.load_from_yaml(_CONFIG_EXAMPLE)
+
     assert settings.site.url.scheme == "https"
     assert settings.security.token_env == "GITHUB_TOKEN"  # noqa: S105
     assert settings.about.issue_number >= 1
+    assert settings.theme == BuiltinThemeConfig(name="geoqiao.me")
 
 
-@pytest.mark.parametrize("filename", ["config.yaml", "config.example.yaml"])
-def test_shipped_config_has_no_duplicate_keys(filename: str) -> None:
-    loader = _unique_key_loader()
-    yaml_text = (_PROJECT_ROOT / filename).read_text(encoding="utf-8")
-    yaml.load(yaml_text, Loader=loader)  # noqa: S506 - trusted local file
+def test_example_config_has_no_duplicate_keys() -> None:
+    yaml.load(
+        _CONFIG_EXAMPLE.read_text(encoding="utf-8"),
+        Loader=_unique_key_loader(),  # noqa: S506 - trusted local file
+    )
