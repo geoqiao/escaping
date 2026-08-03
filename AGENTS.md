@@ -35,7 +35,7 @@ P3 产品决策未重新开启前，保留 Ideas 和 Projects，不引入 plugin
    fetch、cache、update 或 `theme_lock`。
 6. `geoqiao.me` 是默认内置 Theme；Escape1/Escape2 是内置替代 Themes。
 7. Theme 静态 URL 使用以 `/` 开头的 `{{ theme_path }}`。
-8. Utterances 行为位于共享 `src/github_blog/static/comments.js`。必须保留：
+8. Utterances 行为位于共享 `src/escaping/static/comments.js`。必须保留：
    - immutable Issue number binding；
    - `postMessage` + `MutationObserver` 自动主题同步；
    - message origin/source 校验；
@@ -47,7 +47,7 @@ P3 产品决策未重新开启前，保留 Ideas 和 Projects，不引入 plugin
 ## 当前结构
 
 ```text
-src/github_blog/
+src/escaping/
 ├── content_compiler.py
 ├── site_builder.py
 ├── routes.py
@@ -93,8 +93,8 @@ tests/
 ```bash
 uv sync
 uv run pytest -q
-uv run ruff check src/github_blog tests
-uv run ruff format --check src/github_blog tests
+uv run ruff check src/escaping tests
+uv run ruff format --check src/escaping tests
 uv run ty check
 git diff --check
 ```
@@ -103,7 +103,7 @@ git diff --check
 
 ```bash
 export GITHUB_TOKEN=...
-uv run blog-gen --config /absolute/or/relative/site/config.yaml
+uv run escpe --config /absolute/or/relative/site/config.yaml
 uv run python -m http.server 8000 --directory /path/to/site/output
 ```
 
@@ -121,7 +121,7 @@ uv run python -m http.server 8000 --directory /path/to/site/output
 
 ## Themes
 
-内置 Theme 位于 `src/github_blog/themes/<name>/`，每个 Theme 包含 `theme.yaml`、页面
+内置 Theme 位于 `src/escaping/themes/<name>/`，每个 Theme 包含 `theme.yaml`、页面
 模板和 `static/`。共享评论逻辑不复制进 Theme source；构建时复制到所选 Theme 的
 输出 asset directory。
 

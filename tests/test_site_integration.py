@@ -3,16 +3,16 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from pathlib import Path
 
-from github_blog.artifact_validation import SiteArtifactValidator
-from github_blog.config import Settings
-from github_blog.content_compiler import ContentCompiler
-from github_blog.models.issue_snapshot import IssueSnapshot
-from github_blog.models.site import SiteModel
-from github_blog.projects import ProjectCompiler
-from github_blog.routes import RouteRegistry
-from github_blog.services.render_service import RenderService
-from github_blog.site_builder import SiteBuilder
-from github_blog.theme import ThemeLoader
+from escaping.artifact_validation import SiteArtifactValidator
+from escaping.config import Settings
+from escaping.content_compiler import ContentCompiler
+from escaping.models.issue_snapshot import IssueSnapshot
+from escaping.models.site import SiteModel
+from escaping.projects import ProjectCompiler
+from escaping.routes import RouteRegistry
+from escaping.services.render_service import RenderService
+from escaping.site_builder import SiteBuilder
+from escaping.theme import ThemeLoader
 
 _ROOT = Path(__file__).parent.parent.absolute()
 

@@ -3,9 +3,9 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from github_blog.config import ProjectCatalogEntry, ProjectFallbackMetadata
-from github_blog.projects import ProjectCompiler, ProjectEnrichment
-from github_blog.routes import Route, RouteRegistry
+from escaping.config import ProjectCatalogEntry, ProjectFallbackMetadata
+from escaping.projects import ProjectCompiler, ProjectEnrichment
+from escaping.routes import Route, RouteRegistry
 
 
 def _projects_route() -> Route:

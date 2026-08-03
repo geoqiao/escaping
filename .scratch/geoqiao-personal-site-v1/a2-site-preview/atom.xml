@@ -1,0 +1,32 @@
+<?xml version='1.0' encoding='utf-8'?>
+<feed xmlns="http://www.w3.org/2005/Atom"><id>https://geoqiao.me/</id><title>geoqiao's Blog</title><link rel="self" type="application/atom+xml" href="https://geoqiao.me/atom.xml" /><link rel="alternate" type="text/html" href="https://geoqiao.me/" /><author><name>geoqiao</name></author><updated>2026-01-01T00:00:00Z</updated><entry><id>https://geoqiao.me/blog/pi-agent/</id><title>What's on My Pi Agent?：把 90% 的 Codex Desktop 装进终端</title><link rel="alternate" type="text/html" href="https://geoqiao.me/blog/pi-agent/" /><summary>Codex Desktop 很顺手，只是我的 MacBook 跑不起它。</summary><published>2026-01-01T00:00:00Z</published><updated>2026-01-01T00:00:00Z</updated><content type="html">&lt;h1&gt;内容&lt;/h1&gt;
+&lt;p&gt;这是用于检查 A2 Quiet Ledger 主题的代表性正文。&lt;/p&gt;
+&lt;h2&gt;一段记录&lt;/h2&gt;
+&lt;p&gt;代码、工具与生活，最终都需要清晰而耐用的表达。&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-python"&gt;print("quiet ledger")
+&lt;/code&gt;&lt;/pre&gt;
+</content></entry><entry><id>https://geoqiao.me/blog/obsidian-to-blog/</id><title>从 Obsidian 到博客：我如何用一条命令把笔记变成网站</title><link rel="alternate" type="text/html" href="https://geoqiao.me/blog/obsidian-to-blog/" /><summary>把本地写作、GitHub Issues 和静态站点串成发布路径。</summary><published>2026-01-01T00:00:00Z</published><updated>2026-01-01T00:00:00Z</updated><content type="html">&lt;h1&gt;内容&lt;/h1&gt;
+&lt;p&gt;这是用于检查 A2 Quiet Ledger 主题的代表性正文。&lt;/p&gt;
+&lt;h2&gt;一段记录&lt;/h2&gt;
+&lt;p&gt;代码、工具与生活，最终都需要清晰而耐用的表达。&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-python"&gt;print("quiet ledger")
+&lt;/code&gt;&lt;/pre&gt;
+</content></entry><entry><id>https://geoqiao.me/blog/ai-collaboration/</id><title>从 Superpowers 学习高质量 AI 协作</title><link rel="alternate" type="text/html" href="https://geoqiao.me/blog/ai-collaboration/" /><summary>一份给策略分析师的 Claude Code 指南。</summary><published>2026-01-01T00:00:00Z</published><updated>2026-01-01T00:00:00Z</updated><content type="html">&lt;h1&gt;内容&lt;/h1&gt;
+&lt;p&gt;这是用于检查 A2 Quiet Ledger 主题的代表性正文。&lt;/p&gt;
+&lt;h2&gt;一段记录&lt;/h2&gt;
+&lt;p&gt;代码、工具与生活，最终都需要清晰而耐用的表达。&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-python"&gt;print("quiet ledger")
+&lt;/code&gt;&lt;/pre&gt;
+</content></entry><entry><id>https://geoqiao.me/blog/quiet-refactor/</id><title>一次安静的重构</title><link rel="alternate" type="text/html" href="https://geoqiao.me/blog/quiet-refactor/" /><summary>让工具回到工具的位置。</summary><published>2026-01-01T00:00:00Z</published><updated>2026-01-01T00:00:00Z</updated><content type="html">&lt;h1&gt;内容&lt;/h1&gt;
+&lt;p&gt;这是用于检查 A2 Quiet Ledger 主题的代表性正文。&lt;/p&gt;
+&lt;h2&gt;一段记录&lt;/h2&gt;
+&lt;p&gt;代码、工具与生活，最终都需要清晰而耐用的表达。&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-python"&gt;print("quiet ledger")
+&lt;/code&gt;&lt;/pre&gt;
+</content></entry><entry><id>https://geoqiao.me/blog/long-term/</id><title>关于长期主义的短笔记</title><link rel="alternate" type="text/html" href="https://geoqiao.me/blog/long-term/" /><summary>从日常工作里重新理解耐心。</summary><published>2026-01-01T00:00:00Z</published><updated>2026-01-01T00:00:00Z</updated><content type="html">&lt;h1&gt;内容&lt;/h1&gt;
+&lt;p&gt;这是用于检查 A2 Quiet Ledger 主题的代表性正文。&lt;/p&gt;
+&lt;h2&gt;一段记录&lt;/h2&gt;
+&lt;p&gt;代码、工具与生活，最终都需要清晰而耐用的表达。&lt;/p&gt;
+&lt;pre&gt;&lt;code class="language-python"&gt;print("quiet ledger")
+&lt;/code&gt;&lt;/pre&gt;
+</content></entry></feed>

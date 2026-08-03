@@ -20,7 +20,7 @@ corrupts the new final.
 Failed builds clean up candidate output and preserve the previous final
 output byte-for-byte.  The staging directory is created as a sibling of
 the final output, within the containment boundary validated by
-:func:`github_blog.output_safety.validate_output_containment`.
+:func:`escaping.output_safety.validate_output_containment`.
 
 The service owns and tracks every staging directory it creates.  At
 ``publish`` and ``cleanup`` mutation boundaries it rejects arbitrary,

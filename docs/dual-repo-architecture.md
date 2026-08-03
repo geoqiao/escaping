@@ -1,4 +1,4 @@
-# 双仓库架构与 Pages Artifact 部署
+# 当前代码架构与双仓库 Pages Artifact 部署
 
 ## 当前职责
 
@@ -12,24 +12,139 @@
 GitHub Issue 是 Blog、Idea、About 的唯一内容来源。`escaping` 只读 Issues，
 不会创建、编辑、删除、加标签或发布 Issue。
 
+## Site Compiler 代码架构
+
+```mermaid
+flowchart TD
+    subgraph Inputs["输入层"]
+        Config["config.yaml"]
+        Token["security.token_env 指定的环境变量"]
+        Issues["GitHub Issues"]
+    end
+
+    subgraph Entry["入口与编排"]
+        CLI["CLI"]
+        Settings["Settings<br/>Pydantic 配置验证"]
+        SiteCompiler["SiteCompiler<br/>严格单向编译入口"]
+    end
+
+    subgraph Acquisition["数据获取层"]
+        GitHubService["GitHubService<br/>只读 GitHub API"]
+        Snapshots["IssueSnapshot<br/>不可变 Issue 快照"]
+    end
+
+    subgraph Compilation["领域编译层"]
+        ContentCompiler["ContentCompiler<br/>Frontmatter 验证与内容清洗<br/>Blog / Idea / About"]
+        ProjectCompiler["ProjectCompiler<br/>项目配置与 GitHub 元数据"]
+        RouteRegistry["RouteRegistry<br/>统一 URL 与输出路径<br/>冲突和不安全路径检查"]
+        SiteModelBuilder["SiteModelBuilder<br/>聚合页面、分页、标签和 Feed"]
+        SiteModel["SiteModel<br/>完整且不可变的站点模型"]
+    end
+
+    subgraph Rendering["渲染与发布层"]
+        RenderService["RenderService<br/>Jinja2 与 Markdown 渲染"]
+        Themes["Themes<br/>Escape1 / Escape2 / geoqiao.me"]
+        Staging["隔离的 Staging 目录"]
+        Validator["SiteArtifactValidator<br/>路由、Meta、资源、JSON-LD<br/>Atom、Sitemap、Robots 验证"]
+        Publisher["OutputStagingService<br/>原子发布"]
+        Output["output/<br/>完整静态站点"]
+        Failed["终止构建<br/>清理 Staging 并保留旧站点"]
+    end
+
+    Config --> CLI
+    CLI -->|"Settings.load_from_yaml"| Settings
+    Token --> CLI
+    CLI --> SiteCompiler
+    Settings --> SiteCompiler
+
+    SiteCompiler --> GitHubService
+    Issues --> GitHubService
+    GitHubService --> Snapshots
+    Snapshots --> ContentCompiler
+
+    SiteCompiler --> ContentCompiler
+    Settings --> ContentCompiler
+    SiteCompiler --> ProjectCompiler
+    Settings -->|"projects"| ProjectCompiler
+    SiteCompiler --> RouteRegistry
+    RouteRegistry --> ContentCompiler
+    ContentCompiler --> SiteModelBuilder
+    ProjectCompiler --> SiteModelBuilder
+    RouteRegistry --> SiteModelBuilder
+    Settings --> SiteModelBuilder
+    SiteModelBuilder --> SiteModel
+
+    SiteCompiler --> RenderService
+    SiteModel --> RenderService
+    Settings --> RenderService
+    Themes --> RenderService
+    RenderService --> Staging
+    Staging --> Validator
+    SiteModel --> Validator
+    Validator -->|"验证通过"| Publisher
+    Validator -->|"验证失败"| Failed
+    Publisher --> Output
+```
+
+关键边界：
+
+- `Settings` 显式传入 `SiteCompiler`，再由编排层把完整配置或对应配置段传给下游组件，不存在全局配置单例；
+- `RouteRegistry` 是 canonical URL 与输出路径的唯一注册入口；
+- 渲染只消费内部 `SiteModel`，不会直接读取 GitHub Issue；
+- 新产物必须在 Staging 中完整验证，验证成功后才会原子替换现有 `output/`。
+
 ## 生产流程
 
-```text
-geoqiao.github.io Issue event
-        │ opened / edited / labeled / unlabeled / closed / reopened
-        ▼
-geoqiao.github.io/.github/workflows/pages.yml
-        │ checkout geoqiao/escaping@main
-        │ GITHUB_TOKEN（GitHub Actions 短期 token）
-        ▼
-uv run blog-gen
-        │ SiteModel → RouteRegistry → validated output
-        ▼
-actions/upload-pages-artifact
-        ▼
-actions/deploy-pages
-        ▼
-GitHub Pages → https://geoqiao.me/
+```mermaid
+flowchart TD
+    Author["作者编辑 GitHub Issue"]
+
+    subgraph TargetRepo["geoqiao/geoqiao.github.io<br/>内容仓库与 Pages 目标仓库"]
+        Issues["GitHub Issues<br/>Blog / Idea / About"]
+        Workflow[".github/workflows/pages.yml"]
+        HistoricalFiles["仓库根目录历史生成文件<br/>不再作为发布源"]
+    end
+
+    subgraph CompilerRepo["geoqiao/escaping<br/>Site Compiler 仓库"]
+        Main["main"]
+        Source["src/escaping/"]
+        Config["config.yaml"]
+        Templates["templates/"]
+        Tests["tests/"]
+    end
+
+    subgraph Actions["GitHub Actions"]
+        Checkout["Checkout escaping/main"]
+        ShortToken["短期 GITHUB_TOKEN<br/>最小权限"]
+        Build["uv run escpe"]
+        Artifact["actions/upload-pages-artifact"]
+        Deploy["actions/deploy-pages"]
+    end
+
+    Pages["GitHub Pages CDN"]
+    DNS["DNS<br/>geoqiao.me → GitHub Pages"]
+    Visitor["访问者"]
+    Manual["workflow_dispatch"]
+
+    Author --> Issues
+    Issues -->|"Issue 事件"| Workflow
+    Manual --> Workflow
+    Workflow --> Checkout
+    Main --> Checkout
+    Checkout --> Source
+    Source --> Build
+    Config --> Build
+    Templates --> Build
+    Workflow --> ShortToken
+    ShortToken -->|"读取 Issues"| Issues
+    Issues --> Build
+    Build --> Artifact
+    Artifact --> Deploy
+    Deploy --> Pages
+    DNS --> Pages
+    Visitor --> DNS
+    HistoricalFiles -.->|"不参与当前部署"| Pages
+    Tests -.->|"开发期验证"| Source
 ```
 
 Issue comments不触发静态构建，因为 Utterances 会实时读取评论。Open/closed 状态
@@ -98,15 +213,29 @@ security:
 注入，不写入配置、Issue、workflow 或日志。不要把密码、Token、Cookie 提交到仓库
 或发送给 Agent。
 
-## 开发与切换顺序
+## 当前生产状态
 
-1. 在 feature branch 完成并验证 strict compiler；
-2. 迁移历史 Issue Content：正文保持不变，只补齐 front matter 和控制 labels；
-3. 创建并配置唯一的 About Issue；
-4. 将模板复制到 `geoqiao.github.io/.github/workflows/pages.yml`；
-5. 在目标仓库手动运行一次 workflow，验证 Pages artifact；
-6. 确认本地构建、XML、链接、canonical、桌面/移动端 smoke 全部通过；
-7. 将 feature branch 合并到 `escaping/main`；
-8. 完成 Pages custom domain 和 HTTPS 线上验证。
+以下是 2026-08-02 完成生产切换后的快照：
 
-历史 `.html` URL 不保留 redirect 或兼容别名；旧的 branch-root 发布流程也不再保留。
+```mermaid
+flowchart LR
+    Compiler["escaping/main<br/>ec23f86"] --> Workflow["Pages workflow"]
+    Target["geoqiao.github.io/main<br/>4cb1341"] --> Workflow
+    Workflow --> Build["构建成功"]
+    Build --> Artifact["Pages Artifact<br/>8834821597"]
+    Artifact --> Deploy["部署成功<br/>Run 30752288816"]
+    Deploy --> Domain["geoqiao.me"]
+
+    LegacyTrigger["旧 trigger.yml"] -->|"已删除"| Retired["旧发布链路已退役"]
+    LegacySecret["G_T Secrets"] -->|"已删除"| Retired
+    LegacyWorkflow["旧 gen_site workflow"] -->|"已禁用"| Retired
+
+    Domain --> HTTPS["HTTPS 证书<br/>等待 GitHub 异步签发"]
+```
+
+生产切换已经完成：
+
+- Pages 发布源是 GitHub Actions 上传的 artifact，不是目标仓库根目录；
+- 旧 `trigger.yml`、`G_T` secrets 和 branch-root 发布链路已经退役；
+- 历史 `.html` URL 不保留 redirect 或兼容别名；
+- DNS 已指向 GitHub Pages；当前唯一待完成的运维项是证书签发后启用 **Enforce HTTPS**。

@@ -1,0 +1,1583 @@
+{
+  "schema_version": 1,
+  "repository": "geoqiao/geoqiao.github.io",
+  "captured_at": "2026-08-03T09:42:32.216335+00:00",
+  "purpose": "Rollback snapshot before the approved English Blog slug migration",
+  "issue_count": 34,
+  "issues": [
+    {
+      "body": "---\nslug: rye-hao-yong-de-pythonbao-guan-li-gong-ju\ndescription: \"rye是一个 Python 的包管理器，可以更轻松的管理 Python 项目和虚拟环境，作者是流行 web 框架 flask 的作者Armin Ronacher\"\ncreated_date: \"2024-01-06\"\n---\n\n[rye](https://github.com/mitsuhiko/rye)是一个 Python 的包管理器，可以更轻松的管理 Python 项目和虚拟环境，作者是流行 web 框架 flask 的作者[Armin Ronacher](https://github.com/mitsuhiko)\r\n\r\n作为一个刚开始学习 Python 的新手，它解决了我碰到的两个难题：\r\n\r\n1. 使用`pip`安装包时，经常某些包无法在当前 python 版本安装\r\n2. 不会使用 venv 等虚拟环境管理工具\r\n3. 使用`conda`时，经常社区还没有适配某些最新版本的包\r\n\r\n这里引出 rye 主要的几个功能：\r\n\r\n1. 管理全局的 Python 版本\r\n2. 管理虚拟环境中的 Python 版本\r\n3. 以封装`pip`和`virtualenv`的方式，让我不必烦恼如何使用他们\r\n\r\n## 安装 rye\r\n\r\n在 macOS 上，直接运行一下命令即可，同时在 rye 的[文档](https://rye-up.com/guide/installation/#installing-rye)也给出了其他系统的安装方式。\r\n\r\n例如 macOS：\r\n\r\n> To install run you can curl a command which will install the right binary for your operating system and CPU architecture and install it:\r\n>\r\n> ````shell\r\n> curl -sSf https://rye-up.com/get | bash\r\n> ````\r\n\r\n**补充**：\r\n\r\n```shell\r\nrye self update # 升级rye\r\n```\r\n\r\n```shell\r\nrye self uninstall # 卸载rye\r\n```\r\n\r\n## 开始一个新项目\r\n\r\n使用  `rye init`  初始化一个新项目非常容易。在这里，我开始一个名为： `\"test-rye\"`的新项目。\r\n\r\n```shell\r\nmkdir test-rye  #创建项目文件夹\r\ncd test-rye #在终端进入刚才创建的项目文件夹\r\nrye init . #使用rye初始化项目\r\n```\r\n\r\n执行初始化之后，rye 会帮我们创建一些默认文件：\r\n\r\n```shell\r\ntree\r\n├── README.md       # 项目的README文件\r\n├── pyproject.toml  # rye用来管理项目的文件\r\n└── src\r\n    └── test_rye\r\n        └── __init__.py\r\n```\r\n\r\n现在，我们便可以安装自己想安装的包。假设我这个项目想用来做一些数据分析工作：\r\n\r\n```shell\r\n# 使用rye安装 numpy pandas scikit-learn xgboost\r\nrye add numpy pandas scikit-learn xgboost # 解析包版本，并添加到pyproject.toml文件中\r\nrye sync # 开始下载文件对应的包\r\n```\r\n\r\n至此，一个由 rye 管理的项目就创建完成了，我们可以使用 VSCode 打开项目文件夹，并开始写代码了。\r\n\r\n```shell\r\ncode .  # 使用VSCode打开项目文件夹\r\n```\r\n\r\n此时，我们的项目文件夹结构如下：\r\n\r\n```shell\r\ntree\r\n├── README.md\r\n├── pyproject.toml\r\n├── requirements-dev.lock\r\n├── requirements.lock\r\n└── src\r\n    └── test_rye\r\n        ├── __init__.py\r\n        └── __pycache__\r\n            └── __init__.cpython-311.pyc\r\n```\r\n\r\n**注意事项**：\r\n当我们的项目需要添加新的依赖时，可以使用`rye add <package name>` 和 `rye sync`来安装对应的包，或者通过`rye romove <package name>`和`rye sync`来移除对应的包。\r\n\r\n`rye add <package name>`和`rye romove <package name>`只修改`pyproject.toml`文件，`rye sync`会按照`pyproject.toml`文件实际对项目的依赖进行操作。\r\n\r\n## 修改项目的 Python 版本\r\n\r\nrye 当前为我们的项目安装 Python@3.11 版本，但不必担心，rye 为我们提供了修改项目 Python 版本的命令\r\n\r\n```shell\r\nrye pin 3.9\r\nrye sync # 所有的修改都需要使用sync命令生效\r\n```\r\n\r\n此时，我们的项目的 Python 版本就变为了Python@3.9\r\n\r\n## 全局 Python 脚本\r\n\r\n某些情况下，有些包我们想要全局使用，比如`black`或者`ruff`来对我们的代码进行格式化。\r\n\r\n```shell\r\nrye install ruff\r\n```\r\n\r\n安装之后，就可以在终端全局使用`ruff`命令了\r\n\r\n卸载也很简单：\r\n\r\n```shell\r\nrye uninstall ruff\r\n```\r\n\r\n## 最后\r\n\r\nrye 还支持一些常规的操作，比如接管全局 python、升级项目中某个依赖或者所有依赖的版本、构建/发布包等等功能，可以通过[官方文档](https://rye-up.com/guide/)查看。\r\n",
+      "createdAt": "2024-01-06T07:38:36Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 1,
+      "title": "rye - 好用的Python包管理工具",
+      "updatedAt": "2026-08-02T10:02:50Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/1",
+      "body_sha256": "95092c7b93efd1bd0c3b2e516075e370979b99ed3f6068d0c672a4e84c4331dc"
+    },
+    {
+      "body": "---\nslug: excel-xue-xi-jing-yan-fen-xiang\ndescription: \"描述 1. 这是一个分享个人 excel 经验的文档。\"\ncreated_date: \"2023-07-15\"\n---\n\n## 描述\r\n1. 这是一个分享个人 excel 经验的文档。\r\n\r\n2. 不分享特定函数的使用方法；实际上，你可以在百度/谷歌轻松搜索到答案。\r\n\r\n3. 分享一些思路，这些思路可以用在 SQL 和 Python 的学习中。\r\n\r\n## 函数与 `y=x+2` \r\n`y=x+2` 是一个非常简单的数学方程，如果我们给定符合格式的 X 的值，代入这个方程式，就可以得到期望的 Y 值。\r\n\r\n例如：假设 `x=2`，则 Y = 2+2，即 Y = 4；但是，假设 `x=假设`，却得不到任何值。\r\n\r\n这是因为，在这里变量 X 只能为一个数字格式，方程式才能被正确计算。\r\n\r\n同理，excel的函数也是如此，例如常用的vlookup、xlookup、sumifs、if等等，只要在单元格内输入 `=vlookup(函数要求的参数格式)`，即可得到期望的结果。你可以在Google或者百度搜索到函数的用法。\r\n以此类推，excel的任一函数都可以这样看待。当使用次数多了之后，便不用每次都去搜索参数格式。\r\n\r\n## 数据透视表\r\n数据透视表是一个数据分析工作中非常实用的工具。\r\n\r\n### 数据透视表优势\r\n1. 很多时候数据透视表的性能（运行速度）要好于使用函数的方式。\r\n2. 使用上不需要手动输入参数，只需要会使用鼠标`拖、拉、拽`三招就可以。\r\n3. 会了`拖、拉、拽`，就会了一半的BI工具，操作方式真的很像市面上所有的主流 BI 工具如tableau、powerbi、finebi。\r\n\r\n### 数据透视表操作流程\r\n1. 准备数据：首先需要准备好需要进行分析的数据，并将其放入 Excel 中。\r\n\r\n2. 选择数据透视表：在 Excel 中，选择需要进行分析的数据区域，然后在菜单栏中选择“插入”选项卡中的“数据透视表”。\r\n\r\n3. 设定数据源：在弹出的“数据透视表创建向导”中，选择“选择多个合适的数据源”选项，并将数据源区域的范围填入。\r\n\r\n4. 设定行、列及值：在“数据透视表字段列表”中，将需要分析的数据字段拖动到“行”、“列”、“值”区域中。\r\n\r\n5. 设定筛选器：可以在“数据透视表字段列表”中，将需要进行筛选的数据字段拖动到“筛选器”区域中，并进行筛选。\r\n\r\n6. 设定样式：根据需要，可以在“设计”选项卡中设定数据透视表的样式。\r\n\r\n7. 更新数据：当需要更新数据时，只需右键单击数据透视表并选择“刷新”即可。",
+      "createdAt": "2023-07-15T02:54:59Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1a0Lw",
+          "name": "excel",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN4sQ",
+          "name": "tag:excel",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 2,
+      "title": "excel 学习经验分享",
+      "updatedAt": "2026-08-02T10:02:53Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/2",
+      "body_sha256": "9fecb7cb667dc39fabcb3f31beffcd49077e49278ad1c1e8f5ab7e37ccc6cf50"
+    },
+    {
+      "body": "---\nslug: with-sql-as-english\ndescription: \"描述\"\ncreated_date: \"2023-07-15\"\n---\n\n## 描述\r\n\r\n1. 分享自己学习 SQL 的经验。\r\n2. `WITH 临时表名 AS 子查询` 是 SQL 中一个常用的语法，这篇分享会介绍这个语法。\r\n3. SQL 很简单，只需要知道一些英文单词什么意思，就可以读懂。\r\n\r\n## 英文单词列表\r\n\r\nselect：选择**哪些字段**\r\nfrom：从**哪个表**选择这段\r\nwhere：从某个表中符合**哪些条件的数据**进行选择\r\nleft join：就是 excel 中的 vlookup\r\n\r\n## 用 excel 思维读 SQL 代码\r\n\r\n理解了以上的几个单词，你就可以读懂 SQL 代码了，比如如下的代码片段：\r\n\r\n```sql\r\nSELECT\r\n\ttable1.id\r\n\t,table2.name\r\nFROM table1\r\nLEFT JOIN table2\r\nON table1.id = table2.id\r\nWHERE table1.column1 = '1'\r\n```\r\n\r\n在这个示例中，`table1`  和  `table2`  是两个不同的表，我们在 `table1` 中写了一个 `vlookup` ，这个公式以两张表中的 `id` 字段为条件关联，把 `table2`  中的 `name` 字段匹配到了 `table1` ，并且匹配完成后进行了一个筛选，只选择 `table1` 中 `column1` 字段为 `'1'` 的行。\r\n",
+      "createdAt": "2023-07-15T03:09:11Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1b4Wg",
+          "name": "sql",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN7OQ",
+          "name": "tag:sql",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 3,
+      "title": "with_sql _as_english",
+      "updatedAt": "2026-08-02T10:02:55Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/3",
+      "body_sha256": "baad02e7f0e8230722103ce3cc0eb6280745ce647f8db89409252dc69bcd2e5d"
+    },
+    {
+      "body": "---\nslug: guan-yu-li-shi\ndescription: \"吃饭的时候突然想到，把历史比喻成一个车轮真的是生动形象且具体。\"\ncreated_date: \"2023-07-15\"\n---\n\n吃饭的时候突然想到，把历史比喻成一个车轮真的是生动形象且具体。\r\n\r\n在某种角度上来看，这个车轮一直在向前滚动；另一种种角度上，车轮又在不断循环，车轮的材质变化，滚动的速度也不一样。\r\n\r\n一些东西一直再改变，但一些东西一直没变。",
+      "createdAt": "2023-07-15T03:17:05Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        }
+      ],
+      "number": 4,
+      "title": "关于历史",
+      "updatedAt": "2026-08-02T10:02:58Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/4",
+      "body_sha256": "9838acf426afc534a149c058bde227b1435a868ab59b08d247a1a80988ce7167"
+    },
+    {
+      "body": "---\nslug: kong-diao-bo-xue-li-lun-de-ti-chu\ndescription: \"两大基本原理 首先 ，在开始阐述空调剥削理论之前，先来了解一下这个理论成立的两大基本原理：\"\ncreated_date: \"2023-07-15\"\n---\n\n## 两大基本原理\r\n**首先**，在开始阐述空调剥削理论之前，先来了解一下这个理论成立的两大基本原理：\r\n\r\n**空调制冷原理**和**能量守恒**\r\n\r\n\r\n### 空调制冷原理\r\n**空调制冷原理**是指空调制冷运作的原理。空调器通电后，制冷系统内制冷剂的低压蒸汽被压缩机吸入并压缩为高压蒸汽后排至冷凝器，室内空气不断循环流动，达到降低温度的目的。\r\n\r\n轴流风扇吸入的室外空气流经冷凝器，带走制冷剂放出的热量，使高压制冷剂蒸汽凝结为高压液体。高压液体经过过滤器、节流机构后喷入蒸发器，并在相应的低压下蒸发，吸取周围的热量。同时贯流风扇使空气不断进入蒸发器的肋片间进行热交换，并将放热后变冷的空气送向室内。\r\n\r\n说白了就是吸入的空气经过冷凝器把放出的热量排出到室外，再把冷却后的空气送到室内，以达到制冷的目的。\r\n\r\n\r\n### 能量守恒\r\n**能量守恒定律**（energy conservation law）即热力学第一定律，是指在一个封闭（孤立）系统的总能量保持不变。其中总能量一般说来已不再只是动能与势能之和，而是静止能量（固有能量）、动能、势能三者的总量。\r\n\r\n能量守恒定律可以表述为：一个系统的总能量的改变只能等于传入或者传出该系统的能量的多少。总能量为系统的机械能、热能及除热能以外的任何内能形式的总和。\r\n\r\n如果一个系统处于孤立环境，即不可能有能量或质量传入或传出系统。对于此情形，能量守恒定律表述为：\r\n\r\n> “孤立系统的总能量保持不变。”\r\n\r\n能量既不会凭空产生，也不会凭空消失，它只会从一种形式转化为另一种形式，或者从一个物体转移到其它物体，而能量的总量保持不变。能量守恒定律是自然界普遍的基本定律之一。\r\n\r\n\r\n## 那么胡思乱想来了\r\n**这两个原理往出一摆，聪明的可能就猜出来了**\r\n\r\n能量守恒定律用在现在的空调制冷上面得出了一个可怕的结论：\r\n\r\n> 空调在长期来看不仅不利于制冷，反而导致了全球变暖！\r\n\r\n  \r\n### 为什么会变暖\r\n是这样，室内的那部分空气的热量排到室外，室外单位体积空气的热量就会升高，室外的总体热量升高。\r\n\r\n室外是哪里？室外，指露天场所。也就是整个自然环境啊。整个自然环境的整体热量升高，那不就是全球变暖嘛！\r\n\r\n\r\n这里大家可能又要问了，这室内和室外是一体的呀，都属于地球的生态环境的一部分呀。\r\n\r\n是呀，可使用空调的时候为了保证制冷效果，都是关着门窗，这就造成了室内和室外环境的分离，空调是两者之间的唯一通路。所以，室内和室外就是地球这个孤立系统的两个不同部分。\r\n\r\n\r\n### 变暖和剥削有什么关系\r\n那全球变暖就变暖吧，空调咋又和剥削连到一块了？\r\n\r\n是这样，按照现在的技术，当室外温度到43摄氏度以上的时候（来自百度百科），空调的制冷效果就会失效。那么可以想象，随着空调导致全球变暖愈发严重，当气温超过43摄氏度时，现有的空调就没用了。当然，不排除技术的进步。但是技术的进步也会导致成本的增加，那时候不是所有人都能用得起空调。\r\n\r\n到此，也就得出了——空调剥削理论。\r\n\r\n\r\n## 这个理论有两层含义：  \r\n\r\n**第一层是，技术的进步没能克服43摄氏度的气温，空调没用了。也就是空调作为一个没有生命，没有意识的机器，剥削了包括人类在内的地球全体。**\r\n\r\n**第二层是，技术的进步克服了43摄氏度的气温，空调依然有作用，但使用成本大大增加。即能够使用空调的少数人类剥削包括用不上空调的其余人类在内的地球全体。**",
+      "createdAt": "2023-07-15T03:25:05Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        }
+      ],
+      "number": 5,
+      "title": "空调剥削理论的提出",
+      "updatedAt": "2026-08-02T10:03:00Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/5",
+      "body_sha256": "1f0438331ed941047b41de1b7ce713b587b7f9e53ead68d54a4e5be7460b538a"
+    },
+    {
+      "body": "---\nslug: out-of-the-depth-of-misfortune-comes-bliss\ndescription: \"大方无隅\"\ncreated_date: \"2023-07-15\"\n---\n\n大方无隅\r\n\r\n大器晚成\r\n\r\n大音希声\r\n\r\n大象无形\r\n\r\n\r\n大直若屈\r\n\r\n大巧若拙\r\n\r\n大辩若讷\r\n\r\n大盈若冲\r\n\r\n大成若缺\r\n\r\n\r\n大勇若怯\r\n\r\n大智若愚\r\n\r\n\r\n大璞不完\r\n\r\n\r\n时来运转\r\n\r\n乐极生悲\r\n\r\n苦尽甘来\r\n\r\n物极必反  \r\n\r\n\r\n否极泰来\r\n\r\n否极泰来\r\n\r\n否极泰来",
+      "createdAt": "2023-07-15T03:34:29Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        }
+      ],
+      "number": 6,
+      "title": "Out of the depth of misfortune comes bliss",
+      "updatedAt": "2026-08-02T10:03:03Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/6",
+      "body_sha256": "4b75cc95610837dc7dd09000a4ab9f5f710dcafebedc5863e3d1e64b667f668c"
+    },
+    {
+      "body": "---\nslug: zong-de-huo-zhao-ba\ndescription: \"世俗价值都是禁不起推敲的，推敲下去觉得活着没意义。\"\ncreated_date: \"2023-07-15\"\n---\n\n世俗价值都是禁不起推敲的，推敲下去觉得活着没意义。  \r\n\r\n你越想意义就越痛苦。所以人们只能有两个选择，肉体自杀和哲学自杀。\r\n\r\n## 哲学自杀\r\n\r\n哲学自杀就是不再想这个问题了，老子选择信仰个宗教，伊斯兰或者马克思，或者世俗主义，或者纯粹享乐比谁啪的多，比谁赚得多…总之信个世俗价值的东西。你可以随便吃饭时候问一下同桌人，生活的意义是啥，别人不是笑你就是说想这干嘛，但他们是无法给出答案的。这就是所谓哲学自杀。人如果不愿放弃，继续思考，结果必然面对找不到意义的尴尬，也就是加缪的名词‘荒谬’，很可能走向虚无。\r\n\r\n## 肉体自杀\r\n\r\n肉体自杀就是没办法不想意义的问题，但是想来想去没有答案，没有答案还是没有办法不想。最后，只能选择终身一跃，为了彻底暂停思考或者探索另一种可能。\r\n\r\n## 没有哲学自杀但还没走到肉体自杀？\r\n\r\n人如果不愿放弃，继续思考，结果必然面对找不到意义的尴尬，也就是加缪的名词‘荒谬’，很可能走向虚无。\r\n在荒谬虚无走到底点，人的反抗激情就回归了。于是众多存在主义者就揭竿而起，擦，既然没有意义，老子就自己给自己定义意义。我得先做选择，选择后先去做，再去想。\r\n但是自己定义意义会出问题，比如脑门被夹了，定义出奸淫幼童这种意义怎么办？于是萨特就提出了承担责任，也就是说，不管你选择了啥，顺着选择做了啥，都要承担对应责任。责任更像一种惩罚，奸淫幼童就要承担被道德、法律制裁的责任。存在主义者的要求就是人要为自己行动承担责任。\r\n\r\n## 知其不可为而为之\r\n\r\n就比如，生活给了你一巴掌，让你去死；你不仅不能听它的，还得回它一巴掌，再加一句：操！生命的意义就在这句粗口里。\r\n\r\n知道人终有一死，但现在，我选择活。\r\n",
+      "createdAt": "2023-07-15T14:40:01Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        }
+      ],
+      "number": 7,
+      "title": "总得活着吧？",
+      "updatedAt": "2026-08-02T10:03:05Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/7",
+      "body_sha256": "6fbb2d8b13270404f62bd70c0da1c602b8a962d633874dcfbab07da7917724d4"
+    },
+    {
+      "body": "---\nslug: ji-yu-github-issues-de-ge-ren-blog-da-jian\ndescription: \"背景 我最近碰到了以下问题： 1. 偶尔想写点东西，想有一个个人 blog 2. 不懂代码：听到部署、买域名、备案、服务器这些词就头疼想逃避 3. 不想花钱：买服务器、域名一年好几百甚至可能上千\"\ncreated_date: \"2023-07-18\"\n---\n\n## 背景\r\n我最近碰到了以下问题：\r\n1. 偶尔想写点东西，想有一个个人 blog\r\n2. 不懂代码：听到部署、买域名、备案、服务器这些词就头疼想逃避\r\n3. 不想花钱：买服务器、域名一年好几百甚至可能上千\r\n\r\n## 解决方案\r\n基于[yihong0618](https://github.com/yihong0618)的 gitblog 项目，在 GitHub 上搭建一个基于 issues 的个人博客。\r\n\r\n**这个方法有以下几个优点：**\r\n1. 完全免费：不会碰到域名、服务器、备案、一年多少钱这些问题\r\n2. 非常简单：会下载文件、上传文件、编辑文件就可以完成\r\n3. 自动化：大佬已经写好了一些函数和脚本，可以自动化完成一些操作\r\n\r\n**搭建前需要什么：**\r\n1. 可以登录使用 GitHub \r\n2. 注册一个 GitHub 账号\r\n\r\n## 操作教程\r\n操作教程可以参考这个[知乎链接](https://zhuanlan.zhihu.com/p/400962805)，教程写的非常详细，部分页面UI因版本问题跟现在有点区别，但是基本不影响操作。\r\n\r\n不过需要补充一点，按教程操作完成后需要把 GitHub Action 的读写权限打开。操作方式为 Settings - Actions - General - 勾选 Read and write permissions - save，如下图所示：\r\n\r\n## 结语\r\n以上就是全部内容，非常感谢 @yihong0618 老师的代码。",
+      "createdAt": "2023-07-18T13:10:40Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 8,
+      "title": "基于 GitHub issues 的个人 blog 搭建",
+      "updatedAt": "2026-08-02T10:03:07Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/8",
+      "body_sha256": "4a13e3b8f6f0c7fcba658df26d5d99e6dcbbe0c9edcf11919f9ca75e13ba74b5"
+    },
+    {
+      "body": "---\nslug: what-s-on-my-mac\ndescription: \"和大多数人一样，拿到一台MacBook第一件事就是找各种软件，以下是我目前在用的一些。它们的整体使用体验都很不错，且部分软件可以联动形成 workflow ，供大家参考。\"\ncreated_date: \"2023-07-29\"\n---\n\n和大多数人一样，拿到一台MacBook第一件事就是找各种软件，以下是我目前在用的一些。它们的整体使用体验都很不错，且部分软件可以联动形成 workflow ，供大家参考。\r\n\r\n## 启动器类- Raycast\r\n目前免费的启动器类app，可以启动、替代很多软件。自带的窗口管理功能替代 magnet、rectangle 等等窗口管理软件；自带的文件搜索功能替代了访达；还有一系列提升工作效率的插件。不了解的人可以[参考这里](https://telegra.ph/%E4%B8%BA%E4%BB%80%E4%B9%88%E6%88%91%E7%94%A8raycast%E6%9B%BF%E4%BB%A3%E4%BA%86alfred-07-17)。\r\n\r\n## 自动切换输入法- Input Source Pro\r\n自动切换输入法。给不同 app、网站设置不同输入法。属于平时特别没有存在感，但一旦某天出 bug 就会想砸电脑的那种 app。\r\n\r\n## 截图-Shottr\r\n截图软件，小巧、免费、功能俱全。长截图、OCR、顺序标注，除了贴图，其他功能几乎都有，而且体验很棒。\r\n\r\n## 解压缩-Keka\r\n免费好用的解压缩软件。\r\n\r\n## 鼠标体验-Mac Mouse Fix\r\n开源、免费、改善Mac鼠标滚动体验。Mos同样好用，但是似乎最新版本与 Shottr 长截图有冲突，故放弃。\r\n\r\n## 刘海管理-Bartender4\r\n刘海屏永远的痛，同类免费软件总是不如预期，故 618 打折入手正版Bartender。\r\n\r\n## RSS源-RSSHub Radar\r\n一款可以发现当前网页Rss订阅的浏览器扩展，支持 Safari、Chrome。\r\n\r\n## RSS阅读- Netnewswire\r\n开源免费的 RSS 阅读器，我用它替代了 reeder4。主要原因是他支持macOS原生的翻译功能，选词右键就可以，reeder4不行。\r\n\r\n## 文档日记写作- Typora + Obsidian\r\nmarkdown 编辑器。Typora 编辑体验好，Obsidian 管理文件好用。简单设置一下可以同步图片。\r\n\r\n## GTD - Itsycal 、reminder\r\nItsycal 是一款日历插件，可以在状态栏点击直接添加日程，和原生 Calendar 同步。有预定日期的会议、比较确定的日程通过 Itsycal 记录在日历里面，日期不确定的待办事项记在 Reminder。焦虑感和慌张感会少很多。\r\n\r\n## 浏览器插件\r\n常用的Chrome插件\r\n\r\n屏蔽广告：uBlock Origin\r\n\r\n多端、多浏览器密码同步：Bitwarden\r\n\r\nrss源：RSSHub Radar\r\n\r\nTrancy：YouTube神器、英语学习神器（YouTube有很多公开课，比如CS50P等等）\r\n\r\n# 其他\r\n微信、telegram、VSCode、Chrome。。。\r\n\r\noffice 被我卸载了，因为想学 pandas，强迫自己用 pandas 读表\r\n\r\n\r\n\r\nReport content on this page",
+      "createdAt": "2023-07-29T06:20:29Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnobA1Q",
+          "name": "macOS",
+          "description": "",
+          "color": "5C5BF0"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN5vA",
+          "name": "tag:macos",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 9,
+      "title": "What's on my Mac",
+      "updatedAt": "2026-08-02T10:03:10Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/9",
+      "body_sha256": "99989522b9125bf4865a5d2c9824b7d3c68f3014db431212edcbf8fae2fcd6fe"
+    },
+    {
+      "body": "---\nslug: shottr-yuan-sheng-qing-qiao-qie-gong-neng-qiang-da-de-mian-fei-tu-gong\ndescription: \"| Shottr官网\"\ncreated_date: \"2023-07-29\"\n---\n\n| [Shottr官网](https://shottr.cc/)\r\n\r\n- **截图**：不得不说，作为截图工具的基础功能，shottr 并没有特别出彩的地方，UI 也谈不上漂亮。但是基础的区域截图、顺序标记都有，操作起来也非常直觉。而且在其他同类app中要付费的滚动截图功能也是免费的。\r\n\r\n- **打码**：把打码功能单独拎出来说，是因为 shottr 的操作特别直觉。只要框选区域，按下delete键即可。最新出的Blur Text和Erase Text功能可以自动识别图中的文字，在这个模式里按下delete后只给文字打码。唯一的不足就是目前对中文文字识别似乎还不太精确，反馈issue后，开发者回复：“Text recognition is performed by macOS embedded OCR engine and its quality is out of my hands.”。\r\n\r\n- **OCR**：不像其他截图app，需要先截图，然后选中图中文字复制。shottr只需要⌥+T框选需识别区域，文字便会自动复制到剪贴板。谁身边还没有一群就喜欢发图片，但从不考虑你需要复制图中手机号/ID的同事呢？\r\n\r\n- **另外**：不管截图还是OCR，内容都会保存在剪贴板中。即时使用的内容可以直接粘贴，非即时使用的内容也可以搭配剪贴板工具进行管理。因为我的剪贴板内容管理需求并不高，所以[使用Raycast](https://telegra.ph/%E4%B8%BA%E4%BB%80%E4%B9%88%E6%88%91%E7%94%A8raycast%E6%9B%BF%E4%BB%A3%E4%BA%86alfred-07-17)的 clipboard 功能就完全够用了。\r\n\r\n- **贴图**。就是把图片钉在屏幕最上层\r\n\r\n整体体验下来，我认为 shottr非常适合经常需要**对截图进行简单编辑**或者经常使用**OCR功能**的朋友，shottr 能轻松满足你的需求。而且，向开发者邮件反馈issue，开发者回复都非常积极。",
+      "createdAt": "2023-07-29T06:28:23Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnobA1Q",
+          "name": "macOS",
+          "description": "",
+          "color": "5C5BF0"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN5vA",
+          "name": "tag:macos",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 10,
+      "title": "Shottr- 原生、轻巧且功能强大的免费macOS截图工具",
+      "updatedAt": "2026-08-02T10:03:12Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/10",
+      "body_sha256": "da288dedc1531a7de8527936335a2248a7e19db0bbb7a46d3d20d6c38b5d98f4"
+    },
+    {
+      "body": "---\nslug: pythonhuan-jing-an-zhuang-anacondawei-li\ndescription: \"学习 Python 第一步就是需要安装一个 Python 环境，这可劝退了大部分人。\"\ncreated_date: \"2023-07-30\"\n---\n\n学习 Python 第一步就是需要安装一个 Python 环境，这可劝退了大部分人。\r\n\r\n## 安装 Python 环境的几种传统方式\r\n\r\n1. 系统自带，直接用系统的。比如 macOS 一般自带 Python3。\r\n2. 终端使用 Homebrew 类似的包管理工具安装。安装后自己修改路径，安装需要使用的 Python 库。一般成功后终端输入`python3`就可以成功进入 Python 环境了。\r\n3. [Python 官网](https://www.python.org/)最直接的方式，甚至官网也有详细的安装教程。\r\n\r\n以上几种方式，对于已有编程经验或者计算机基础知识的人来说，完全可以，可操作空间极大，完全可以自定义一个个性化的 Python 环境。\r\n\r\n但是对于刚入门的小白，我以重装系统的惨痛教训建议：不要使用以上的方法安装 Python！\r\n\r\n### 为什么不推荐？\r\n\r\n因为终端操作有一定门槛，新手第一次安装遇到报错很容易直接劝退；就算折腾一番安装好了，后续各种后续看不懂的终端命令也够折磨人的了。\r\n\r\n> 人的焦虑和恐惧来自于没有安全感，对工具的掌控程度越高，安全感越多\r\n\r\n我也不知道我怎么就安装了好几个版本的 Python，Google 搜如何解决，随便在某 code 网站复制了一个命令，然后，电脑就什么都没了，重装系统都进行不下去，最后只能求助于天才吧。\r\n\r\n## 新手友好的 Python 环境安装-Anaconda\r\n\r\n作为 95 后，小时候没少玩 DNF、穿越火线、英雄联盟。那时候还不像现在网速这么快，每次更新加载都很慢，每次等待都想踹主机。但我家里穷，只敢心里想想不敢真的踹。那每次大更新我都直接卸载重装。\r\n\r\n对于安装游戏、卸载游戏我相当在行，想安装在 D 盘，绝不会让游戏安装到 C 盘。\r\n\r\n### 为什么讲到这个呢？\r\n\r\n因为**安装 Anaconda 的过程**，就像给电脑安装游戏一样简单。\r\n\r\n1. 找到[Anaconda 官网](https://www.anaconda.com/)\r\n2. 下载安装包\r\n3. 安装安装包（就是屏幕上弹出一个框框，就是需要一直点下一步的那个熟悉的框框\r\n4. 选择喜欢的编辑器，新建`.ipynb`文件，kernel 选择前面带 base 的就行\r\n5. 大部分库基本都有，比如 pandas、numpy 等等，不需要二次手动安装\r\n\r\n## 用什么编辑器呢？\r\n\r\n说实话很多编辑器都很好用，但我们的原则是必须简单、免费。\r\n\r\n那就有两个选择：\r\n\r\n一个是 jupyter notebook ，很适合新手。写一行、运行一行，非常好入门。\r\n\r\n另一个是 VSCode，可以安装 jupyter notebook 插件，以及 Python 的语法高亮插件。我个人感觉要比纯粹的 jupyter notebook 功能更强大，使用体验也更好。\r\n\r\n我自己是在用 VSCode，因为 VSCode 创建文件夹、管理文件夹的方式跟在资源管理器/访达里面创建删除的体验没啥区别，非常直觉。\r\n\r\n## 总结\r\n\r\n以上就是全部内容，其实跟标题相关的就四五行。具体安装教程没有写，是因为真的和小时候下载安装游戏的流程一模一样。\r\n\r\n如果过程中碰到什么问题，可以及时 Google 搜索。当然，如果你愿意的话，可以直接在这个 issue 下面评论，我会尽快回复的。\r\n",
+      "createdAt": "2023-07-30T11:09:46Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 11,
+      "title": "Python环境安装-Anaconda为例",
+      "updatedAt": "2026-08-02T10:03:15Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/11",
+      "body_sha256": "c7a5928e61cf2909e613b9c85e6d1adfdfe53a9c2f8c9d4f71bb04343c0afc0b"
+    },
+    {
+      "body": "---\nslug: zhong-qi-qing-yong-obsidian\ndescription: \"什么是 Obsidian\"\ncreated_date: \"2023-08-19\"\n---\n\n## 什么是 Obsidian\r\n\r\nObsidian 是一个个人知识管理和笔记应用程序，它使用**Markdown**语法来编写和格式化笔记，帮助用户组织、链接和探索知识。它支持**双向链接**、标签、搜索和**插件扩展**，并且完全本地化存储，让用户轻松构建和管理一个互相关联的知识网络。\r\n\r\n总结下来三个优点：\r\n\r\n1. Markdown 语法：简单排版秒杀 Word、Notes、OneNote 等一众软件\r\n2. 双向链接：在笔记与笔记之间关联\r\n3. 插件扩展：是的，甚至可以使用插件搭建一个本地版本的 Notion\r\n\r\n## 为什么使用 Obsidian\r\n\r\n总结下来有以下几个原因：\r\n\r\n1. 有时候脑子里有些奇怪的想法，想记录下来，类似 flomo 那种\r\n2. 有时候想写一点东西，分享自己的经验、记录自己。\r\n3. 不想使用在线服务（想法天马行空，不想被审查\r\n\r\n恰好，Obsidian 完全满足以上需求：\r\n\r\n1. 完全本地，想跨设备同步可以使用 iCloud\r\n2. 有类 flomo 插件，完全可以当作本地版本的 flomo 使用\r\n3. 玩法花样多，想折腾也有折腾空间\r\n\r\n## 我如何使用 Obsidian\r\n\r\n我使用工具类 app 有个特点，在一开始喜欢折腾，恨不得把所有功能都试一遍、所有主题都换一遍；在熟悉之后，又进行瘦身，把不用的功能都关掉，只保留最常用的几个功能。\r\n\r\n以下是我现在的使用配置：\r\n\r\n1. 不使用模板：因为使用模板需要不定时维护，也许突然想改、优化，这很消耗精力，这让我没办法专心记录\r\n2. 仅安装 memos、PanGu 插件：memos 插件可以把 Obsidian 变成一个本地版 flomo，随时随地记录灵感；PanGu 插件可以优化排版（使文章中的英文字母单词前后增加空格\r\n3. 双向链接：不定期更新以写完文章的双向链接\r\n\r\nOK，这就是我的全部用法了。\r\n\r\nObsidian 很强，如果你想用它替代 Notion、Xmind、白板工具、PPT、稍后读等等，都是可以实现的。但是，这些功能对于普通用户来说都很重，消耗太多精力。\r\n\r\n我认为最重要的是：精力集中在**使用工具**，而不是**如何使用工具**上。\r\n\r\n对比 Notion，想用得好，自己又得做产品经理，又得做开发，搞一个模板可能没用几次可能就有新场景需要满足，又要优化模板，最后成长的架构思维和设计能力，这是我不想从一个**知识管理**软件上体验到的。\r\n\r\nObsidian 给了我一个可以重器轻用的选择，这非常重要。\r\n",
+      "createdAt": "2023-08-19T07:57:20Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACZAmhbA",
+          "name": "obsidian",
+          "description": "",
+          "color": "20f10d"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN5-g",
+          "name": "tag:obsidian",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 12,
+      "title": "重器轻用-Obsidian",
+      "updatedAt": "2026-08-02T10:03:17Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/12",
+      "body_sha256": "63c44458340a55a2bfcb1dd4aa9269810532d15aec648e3f5a016b77b3217c6d"
+    },
+    {
+      "body": "---\nslug: wo-de-di-yi-ge-wan-zheng-de-ji-qi-xue-xi-xiang-mu-titaniczong-jie\ndescription: \"背景 最近一直在学习Python，尝试使用Python解决一些工作上的问题。这里记录参加这次比赛的心得总结，并会给出我的代码示例(rank：top16%)\"\ncreated_date: \"2023-08-31\"\n---\n\n## 背景\r\n最近一直在学习Python，尝试使用Python解决一些工作上的问题。这里记录参加这次比赛的心得总结，并会给出我的[代码示例(rank：top16%)](https://github.com/geoqiao/Python_DA_100_day/blob/main/kaggle_competition/titanic.py)\r\n\r\nTitanic是一个机器学习的入门级分类问题的比赛，数据集记录了titanic乘客的一些信息如性别、票价、船舱等级等信息。数据集被分成train_data 和 test_data两部分。参赛者需要根据train_data的数据信息，利用模型对数据集进行学习，并且预测test_data中乘客是否最终幸存。\r\n\r\ntitanic数据集的优势是：\r\n1. 数据相对干净，没有特别复杂的数据清理难度\r\n2. 相对简单，可以体验machine learning项目的全流程\r\n3. 比赛不会关闭，可以多次迭代提交\r\n4. 官方有详细的置顶示例项目，基本上如何参加比赛、提交代码、提交预测都有提到，对kaggle新手十分友好\r\n6. 简单，不会劝退机器学习新手\r\n\r\n## 比赛过程\r\n整个比赛过程，我总共提交了三次，以下是我的参赛过程。\r\n1. 第一次提交-熟悉比赛流程：  \r\n    在第一次提交之前，我决定使用XGBoost模型来熟悉比赛的整体流程。这有助于我了解数据集的特征、目标变量以及评估指标。熟悉比赛流程对于理解后续的模型选择和优化非常重要。\r\n    \r\n2. 第二次提交-尝试随机森林：  \r\n    在第二次提交时，我决定尝试随机森林模型。然而，结果并不如第一次提交的好。这个经验教会了我，同一模型在不同数据集上的表现可能会有所不同。因此，在机器学习项目中，尝试多个模型是一种明智的策略，这样可以找到最适合数据集的模型。\r\n    \r\n3. 第三次提交-模型清理与比较：  \r\n    根据前两次提交的结果，我意识到模型可能受到了一些问题的影响。因此，我决定对数据进行更多清理工作，包括处理缺失值、处理异常值、one-hot编码、字符转数字等。尝试决策树、随机森林和支持向量机（SVM）等不同模型，并比较它们的评分结果。通过这些比较，我能够更好地理解不同模型的优缺点，并选择最合适的模型进行后续优化。\r\n    \r\n4. 第三次提交-参数优化：  \r\n    在比较了不同模型后，我选择了决策树模型，并使用网格搜索方法进行参数优化。参数优化可以帮助我们找到最佳的参数组合，从而提高模型的性能。通过不断尝试不同的参数组合，我成功地提高了模型的准确性。\r\n    \r\n5. 排名提升：  \r\n    通过应用上述经验，成功地将排名从初始的12000名提升到2300名。这个过程中，我学会了如何有效地处理数据、选择适当的模型以及优化参数。不仅如此，我还学会了如何利用Kaggle平台上的资源和社区，获取更多有关机器学习的知识和技巧。\r\n\r\n## 总结收获\r\n\r\n1. XGBoost真的很强，大部分数据集可以先用XGBoost跑一遍试试水。\r\n\ta. 会自己处理缺失值，我习惯使用seaborn的heatmap看有无缺失值，有些列如果缺失值很少的话会很难看到。\r\n\tb.快且效果好，相对与其他模型需要适当调整参数来说，xgboost闭眼跑都能获得不错的效果\r\n2. 对于one-hot处理特征、字符标签转数字等场景，pandas有成熟的方法，想象中很麻烦的操作其实只需要一行代码。\r\n3. 在test_data没有标签的情况下，训练集也可以二次拆分为训练集和测试集，用来在比较模型在不同训练集的表现。\r\n4. 当然，引入KFold 和 cross_val_score也可以解决问题。\r\n\r\n# 下一步计划\r\n1. 将学习到的经验应用的工作中的分类问题：预测客户是否会按时还款\r\n2. Python基础：写干净的代码真的很重要，比如这个代码示例，第二次看我已经优点头疼了，函数为什么要那么定义。\r\n3. 写一篇机器学习相关概念的解释blog，例如：kmeans、SVM、随机森林、决策数、XGBoost、",
+      "createdAt": "2023-08-31T13:47:47Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 13,
+      "title": "我的第一个完整的机器学习项目-Titanic总结",
+      "updatedAt": "2026-08-02T10:03:20Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/13",
+      "body_sha256": "2518703f6efd41677be9f3df9de20b21f3d741125f9eef741e404bcc0da4ce29"
+    },
+    {
+      "body": "---\nslug: coke-machine-challenge\ndescription: \"什么是 Coke Machine\"\ncreated_date: \"2023-09-03\"\n---\n\n## 什么是 Coke Machine\r\n\r\nCoke Machine 是[CS50P](https://cs50.harvard.edu/python/2022/)课程中 loop 章节的其中一个课后练习，这个课后练习需要使用 Python 语言中的 loop 语法实现一个可乐售卖机，具体要求如下：\r\n\r\n> Suppose that a machine sells bottles of Coca-Cola (Coke) for 50 cents and only accepts coins in these denominations: 25 cents, 10 cents, and 5 cents.\r\n>\r\n> In a file called `coke.py`, implement a program that prompts the user to insert a coin, one at a time, each time informing the user of the amount due. Once the user has inputted at least 50 cents, output how many cents in change the user is owed. Assume that the user will only input integers, and ignore any integer that isn’t an accepted denomination.\r\n\r\n实际上，这是一个很简单的实现，但是我在这里被困了 2 个小时，这里重新记录一遍过程，当作**错题集**。\r\n\r\n## 任务拆解\r\n\r\n1. 假设输入只有 25、10、5 几种情况，且只输入整数格式，忽略任何不符合要求的数字\r\n2. 文件名为 coke.py\r\n3. 提示用户投入一枚硬币，每次都要通知应付金额\r\n4. 一旦用户投入的金额大于等于 50，输出找零金额\r\n\r\n## 代码实现\r\n\r\n### 初始化\r\n\r\n可乐需要 50 美分；一开始没有任何硬币投入；投入的硬币只有三种情况；提示用户可乐的价格。\r\n\r\n代码如下：\r\n\r\n```python\r\namount_due = 50\r\nchange = 0\r\ncoin_list = [5,10,25]\r\nprint(f\"Amount Due: {amount_due}\") # 告诉客户coke价格\r\n```\r\n\r\n### 付费环节\r\n\r\n由于条件限制，用户无法一次投入 50 美分，需要多次投入（循环），每次都要提醒用户还要投多少钱。\r\n\r\n```python\r\nwhile amount_due > 0: # 循环开始的条件，如果用户还需要投的钱大于0，则说明钱还不够\r\n    coin = input(\"Insert a coin (25, 10, or 5): \")\r\n    # 这里用try 语句来避免用户输入一些无法转换为整数的文本内容\r\n    try:\r\n        coin = int(coin)\r\n    except ValueError:\r\n        print(\"Invalid coin\")\r\n        continue\r\n    # if语句用来判断用户投入的硬币是否符合要求\r\n    if coin in coin_list:\r\n        amount_due -= coin # 总共需要投入的减去已经投入的就是还需要投入的\r\n        change += coin # 这里用来统计用户总共投入的多少\r\n        print(f\"Amount Due: {amount_due}\")\r\n    else: # 如果用户投入的硬币不符合要求，重新提示可乐价格\r\n        print(\"Amount Due: 50\")\r\n```\r\n\r\n### 付费结束之后\r\n\r\n付费结束之后，有可能刚好投入了 50 美分，但也有可能客户给多了，需要给用户找零，代码如下：\r\n\r\n```python\r\n# 还需要付费金额小于等于0，即付够钱了\r\n# 仍需付费金额的绝对值，即为需要找零的钱\r\nif amount_due <= 0:\r\n    print(f\"Change Owed: {abs(amount_due)}\")\r\n```\r\n\r\n## 完整代码\r\n\r\n把以上代码优化一下，当 coke.py 当作脚本运行是可以处罚，但是当 import 到其他 Python 文件中则不会触发：\r\n\r\n```python\r\ndef coke():\r\n    amount_due = 50\r\n    change = 0\r\n    coin_list = [5, 10, 25]\r\n    print(f\"Amount Due: {amount_due}\")\r\n\r\n    while amount_due > 0:\r\n        coin = input(\"Insert a coin (25, 10, or 5): \")\r\n        try:\r\n            coin = int(coin)\r\n        except ValueError:\r\n            print(\"Invalid coin\")\r\n            continue\r\n\r\n        if coin in coin_list:\r\n            amount_due -= coin\r\n            change += coin\r\n            print(f\"Amount Due: {amount_due}\")\r\n        else:\r\n            print(\"Amount Due: 50\")\r\n\r\n    if amount_due <= 0:\r\n        print(f\"Change Owed: {abs(amount_due)}\")\r\n\r\nif __name__ == \"__main__\":\r\n    coke()\r\n```\r\n\r\n重写一遍才发现，`change`这个变量好像根本没用。\r\n\r\n本来是想记录一下用户投入了多少美分，然后用总共投入的钱减去可乐的价格，就是需要找零的钱。现在看来这个变量完全可以去掉，从而使代码更加简洁。\r\n\r\n我就不删了，希望之后重看的时候还能发现这个不完美的地方。",
+      "createdAt": "2023-09-03T13:02:25Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 14,
+      "title": "Coke Machine Challenge ",
+      "updatedAt": "2026-08-02T10:03:22Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/14",
+      "body_sha256": "64466aeafdd2354770282aade312ad4b5f7d0dc3bc26e1d7c90d239837428bad"
+    },
+    {
+      "body": "---\nslug: zong-you-yi-xie-app-zhi-neng-windows-yong\ndescription: \"总有一些 app 只有 Windows 版本，最近对象就碰到这样一个问题，不得已只能安装一个虚拟机了。\"\ncreated_date: \"2023-09-24\"\n---\n\n总有一些 app 只有 Windows 版本，最近对象就碰到这样一个问题，不得已只能安装一个虚拟机了。\r\n\r\n## 结论\r\n\r\n1. 我最终选择了 VMware\r\n2. 现在体验最好的虚拟机还是 PD，如果有钱可以无脑选择 PD\r\n3. VMware 也很强，丝滑感跟 PD 还有差距，但是胜在个人使用免费，且功能够用。\r\n\r\n## 为什么选择 VMware？\r\n\r\n1. PD 太贵，破解太麻烦，macOS 每出一个大版本基本都要重新购买一次\r\n2. VMware 已经支持 M 系列芯片\r\n3. VMware 个人版本免费\r\n4. VMware tech preview 版本已经支持 macOS 与虚拟机之间互相拖拽文件、复制粘贴\r\n\r\n## 安装教程\r\n\r\n安装教程很简单，但是相比 PD 麻烦一点。这里推荐这个[教程](https://youtu.be/vtck5BVjVHM?si=nsNpgXIZAT-QihfH)，基本讲的很详细，需要注意的是，如果有拖拽文件、复制粘贴的需求，需要下载 tech preview 版本。其余操作都一样。\r\n\r\n需要关注以下几个点，大家在安装的时候可以注意一下，会节省很多时间：\r\n\r\n1. 下载 VMware 的时候需要关闭 clashx pro 的增强模式。否则会导致安装后 VMware 的网络功能失效。其他代理工具没试过，暂不知道是否 surge 等会不会出现同样的问题。\r\n2. 使用 Google 搜索 VMware tech preview 官网下载。因为关闭增强模式后终端没有代理，Homebrew 等工具无法下载。\r\n3. 视频中提到的：镜像安装开始的时候一定要 Enter 跳过；无网络链接那一步使用快捷键调出命令行；虚拟机安装完成后安装 VMware tools 为虚拟机安装驱动。\r\n\r\n## 相关链接\r\n\r\nVMware tech preview 下载：[Download VMware Fusion Public Tech Preview 2023](https://customerconnect.vmware.com/downloads/get-download?downloadGroup=FUS-TP2023)\r\n\r\nVMware 正式版下载：[下载 VMware Fusion | VMware | CN](https://www.vmware.com/cn/products/fusion/fusion-evaluation.html)\r\n\r\n安装教程：[YouTube](https://youtu.be/vtck5BVjVHM?si=nsNpgXIZAT-QihfH)\r\n",
+      "createdAt": "2023-09-24T14:02:41Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1atLw",
+          "name": "windows",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN9xA",
+          "name": "tag:windows",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 15,
+      "title": "总有一些 app 只能 Windows 用",
+      "updatedAt": "2026-08-02T10:03:25Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/15",
+      "body_sha256": "73f9df3cf8862c4bc0143bae6fdfc2e5b9f9d447edfc783069e1190cf7d8e9d1"
+    },
+    {
+      "body": "---\nslug: vim-don-t-be-afraid\ndescription: \"作为一名初学者，遇到问题时经常 Google 相关教程。不可避免的，某些教程默认读者会使用 Vim。\"\ncreated_date: \"2023-10-22\"\n---\n\n作为一名初学者，遇到问题时经常 Google 相关教程。不可避免的，某些教程默认读者会使用 Vim。\r\n\r\n`vim ~/.zshrc` 一旦`ENTER`按下去，就完蛋了。这他妈什么界面？我的终端怎么变成这样，什么命令都无法输入？我该怎么返回上一步？直接退出的话教程就跟不上了怎么办？\r\n\r\n真的是太难了，刚开始不了解终端，不了解每条命令的原理，碰见 Vim 真的让人慌张。\r\n\r\n这个 issue 用来帮助读者克服 Vim 恐惧，再也不用担心搜到的教程含有 Vim 命令。\r\n\r\n## 什么是 Vim\r\n\r\nVim 简单来说就是一个编辑器，在终端中输入`vim`就可以打开这个编辑器，如果输入`vim <file path>` 就可以在终端中使用 Vim 打开对应文件。当然，也有很多大佬使用 Vim 作为他们的代码编辑器。\r\n\r\n## 如何使用 Vim\r\n\r\n知道了 Vim 是个编辑器就简单了：对于任何编辑器，只要会修改、保存、退出就可以使用。\r\n\r\n### 修改-`i`\r\n\r\n使用`vim <file path>`命令打开对于文件后，默认是`Normal mode`，即只读模式，无法直接修改。\r\n\r\n在只读模式中按下`i`键，即可进入编辑模式，就是我们正常打开文件的样子。然后就可以正常编辑编辑文件了。\r\n\r\n> `i`是什么？`i`是`insert`的缩写\r\n\r\n### 保存-`：w<Enter>`\r\n\r\n编辑结束之后，`Shift+冒号`键，进入命令模式，紧接着输入`w`，并按下`Enter`键，Vim 便会帮我们保存之前的修改。\r\n\r\n### 退出-`：q<Enter>`\r\n\r\n跟保存操作类似，`Shift+冒号`键，进入命令模式，紧接着输入`q`，并按下`Enter`键，便会退出 Vim 界面，返回到终端\r\n\r\n> tips：`:wq<Enter>`可以保存并退出 Vim\r\n\r\n## 结语\r\n\r\n使用 Vim 在终端中临时修改文件的效率高很多，所以经常在教程中碰到。它同时也是一款传说中无所不能的代码编辑器，不过我并不推荐使用。对于像我这样的初学者，VSCode 更加简单好用。\r\n\r\n> tips: 如果你安装了 VSCode，也可以在终端中输入`code <file path>`使用 VSCode 打开并修改对应文件\r\n",
+      "createdAt": "2023-10-22T06:52:44Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnobGHg",
+          "name": "vim",
+          "description": "",
+          "color": "369A10"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN9Mw",
+          "name": "tag:vim",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 16,
+      "title": "Vim？ Don't be afraid ！",
+      "updatedAt": "2026-08-02T10:03:27Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/16",
+      "body_sha256": "3c59f225b3fd63d6dfb7d3ffac5e20047f4b252d0bb2d50e34cf8fc6f72ad04a"
+    },
+    {
+      "body": "---\nslug: app-defaults-2023\ndescription: \"背景\"\ncreated_date: \"2023-11-11\"\n---\n\n# 背景\r\n\r\n一段时间之前写过一篇[what's on my mac](https://github.com/geoqiao/geoqiao.github.io/issues/9)，推荐过一些自己使用的 Mac 应用。\r\n\r\n最近逛 Twitter 刷到[App Defaults](https://defaults.rknight.me/)项目，这是一份 RSS 订阅清单，包含了很多播客作者的 App Defaults 文章，可以直接通过 OPML 文件订阅。\r\n\r\n这次一些软件发生了变化，对之前的文章做一个更新。\r\n\r\n# App Defaults 2023\r\n\r\n- 💾 **Operating System**: macOS\r\n- 📬 **Mail client**: mail.app\r\n- 🗒 **Notes**: [Obsidian](https://obsidian.md/),and this is [how i use Obsidian](https://github.com/geoqiao/geoqiao.github.io/issues/12)\r\n- 📅 **Calendar**: Calender.app with [ltsycal](https://github.com/sfsam/Itsycal)\r\n- 📎**TODO list**： Reminders.app\r\n- 📰 **RSS reader**: [NetNewsWire](https://netnewswire.com/). It's open source and free and powerful for Mac and iOS.\r\n- 🌐 **Browser**: [Arc](https://arc.net/)(desktop), Safari(mobile)\r\n- 🔖 **Bookmarks**: No more bookmarks , typing websites when need.\r\n- 📔 **Reading**:  I use Arc(iOS) as Read It Later app\r\n- 🎙 **Podcasts**: [Snipd](https://www.snipd.com/), podcast with AI, free version is enough.\r\n- 🔐 **Password Manager**: [Bitwarden](https://bitwarden.com/)\r\n- 📊 **Word processing, Spreadsheet**: Microsoft Excel & Python with pandas\r\n- 📝 **Editor**: Obsidian for .md, vim for system files and quick edits, VS Code for coding(Data cleansing and analysis with Python)\r\n- 🐍**Python environment management**：[Rye](https://rye-up.com/)\r\n- 🪄 **Launcher:** [Raycast](https://www.raycast.com/)\r\n- 📖 **Translation app:** [Easydict](https://github.com/tisfeng/Easydict)\r\n\r\n# 总结\r\n\r\n以上就是我目前高频使用的软件了，还有很多没写上去，大家可以参考 [what's on my mac](https://github.com/geoqiao/geoqiao.github.io/issues/9)。\r\n",
+      "createdAt": "2023-11-11T09:01:56Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1asfA",
+          "name": "app-defaults",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN3LQ",
+          "name": "tag:app-defaults",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 17,
+      "title": "App Defaults 2023",
+      "updatedAt": "2026-08-02T10:03:30Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/17",
+      "body_sha256": "2beb7f559e500bbd1c750d7ad584ea6b0ffc5f06e7647e9373e18164cc46a247"
+    },
+    {
+      "body": "---\nslug: pythonbian-ji-qi-wo-de-vscodepei-zhi\ndescription: \"VSCode 是一款由微软开发、非常流行的代码编辑器：功能强大、简单易用。\"\ncreated_date: \"2023-12-10\"\n---\n\nVSCode 是一款由微软开发、非常流行的代码编辑器：功能强大、简单易用。\r\n\r\n## 为什么不是其他编辑器\r\n\r\n可以编辑 Python 的编辑器很多，但是为什么选择 VSCode 呢？\r\n\r\n**PyCharm**：太重了，并且是付费软件。社区版免费，但无法在 PyCharm 中使用 jupyter notebook。并且实话说，我感觉 PyCharm 的学习曲线相对陡峭(下载过一次，感觉配置起来没有 VSCode 简单)。\r\n\r\n**jupyter notebook**：在最开始，我使用 notebook 工作，主要写一些处理 excel 的脚本。缺点是写代码聚焦于每个`cell`，每个`cell`都很有条理，但是整体看起来很乱。\r\n\r\n**spyder**：我觉得 spyder 的界面是最适合使用 Python 来进行数据分析类工作的。左边用来写代码，右下角展示输出，右上角展示输出的图片。但是缺点是集成的功能比较弱。\r\n\r\n**VSCode**：可以配置成 spyder 类似的界面，并且功能更加强大、配置起来也更加简单直观。\r\n\r\n## 安装 VSCode\r\n\r\n安装 VSCode 非常简单，可以直接在[官网](https://code.visualstudio.com/download)安装，跟大多数下载软件一样，直接下载就行。\r\n\r\n如果你是 macOS、并且已经安装了 Homebrew，可以通过以下命令安装：\r\n\r\n```shell\r\nbrew install visual-studio-code\r\n```\r\n\r\n## 安装插件\r\n\r\n实际上 VSCode 本身只是一个文本编辑器，使它强大且流行的主要原因是强大的插件系统。通过不同的插件组合，可以把 VSCode 配置成几乎任何想要的集成开发环境。\r\n\r\n因为我是一个初学者，并且只会写一些简单的 Python 脚本，这里主要针对 Python 进行 VSCode 配置。\r\n\r\n我的插件列表：\r\n\r\n1. **Python&Pylance**：微软官方开发的 Python 插件，可以提供语法高亮、自动补全、类型检查等强大功能。\r\n2. **Jupyter**：集成 notebook，可以在 VSCode 中编辑执行`.ipynb`文件，体验不亚于在网页编辑。并且还享受 VSCode 的 Python 插件提供的功能。通过在 setting 中配置，可以在`.py`文件中通过`shift+enter`把代码让代码在 Jupyter 中执行。\r\n3. **Rainbow CSV**：通过不同列的颜色高亮，让在 VSCode 里看 CSV 文件时更不费眼睛。\r\n4. **Ayu**：个人最喜欢的 VSCode theme。\r\n5. **Ruff**：Python 的 lint&format 工具，有类型检查个人感觉比 black 好用。需要在本地环境安装`ruff`。\r\n\r\n## 编辑配置\r\n\r\n在下载好插件之后，插件的有些功能需要在 VSCode 设置中开启，为了方便，我直接把设置的 setting.json 文件放在这里供参考：\r\n\r\n```json\r\n{\r\n\r\n// editor basics\r\n\r\n\"editor.accessibilitySupport\": \"on\",\r\n\r\n\"editor.fontFamily\": \"JetBrains Mono NL, MesloLGS NF\", //字体部分需要下载相关字体\r\n\r\n\"editor.cursorBlinking\": \"solid\",\r\n\r\n\"editor.defaultFormatter\": \"charliermarsh.ruff\", // ruff插件的配置项\r\n\r\n\"editor.mouseWheelScrollSensitivity\": 1,\r\n\r\n\"editor.mouseWheelZoom\": true,\r\n\r\n\"editor.semanticHighlighting.enabled\": true, //语义高亮\r\n\r\n\"editor.wordWrap\": \"on\",\r\n\r\n\"editor.autoClosingBrackets\": \"languageDefined\",\r\n\r\n\r\n\r\n// python\r\n\r\n\"[python]\": {\r\n\r\n\"editor.formatOnSave\": true,\r\n\r\n\"editor.codeActionsOnSave\": {\r\n\r\n\"source.fixAll\": \"explicit\",\r\n\r\n\"source.organizeImports\": \"explicit\"\r\n\r\n},\r\n\r\n\"editor.defaultFormatter\": \"charliermarsh.ruff\"\r\n\r\n},\r\n\r\n\"python.languageServer\": \"Pylance\",\r\n\r\n\"python.analysis.typeCheckingMode\": \"basic\", //类型检查\r\n\r\n\r\n\r\n// theme\r\n\r\n\"workbench.colorTheme\": \"Best Themes - Xcode Catalina Bold\",\r\n\r\n// audio\r\n\r\n\"audioCues.chatRequestSent\": \"off\",\r\n\r\n\"audioCues.chatResponseReceived\": \"off\",\r\n\r\n\"audioCues.chatResponsePending\": \"off\",\r\n\r\n\"audioCues.clear\": \"off\",\r\n\r\n\"audioCues.diffLineDeleted\": \"off\",\r\n\r\n\"audioCues.diffLineInserted\": \"off\",\r\n\r\n\"audioCues.diffLineModified\": \"off\",\r\n\r\n\"audioCues.lineHasBreakpoint\": \"off\",\r\n\r\n\"audioCues.lineHasError\": \"off\",\r\n\r\n\"audioCues.lineHasFoldedArea\": \"off\",\r\n\r\n\"audioCues.lineHasInlineSuggestion\": \"off\",\r\n\r\n\"audioCues.noInlayHints\": \"off\",\r\n\r\n\"audioCues.notebookCellCompleted\": \"off\",\r\n\r\n\"audioCues.notebookCellFailed\": \"off\",\r\n\r\n\"audioCues.onDebugBreak\": \"off\",\r\n\r\n\"audioCues.taskCompleted\": \"off\",\r\n\r\n\"audioCues.taskFailed\": \"off\",\r\n\r\n\"audioCues.terminalCommandFailed\": \"off\",\r\n\r\n\"audioCues.terminalQuickFix\": \"off\",\r\n\r\n\"audioCues.volume\": 40,\r\n\r\n\"workbench.iconTheme\": \"material-icon-theme\",\r\n\r\n\"jupyter.interactiveWindow.textEditor.executeSelection\": true,\r\n\r\n\"debug.console.fontSize\": 15,\r\n\r\n\"editor.fontSize\": 15,\r\n\r\n\"window.zoomLevel\": 1,\r\n\r\n}\r\n```\r\n",
+      "createdAt": "2023-12-10T07:14:08Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1b3Lw",
+          "name": "vscode",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN9fQ",
+          "name": "tag:vscode",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 18,
+      "title": "Python编辑器-我的VSCode配置",
+      "updatedAt": "2026-08-02T10:03:32Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/18",
+      "body_sha256": "3abbc1f11f28108bda2899bc8054789bd174bae2df0e35b4c43dc22bb18acb6b"
+    },
+    {
+      "body": "---\nslug: ji-yu-fastapi-de-crud-lian-xi-rss-ding-yue-guan-li\ndescription: \"背景\"\ncreated_date: \"2024-05-10\"\n---\n\n# 背景\r\n\r\n最近两三年，我逐渐卸载了抖音、微博等社交媒体，主要从RSS订阅获取信息。卸载部分社交媒体让我有了一点时间做其他事情，比如听播客、学Python、阅读......\r\n\r\n这个练习是我的[CS50P](https://cs50.harvard.edu/python/2022/)final project的延续，主要目的是学习一些web的开发框架、使用Python操作数据库。\r\n\r\n\r\n## why fastAPI\r\n\r\n对比了Django 还有 Flask：\r\n\r\n1. 感觉Django太重了，没有方便的装饰器，不适合新手\r\n2. Flask感觉有点乱，主要命令行我没有弄明白\r\n3. fastAPI对type hints的支持很好，感觉也更简单\r\n\r\n## why SQLite\r\n\r\nSQLite只有一个文件，操作起来很简单，也不用配置什么环境\r\n\r\n# 思路\r\n我想实现对RSS订阅源的添加、查询、删除功能，所以思路很简单\r\n1. 创建一个SQLite数据库，要包含`订阅链接`、`标题`、`tag`、`网址`、`添加时间`等字段\r\n2. 定义CRUD函数\r\n3. 将函数返回值给到fastAPI，并渲染前端页面\r\n\r\n# 上手开干\r\n\r\n## 创建数据库\r\n\r\n这里我使用SQLAlchemy库来实现，搜索中推荐这个库的文章很多，ORM支持很不错\r\n\r\n> ORM：指的是对象关系映射(Object-Relational Mapping)，主要作用是将数据库中的表结构映射到对象上,使开发者可以使用面向对象的方式来操作数据库,而不需要直接编写SQL语句。\r\n\r\n使用SQLAlchemy创建SQLite数据库，设计`feeds`表的字段，并为字段添加类型要求\r\n\r\n```python\r\nclass Base(DeclarativeBase):\r\n    pass\r\n\r\n\r\nclass Subscription(Base):\r\n    __tablename__ = \"feeds\"\r\n    \r\n    id: Mapped[int] = mapped_column(primary_key=True, autoincrement=True)\r\n    url: Mapped[str] = mapped_column(nullable=False, unique=True, index=True)\r\n    title: Mapped[str] = mapped_column(nullable=False)\r\n    tag: Mapped[Optional[str]]\r\n    link: Mapped[str] = mapped_column(nullable=False)\r\n    updated_at: Mapped[datetime] = mapped_column(nullable=False, default=datetime.now)\r\n    \r\n    def __repr__(self) -> str:\r\n        return f\"Feed(id={self.id!r}, url={self.url!r},title={self.title},tag={self.tag!r},link={self.link!r})\"\r\n```\r\n\r\n## 定义CRUD函数\r\n\r\n这里主要学习了SQLAlchemy的ORM查询方法。\r\n\r\n一开始觉得直接写SQL语句更好，只用掌握一种SQL语法就行了；后来查询后，好像直接写SQL语句有安全风险，比如SQL注入。\r\n\r\n> SQL注入：用户前端输入框填写SQL语句，导致后端数据泄露、篡改等等问题\r\n\r\n**ORM语法示例**：\r\n\r\n以下代码通过数据库中的ID字段查询对应的订阅链接。我感觉这种写法还能接受，不过还是感觉直接写SQL语句的话心智负担更小一点，因为可以少学一种语法。\r\n\r\n```python\r\ndef get_feed_by_id(feed_id: int):\r\n    with Session(engine) as session:\r\n        feed = session.query(Subscription).filter(Subscription.id == feed_id).first()\r\n    \r\n    return feed\r\n```\r\n\r\n\r\n## fastAPI接口\r\n\r\n其实fastAPI部分很好写，只要我们获取到返回值，并且传给前端页面就好了\r\n\r\nDjango框架中需要配置的视图函数、URL路径等等都不在一个文件中，但是fastAPI通过一个简单的装饰器将这些工作都做好了\r\n\r\n```python\r\n@app.get(\"/feeds_list\")\r\nasync def get_rss_feeds(request: Request):\r\n    feeds = get_all_feeds()\r\n    return template_dir.TemplateResponse(\"feeds_list.html\", {\"request\": request, \"feeds\": feeds})\r\n\r\n```\r\n\r\n## 命令行运行程序\r\n\r\n通过命令行运行，在 http://127.0.0.1:8000 预览程序\r\n\r\n```shell\r\nuvicorn main:app --reload \r\n```\r\n\r\n[项目地址](https://github.com/geoqiao/RSS_db)\r\n\r\n> 纯属兴趣驱动，如有不准确的地方欢迎交流\r\n\r\n**预览效果如下**\r\n<img width=\"1336\" alt=\"image\" src=\"https://github.com/geoqiao/geoqiao.github.io/assets/105639506/869f0d88-fdb0-4f7a-911c-6c8e39b260df\">\r\n\r\n",
+      "createdAt": "2024-05-10T15:41:01Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1b4TQ",
+          "name": "rss",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN64A",
+          "name": "tag:rss",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 20,
+      "title": "基于 fastAPI 的 CRUD 练习- RSS 订阅管理",
+      "updatedAt": "2026-08-02T10:03:35Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/20",
+      "body_sha256": "e1ab0c54ac4a79b826fcf47b9453c6d24fecead95160eabbe1bdaf3d2d52f214"
+    },
+    {
+      "body": "---\nslug: shi-yong-python-he-github-pages-da-jian-ge-ren-bo-ke\ndescription: \"背景\"\ncreated_date: \"2024-05-12\"\n---\n\n# 背景\r\n\r\n我偶尔有写点什么的欲望，加上 yihong 老师 [gitblog](https://github.com/yihong0618/gitblog) 项目的激励，于是产生了写一个个人博客页面的想法。\r\n\r\n因为工作上数据分析需要，我在 2022 年开始接触 Python。作为一名曾经试图考艺术硕士的商科生，我意外的很喜欢写 Python 的体验。很长一段时间以来，我只使用 Python 做一些数据分析工作。但随着使用时间的增长，我发现自己的 Python 代码代码虽然可以运行，但是很难读、很多代码重复使用率不高、维护起来很费力。\r\n\r\n于是我尝试学习 Python 的基本概念，而不仅仅局限于 Pandas 和 sklearn。这个项目便是我目前学习的成果。\r\n\r\n## why GitHub Pages\r\n\r\n1. 不用买域名\r\n2. 不用买服务器\r\n3. 是一个网页，可以满足分享欲望\r\n\r\n## why Python\r\n\r\n实际上，GitHub Pages 提供了非常丰富的支持，也许使用 JavaScript 的框架可以更快更好的完成这个项目。但是，我只会写一点基础的 Python，其他语言完全不会。\r\n\r\n# 思路\r\n\r\n为了满足写博客的需求，我的思路非常简单：\r\n\r\n1. 可以读取 GitHub Issues\r\n2. 将读取到的 Issues 转换为 HTML\r\n3. 有简单的 HTML 模板，有一个不丑的前端页面\r\n4. 将渲染后的 HTML 上传到 GitHub Pages\r\n5. 整个过程自动化，我只想写 issue，其他的工作全部自动完成\r\n\r\n# 马上开干\r\n\r\n## 读取 GitHub Issues\r\n\r\n这个环节非常简单，GitHub 提供了一个非常简单使用的 Python 库：PyGithub。只需要设置好 GitHub Token，便可以很轻易的读取到 issues 的内容\r\n\r\n```python\r\ndef get_all_issues(repo: Repository, me: str) -> PaginatedList[Issue]:\r\n    \"\"\"Get all issues for a given GitHub repository.\r\n\r\n    Args:\r\n        github_repo: GitHub repository name in the format \"owner/name\".\r\n\r\n    Returns:\r\n        List of GitHub issue objects.\r\n    \"\"\"\r\n    issues = repo.get_issues(creator=me)\r\n    return issues\r\n```\r\n\r\n返回的 issues 是一个包含所有 issue 的列表。通过`for循环`可以遍历这个列表，可以通过`issue.title`等方法获取 issue 的标题、创建时间、内容、tag 等信息。比如：\r\n\r\n```python\r\nissue.title # 获取标题\r\nissue.updated_at # 获取创建时间\r\nissue.body # 获取正文内容\r\n```\r\n\r\n## 将 issue 转换为 HTML\r\n\r\nGitHub 有使用一个官方接口，可以将 markdown 格式的文本转换为 HTML，但是每次转换请求这个 API 的速度很慢，所以我使用了`marko`库。\r\n\r\n`marko` 提供了 GitHub 风格的转换方法，只需要传入我们读取到的 issue.body 即可：\r\n\r\n```python\r\nfrom marko.ext.gfm import gfm\r\n\r\ndef markdown2html(mdstr: str):\r\n    html = gfm.convert(mdstr)\r\n    return html\r\n```\r\n\r\n## HTML 模板\r\n\r\n我对于 CSS 和 JavaScript 一窍不通，所以这部分内容我是参考了 yihong 老师的 [GitHub Pages](https://yihong0618.github.io/gitblog/)，从页面的 HTML 源码中发现了可用的 CSS 和 JavaScript 代码，并且模仿页面的 HTML，这样拼凑出来的一个页面。\r\n\r\n这个页面满足了我对于一个不太丑的前端页面的需求，并且因为过程中自己拼凑了模板，对于一些 CSS、JavaScript 的作用也有了一点点理解。\r\n\r\n当然，这个模板的搭建过程中 [perplexity](https://www.perplexity.ai) 帮了我非常多的忙。`perplexity`非常强大，可以将我得到的前端代码作为文件上传，ai 帮我解读每个 CSS 和 JavaScript 的作用。免费版本已经足够我的使用，非常推荐！\r\n\r\n## GitHub Actions 自动化\r\n\r\n在主体代码全部实现后，接下来就是将整个过程自动化。这一步可以交给强大的 GitHub Actions 完成。它会帮我监控 issue 的变化：一旦有 issue 添加、编辑等动作，actions 会帮我自动执行我的 Python 代码，并将输出的 HTML 文件上传至 GitHub Pages 仓库。\r\n\r\n这一步也主要参考 yihong 老师`gitblog`项目的 action 实现。因为我是用 [rye](https://github.com/astral-sh/rye) 管理 Python 项目，但`rye`并不支持输出`requirements.txt`，所以我增加了一条将`requirements.lock`文件转换为`requirements.txt`的命令：\r\n\r\n```shell\r\nsed '/^-e/d' requirements.lock > requirements.txt\r\n```\r\n\r\n## 总结\r\n\r\n因为白天上班比较忙，所以每天晚上下班都会花一个小时来看这个项目。花了将近一个月的时间，我终于实现了自己搭建博客页面的想法。\r\n\r\n现在我已经开始使用自己的项目来写博客，这种体验真的很美妙。\r\n\r\n这是我的[源代码仓库](https://github.com/geoqiao/github_blog)和[GitHub Pages](https://geoqiao.github.io/contents/)页面\r\n",
+      "createdAt": "2024-05-12T09:14:39Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 21,
+      "title": "使用 Python 和 GitHub Pages 搭建个人博客",
+      "updatedAt": "2026-08-02T10:03:38Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/21",
+      "body_sha256": "00887d324edf787fa242feb119ac8ff1fce668e57db94faf8096e6ea0e07622e"
+    },
+    {
+      "body": "---\nslug: uv-github-20k-star-de-zhong-ji-python-xiang-mu-guan-li-gong-ju\ndescription: \"uv 是什么\"\ncreated_date: \"2024-09-08\"\n---\n\n## uv 是什么\r\n\r\n[uv](https://docs.astral.sh/uv/) 是一个 Python 项目管理和包管理的工具，由 Astral 开发（他们的另一个明星产品是 [ruff](https://docs.astral.sh/ruff/) ）。\r\n\r\n在我刚接触 Python 的时候，阻止我动手写代码的问题主要有 2 个：\r\n\r\n### 1. 怎么安装 Python？\r\n\r\n确实，这是一个很大的问题。对于还不懂命令行的我来说，使用 Homebrew 或者官网下载的方式，都会污染我的电脑环境。以至于搞不清楚每次运行的 Python 到底是哪一个。\r\n\r\n> 真实教训：因为想把自己安装的杂乱的 Python 都卸载掉，只保留 3.11 版本，导致我不小心删除了系统自带 Python 的某些文件，被迫将电脑送去天才吧维修！\r\n\r\n### 2. 怎么安装三方库？\r\n\r\n刚看了一些入门教程后，自以为这个不是问题，直接`pip install`就行了呗？\r\n\r\n其实不然，安装的时候发现好多包安装不上：不适配当前的 Python 版本，或者存在三方库之间的依赖冲突。对初学者来说，又得了解一个新词汇：依赖解析。\r\n\r\n再搜一圈教程下来，发现又要用`pyenv`管理 Python 版本，还得结合`pip`解决依赖冲突，命令行里面还得随时想着有没有激活虚拟环境！真服了，我可是刚入门的小白！\r\n\r\n## uv - Python&依赖&项目管理\r\n\r\n### 功能一：管理 Python 版本\r\n\r\nuv 自带管理 Python 版本的功能，可以下载、项目中选用特定 Python 版本、卸载等全套服务，同时命令行操作也非常简洁：\r\n\r\n```bash\r\nuv python install 3.11.9   # 安装3.11.9版本的Python\r\nuv python uninstall 3.11.9  # 卸载3.11.9版本的Python\r\nuv python pin 3.11.9 # 为当前项目选择特定版本的Python\r\n```\r\n\r\n### 功能二：解决项目依赖\r\n\r\nuv 提供`add`和 `remove`命令，可以为项目添加和删除依赖，非常直觉：\r\n\r\n```bash\r\nuv add pandas # 安装pandas库\r\nuv remove pandas # 移除pandas库\r\n```\r\n\r\n## 为什么不选 conda or pdm\r\n\r\n说实话 pdm 也是一个非常好用的 Python 项目管理工具，并且在最近的版本也可以管理 Python 版本，常用命令和 uv 基本一致。从我个人而言，有两个原因没有使用 pdm：\r\n\r\n1. 功能太多（是的没错），兼容的标准很多，对我这个初学者而言会比较复杂\r\n2. 无法真正独立于 Python 安装，自从曾经搞乱过系统 Python 环境后，我就再不想使用系统 Python 哪怕一丁点。所以，对我来说 uv 这种可以独立于 Python 安装，并且可以完全不使用系统 Python 建立项目的工具，完美满足我的需求\r\n\r\nconda 是我第一个接触的 Python 管理工具，对我而言有几个小痛点：\r\n\r\n1. 社区对于包的最新版本更新较慢：有时无法第一时间尝鲜某个新包的新功能（比如 pandas2.0 的 pyarrow 后端\r\n2. 依赖解析慢且有一些小 bug：慢是显而易见的，bug 我没有仔细研究过，但之前经常碰到 wordcloud 库有时无法安装，有时又可以正常安装的问题（或许跟我刚开始不熟悉所以经常卸载重装有关\r\n\r\n## 最后\r\n\r\n这里只是介绍了 uv 的一些常用功能，对于如何使用大家可以参考[rye 推荐](https://geoqiao.github.io/contents/blog/1.html)以及[官方文档](https://docs.astral.sh/uv/)\r\n\r\n如果你也是刚刚接触 Python，或者像我一样刚刚接触代码和命令行，非常推荐使用 uv，可以省去安装 Python 和相关依赖的绝大部分麻烦，直接进入主要的学习代码环节，而不是把时间浪费在环境配置上。\r\n",
+      "createdAt": "2024-09-08T07:52:02Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 23,
+      "title": "uv - GitHub 20k star 的终极 Python 项目管理工具",
+      "updatedAt": "2026-08-02T10:03:40Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/23",
+      "body_sha256": "82b94cc1a98b5f468e223efa7e6fa8f2f9010f926d96f0d6ded096093e638e87"
+    },
+    {
+      "body": "---\nslug: wei-github-pages-ge-ren-bo-ke-tian-jia-yaml-pei-zhi-gong-neng-ji-yu\ndescription: \"好长一段时间了，工作上事情很多，很烦。也很久没有写工作以外的 Python 了。趁着假期和一些其他原因，今天又重新捡起了 github blog 这个项目。\"\ncreated_date: \"2024-10-03\"\n---\n\n好长一段时间了，工作上事情很多，很烦。也很久没有写工作以外的 Python 了。趁着假期和一些其他原因，今天又重新捡起了 [github_blog](https://geoqiao.github.io/contents/) 这个项目。\r\n\r\n近期主要做了两个改动：\r\n\r\n1.  把前端模板部分利用 `cursor` 重写了一下。和原来的 [even](https://github.com/ahonn/hexo-theme-even) 主题相比，现在的虽然看起来比较简陋，但胜在每一行 CSS 和 HTML 都知道是什么意思、有什么作用！\r\n\r\n    >     其实过程特别简单，仅仅在 cursor 中使用了3个 prompt，cursor 太强大，几乎一遍过，所以这个改动真的没啥讲的。\r\n\r\n2.  就是为主题增加配置文件的功能，目的是为了其他人使用（当然，大概率可能也没有其他人用），这也是写这篇 blog 要讲的主题。\r\n\r\n## 正文\r\n\r\n其实增加配置文件的功能想了很久，因为可以减少别人使用的成本，并且满足自己的虚荣心。\r\n\r\n## why YAML？\r\n\r\n其实这部分决策起来很快，主要有 4 个原因：\r\n\r\n1. 我对与所有配置文件几乎都不熟\r\n2. 记得 [Hugo](https://www.gohugo.org/doc/overview/configuration/) 的配置文件就可以用 YAML，GitHub Actions 也使用 YAML\r\n3. JSON 太不易读了，对于小白来说那么多花括号会搞晕人的\r\n4. TOML 看起来也挺复杂，而且我不想跟 Python 的`pyproject.toml`搞混\r\n\r\n但 YAML 不是没有缺点：对缩进和空格有要求这一点比较麻烦，曾经我就因为这一点在 GitHub Actions 上浪费了一下午 debug。\r\n\r\n**配置 YAML**：\r\n目前我的配置还比较简单，模板中涉及的变量主要是博客的标题、描述、以及使用者的 GitHub 名称：\r\n\r\n```yaml\r\n# 博客信息\r\nblog:\r\n\ttitle: GeoQiao's Blog\r\n\tdescription: This is a blog powered by pygithub and jinja2.\r\n\turl: https://geoqiao.github.io/contents\r\n\tauthor:\r\n\t\tname: geoqiao\r\n\t\temail: geoqiao@example.com\r\n\r\n# GitHub 相关配置\r\ngithub:\r\n\tname: geoqiao # GitHub 用户名\r\n\trepo: geoqiao/geoqiao.github.io # GitHub 仓库名称\r\n```\r\n\r\n使用 Python 读取 yaml 文件也很简单：\r\n\r\n```python\r\nimport yaml  # 导入yaml包，需要提前安装`uv add pyyaml`\r\n\r\nCONFIG_FILE = \"./configs/config.yaml\" # 配置文件路径\r\n\r\n# 写一个上下文管理器打开就行，这个函数会返回一个配置文件的dict\r\ndef load_config():\r\n\twith open(CONFIG_FILE, \"r\") as file:\r\n\t\tconfig = yaml.safe_load(file)\r\n\treturn config\r\n\r\nCONFIG = liad_config()\r\n```\r\n\r\n读取文件之后，只要使用 dict 的方法读取相应的 value 就行，比如读取博客的标题就是：`CONFIG[\"blog\"][\"title\"]`，这样就会输出所对应的 value`GeoQiao's Blog`。\r\n\r\n## 剩下的\r\n\r\n剩下的就比较简单了，只要 1. 在模板中把相应的变量用符合 Jinja2 的语法写入，2. 并把读取到的配置变量传入给 HTML 模板 即可\r\n\r\n**写入模板**\r\n\r\n把原本手写的标题、名字、描述部分全都换为变量格式：比如把 `geoqiao` 全部替换为`{{ github_name }}`\r\n\r\n**给模板传入变量的值**\r\n\r\n这里以渲染`index.html`为例:\r\n\r\n```python\r\ndef render_blog_index(issues: PaginatedList[Issue]) -> str:\r\n\tenv = Environment(loader=FileSystemLoader(\"templates\"))\r\n\ttemplate = env.get_template(\"index.html\")\r\n\t# 通过CONFIG获取相应变量的value（就是字典取值的写法\r\n\tblog_title = CONFIG[\"blog\"][\"title\"]\r\n\tgithub_name = CONFIG[\"github\"][\"name\"]\r\n\tmeta_description = CONFIG[\"blog\"][\"description\"]\r\n\r\n\treturn template.render(\r\n\t\tissues=issues,\r\n\t\t# 把取到的配置文件中的值传给HTML模板\r\n\t\tblog_title=blog_title,\r\n\t\tgithub_name=github_name,\r\n\t\tmeta_description=meta_description,\r\n\t)\r\n```\r\n\r\n## 最后\r\n\r\n配置文件功能增加后，使用这个项目搭建 GitHub Pages 博客会变得相对比较简单：\r\n\r\n1. 新建一个 GitHub Pages 仓库，名字格式为`<github_name>.github.io`\r\n2. 获取 GitHub Token（可以 Google 搜索如何获取\r\n3. 把我的项目仓库中的文件全部复制到创建好的 GitHub Pages 仓库中\r\n4. 修改`configs/config.yaml`中的配置项，将博客的标题、描述、GitHub 姓名全部改成自己的\r\n5. 修改 GitHub Actions 中的仓库名字\r\n6. 开始写 issue，submit 之后，GitHub Actions 会自动更新部署到页面\r\n7. 到`https://<your_github_name>.github.io/contents`页面查看自己的文章\r\n\r\n项目会自动生成 RSS feed，添加到诸如 netnewsfire 或 Follow 中，而且以上只需要配置一次，之后只需要每次写 issue 就好了\r\n\r\nPS：当然现在的前端 templates 还比较简陋，我会慢慢更新优化，也欢迎随时 pull request 到[项目仓库](https://github.com/geoqiao/github_blog) 或者提交 issue 。\r\n",
+      "createdAt": "2024-10-03T11:12:43Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 24,
+      "title": "为 GitHub Pages 个人博客添加 YAML 配置功能 - 基于 Python",
+      "updatedAt": "2026-08-02T10:03:43Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/24",
+      "body_sha256": "2dc894f28591ef49fee5880a9b0db681c36da2f4aca3298e45c6f2d82c523920"
+    },
+    {
+      "body": "---\nslug: bu-yao-jiu-jie-liao-zai-pandaszhong-shu-ju-shai-xuan-jiu-yong-ta\ndescription: \"TL;DR\"\ncreated_date: \"2024-10-07\"\n---\n\n## TL;DR\r\n\r\n建议使用 `DataFrame.loc` 方法，支持类似 SQL 中的`where`条件对`rows`筛选，也支持对`column`进行筛选。\r\n\r\n## The Zen of Python\r\n\r\n如果在 Python 文件中输入 `import this`，便可以看到 Python 之禅的全文。其中有一条：\r\n\r\n> There should be one-- and preferably only one --obvious way to do it.\r\n\r\n很明显，Pandas 从 2008 年发展到现在，已经跟这些原则没有什么关系了，光是筛选 DataFrame 的方法就有 n 种，我能想到的：\r\n\r\n```python\r\ndf[df[\"foo\"]>0]\r\ndf.loc[df[\"foo\"]>0,:]\r\ndf.iloc[0,1]\r\ndf.filter(items=['foo', 'bar'])\r\ndf.query('foo > bar')\r\n```\r\n\r\n刚开始，对于我这个初学者来说，Google 搜到什么就用什么。实际结果就是自己的代码非常乱，一个文件用到的筛选方法非常多，这个代码第一遍写的时候知道是干嘛的，第二遍看的时候真的没人一下子能看懂。\r\n\r\n**每种筛选方法有什么区别**：大家可以参考[ai 回答](https://www.perplexity.ai/search/df-loche-df-query-de-qu-bie-KTT8Yo9MQRa8qEFB_CmEzw#10)\r\n\r\n## 为什么推荐.loc 方法\r\n\r\n**首先我们先创建一个测试用数据集**：\r\n\r\n```python\r\ndata = {\r\n\t\"Name\": [\"Alice\", \"Bob\", \"Charlie\", \"David\", \"Eva\"],\r\n\t\"Age\": [25, 30, 35, 40, 28],\r\n\t\"Gender\": [\"Female\", \"Male\", \"Male\", \"Male\", \"Female\"],\r\n\t\"Salary\": [50000, 60000, 70000, 80000, 55000],\r\n\t\"Country\": [\"USA\", \"Canada\", \"USA\", \"UK\", \"Canada\"],\r\n}\r\n\r\ndf = pd.DataFrame(data)\r\n```\r\n\r\n**主要理由如下**：\r\n\r\n1. 支持同时筛选 rows 和 columns，`.loc`支持以逗号隔开的两个参数：第一个参数对 rows 进行操作，第二参数对 columns 进行操作\r\n\r\n```python\r\ndf.loc[:,:] # 取所有行和所有列\r\ndf.loc[df[\"age\"]>30] # 取age > 30 的行 和 所有列\r\ndf.loc[df[\"age\"]>30, [\"Name\", \"Salary\"]] # 取age > 30 的行 和 Name、Salary列\r\ndf.loc[df[\"age\"]>30, [\"Name\", \"Salary\"]]\r\ndf.loc[0:3,:] # 取索引为0-3的行 和 所有列\r\ndf.loc[(df[\"Age\"] > 30) & (df[\"Gender\"] == \"Male\"), [\"Name\",\"Salary\"]] # 取age > 30且 Gender = Male 的行 和Name、Salary列\r\n```\r\n\r\n2. 支持对 rows 进行复杂条件判断筛选：\r\n\r\n```python\r\ndf.loc[(df[\"Age\"] > 30) & (df[\"Gender\"] == \"Male\"), [\"Name\",\"Salary\"]] # 取age > 30且 Gender = Male 的行 和Name、Salary列\r\n```\r\n\r\n3.  对行或列进行**区间**形式的筛选：\r\n\r\n```python\r\ndf.loc[0:3,:] # 取索引为0-3的行 和 所有列\r\ndf.loc[0:3,\"Name\":\"Salary\"] # 取索引为0-3的行 和 Name - Salary的所有列\r\n```\r\n\r\n4. 再花哨点，把筛选条件作为变量\r\n\r\n```python\r\n# 取age > n且 Gender = Male 的行 和Name、Salary列\r\nn = 30\r\ndf.loc[(df[\"Age\"] > n) & (df[\"Gender\"] == \"Male\"), [\"Name\",\"Salary\"]]\r\n```\r\n\r\n## .loc 的缺点\r\n\r\n这么全面的方法也有缺点：\r\n\r\n1. **性能问题**：在处理非常大的 DataFrame 时，`.loc`可能会比其他方法（如`.query`或布尔索引）慢，尤其是当涉及复杂条件时。\r\n\r\n2. **复杂条件可读性差**：当涉及多个复杂条件时，使用布尔索引结合`.loc`可能导致代码变得冗长且难以阅读。\r\n\r\n## 结语\r\n\r\n综上，基本上`.loc`方法基本可以满足日常工作中会碰到的 90%以上的筛选场景，不用纠结，选`.loc`准没错！\r\n",
+      "createdAt": "2024-10-07T06:42:00Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1aWYQ",
+          "name": "data-analysis",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN4Ow",
+          "name": "tag:data-analysis",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 25,
+      "title": "不要纠结了！在Pandas中数据筛选就用它 - Python",
+      "updatedAt": "2026-08-02T10:03:45Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/25",
+      "body_sha256": "8029bb13e478044d4c9dba8022794370d457c673739394e96ae998c967e0baa7"
+    },
+    {
+      "body": "---\nslug: ru-he-dui-lian-xu-xing-shu-ju-jin-xing-fen-xiang-python\ndescription: \"在做数据分析时，经常要对连续型数据进行分箱。面临的主要问题是：怎么分箱才是最优的？\"\ncreated_date: \"2024-10-26\"\n---\n\n在做数据分析时，经常要对连续型数据进行分箱。面临的主要问题是：怎么分箱才是最优的？\r\n\r\n一个常见的场景是，老板想看用户在不同年龄段的占比以及消费情况，这时如果将所有年龄全部展示出来会话，表格会非常长，不容易阅读。一般情况下，我们会把相近的年龄做一个区间，来展示不同年龄区间数据。这就需要用到分箱，把年龄划分成不同的区间。\r\n\r\n## 常用的分箱方法\r\n\r\n1. 等距分箱：比如数据集的年龄区间为 1-60 岁，以每 10 岁作为一个区间，划分为 6 个区间。\r\n2. 等频分项：比如数据集总共有 100 个客户，按照年龄从小到大排序，每 10 个客户作为一个区间。\r\n\r\n但是这两种分箱都回答不了老板的另一个灵魂问题：你这样分能看清客户特征吗？是最合理的吗？\r\n\r\n确实，以上两种分箱操作起来比较简单，而且 pandas 自带了`.cut` 方法。然而，要解决最优分箱，以上两种方法都不太合适。\r\n\r\n如何进行最优分箱，就要引出今天的主角：`optbinning`\r\n\r\n## 最优分箱 - optbinning\r\n\r\n`optbinning`是一个由 Python 编写的可以寻找连续型变量最优分箱的库，他的功能十分强大，甚至可以直接用来开发评分卡模型。大家如果感兴趣可以从他的[官网](https://gnpalencia.org/optbinning/index.html)了解更多。这里主要介绍他的分箱功能。\r\n\r\n简单来说，optbinning 同时支持等频、等距、CART、MDLP 等四种分箱方法。前两种不做赘述：\r\n\r\n1. `CART`全称**Classification and Regression Trees**：即分类回归树，使用决策树的分叉方法来寻找信息增益最大的分箱区间\r\n2. `MDLP`全称**Minimum Description Length Principle**：即最小描述长度原则，考虑模型复杂度与数据拟合度之间的平衡\r\n\r\n对于详细的底层算法，可以查看一些详细的教程介绍。作为一个资深调包侠，在日常业务场景中，我认为`cart`适用性更广，也更好解释。（建议可以看一下吴恩达老师对于决策树模型的讲解，很容易懂，用来自己理解或者让业务领导理解都非常好用）\r\n\r\n## 实操举例\r\n\r\n这里使用 optbinning 官网文档的例子来向大家演示如何实操分箱：\r\n\r\n### 首先加载数据集\r\n\r\n```python\r\nimport numpy as np\r\nimport pandas as pd\r\nfrom sklearn.datasets import load_breast_cancer #著名的癌症数据集\r\nfrom optbinning import OptimalBinning #今天的主角，分箱器\r\n\r\ndata = load_breast_cancer() #加载数据集\r\ndf = pd.DataFrame(data.data, columns=data.feature_names) #转化为pandas可以读取的dataframe\r\n```\r\n\r\nbreast_cancer 简单来说就是通过肿瘤的半径、纹理、光滑度等数据，来预测肿瘤良性或恶性。这里我们主要使用**半径**来分箱。\r\n\r\n### 获取变量及结果\r\n\r\n```python\r\nvariable = \"mean radius\"\r\nx = df[variable].values\r\ny = data.target\r\n```\r\n\r\n### 实例化分箱器并进行训练\r\n\r\n```python\r\noptb = OptimalBinning(name=variable, dtype=\"numerical\", prebinning_method=\"cart\") #实例化分箱器，dtype是指将要分箱的变量的数据类型，这里使用\"numerical\"，代表变量为数值，prebinning_method是使用的分箱方法，这里使用“cart”\r\n\r\noptb.fit(x, y)  #分箱\r\n```\r\n\r\n### 输出分箱结果\r\n\r\n```python\r\nbinning_result = optb.binning_table.build() #使用build方法会输出为一个dataframe，方便使用pandas读取\r\n```\r\n\r\n打印`binning_result`之后会看到一个如下样式的表格：\r\n\r\n<img width=\"628\" alt=\"image\" src=\"https://github.com/user-attachments/assets/a23f875d-f893-4d41-9ecb-ec7ceecb7a05\">\r\n\r\n其中每一列的含义如下：\r\n\r\n- **Bin**: 由最优切分点界定的区间。\r\n- **Count**: 每个区间内记录的数量。\r\n- **Count (%)**: 每个区间内记录的百分比。\r\n- **Non-event**: 每个区间内非事件记录的数量（𝑦=0）。\r\n- **Event**: 每个区间内事件记录的数量（𝑦=1）。\r\n- **Event rate**: 每个区间内事件记录的百分比。\r\n- **WoE**: 每个区间的证据权重（Weight-of-Evidence）。\r\n- **IV**: 每个区间的信息值（Information Value，也称为杰弗瑞斯散度）。\r\n- **JS**: 每个区间的詹森-香农散度（Jensen-Shannon divergence）。\r\n\r\n其中`bin`列就是找到的最优区间了；`IV`（Information Value）是我们在进行信用卡数据分析时用到的一个非常重要的指标，反映了特征与目标之间的相关性，后续有机会分箱评分卡模型制作的时候我会再仔细写。\r\n\r\n## 结语\r\n\r\n是不是非常简单！核心代码其实就三行：实例化分箱器、fit、输出分箱结果。\r\n\r\n实际使用中，可以针对自己的业务场景对代码增加判断是否数值型变量、输出到 excel 等操作。\r\n\r\n其实`optbinning`库还提供了很多非常好用的接口，比如只获取分箱区间、将分箱结果映射到原始数据集等等操作，大家可以从[文档](https://gnpalencia.org/optbinning/index.html)中看到更多技巧。\r\n",
+      "createdAt": "2024-10-26T09:03:51Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1aWYQ",
+          "name": "data-analysis",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN4Ow",
+          "name": "tag:data-analysis",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 26,
+      "title": "如何对连续型数据进行分箱 - Python",
+      "updatedAt": "2026-08-02T10:03:48Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/26",
+      "body_sha256": "b1279ec5ef74530971906be601af64f2b7f1d98ce073d31328cb057c2a0ff8dd"
+    },
+    {
+      "body": "---\nslug: python-huan-jing-pei-zhi-cong-ling-kai-shi-uv-pdm-he-vscode-de-zui-jia\ndescription: \"前言\"\ncreated_date: \"2024-11-03\"\n---\n\n## 前言\r\n\r\n写过好多次 Python 包管理工具和编辑器选择的 issues 了，但是很散，这里集中整合一下，一次性解决学习 Python 的新手一定会碰到的 Python 安装、环境配置、编辑器选择的问题！\r\n\r\n### TL;DR\r\n\r\n推荐使用`uv`或者`pdm`这样的工具来解决管理 Python 版本、管理虚拟环境及依赖的问题。\r\n\r\n编辑器推荐使用 VSCode。\r\n\r\n## 为什么要写这篇\r\n\r\n我在学习 Python 之初遇到了三大难题：\r\n\r\n### 1. 怎么下载 Python，用哪个 Python？\r\n\r\n市面上的教程大部分让我们通过 Python 官网下载 Python 解释器，但是这对于新手来说有很多问题：\r\n\r\n1. 要选择与教程匹配的 Python 版本：为了避免因为 Python 版本不同而出现的问题，但这并不容易，\r\n2. 配置默认路径对新手来说不容易：下载后要配置路径，不然可能无法使用，这需要一些配置路径的知识\r\n3. 如何切换 Python 版本：很多情况下，我们可能已经看了很多教程，电脑上已经安装了 Python，但是版本和当前教程并不一样！\r\n\r\n我在接触 Python 的时候，经常卡在这第一步出问题，然后陷入找教程、看教程第一节、放弃、找下一个教程的死循环。\r\n\r\n### 2. 怎么安装三方库，安装到哪里？\r\n\r\n市面上的教程关于安装三方库的时候总是只说一句 `pip install` ，如果真的这么做了，时间久了之后，本机的 Python 环境一定会很混乱。\r\n\r\n我主要学习 Python 来做数据分析工作，你懂的，数据分析的库贼多，而且互相之间大都有依赖关系。然后我有时还会想看些其他方面的教程，比如 Django、fastapi 这些。**我按照教程中不断的往本机环境`pip install` ，直到把新买的 MacBook 送进天才吧！**\r\n\r\n### 3. 选择哪个编辑器？\r\n\r\n这又是一大难题，好奇心作祟的我，遵循着差生文具多的定律，把几乎所有的主流编辑器都试用了：VSCode、jupyter notebook、PyCharm CE、spyder、zed、Neovim......\r\n\r\n结果就是，只顾着看这种编辑器、折腾各种配置了，真正的 Python 代码怎么写是一点没看....\r\n\r\n没有完美的编辑器！这里推荐：**VSCode，免费、功能强大、不局限于某个语言、跨平台、配置少、支持 jupyter notebook！**\r\n\r\n不建议其他编辑器的原因：\r\n\r\n1. jupyter notebook：除了在初学或者必要场景，不推荐使用。用 jupyter 写出来的代码结构性很差，会很难学会 Python 中面向对象的概念；如果入门之后切换到其他编辑器，也会增加切换编辑器的学习成本\r\n2. PyCharm CE：专业版好贵，社区版居然不支持 jupyter notebook，太离谱。而且在我配置的过程中，感觉配置起来也相对麻烦，一直没有搞懂各种教程中对 PyCharm 吹捧的原因是啥\r\n3. spyder：好喜欢这种左边`.py`文件，右边类似 jupyter 一样的输出展示！但是真的太慢了，功能界面也很老旧。而且 VSCode 也可以设置为类似 spyder 这样的界面\r\n4. zed：性能真的好快！但是会陷入到 LSP 的各种配置文档中，不配置的话，甚至 impot 语句到会报错\r\n5. Neovim：千万不要下载！千万不要下载！千万不要下载！时间一宿一宿的过去，根本不知道干啥了\r\n\r\n## 实操 Python 环境配置-仅需五步进入代码学习\r\n\r\n### 1. 安装 Python 项目管理工具\r\n\r\nuv 和 pdm 二选一即可，这里以 macOS 为例：\r\n\r\n```shell\r\n# 安装uv\r\ncurl -LsSf https://astral.sh/uv/install.sh | sh\r\n# or 安装pdm\r\ncurl -sSL https://pdm-project.org/install-pdm.py | python3 -\r\n```\r\n\r\n### 2. 安装 Python\r\n\r\n```shell\r\nuv python install 3.11 # 使用uv安装Python，我一般会把最近的4个版本都装上，方便折腾，反正也不会把电脑搞坏\r\n```\r\n\r\n### 3. 初始化项目并选择最低 Python 版本\r\n\r\n给每个项目单独创建一个虚拟环境，并把项目文件放在一个文件夹内管理是一个非常好的习惯。比如，我会给我学习的每个教程都单独设置一个项目文件夹。\r\n\r\n```shell\r\nmkdir my_project # 创建文件夹，mkdir 是 make directory 的缩写\r\ncd my_project # 进入我们创建的项目文件内，cd 是 change directory 的缩写\r\n\r\nuv init . --python 3.9  # 使用uv初始化项目文件夹，并选择项目可接受的最低Python版本为3.9\r\n```\r\n\r\n### 4.选择 Python 版本并添加项目依赖\r\n\r\n```shell\r\nuv python pin 3.11 # 指定项目的Python版本，这里指定的版本不可以比初始化的最低版本低\r\nuv add pandas # 使用uv安装pandas依赖，这时uv会自动帮我们把pandas安装到当前项目的虚拟环境中，如果我们没有安装3.11版本，uv会帮我们自动安装\r\nuv add numpy scipy # 使用uv同时安装多个依赖\r\nuv remove scipy # 使用uv移除scipy\r\n```\r\n\r\n`uv add`和`uv remove`每次运行都会帮我们自动进行依赖解析，安装最合适的三方库版本\r\n\r\n### 5.VSCode 配置\r\n\r\n这一步最简单，任何方式下载安装好 VSCode 之后，只需要下载 Python 插件，其他插件依据实际个人需求，比如中文界面、主题、csv 美化等等。如果想使用 jupyter 可以下载 jupyter 插件，然后在`.ipynb`文件中编辑即可\r\n\r\n刚开始全部默认配置即可。VSCode 会自动帮我们完成虚拟环境识别、智能补全、错误提示等功能。\r\n\r\n## 最后\r\n\r\n类似 uv 和 pdm 这样的工具可以帮我们节省很多项目配置的时间，在正式学习 Python 之前先掌握他们的用法非常有必要。最后备注一些可能的疑问：\r\n\r\n1. uv 和 pdm 有什么区别：\r\n   - 功能上：基本功能完全一样，pdm 有更多的高级功能更加成熟一点\r\n   - 性能：uv 基于 rust，在依赖解析方面更快\r\n2. 如何生成`requirements.txt`文件：\r\n   - uv：`uv export > requirements.txt`\r\n   - pdm：`pdm export -f requirements > requirements.txt`\r\n3. 每个项目一个环境，重复的依赖会不会特别占存储空间？\r\n   - 不会，uv 和 pdm 都采用的中心化存储缓存，每个版本的包只有在第一次安装的时候存储一份，后续相同的版本会复用第一次安装的缓存\r\n4. 文档：\r\n   - uv：https://docs.astral.sh/uv/\r\n   - pdm：https://pdm-project.org/en/latest/\r\n\r\n最后再提一句，编辑器就用 VSCode 就行了，千万不要瞎折腾！千万不要瞎折腾！千万不要瞎折腾！\r\n",
+      "createdAt": "2024-11-03T09:53:26Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1b3Lw",
+          "name": "vscode",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN9fQ",
+          "name": "tag:vscode",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 27,
+      "title": "Python 环境配置从零开始： uv、pdm 和 VSCode 的最佳实践",
+      "updatedAt": "2026-08-02T10:03:51Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/27",
+      "body_sha256": "c044fd8adc8e6a5fa53e41f242d34efc33f9761353d629b19c8b857a4f9bffac"
+    },
+    {
+      "body": "---\nslug: pei-zhi-vscode-de-mian-fei-ai-bian-cheng-zhu-shou-ollama-groqhe-kuo\ndescription: \"这篇 issue 展示通过配置 Ollama 和 Continue 扩展，为 VSCode 配置免费、本地的 AI 编程助手。\"\ncreated_date: \"2024-11-16\"\n---\n\n这篇 issue 展示通过配置 Ollama 和 Continue 扩展，为 VSCode 配置免费、本地的 AI 编程助手。\r\n\r\n我在体验了 cursor 之后，立即寻找类似 cursor 的免费解决方案。最终发现使用 Continue 配置自定义的 API 是相对比较简单，且实用的方法。\r\n\r\n> **Ollama**: 是一个开源框架，专为在本地机器上便捷部署和运行大型语言模型（LLM）而设计。使用 ollama 可以在自己的本地电脑上运行开源大模型。\r\n>\r\n> **Groq**: 是一家专注于人工智能芯片研发的公司，目前提供的 API key 是完全免费的\r\n>\r\n> **Continue**: 是一个 VSCode 的 AI 助手扩展，提供付费版本、免费但需自定义 API 两种方式配置自己要使用的 AI 模型。\r\n\r\n## 方案一：使用 Ollama\r\n\r\n### 安装 Ollama\r\n\r\nOllama 现在支持 Windows、Linux、macOS，是一个真正意义上的跨平台本地大模型解决方案，安装使用起来也比较简单。\r\n\r\n```markdown\r\n进入 Ollama [官网](https://ollama.com/)，点击 Download，即可完成下载安装\r\n```\r\n\r\n### 安装本地大模型\r\n\r\n因为我的电脑内存为 16G，安装参数比较大的模型运行会比较慢，所以我这边推荐`qwen2.5-coder:7b` 或者 `codeqwen 7b`。\r\n\r\n这两个模型的编程能力都比较强，并且参数只有 7b，运行在我的本地机器上还算比较流畅。\r\n\r\n安装也比较简单，打开终端，每个模型大概不到 5G，运行命令后等待下载成功即可：\r\n\r\n```bash\r\n# 如果内存吃紧可以仅安装一个\r\nollama run codeqwen   # 安装 codeqwen\r\nollama run qwen2.5-coder:7b # 安装 qwen2.5-coder:7b\r\n```\r\n\r\n### 安装 Continue\r\n\r\n在 VSCode 的扩展商店搜索 Continue 并安装。Continue 对新用户提供可免费试用，可以使用 Claude 和 ChatGPT 的最新模型。\r\n\r\n### 修改 Continue 的配置文件\r\n\r\n将这段 JSON 配置粘贴入 Continue 的 config.json 中，Continue 便会自动检测本地已经安装的大模型\r\n\r\n```json\r\n{\r\n\"title\": \"Autodetect\",\r\n\"provider\": \"ollama\",\r\n\"model\": \"AUTODETECT\",\r\n\"systemMessage\": \"You are an expert software developer. You give helpful and concise responses.You will think in English and reply in Chinese\"\r\n},\r\n```\r\n\r\n## 方案二：使用 Groq-API\r\n\r\n### 生成自己的 API key\r\n\r\n打开官方的[API Keys 生成页面](https://console.groq.com/keys)，使用 GitHub 或者 Google 登录，然后直接点击`Create API Key`即可\r\n\r\n### 配置 Continue\r\n\r\n将这段 JSON 配置粘贴入 Continue 的 config.json 中，将 apikey 替换为自己的，Continue 便会自动检测 API 可以调用的大模型\r\n\r\n```json\r\n{\r\n\"model\": \"AUTODETECT\",\r\n\"title\": \"Autodetect\",\r\n\"apiKey\": \"<your API key>\",\r\n\"provider\": \"groq\",\r\n\"systemMessage\": \"You are an expert software developer. You give helpful and concise responses.You will think in English and reply in Chinese \"\r\n}\r\n```\r\n\r\n值得一提的是，groq 的生成速度非常快，而且支持调用 70b，甚至更大参数的模型，使用体验要比本地的 ollama 好上不少。\r\n\r\n## 结论\r\n\r\n现在给自己配置一个免费的编程助手真的不要太简单，虽然能力上还不如 Claude，但是日常使用已经非常够用了\r\n\r\n<img width=\"1988\" alt=\"image\" src=\"https://github.com/user-attachments/assets/b257d01e-3c16-4a38-b75e-413d0ce500f8\">\r\n",
+      "createdAt": "2024-11-16T08:53:27Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABzkgnsw",
+          "name": "copilot",
+          "description": "",
+          "color": "B7F6A2"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1b3Lw",
+          "name": "vscode",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN34g",
+          "name": "tag:copilot",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN9fQ",
+          "name": "tag:vscode",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 28,
+      "title": "配置 VSCode 的免费 AI 编程助手：Ollama 、Groq和 Continue 扩展",
+      "updatedAt": "2026-08-02T10:03:53Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/28",
+      "body_sha256": "04ae231b8a46deca148ed6a4ebf09a10fd7c06ca54617634b581ad5a797ce331"
+    },
+    {
+      "body": "---\nslug: 2024nian-zhong-zong-jie-kong-zhi-yu-qi-jian-chi-xia-qu\ndescription: \"好久不见!\"\ncreated_date: \"2024-12-31\"\n---\n\n好久不见!\n\n已经好久没有更新博客了，甚至很久没有优化博客的代码实现。\n\n2024 年发生了很多事情，我很感谢它。\n\n> 做一件事情需要有想法、摸索出路径，然后就是控制难度、控制自己的预期、坚持下去。\n\n## Python\n\n从打印第一行`hello world`开始，我断断续续学习 Python 已经 3 年了。前两年看了很多教程，但一直没有实际上手用过。\n\n今年终于写了自己的第一个可以运行的 Python 项目，也就是这个搭建在 GitHub Pages 的博客。\n\n今年终于凭借 Python 找到一个薪资更高的数据分析工作，尽管工作中应用仍然不多，但是学习 Python 的过程确实帮我在面试环节得到不少加分。这也算**重要的是过程，而不是结果**的现实验证吧！\n\n我依然喜欢 Python，也更明确 Python 在我生活中的地位。Python 并不适合探索性的数据分析工作，在这方面 SQL 和 tableau 等 BI 工具的组合明显效率更高也更简单。它更适合处理一些常规的、固定化的脚本工作，更适合作为我的爱好，给我的业余生活增加一点色彩。\n\n## 工作\n\n今年我跳槽了，跳的很犹豫。因为很难遇到一个能看到员工闪光点，并且努力为员工争取利益的领导和没有任何勾心斗角的同事氛围了。\n\n只是最后，我仍然因为薪水原因选择了离开。很难说这个决定是否正确，就留给时间检验吧。\n\n新公司也很不错，大家都很强，氛围也很随和，希望我也会变得更好。\n\n## 感情\n\n这是今年最大的遗憾吧。\n\n在一起三年之后，我们选择了分手。恋爱一旦进入谈婚论嫁阶段，经济问题总是不可避免，`门当户对`这个成语存在是有原因的。日常生活中的琐事也火上浇油，诸如情侣因为挤牙膏的方式争议而分手的离谱新闻也有其一定的真实性。\n\n没有让我选择继续挽留的原因有两个：一是我没法抛弃我所有的规划去她的家乡从零开始；二是这段感情的最后一年多，我很少感受到支持和正反馈。\n\n祝她好，也祝我好！\n\n## 生活\n\n这个问题分手后我才认真考虑，有一段时间我不知道干什么，大把的时间用来抽烟和刷无聊短视频。\n\n我才发现，在一起的这几年，除了同事，认识的新朋友几乎为零。我很久没有和陌生人聊过天，很久没有和老朋友喝酒谈心。\n\n最近的每个周末，我都不让自己闲下来。同事朋友邀请的饭局积极参加，很久没联系但依然欣赏的老同学也去主动联系。\n\n很幸运，我从这些正向社交里学到好多东西！\n\n## 还有好多事情没做\n\n- [ ] 独自旅行一次，独自规划，独自出行\n- [ ] 继续学习 Python，我要继续维护这个 Python 博客，让搭建更加简单！\n- [ ] 继续学习英语，最近发现一个免费的口语交流网站，很不错，要坚持练习。国外出差机会之前要可以基本的口语交流\n- [ ] 工作也要积极向上，很多同事都有可以学习的点。要主动沟通，主动同步想法。\n- [x] 要对自己更加坦诚，要对朋友真诚。就像局外人中的一个句子，人生在世，永远不要弄虚作假。\n- [x] 带妈妈出去走走\n- [x] 要回去看看姥姥，我很想她，但我不能经常想\n",
+      "createdAt": "2024-12-31T15:42:13Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAAB2cBW6w",
+          "name": "summary",
+          "description": "",
+          "color": "FA09D0"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN7gQ",
+          "name": "tag:summary",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 29,
+      "title": "2024年终总结：控制预期，坚持下去",
+      "updatedAt": "2026-08-02T10:03:56Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/29",
+      "body_sha256": "314f17be71b1c9da242bec62e9eae1c4804ec32ea9bcd6fdede2e28900caaddc"
+    },
+    {
+      "body": "---\nslug: wo-xi-huan-dong-tian-de-xia-wu-zou-lu-qu-cheng-du-de-cha-guan-he-cha\ndescription: \"记录一下\"\ncreated_date: \"2025-02-05\"\n---\n\n## 记录一下\n\n\n今年的计划完成了一大项：带妈妈出去走走。\n\n正好赶上春节期间表妹结婚，要去成都，所以回家也待不了几天，于是邀请妈妈来上海。\n\n去了杭州、苏州，也再次逛了一下上海，最后去成都。\n\n\n## 收获\n\n玩的过程其实也没啥好讲的，但是有很多收获\n\n### 1. 我也可以旅游规划\n\n我是一个喜欢懒散的人，不想把每天的行程安排太满。这次完全按照自己的节奏规划，很轻松也很快乐！当然也离不开老妈的情绪支持，她也没有怨言去的地方太少。\n\n相信接下来一个人旅行的时候也可以很快乐，这件事给了我很多自信。\n\n### 2. 很喜欢成都的喝茶文化\n\n加上婚礼在成都待了4天，其中3天下午都在茶馆喝茶。成都真的没什么好逛的，ifs、春熙路、天府广场、人民公园、宽窄巷子、锦里都几乎在一条路上，前后不过几公里。哪里都是饭馆、哪里都是人，其实挺千篇一律的。\n\n喝茶就不一样了，便宜点10块钱就能坐一下午，几乎每个茶馆都做满了人。下棋的人沉默不语，看棋的人面红耳赤，真的太有意思了。我不会打麻将，感觉还有一些快乐没有体会到，但也不遗憾，我没办法从麻将里面体验到快乐。\n\n成都冬天的气温也非常加分，昼夜温差很小，白天坐在室外的茶馆也不觉得冷。\n\n\n### 3. 相比历史文化景点，我更喜欢自然景点\n\n虽然历史文化有其独特魅力，但自然景观带来的宁静与放松让我感到更加舒适。",
+      "createdAt": "2025-02-05T12:39:28Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAAB4w9SCQ",
+          "name": "travel",
+          "description": "",
+          "color": "27319e"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN8fA",
+          "name": "tag:travel",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 30,
+      "title": "我喜欢冬天的下午走路去成都的茶馆喝茶",
+      "updatedAt": "2026-08-02T10:03:58Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/30",
+      "body_sha256": "8ff0d757f835cfb2097467110caf8e663a8d135dec65d3368fd9281bedaf66ec"
+    },
+    {
+      "body": "---\nslug: 2025nian-zhong-zong-jie-guan-zhu-zi-ji\ndescription: \"是时候回顾一下了。26年已经到来，祝有缘读到这篇的朋友新年快乐！\"\ncreated_date: \"2026-02-21\"\n---\n\n是时候回顾一下了。26年已经到来，祝有缘读到这篇的朋友新年快乐！\n\n## 25年待办进度\n\n25年的待办事项基本完成\n\n- [x] 独自旅行一次，独自规划，独自出行\n> 新加坡 citywalk 一日游\n- [x] 继续学习 Python，我要继续维护这个 Python 博客，让搭建更加简单！\n> 说来惭愧，这一年没怎么维护，blog 也写的很少\n- [x] 继续学习英语，最近发现一个免费的口语交流网站，很不错，要坚持练习。国外出差机会之前要可以基本的口语交流\n> 得益于工作的关系，这一年还是有不少锻炼口语的机会\n- [x] 工作也要积极向上，很多同事都有可以学习的点。要主动沟通，主动同步想法。\n> 今年工作很充实，获得一个小升职，感谢领导同事的支持和帮助\n- [x] 要对自己更加坦诚，要对朋友真诚。就像局外人中的一个句子，人生在世，永远不要弄虚作假。\n> 主观感觉做到了\n- [x] 带妈妈出去走走\n> 上海 - 杭州 - 苏州 - 成都\n- [x] 要回去看看姥姥，我很想她，但我不能经常想\n> 回去了，姥爷今年也去世了\n\n\n## 一些待办以外的事情\n\n### 工作\n\n不得不说，目前所在的公司人才密度很高。和老板、同事们合作很开心，但压力也很大。\n\n这一年也暴露出一些问题，自己经常关注于解决某个具体问题，而忽略全局视野。在做决策的时候也总是担心做的不够好，导致拖延。\n\n### 生活\n今年最大的改变就是姥爷去世了。姥姥和姥爷操劳一生，没有什么财产。最后的遗物除了一张以前农村的地契，就是我们小时候的照片了。\n\n在一个从我小时候就一直使用的衣柜里面，一个盒子包着一个盒子，再打开用一张硬纸包裹着的照片。\n\n关于我的部分停留在高中时代。想起来自从读大学开始，就很少回家，也很少拍照片，应该多拍点照片多回家看看的。\n\n### 兴趣爱好\n\n我是一个比较宅的人，前年体检又有了一点脂肪肝，今年尝试找点爱好。\n\n健身：年初报了3个月的私教课，前期做有氧减脂，后期做一点力量训练。我很喜欢有氧的部分，但有些动作在家里做容易扰民。现在有机会也还会去跑步机慢跑1小时出出汗。\n\n骑自行车：下半年搬家，房租更便宜一点的同时，到地铁站的距离也远了。于是购入一辆二手自行车，我很喜欢他的名字——`Escape`。好想逃跑啊！奋斗打工绝对不是人生的意义。缺点是早上出门总想左拐直接去公司，导致到公司一身汗，只有晚上到家才能洗个澡。\n\n### 理财\n\n是的，今年发现每个月可以剩下一点钱，于是想理财一下子。\n\n从2月份到26年1月份：\n\nA股盈利3.6%，估计扣掉手续费啥的，只有2%左右，勉强比存银行多一点。\n\n纳斯达克ETF盈利14%(现在2月份只有1%了)，最近一个月美股一直在横盘往下走，但还是一直在定投，当作一个长期储蓄吧。\n\n### 阅读\n\n今年读的书不多，在高铁上读完了《克莱因壶》，有一次在yihong大佬的Twitter上看到，于是就读了。还不错，什么是真的，什么是假的？\n\n看了一些理财入门书：《穷爸爸富爸爸》、《跟银行螺丝钉玩定投》、《穷查理宝典》、《如何选择成长股》、《经济学原理》读了一半。学到的东西有限，更多的是种下了资产和消费的观念、定投的习惯。现在买股票还停留在感觉、觉得价格合适就买、觉得不合适就卖。幸运的是整体上没有亏损，但是其中有几笔交易，买了之后一直亏，越加越亏。\n\n\n### 一些其他\n\n发现自己在做事情的时候，还是很在意别人的看法，总是得等到自己觉得完美才敢做。这样其实很不好。我想再次告诉自己，完美主义害人害己，一定要开始做。\n\n\n## 26 年待办\n\n- [ ] 理财：熟悉常看的一些技术指标、学会看公司财报，26年收益率4%+\n- [ ] 健康：坚持骑自行车和偶尔慢跑\n- [ ] 社交：与为数不多的朋友多见面，上海的同事一年3次以上、杭州的好友一年4次以上、老家的发小至少一年1次\n- [ ] 阅读：读更多的理财相关书籍，偏向技术指标学习\n- [ ] 旅游：一次3天以上的一人行\n- [ ] 学习：尝试报一个线上硕士课程或者读一个非全日制硕士\n- [ ] 多拍照片，制作一个实体相册\n\n\n## 总结\n2025年过去了，30岁到了，很多事情都已发生。愿我可以永远策马扬鞭、坦诚对待自己。",
+      "createdAt": "2026-02-21T14:35:26Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAAB2cBW6w",
+          "name": "summary",
+          "description": "",
+          "color": "FA09D0"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN7gQ",
+          "name": "tag:summary",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 31,
+      "title": "2025年终总结：关注自己",
+      "updatedAt": "2026-08-02T10:04:01Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/31",
+      "body_sha256": "4451a7128e42d1e0aa36032238513db6756166536aa4c84257c785b35a8759fd"
+    },
+    {
+      "body": "---\nslug: vibe-coding-shi-zhan-hou-gan-github-blog-with-trae\ndescription: \"TL:DR\"\ncreated_date: \"2026-03-21\"\n---\n\n## TL:DR\n\n我使用 Trae IDE 对我的 github_blog 项目做了一些迭代。与之前不同的是，这次完全`vibe coding`，没有手写一行代码。\n\n> 也许以后真的只需要自然语言编程，设置好明确的准出条件，剩下的就完全交给 AI 去做就好了。\n\n## 为什么要迭代\n\n正如项目`README.md`中所写：想要一个更好看的前端\n\n### 一些背景\n\n这个博客搭建在 GitHub Pages 上，由 Python、GitHub Actions 实现自动更新。\n\n逻辑很简单：\n\n1. 写 issue\n2. GitHub Actions 捕捉每一次 issue 变更运行 python 脚本\n3. python 读取 issues，并将 issue 渲染为 HTML(Jinja2)\n\n但是有一个痛点：我不会写 JS 和 CSS。\n\n所以第一版前端界面长这样：\n\n<img width=\"1280\" height=\"747\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/6ad6413e-d305-4f91-a279-626be0fc9cb5\" />\n\n我当然很不满意呀！\n\n## 怎么做\n\n当然是让 AI 来帮我写前端！\n\n### Why Trae ?\n\n1. GitHub Copilot：我日常工作中 GitHub Copilot 基本可以满足需求，但是免费版额度不够\n2. Cursor：相当明星的产品，但是我只试用过，没有付费\n3. **价格**：刷到 Trae 的一些博客，性价比很高，只要 7.5$一个月\n4. 至于其他比如 Claude Code：我确实不是职业开发，感觉价格很高，但是我很难物尽其用\n\n### 过程\n\n整个过程其实很简单，**给 Trae 一张图，然后让 Trae 自己改**，我只需要每次点击确认。当然我不希望它随意改动我的主体 python 代码，担心它搞砸主体逻辑。\n\n1. 10min 不到，整体的模板框架已经出来了，\n2. 然后就是字体、颜色、暗黑模式、目录悬浮、缩进等等一些小需求的顶点优化\n3. 回头一看，不到 2 个小时，前端就变成了下面这样，大呼牛逼 👍\n\n<img width=\"3024\" height=\"1964\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/731f4455-f8d2-477e-8b12-fd0ec02acd46\" />\n\n## 回顾\n\n### 自己确实落伍了\n\nTrae 只是一个普通的 AI 编程工具而已，看风评远没有 Claude Code、Codex 等产品优秀。然而已经可以理解本地项目，并写一个符合项目规范的前端模板。\n\n### 核心永远是：上下文和提示词\n\n> 纯主观感受，不一定对\n\n不管是 system prompt、还是 skills，本质上都是提示词工程，只不过在实现工程上变得更有巧思。让大模型可以读取特定的提示词，提升某方面的能力。\n\nMCP 和 web search 可以通过工具调用的方式增加特定方面的上下文，让模型做的选择更加符合现状，而不是瞎猜。\n\n### 痛点在回滚和环境隔离\n\n虽然 Trae 已经有 sand-box 隔离，但是一旦它搞错，或者自己想回滚的时候，一些实际发生的命令是不可逆的。比如创建、删除文件。刚开始没有提醒它用`uv`，结果在系统 python 环境下，用`PIP`装了一堆乱七八糟的库.\n\n这些终端命令实打实的运行在自己的系统上，风险真是很大。也许后面会演变出一个专门隔离 agent 的系统，直到项目完全符合准出才应用到生产环境？\n",
+      "createdAt": "2026-03-21T09:54:26Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACcN9lSg",
+          "name": "vibe-coding",
+          "description": "",
+          "color": "aaaaaa"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1b3Lw",
+          "name": "vscode",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN8ww",
+          "name": "tag:vibe-coding",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN9fQ",
+          "name": "tag:vscode",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 32,
+      "title": "Vibe Coding 实战后感 - github_blog with Trae",
+      "updatedAt": "2026-08-02T10:04:03Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/32",
+      "body_sha256": "2604ab4ad08c1675dbaa3b7ce42e821395824e3fcde3fde183072c7c818f8bc8"
+    },
+    {
+      "body": "---\nslug: bu-dong-git-bu-hui-qian-duan-yi-ge-wen-ke-sheng-de-github-blog\ndescription: \"“ People Die, but Long Live GitHub ” [gitblog]\"\ncreated_date: \"2026-04-05\"\n---\n\n\n> “**People Die, but Long Live GitHub**” -- [[gitblog](https://github.com/yihong0618/gitblog)]\n\n# Escaping 🚀\n\n`Escaping` (https://github.com/geoqiao/escaping) 是一个极致简洁、自动化程度极高的个人博客框架。它将 GitHub Issues 作为后端编辑器，利用 GitHub Actions 自动触发构建，并最终通过 GitHub Pages 进行分发。\n\n**核心特性**：\n\n- 📝 **以 Issue 为博文**：直接在 GitHub Issues 中写作，支持标签分类。\n- 🤖 **全自动化流**：无需本地部署，Issue 更新即刻触发自动构建。\n- 🎨 **优雅 UI**：内置精美的 BearMinimal 主题，支持暗色模式。\n- 🔍 **SEO 友好**：自动生成 `sitemap.xml`、`robots.txt` 以及语义化的 URL (Slugs)。\n- ⚡ **性能卓越**：基于 Python 3.11 和 `uv` 构建，生成速度极快。\n\n---\n\n## 工作原理\n\n```\n┌─────────────────────────────────────────────────────────────┐\n│ escaping (代码仓库 - 所有源码在这里维护)                      │\n│                                                             │\n│ ├── src/                  # Python 源代码                   │\n│ ├── templates/            # 主题模板 (BearMinimal)           │\n│ ├── .github/workflows/    # CI/CD 工作流                    │\n│ └── config.yaml           # 博客配置                        │\n└─────────────────────────────────────────────────────────────┘\n                              │\n                              │ gen_site.yml\n                              │ (生成网站并推送)\n                              ▼\n┌─────────────────────────────────────────────────────────────┐\n│ geoqiao.github.io (内容仓库 - 仅存放 Issues)                  │\n│                                                             │\n│ ├── Issues              # 博客文章                          │\n│ └── .github/workflows/  │                                   │\n│     └── trigger.yml     │ 监听 Issues 事件                  │\n└─────────────────────────────────────────────────────────────┘\n                              ▲\n                              │ trigger.yml\n                              │ (Issue 更新时触发)\n                              │\n                     ┌────────┴────────┐\n                     │   GitHub Issues  │\n                     │  (你的编辑器)    │\n                     └─────────────────┘\n```\n\n---\n\n## 如何使用\n\n```\n创建 Issue (添加标签)\n        │\n        ▼\n┌─────────────────┐     dispatch      ┌─────────────────┐\n│ geoqiao.github.io│ ──────────────→  │  escaping       │\n│ trigger.yml     │                  │  gen_site.yml   │\n└─────────────────┘                  └────────┬────────┘\n                                               │\n                                               │ git push\n                                               ▼\n                                      ┌─────────────────┐\n                                      │ geoqiao.github.io│\n                                      │ main 分支        │\n                                      └────────┬────────┘\n                                               │\n                                               ▼\n                                      ┌─────────────────┐\n                                      │  GitHub Pages   │\n                                      │  自动部署 ✓      │\n                                      └─────────────────┘\n```\n\n1. **Fork 仓库**：Fork `escaping` 到你的 GitHub 账号\n2. **配置 GitHub Pages**：\n   - 进入 `Settings -> Pages`\n   - Source 选择 **Deploy from a branch**\n   - Branch 选择 **main**，Folder 选择 **/ (root)**\n3. **添加 Secret**：\n   - 在 `Settings -> Secrets and variables -> Actions` 中添加 `G_T`\n   - 值为你的 [[GitHub Personal Access Token](https://github.com/settings/tokens)](https://github.com/settings/tokens)（需要 `repo` 和 `workflow` 权限）\n4. **修改配置**：编辑 `config.yaml` 中的博客信息\n5. **开始写作**：在仓库的 Issues 中创建文章，添加标签，稍等片刻博客就上线了\n\n---\n\n## 致谢\n\n本项目深受以下优秀项目的启发：\n\n- [[gitblog](https://github.com/yihong0618/gitblog)](https://github.com/yihong0618/gitblog) - 开启了 Issue 写作的先河。\n- [[Gmeek](https://github.com/Meekdai/Gmeek)](https://github.com/Meekdai/Gmeek) - 提供了极简的构建思路。\n\n## 最后\n\n去年 11 月搬家，新出租屋离地铁站远了不少。电瓶车充电麻烦，于是买了辆二手自行车代步。\n\n提车第二天早上，本来只想骑到地铁站。结果手脚不受控制，满脑子兴奋，直接骑到公司了——真的很解压。\n\n这辆二手自行车是捷安特的 Escape 1 ，也是项目名字 Escaping 的由来。\n\n---\n\n_Tags: [#blog](https://github.com/geoqiao/geoqiao.github.io/issues/new#blog) [#github](https://github.com/geoqiao/geoqiao.github.io/issues/new#github) [#python](https://github.com/geoqiao/geoqiao.github.io/issues/new#python) [#escaping](https://github.com/geoqiao/geoqiao.github.io/issues/new#escaping) [#escape](https://github.com/geoqiao/geoqiao.github.io/issues/new#escape)_",
+      "createdAt": "2026-04-05T09:48:06Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnHfD9A",
+          "name": "python",
+          "description": "",
+          "color": "41E029"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACeIcdbw",
+          "name": "escaping",
+          "description": "",
+          "color": "5168dd"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN4gQ",
+          "name": "tag:escaping",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6lw",
+          "name": "tag:python",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 34,
+      "title": "不懂Git、不会前端，一个文科生的GitHub Blog",
+      "updatedAt": "2026-08-02T10:04:06Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/34",
+      "body_sha256": "cb314bc5ba93556296561679eb8ae4634e01a1881bd9b2a26c68c3afeab6bb05"
+    },
+    {
+      "body": "---\nslug: cong-superpowers-xue-xi-gao-zhi-liang-ai-xie-zuo-yi-fen-gei-ce-lue-fen\ndescription: \"一、Superpowers 简介\"\ncreated_date: \"2026-04-18\"\n---\n\n## 一、Superpowers 简介\n\n**[obra/superpowers](https://github.com/obra/superpowers)** 是由 Jesse Vincent 与 Prime Radiant 开发的 **agentic skills framework**。它不是传统代码库，而是一套嵌入 Claude Code、Cursor、Codex、Gemini CLI 等工具的**软件开发方法论**。\n\n核心机制：**14 个可组合 skill**，在任务启动时按关键词自动触发，强制 AI 遵循\"先思考、再规划、后执行、最后验证\"的完整闭环。\n\n| 类别 | Skills |\n|------|--------|\n| 思考与规划 | `brainstorming`, `writing-plans`, `using-git-worktrees` |\n| 执行与开发 | `subagent-driven-development`, `executing-plans`, `test-driven-development` |\n| 调试与验证 | `systematic-debugging`, `verification-before-completion` |\n| 协作与收尾 | `requesting-code-review`, `receiving-code-review`, `finishing-a-development-branch` |\n\n你可以把它理解为**给 AI 配备了一套标准化作业程序（SOP）**——每个任务从启动到交付，都要经过特定的检查点和技能触发。\n\n---\n\n## 二、设计哲学：为什么输出质量高\n\nSuperpowers 的核心不是\"写更好的代码\"，而是**\"用流程约束对抗认知捷径\"**。四条铁律：\n\n1. **Evidence over claims** — 声称完成前，必须先运行测试、读取完整输出、确认一致\n2. **Systematic over ad-hoc** — 任何任务开始前，必须先调用对应 skill\n3. **Test-Driven Development** — 没有\"先看到测试失败\"，就不允许写生产代码\n4. **Complexity reduction** — 每个任务拆到 2-5 分钟，禁止占位符和过度设计\n\n这个流程的精妙之处：**把质量控制嵌入到每一个环节**，而不是只在最后检查一次。\n\n---\n\n## 三、Superpowers 工作流：从想法到交付\n\n```\n+---------------------+     +---------------------+     +---------------------+\n|   brainstorming     | --> |  using-git-worktrees| --> |   writing-plans     |\n|   明确需求与方案       |     |   创建隔离工作空间     |     |   拆成2-5分钟小任务   |\n+---------------------+     +---------------------+     +---------------------+\n           |                                                    |\n           v                                                    v\n+---------------------+     +---------------------+     +---------------------+\n| subagent-driven-dev | --> | test-driven-develop | --> | requesting-code-review\n|   分配子代理执行       |     |   红-绿-重构循环      |     |   每任务完成后评审    |\n+---------------------+     +---------------------+     +---------------------+\n           |                                                    |\n           v                                                    v\n+---------------------+     +---------------------+\n|verification-before- | --> |finishing-a-dev-     |\n| completion          |     | branch              |\n| 声称完成前必须验证    |     | 整理合并             |\n+---------------------+     +---------------------+\n```\n\n**对分析师的启示**：数据分析也可以建立同样的**分段质量控制流水线**——在拉数据、做模型、写结论的每一步都设置检查点。\n\n---\n\n## 四、数据分析人员的 5 个落地实践\n\n### 实践 1：Brainstorming = 第二大脑\n\n在 Superpowers 里，`brainstorming` 是**硬门槛**。分析师可以要求 Claude 扮演三种角色：\n\n| 角色 | 作用 | 示例 prompt |\n|------|------|-------------|\n| 盲区探测者 | 列出没想到的维度 | \"基于我的想法，列出 3-5 个我可能忽略的变量或风险\" |\n| 细节确认者 | 追问假设前提 | \"对每个假设追问一层——它成立的前提条件是什么？\" |\n| 反面论证者 | 挑战分析框架 | \"如果我是 CEO，我会怎么质疑这个结论？\" |\n\n> 示例：当你说\"分析降价促销对新用户转化的影响\"，AI 应该反问：你如何控制季节性？竞品是否也在促销？\"新用户\"是注册还是首单？你看的是短期转化还是 LTV？\n\n**分析师最大的风险往往不是算错数，而是问错了问题。**\n\n### 实践 2：TDD = 假设先行\n\n| 要素   | 内容              |\n| ---- | --------------- |\n| 业务问题 | 我们要回答什么？        |\n| 分析假设 | 我预计结果是什么？       |\n| 验收标准 | 什么数据能证实/证伪这个假设？ |\n\n> 业务问题：新用户首月留存是否因渠道不同有显著差异？\n> 分析假设：organic 渠道留存率高于 paid 至少 10 个百分点。\n> 验收标准：按 channel 分组后，30 天留存率的置信区间不重叠。\n\n### 实践 3：Writing-plans = 分阶段交付\n\n不要一次性交付 50 页\"终极报告\"：\n\n```\nPhase 1: 数据清洗 + 基础指标  (今天)\n    |\n    v\nPhase 2: 分维度对比分析        (明天)\n    |\n    v\nPhase 3: 洞察提炼 + 策略建议    (后天)\n```\n\n每一阶段都有明确的验收标准。\n\n### 实践 4：Code-review = 自检检查点\n\n| 检查点   | 自检问题                 |\n| ----- | -------------------- |\n| 数据完整性 | 时间范围完整？有无异常缺失？       |\n| 口径一致性 | 指标定义与历史报告一致？         |\n| 逻辑一致性 | 细分加总等于总体？百分比约为 100%？ |\n| 归因合理性 | 相关关系是否被当成因果关系？       |\n| 可执行性  | 建议是否足够具体，业务方能直接落地？   |\n\n### 实践 5：Verification = 验证附录\n\nSuperpowers 的 Iron Law：\n\n> **NO COMPLETION CLAIMS WITHOUT FRESH VERIFICATION EVIDENCE**\n\n具体操作：\n- 在报告最后一页附上\"验证附录\"\n- 核心数字用至少两道口径交叉验证\n- 例如：\"GMV 同比增长 15%\" 同时通过订单表和财务表验证\n\n---\n\n## 五、省钱技巧：把 MCP-SQL 查询与分析解耦\n\nSuperpowers 的 workflow 虽然能显著提升质量，但每一步都走完整技能链（brainstorming → planning → subagent → review），**非常消耗 token**。对数据分析师来说，最大的 token 杀手通常是 **MCP SQL 返回的大量原始查询结果**——如果把几千行数据 inline 在对话里，上下文会迅速膨胀，分析阶段还没开始 token 就烧光了。\n\n### 核心思路：查询落盘，分析读盘\n\n把\"取数\"和\"分析\"拆成两个独立阶段，让 Superpowers 的后续流程只在\"数据摘要/洞察\"层面运行。\n\n```\n【阶段 A：Query → Export】                  【阶段 B：Analysis → Read Local】\n+---------------------+                     +---------------------+\n|  MCP SQL 提交查询    |                     |  pandas 读取本地文件  |\n|  poll 到 FINISHED   |  --------------->   |  描述性统计 / 可视化   |\n|  结果写入 data/     |   保存为 .xlsx      |  假设验证 / 洞察提炼   |\n+---------------------+                     +---------------------+\n        ^                                              |\n        |                                              v\n        +---------------------+              +---------------------+\n                              |              |  Superpowers 后续流程  |\n                              |              |  (brainstorming       |\n                              |              |   /writing-plans      |\n                              |              |   /review)            |\n                              |              +---------------------+\n```\n\n### 推荐目录结构\n\n```\nanalysis_project/\n├── code/\n│   ├── fetch_data.py          # 封装 MCP SQL 查询\n│   ├── analyze_*.py           # 后续分析脚本\n│   └── query_*.sql            # SQL 模板（可选）\n├── data/\n│   └── raw_20250413.xlsx      # 查询结果落盘（gitignored）\n└── report.md\n```\n\n### 脚本模板：`code/fetch_data.py`\n\n```python\nimport os\nimport time\nimport pandas as pd\n\n# 1. 提交 MCP SQL 查询\n# （在 Claude Code 中通过 MCP tool 执行，或把 queryId 传入脚本）\n\n# 2. 等待结果\nquery_id = \"your-query-id-from-mcp\"\n# status = mcp_get_query_status(query_id)\n# while status == \"RUNNING\":\n#     time.sleep(3)\n#     status = mcp_get_query_status(query_id)\n\n# 3. 获取结果并落盘\n# result = mcp_get_query_result(query_id)\n# df = pd.DataFrame(result['rows'], columns=[c['name'] for c in result['columns']])\n\n# 4. 保存\noutput_path = \"data/raw_20250413.xlsx\"\ndf.to_excel(output_path, index=False)\nprint(f\"✓ 已保存 {len(df)} 行到 {output_path}\")\n```\n\n### 在 Superpowers workflow 中的位置\n\n| Superpowers 步骤 | 操作对象 | 说明 |\n|------------------|---------|------|\n| `brainstorming` | 业务问题 + 假设 | 不涉及 SQL 数据 |\n| `writing-plans` | 阶段 A 和阶段 B 的计划 | 明确 \"先 query 落盘，再读盘分析\" |\n| `subagent-driven-dev` | 阶段 A | 只跑 `fetch_data.py`，目标是把数据写进 `data/` |\n| **Checkpoint** | 本地文件 | 确认 `data/` 里有文件且行数合理 |\n| `subagent-driven-dev` | 阶段 B | 读取本地文件，做统计分析 |\n| `verification` | 数据 + 结论 | 检查文件完整性 + 数字交叉验证 |\n\n### 关键注意事项\n\n1. **`data/` 必须加入 `.gitignore`**\n   ```\n   data/\n   ```\n2. **每次 query 前确认 `truncated` 字段为 false**。如果为 true，说明结果超过 10,000 行，需要加聚合或分区过滤。\n3. **保存一个 `data_summary.txt`**（行数、时间范围、核心指标），方便后续 subagent快速了解情况，而不必打开整个 Excel。\n4. **如果 query 可能超时或失败，采用 checkpoint/resume 模式**：先检查本地是否已有文件，有则跳过 query 直接读盘。\n\n---\n\n## 六、在 Claude Code 中使用\n\n### 安装\n\n```\n/plugin install superpowers@claude-plugins-official\n```\n\n或：\n\n```\n/plugin marketplace add obra/superpowers-marketplace\n/plugin install superpowers@superpowers-marketplace\n```\n\n### 触发词\n\n| 关键词 | 效果 |\n|--------|------|\n| `tdd` | 进入 TDD 模式 |\n| `autopilot` | 全自动模式 |\n| `deep interview` | 深度访谈模式 |\n| `brainstorming` / `writing-plans` | 规划模式 |\n\n### 非程序员 Prompt 模板\n\n```\n我要做一个关于 [主题] 的数据分析。\n请遵循以下流程：\n1. 先 brainstorming，明确目标、假设、验收标准，并挑战我可能遗漏的维度\n2. 然后 writing-plans，拆成 2-3 个可交付阶段\n3. 每个阶段完成后 verification，检查数据完整性和逻辑一致性\n4. 最后输出带\"验证附录\"的分析报告\n```\n\n---\n\n## 七、总结\n\n| Superpowers 原则 | 分析师版本 |\n|------------------|-----------|\n| Brainstorming | AI 反诘式头脑风暴，补全盲区 |\n| TDD | 假设先行，验证驱动 |\n| Writing-plans | 分阶段交付 |\n| Code-review | 每阶段自检清单 |\n| Verification | 报告附验证附录 |\n\nSuperpowers 的本质是**用结构化流程对抗认知惰性**。对策略分析师的价值，不在于写代码更快，而在于让每一次分析都有**清晰的问题定义、可追溯的逻辑链条、以及经得起检验的结论**。\n\n---\n\n*撰写时间：2026-04-13*",
+      "createdAt": "2026-04-18T12:09:41Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1aWYQ",
+          "name": "data-analysis",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1aWYw",
+          "name": "ai-workflow",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1aWZQ",
+          "name": "claude-code",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1aWZg",
+          "name": "superpowers",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN26Q",
+          "name": "tag:ai-workflow",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN3bA",
+          "name": "tag:claude-code",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN4Ow",
+          "name": "tag:data-analysis",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN74A",
+          "name": "tag:superpowers",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 35,
+      "title": "从 Superpowers 学习高质量 AI 协作：一份给策略分析师的 Claude Code 指南",
+      "updatedAt": "2026-08-02T10:04:09Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/35",
+      "body_sha256": "e8db4cb4dce2f8577da174ccf1ccb91cfa47e154d5f61fb035e7c5b888c54219"
+    },
+    {
+      "body": "---\nslug: cong-obsidian-dao-bo-ke-wo-ru-he-yong-yi-tiao-ming-ling-ba-bi-ji-bian\ndescription: \"从 Obsidian 到博客：我如何用一条命令把笔记变成网站\"\ncreated_date: \"2026-04-18\"\n---\n\n# 从 Obsidian 到博客：我如何用一条命令把笔记变成网站\n\n> **TL;DR**：我在 Obsidian 里写完文章，对 AI 说\"发出去\"，博客就自动更新了。\n\n---\n\n## 我的困境\n\n我用 Obsidian 做本地知识库已经两年了。它完美满足了我对写作工具的所有要求：本地优先、Markdown 语法、双向链接、标签系统、跨设备同步。\n\n但有一个问题始终没解决：**Obsidian 里的内容只能自己看**。\n\n每次想发博客，我都得：\n1. 在 Obsidian 里写完\n2. 打开 GitHub Issues\n3. 复制粘贴正文\n4. 手动调整格式（去掉 YAML frontmatter、处理 wikilink）\n5. 重新打一遍标签\n6. 发布\n\n这套操作不复杂，但很烦。尤其是我在用的博客基于 [Escaping](https://github.com/geoqiao/escaping) 框架——一个我自己维护的、以 GitHub Issues 为内容源的静态博客系统。每次发布都要去 Issues 里手动操作，和 Obsidian 的写作体验形成了鲜明对比。\n\n## 方案：让 AI 当桥梁\n\n今天我终于打通了这个工作流。核心思路很简单：\n\n```\n内容捕获 → AI 整理 → 人工审核 → Agent 发布 → 自动构建 → 博客上线\n(inbox/raw)  (output)    (校验)     (Issue)    (Escaping)  (Pages)\n```\n\n**Obsidian 负责内容生产，AI 负责整理与发布，我负责审核把关。**\n\n## 各层拆解\n\n### 第一层：Obsidian —— 内容的源头\n\n我的 Obsidian Vault 不是简单的笔记堆积，而是一个遵循 [Karpathy's LLM Wiki pattern](https://gist.github.com/karpathy/442a6bf555914893e9891c11519de94f) 的内容生产流水线：\n\n```\ninbox/     # 待办与灵感\nraw/       # 原始素材（按 TODO 分组）\nwiki/      # LLM 维护的结构化知识\noutput/    # 终稿（草稿 → 发布后归档）\n```\n\n每篇文章从 `inbox/` 的灵感开始，经过 `raw/` 的素材整理，最终在 `output/` 中成稿。所有文件都有统一的 YAML frontmatter：\n\n```yaml\n---\ncreated: 2026-04-18\nupdated: 2026-04-18\ntags:\n  - ai-workflow\n  - data-analysis\nstatus: draft\n---\n```\n\n标签使用 **kebab-case**，这是本地仓库的强制规范。\n\n### 第二层：AI Agent —— 知识整理与发布\n\n我使用 **Claude Code**（终端里的 AI 编程助手）作为桥梁。它在两个阶段介入：\n\n**阶段一：整理成稿**\n\n根据我列的 TODO 和 raw 里的原始素材，Agent 会：\n1. 更新 wiki 知识库（结构化整理）\n2. 按模板输出 draft 到 output/\n3. 所有文件保持统一的 YAML frontmatter 和 kebab-case 标签\n\n**阶段二：发布上线**\n\n我审核通过后，Agent 负责：\n1. **读取**本地 Markdown 文件\n2. **处理**格式（去掉 frontmatter、转换 wikilink）\n3. **映射**标签到 GitHub Labels\n4. **创建** GitHub Issue\n\n发布指令长这样：\n\n```\n帮我把 output/2026-04-13-superpowers-tutorial/superpowers-claude-code-guide.md\n上传到 geoqiao.github.io 的 issue 中\n```\n\n全程不需要我离开 Obsidian 的上下文。\n\n### 第三层：Escaping —— 自动构建与部署\n\n[Escaping](https://github.com/geoqiao/escaping) 是我维护的博客框架，它将 GitHub Issues 作为后端编辑器，利用 GitHub Actions 自动触发构建，最终通过 GitHub Pages 分发。\n\n核心特性：\n\n- 📝 **以 Issue 为博文**：直接在 GitHub Issues 中写作，支持标签分类\n- 🤖 **全自动化流**：Issue 更新即刻触发自动构建，无需本地部署\n- 🎨 **优雅 UI**：内置 BearMinimal 主题，支持暗色模式\n- 🔍 **SEO 友好**：自动生成 sitemap、robots.txt、语义化 URL\n- ⚡ **性能卓越**：基于 Python 3.11 和 uv 构建\n\n工作流程：\n\n```\n创建 Issue (添加标签)\n        │\n        ▼\n┌─────────────────┐     dispatch      ┌─────────────────┐\n│ geoqiao.github.io│ ──────────────→  │  escaping       │\n│ trigger.yml     │                  │  gen_site.yml   │\n└─────────────────┘                  └────────┬────────┘\n                                               │\n                                               │ git push\n                                               ▼\n                                      ┌─────────────────┐\n                                      │ geoqiao.github.io│\n                                      │ main 分支        │\n                                      └────────┬────────┘\n                                               │\n                                               ▼\n                                      ┌─────────────────┐\n                                      │  GitHub Pages   │\n                                      │  自动部署 ✓      │\n                                      └─────────────────┘\n```\n\n两个仓库分离设计：\n- **escaping**：代码仓库，所有源码和主题模板在这里维护\n- **geoqiao.github.io**：内容仓库，仅存放 Issues，监听变更触发构建\n\n## 这套工作流的优势\n\n| 维度 | 传统方案 | 我的工作流 |\n|------|---------|-----------|\n| 写作环境 | 在线编辑器或 IDE | Obsidian（本地、离线、体验极佳） |\n| 发布操作 | 复制粘贴、手动调整 | 一句话指令 |\n| 格式处理 | 人工处理 frontmatter/wikilink | AI 自动转换 |\n| 标签管理 | 在 GitHub 上手动打标签 | 本地标签自动映射 |\n| 构建部署 | 手动触发或配置复杂 CI | Issue 创建即自动构建 |\n| 归档整理 | 容易遗漏 | 发布即自动归档 |\n\n## 总结\n\n这套工作流的核心不是某个工具，而是**分层解耦**：\n\n- **Obsidian** 负责内容生产与素材积累\n- **AI Agent** 负责从素材整理到发布的全流程\n- **我** 负责审核、判断与决策\n- **Escaping** 负责构建与展示\n\n每一层只关心自己的职责，通过标准接口（Markdown + YAML + GitHub API）衔接。这才是「重器轻用」的真正含义——不要让工具绑架你的注意力，让工具在各自擅长的领域默默工作。\n\n## 关联阅读\n\n- [不懂 Git、不会前端，一个文科生的 GitHub Blog](https://github.com/geoqiao/geoqiao.github.io/issues/34) — Escaping 框架详细介绍\n- [从 Superpowers 学习高质量 AI 协作](https://github.com/geoqiao/geoqiao.github.io/issues/35) — 今天发布的文章，工作流验证实例\n- [Escaping GitHub 仓库](https://github.com/geoqiao/escaping) — 博客框架源码\n\n---\n\n*如果你也在用 Obsidian + GitHub Issues 写博客，欢迎交流。*",
+      "createdAt": "2026-04-18T12:41:36Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACZAmhbA",
+          "name": "obsidian",
+          "description": "",
+          "color": "20f10d"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACeIcdbw",
+          "name": "escaping",
+          "description": "",
+          "color": "5168dd"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1aWZQ",
+          "name": "claude-code",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1jlSQ",
+          "name": "workflow",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACf1jlSg",
+          "name": "github-issues",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN3bA",
+          "name": "tag:claude-code",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN4gQ",
+          "name": "tag:escaping",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN4_g",
+          "name": "tag:github-issues",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN5-g",
+          "name": "tag:obsidian",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN-Bw",
+          "name": "tag:workflow",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 36,
+      "title": "从 Obsidian 到博客：我如何用一条命令把笔记变成网站",
+      "updatedAt": "2026-08-02T10:04:12Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/36",
+      "body_sha256": "049c56588a6fa25faddd11d08bd40826cb98865ecdf39405d163c9a7b392c461"
+    },
+    {
+      "body": "---\nslug: what-s-on-my-pi-agent-ba-90-de-codex-desktop-zhuang-jin-zhong-duan\ndescription: \"Codex Desktop 很顺手，只是我的 MacBook M1 PRO 跑不起它。四年没有转过的风扇，只要打开codex 就转不停。\"\ncreated_date: \"2026-08-01\"\n---\n\nCodex Desktop 很顺手，只是我的 MacBook M1 PRO 跑不起它。四年没有转过的风扇，只要打开codex 就转不停。\n\n所以我使用pi + Herdr + neovim 打造了一个终端中的 codex desktop\n\n<img width=\"2032\" height=\"1162\" alt=\"Image\" src=\"https://github.com/user-attachments/assets/206b181a-d5df-4f2a-9195-4dda54611db6\" />\n\n- **Herdr** 管工作台：workspace、tab、pane、布局、多 Agent 侧边栏。\n- **Pi** 管 Agent：模型循环、工具调用、会话、扩展。\n- **Neovim** 管代码：浏览、编辑、Buffer，并通过 `pi-nvim` 把上下文喂给 Pi。\n\nCodex Desktop 一手包办的几件事，在这里被拆给了更适合终端的零件。\n\n## Trace\n\n```mermaid\nflowchart TD\n    A[\"打开项目\"] --> B[\"切换到 Herdr workspace\"]\n    B --> C[\"按 prefix+shift+e\"]\n    C --> D[\"恢复 code tab<br/>50:50 布局\"]\n    D --> P[\"左侧 pane<br/>Pi\"]\n    D --> N[\"右侧 pane<br/>Neovim\"]\n    B -. \"Herdr 侧边栏\" .-> S[\"查看 workspace 与 Agent 状态<br/>idle · working · blocked · done\"]\n    S --> T[\"在 pane / tab 间切换长期任务\"]\n```\n\n### Editor ->  Neovim\n\n右侧 pane 固定放 Neovim，查看、编辑和跳转文件都不用离开终端。需要让 Pi 看代码时，`pi-nvim` 可以把当前文件、选区或整个 Buffer 直接送到左侧会话，不用复制粘贴，也不用切回 VS Code。\n\n### Side Chat -> /btw\n\n`/btw` 为 Pi 提供独立 Side Chat：它会在 Herdr 中打开一个带工具能力的 pane，并继承当前目录、模型和 thinking level。Side Chat 拥有独立上下文，支持连续追问，不会改动主会话；需要时再用 `/btw merge` 把结论合并回来。\n\n### Subagent -> pi-subagents\n\n`pi-subagents` 负责把 research、implementation、review 等任务交给独立的子 Agent。启动时可以选择 `fresh` 或 `fork` 上下文，也可以为每个 Agent 指定模型和 thinking level，或者让它们在后台并行工作。配合 Herdr skills，还能像在 Codex Desktop 里一样，打开某个 Subagent 的 pane，直接查看它的对话和进度。\n\n### Goal -> pi-goal\n\n`pi-goal` 让 Pi 可以围绕一个目标持续工作，而不是每完成一轮就停下来等下一条提示。任务受阻时会进入 `blocked`；我也可以随时 `/goal pause`，之后再用 `/goal resume` 从原来的目标继续。\n\n### Web-search & Computer-use\n\n`pi-web-access` 负责搜索和读取网页，也能处理 GitHub、PDF 和视频内容；`pi-computer-use` 负责观察并操作桌面界面，包括定位窗口、点击、输入和滚动。一个解决“找到信息”，另一个解决“替我操作”。\n\n### Compaction -> pi-codex-compaction\n\n`pi-codex-compaction` 在使用 OpenAI Codex 模型时，把原生的上下文压缩能力接进 Pi。Pi 自带的 compaction 在超长任务里经常还是会撞上上下文上限；换成 Codex 的原生 compaction 后，长会话可以继续压缩和恢复，token 也更耐用。\n\n## PROS & CONS\n\n优点很直接：\n\n- 风扇不转了。\n- token 更耐用了。\n- 以上所有配置都可以让 AI 完成。\n\n缺点也很明显：\n\n- 无法开箱即用，终端操作和 Neovim 都有使用门槛。\n- 浏览器和 Computer Use 还比较粗糙，窗口失焦之类的问题也没有完全解决。\n\n这并不适合想要开箱即用的人。虽然 AI 可以帮忙解决 99% 的配置问题，但日常操作仍然需要适应，与 Desktop App 还有差距。\n\n## 软件与插件链接\n\n| 名称                    | 在这套系统中的用途                | 地址                                                      |\n| --------------------- | ------------------------ | ------------------------------------------------------- |\n| Pi                    | Agent runtime            | [[GitHub](https://github.com/earendil-works/pi)](https://github.com/earendil-works/pi)          |\n| Herdr                 | Workspace、布局和多 Agent TUI | [[GitHub](https://github.com/ogulcancelik/herdr)](https://github.com/ogulcancelik/herdr)         |\n| Neovim                | 编辑器                      | [[官网](https://neovim.io/)](https://neovim.io/)                                |\n| `pi-nvim`             | 将 Neovim 上下文发送给 Pi       | [[GitHub](https://github.com/carderne/pi-nvim)](https://github.com/carderne/pi-nvim)           |\n| `pi-web-access`       | 搜索并读取网页内容                | [[GitHub](https://github.com/nicobailon/pi-web-access)](https://github.com/nicobailon/pi-web-access)   |\n| `pi-subagents`        | 任务级 Subagent             | [[GitHub](https://github.com/nicobailon/pi-subagents)](https://github.com/nicobailon/pi-subagents)    |\n| `pi-herdr-btw`        | 独立 Side Chat             | [[GitHub](https://github.com/oscabriel/pi-herdr-btw)](https://github.com/oscabriel/pi-herdr-btw)     |\n| `pi-goal`             | Goal、continuation 与恢复    | [[GitHub](https://github.com/kky42/pi-goal)](https://github.com/kky42/pi-goal)              |\n| `pi-codex-compaction` | 接入 Codex 原生 compaction   | [[GitHub](https://github.com/ogulcancelik/pi-extensions)](https://github.com/ogulcancelik/pi-extensions) |\n| `pi-computer-use`     | 操作桌面应用                   | [[GitHub](https://github.com/injaneity/pi-computer-use)](https://github.com/injaneity/pi-computer-use)  |\n| `pi-mcp-adapter`      | 接入 MCP 服务                | [[GitHub](https://github.com/nicobailon/pi-mcp-adapter)](https://github.com/nicobailon/pi-mcp-adapter)  |",
+      "createdAt": "2026-08-01T18:50:25Z",
+      "labels": [
+        {
+          "id": "LA_kwDOLxLKAM8AAAABnaS4Dg",
+          "name": "blog",
+          "description": "",
+          "color": "F7DFBA"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuS8KPw",
+          "name": "pi",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuS8LZw",
+          "name": "ai-agent",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuS8Lmg",
+          "name": "terminal-workflow",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuS8MLA",
+          "name": "herdr",
+          "description": "",
+          "color": "ededed"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNIEg",
+          "name": "type:blog",
+          "description": "Strict site Blog content",
+          "color": "1d76db"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXNJRA",
+          "name": "published",
+          "description": "Publish this Issue on the site",
+          "color": "0e8a16"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN2mA",
+          "name": "tag:ai-agent",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN5aw",
+          "name": "tag:herdr",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN6aQ",
+          "name": "tag:pi",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        },
+        {
+          "id": "LA_kwDOLxLKAM8AAAACuXN8Gw",
+          "name": "tag:terminal-workflow",
+          "description": "Strict site Blog tag",
+          "color": "5319e7"
+        }
+      ],
+      "number": 41,
+      "title": "What's on My Pi Agent?：把 90% 的 Codex Desktop 装进终端",
+      "updatedAt": "2026-08-02T11:19:51Z",
+      "url": "https://github.com/geoqiao/geoqiao.github.io/issues/41",
+      "body_sha256": "a884c1ccea17be3499b498e90114682b8b3124e63a121b920b37a90bd3e980c8"
+    }
+  ]
+}

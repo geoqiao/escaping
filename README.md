@@ -60,7 +60,7 @@ cp config.example.yaml ../my-site/config.yaml
 # 编辑 ../my-site/config.yaml
 
 export GITHUB_TOKEN=...
-uv run blog-gen --config ../my-site/config.yaml
+uv run escpe --config ../my-site/config.yaml
 uv run python -m http.server 8000 --directory ../my-site/output
 ```
 
@@ -144,8 +144,8 @@ theme:
 ```bash
 uv sync
 uv run pytest -q
-uv run ruff check src/github_blog tests
-uv run ruff format --check src/github_blog tests
+uv run ruff check src/escaping tests
+uv run ruff format --check src/escaping tests
 uv run ty check
 git diff --check
 ```

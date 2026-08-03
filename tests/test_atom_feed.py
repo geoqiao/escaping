@@ -5,16 +5,16 @@ from datetime import datetime, timezone
 
 import pytest
 
-from github_blog.atom_feed import AtomXmlError, render_atom_xml
-from github_blog.models.atom_feed import AtomEntry, AtomFeed
-from github_blog.models.site import (
+from escaping.atom_feed import AtomXmlError, render_atom_xml
+from escaping.models.atom_feed import AtomEntry, AtomFeed
+from escaping.models.site import (
     BrandingMetadata,
     CommentsMetadata,
     SiteMetadata,
     SiteProfile,
     ThemeMetadata,
 )
-from github_blog.routes import RouteRegistry
+from escaping.routes import RouteRegistry
 
 _ATOM_NS = "http://www.w3.org/2005/Atom"
 _AWARE = datetime(2026, 1, 2, tzinfo=timezone.utc)

@@ -1,8 +1,10 @@
 from __future__ import annotations
 
+import os
 import shutil
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).parent.parent.absolute()
@@ -11,6 +13,7 @@ _PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
     uv = shutil.which("uv")
     assert uv is not None
+    uv_env = {**os.environ, "UV_CACHE_DIR": str(tmp_path / "uv-cache")}
     dist = tmp_path / "dist"
     subprocess.run(  # noqa: S603
         [uv, "build", "--wheel", "--out-dir", str(dist)],
@@ -18,8 +21,28 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
         check=True,
         capture_output=True,
         text=True,
+        env=uv_env,
     )
     wheel = next(dist.glob("*.whl"))
+    assert wheel.name.startswith("escpe-")
+    with zipfile.ZipFile(wheel) as archive:
+        names = archive.namelist()
+        metadata = next(
+            archive.read(name).decode("utf-8")
+            for name in names
+            if name.endswith(".dist-info/METADATA")
+        )
+        entry_points = next(
+            archive.read(name).decode("utf-8")
+            for name in names
+            if name.endswith(".dist-info/entry_points.txt")
+        )
+    assert "Name: escpe\n" in metadata
+    assert "Name: escaping\n" not in metadata
+    assert "Name: github-blog\n" not in metadata
+    assert not any(name.startswith("github_blog/") for name in names)
+    assert "escpe = escaping.cli:run_cli\n" in entry_points
+    assert "blog-gen" not in entry_points
     consumer = tmp_path / "consumer"
     consumer.mkdir()
     script = """
@@ -27,11 +50,11 @@ import sys
 from datetime import datetime, timezone
 from pathlib import Path
 sys.path.insert(0, __WHEEL__)
-import github_blog
-from github_blog.config import Settings
-from github_blog.models.issue_snapshot import IssueSnapshot
-from github_blog.site_compiler import SiteCompiler
-assert '.whl/' in github_blog.__file__.replace('\\\\', '/')
+import escaping
+from escaping.config import Settings
+from escaping.models.issue_snapshot import IssueSnapshot
+from escaping.site_compiler import SiteCompiler
+assert '.whl/' in escaping.__file__.replace('\\\\', '/')
 
 root = Path.cwd()
 settings = Settings.model_validate({
@@ -89,4 +112,50 @@ assert (root / 'output/templates/geoqiao.me/static/js/comments.js').is_file()
         check=True,
         capture_output=True,
         text=True,
+        env=uv_env,
     )
+
+    venv = tmp_path / "venv"
+    subprocess.run(  # noqa: S603
+        [uv, "venv", "--python", sys.executable, str(venv)],
+        cwd=_PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+        env=uv_env,
+    )
+    venv_python = venv / ("Scripts" if sys.platform == "win32" else "bin") / "python"
+    subprocess.run(  # noqa: S603
+        [uv, "pip", "install", "--python", str(venv_python), str(wheel)],
+        cwd=_PROJECT_ROOT,
+        check=True,
+        capture_output=True,
+        text=True,
+        env=uv_env,
+    )
+    subprocess.run(  # noqa: S603
+        [
+            str(venv_python),
+            "-c",
+            "import importlib.util; assert importlib.util.find_spec('github_blog') is None",
+        ],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+        env=uv_env,
+    )
+    bin_dir = venv / ("Scripts" if sys.platform == "win32" else "bin")
+    escpe = bin_dir / ("escpe.exe" if sys.platform == "win32" else "escpe")
+    old_cli = bin_dir / ("blog-gen.exe" if sys.platform == "win32" else "blog-gen")
+    assert escpe.is_file()
+    assert not old_cli.exists()
+    help_result = subprocess.run(  # noqa: S603
+        [str(escpe), "--help"],
+        cwd=tmp_path,
+        check=True,
+        capture_output=True,
+        text=True,
+        env=uv_env,
+    )
+    assert "usage:" in help_result.stdout.lower()

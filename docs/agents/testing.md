@@ -91,10 +91,10 @@ Reviewer 不应因为缺少理论 mutation coverage、低概率平台分支或�
 
 ```bash
 uv run pytest -q
-uv run ruff check src/github_blog tests
-uv run ruff format --check src/github_blog tests
+uv run ruff check src/escaping tests
+uv run ruff format --check src/escaping tests
 uv run ty check
-uv run blog-gen
+uv run escpe
 ```
 
 生成站点后还应检查代表性的 Home、Blog、Ideas、About、Projects、Tags、Atom、sitemap 和 robots；前端行为使用桌面与移动端 browser smoke 验证。

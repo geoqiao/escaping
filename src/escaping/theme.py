@@ -105,7 +105,7 @@ class LoadedTheme:
             raise ThemeResolutionError("theme static asset directory is missing")
         destination = output_dir / "templates" / self.name / "static"
         _copy_resource_tree(static, destination)
-        shared_comments = files("github_blog").joinpath("static/comments.js")
+        shared_comments = files("escaping").joinpath("static/comments.js")
         if not shared_comments.is_file():
             raise ThemeResolutionError("shared comments asset is missing")
         comments_target = destination / "js" / "comments.js"
@@ -123,13 +123,13 @@ class ThemeLoader:
 
     def load(self, declaration: BuiltinThemeConfig | LocalThemeConfig) -> LoadedTheme:
         if isinstance(declaration, BuiltinThemeConfig):
-            root = files("github_blog").joinpath("themes").joinpath(declaration.name)
+            root = files("escaping").joinpath("themes").joinpath(declaration.name)
             if not root.is_dir():
                 raise ThemeResolutionError(
                     f"built-in theme is missing: {declaration.name}"
                 )
             template_loader: BaseLoader = PackageLoader(
-                "github_blog", f"themes/{declaration.name}"
+                "escaping", f"themes/{declaration.name}"
             )
         else:
             root = self.config_root / declaration.path

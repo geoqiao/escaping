@@ -4,7 +4,7 @@ from github.Issue import Issue
 from github.Repository import Repository
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from github_blog.models.issue_snapshot import IssueSnapshot
+from escaping.models.issue_snapshot import IssueSnapshot
 
 logger = structlog.get_logger()
 
