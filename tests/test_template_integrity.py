@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import re
+import struct
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
@@ -19,12 +21,12 @@ from github_blog.theme import ThemeLoader
 _ROOT = Path(__file__).parent.parent.absolute()
 
 
-def _settings(theme: str) -> Settings:
+def _settings(theme: str, *, title: str = "Site", author: str = "geoqiao") -> Settings:
     data: dict[str, object] = {
         "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
         "site": {
-            "title": "Site",
-            "author": "geoqiao",
+            "title": title,
+            "author": author,
             "url": "https://geoqiao.me/",
             "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
         },
@@ -51,8 +53,10 @@ def _snap(
     )
 
 
-def _render_theme(theme: str) -> dict[str, str]:
-    settings = _settings(theme)
+def _render_theme(
+    theme: str, *, title: str = "Site", author: str = "geoqiao"
+) -> dict[str, str]:
+    settings = _settings(theme, title=title, author=author)
     routes = RouteRegistry(str(settings.site.url))
     content = ContentCompiler(settings, route_registry=routes).compile(
         [
@@ -110,6 +114,34 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
         assert f'data-issue-number="{issue_number}"' in rendered, page_name
         assert 'data-comments-repo="geoqiao/site"' in rendered, page_name
         assert 'data-comments-theme-mode="auto"' in rendered, page_name
+
+
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
+def test_theme_favicon_is_a_valid_search_eligible_png(theme: str) -> None:
+    favicon = (
+        _ROOT / "src/github_blog/themes" / theme / "static/images/favicon.png"
+    ).read_bytes()
+
+    assert favicon.startswith(b"\x89PNG\r\n\x1a\n")
+    width, height = struct.unpack(">II", favicon[16:24])
+    assert width == height
+    assert width >= 48
+
+
+def test_configured_site_identity_reaches_homepage_search_signals() -> None:
+    home = _render_theme("geoqiao.me", title="Geo Qiao", author="Geo Qiao")[
+        "index.html"
+    ]
+
+    assert "<title>Geo Qiao</title>" in home
+    assert '<meta property="og:site_name" content="Geo Qiao">' in home
+    assert "<strong>Geo Qiao</strong>" in home
+
+    match = re.search(r'<script type="application/ld\+json">(.*?)</script>', home)
+    assert match is not None
+    graph = json.loads(match.group(1))["@graph"]
+    website = next(item for item in graph if item["@type"] == "WebSite")
+    assert website["name"] == "Geo Qiao"
 
 
 def test_shared_comments_script_preserves_browser_contract() -> None:
