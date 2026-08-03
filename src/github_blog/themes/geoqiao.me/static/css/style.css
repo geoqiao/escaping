@@ -365,24 +365,64 @@ body[data-page="home"] .site-main {
   text-transform: uppercase;
 }
 
-.featured-project {
-  display: grid;
-  gap: 5px;
+.featured-projects {
   margin-top: 46px;
   padding-top: 16px;
   border-top: 1px solid var(--ledger-divider-soft);
 }
 
-.featured-project span,
+.featured-projects-head,
+.featured-project-title {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.featured-projects-head > span,
+.featured-projects-head > a,
+.featured-project-title > span,
 .featured-project small {
   color: var(--ledger-fog);
   font: 700 9px/1.5 var(--font-mono);
   letter-spacing: 0.07em;
 }
 
-.featured-project a {
-  justify-self: start;
-  font: 700 17px/1.4 var(--font-display);
+.featured-projects-head > a {
+  text-decoration: none;
+}
+
+.featured-project-list {
+  display: grid;
+  gap: 0;
+  margin: 10px 0 0;
+  padding: 0;
+  list-style: none;
+}
+
+.featured-project {
+  min-width: 0;
+  padding: 10px 0;
+  border-top: 1px solid var(--ledger-divider-soft);
+}
+
+.featured-project:first-child {
+  border-top: 0;
+}
+
+.featured-project-title > a {
+  min-width: 0;
+  overflow-wrap: anywhere;
+  font: 700 15px/1.35 var(--font-display);
+}
+
+.featured-project-title > span {
+  flex: 0 0 auto;
+}
+
+.featured-project small {
+  display: block;
+  margin-top: 3px;
 }
 
 .recent-posts {

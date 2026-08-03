@@ -105,6 +105,8 @@ class RenderService:
             {
                 "page_canonical_url": home.route.canonical_url,
                 "structured_data": self._home_json_ld(site.metadata, home),
+                "top_projects": site.projects.top_by_stars(),
+                "projects_path": site.projects.route.canonical_path,
             }
         )
         return self.env.get_template("home.html").render(home_page=home, **context)

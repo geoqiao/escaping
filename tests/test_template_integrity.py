@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import json
 import re
+import struct
 from datetime import datetime, timezone
 from html.parser import HTMLParser
 from pathlib import Path
@@ -19,12 +21,18 @@ from github_blog.theme import ThemeLoader
 _ROOT = Path(__file__).parent.parent.absolute()
 
 
-def _settings(theme: str) -> Settings:
+def _settings(
+    theme: str,
+    *,
+    title: str = "Site",
+    author: str = "geoqiao",
+    projects: list[dict[str, object]] | None = None,
+) -> Settings:
     data: dict[str, object] = {
         "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
         "site": {
-            "title": "Site",
-            "author": "geoqiao",
+            "title": title,
+            "author": author,
             "url": "https://geoqiao.me/",
             "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
         },
@@ -32,6 +40,8 @@ def _settings(theme: str) -> Settings:
         "theme": {"source": "builtin", "name": theme},
         "security": {"token_env": "TOKEN"},
     }
+    if projects is not None:
+        data["projects"] = projects
     return Settings.model_validate(data)
 
 
@@ -51,8 +61,14 @@ def _snap(
     )
 
 
-def _render_theme(theme: str) -> dict[str, str]:
-    settings = _settings(theme)
+def _render_theme(
+    theme: str,
+    *,
+    title: str = "Site",
+    author: str = "geoqiao",
+    projects: list[dict[str, object]] | None = None,
+) -> dict[str, str]:
+    settings = _settings(theme, title=title, author=author, projects=projects)
     routes = RouteRegistry(str(settings.site.url))
     content = ContentCompiler(settings, route_registry=routes).compile(
         [
@@ -68,7 +84,7 @@ def _render_theme(theme: str) -> dict[str, str]:
     )
     site = SiteBuilder(settings, route_registry=routes).build(
         content,
-        ProjectCompiler().compile([], route=routes.projects()),
+        ProjectCompiler().compile(settings.projects, route=routes.projects()),
         build_start_time=datetime(2026, 1, 20, tzinfo=timezone.utc),
     )
     assert not site.has_errors
@@ -110,6 +126,34 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
         assert f'data-issue-number="{issue_number}"' in rendered, page_name
         assert 'data-comments-repo="geoqiao/site"' in rendered, page_name
         assert 'data-comments-theme-mode="auto"' in rendered, page_name
+
+
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
+def test_theme_favicon_is_a_valid_search_eligible_png(theme: str) -> None:
+    favicon = (
+        _ROOT / "src/github_blog/themes" / theme / "static/images/favicon.png"
+    ).read_bytes()
+
+    assert favicon.startswith(b"\x89PNG\r\n\x1a\n")
+    width, height = struct.unpack(">II", favicon[16:24])
+    assert width == height
+    assert width >= 48
+
+
+def test_configured_site_identity_reaches_homepage_search_signals() -> None:
+    home = _render_theme("geoqiao.me", title="Geo Qiao", author="Geo Qiao")[
+        "index.html"
+    ]
+
+    assert "<title>Geo Qiao</title>" in home
+    assert '<meta property="og:site_name" content="Geo Qiao">' in home
+    assert "<strong>Geo Qiao</strong>" in home
+
+    match = re.search(r'<script type="application/ld\+json">(.*?)</script>', home)
+    assert match is not None
+    graph = json.loads(match.group(1))["@graph"]
+    website = next(item for item in graph if item["@type"] == "WebSite")
+    assert website["name"] == "Geo Qiao"
 
 
 def test_shared_comments_script_preserves_browser_contract() -> None:
@@ -162,6 +206,30 @@ def test_geoqiao_theme_renders_approved_quiet_ledger_identity() -> None:
     assert "ISSUE #1" in home
     assert "prism-quiet-ledger.css" in home
     assert "prism-nord.css" not in home
+
+
+def test_geoqiao_home_renders_five_configured_projects_ranked_by_stars() -> None:
+    projects: list[dict[str, object]] = [
+        {
+            "slug": f"project-{index}",
+            "title": f"Project {index}",
+            "repository": f"geoqiao/project-{index}",
+            "summary": f"Project {index} summary.",
+            "order": index,
+            "fallback_metadata": {"stars": stars, "language": "Python"},
+        }
+        for index, stars in enumerate((2, 13, 5, 8, 3, 21, 1))
+    ]
+
+    home = _render_theme("geoqiao.me", projects=projects)["index.html"]
+
+    ranked_titles = ("Project 5", "Project 1", "Project 3", "Project 2", "Project 4")
+    positions = [home.index(f">{title} ↗</a>") for title in ranked_titles]
+    assert positions == sorted(positions)
+    assert "Project 0 ↗" not in home
+    assert "Project 6 ↗" not in home
+    assert "★ 21" in home and "★ 13" in home
+    assert '<a href="/projects/">VIEW ALL →</a>' in home
 
 
 @pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
