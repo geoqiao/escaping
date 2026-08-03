@@ -1,0 +1,92 @@
+/* Quiet Ledger syntax theme: restrained, near-monochrome, theme-aware. */
+
+code[class*="language-"],
+pre[class*="language-"] {
+  color: var(--ledger-code-text);
+  background: none;
+  font-family: var(--font-mono);
+  line-height: 1.55;
+  text-align: left;
+  white-space: pre;
+  word-break: normal;
+  word-spacing: normal;
+  word-wrap: normal;
+  tab-size: 4;
+  hyphens: none;
+}
+
+pre[class*="language-"] {
+  overflow: auto;
+}
+
+:not(pre) > code[class*="language-"] {
+  color: var(--ledger-ink);
+  background: var(--ledger-inline-code-bg);
+  white-space: normal;
+}
+
+.token.comment,
+.token.prolog,
+.token.doctype,
+.token.cdata {
+  color: var(--ledger-code-muted);
+  font-style: italic;
+}
+
+.token.punctuation,
+.token.operator,
+.token.entity,
+.token.url,
+.token.variable,
+.language-css .token.string,
+.style .token.string {
+  color: var(--ledger-code-subtle);
+}
+
+.token.property,
+.token.tag,
+.token.constant,
+.token.symbol,
+.token.deleted,
+.token.keyword,
+.token.atrule,
+.token.important {
+  color: var(--ledger-code-emphasis);
+  font-weight: 650;
+}
+
+.token.boolean,
+.token.number,
+.token.function,
+.token.class-name,
+.token.selector,
+.token.attr-name {
+  color: var(--ledger-code-text);
+  font-weight: 600;
+}
+
+.token.string,
+.token.char,
+.token.builtin,
+.token.inserted,
+.token.attr-value,
+.token.regex {
+  color: var(--ledger-code-subtle);
+}
+
+.token.important,
+.token.bold {
+  font-weight: 700;
+}
+
+.token.italic {
+  font-style: italic;
+}
+
+.token.entity {
+  cursor: help;
+}
+
+.namespace {
+  opacity: 0.72;
+}

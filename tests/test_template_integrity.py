@@ -155,6 +155,8 @@ def test_geoqiao_theme_renders_approved_quiet_ledger_identity() -> None:
     assert "观抑扬褒贬,座中常有剧中人。" in home
     assert home.index('class="home-ledger-main"') < home.index('class="profile-rail"')
     assert "ISSUE #1" in home
+    assert "prism-quiet-ledger.css" in home
+    assert "prism-nord.css" not in home
 
 
 @pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
