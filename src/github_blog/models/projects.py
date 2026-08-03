@@ -26,6 +26,19 @@ class ProjectsPage:
     featured: tuple[Project, ...]
     route: Route
 
+    def top_by_stars(self, limit: int = 5) -> tuple[Project, ...]:
+        """Return known-star projects first, preserving catalog order for ties."""
+        ranked = sorted(
+            self.projects,
+            key=lambda project: (
+                project.stars is None,
+                -(project.stars or 0),
+                project.order,
+                project.slug,
+            ),
+        )
+        return tuple(ranked[:limit])
+
     @property
     def canonical_path(self) -> str:
         return self.route.canonical_path

@@ -62,6 +62,32 @@ def test_projects_sort_feature_and_use_github_links() -> None:
     assert page.canonical_path == "/projects/"
 
 
+def test_projects_rank_top_five_by_stars_with_catalog_order_tiebreaker() -> None:
+    def metadata(stars: int | None) -> ProjectFallbackMetadata:
+        return ProjectFallbackMetadata(stars=stars)
+
+    page = ProjectCompiler().compile(
+        [
+            _entry("unknown", order=0),
+            _entry("ten-later", order=4, fallback=metadata(10)),
+            _entry("one", order=1, fallback=metadata(1)),
+            _entry("zero", order=6, fallback=metadata(0)),
+            _entry("eight", order=5, fallback=metadata(8)),
+            _entry("ten-first", order=2, fallback=metadata(10)),
+            _entry("four", order=3, fallback=metadata(4)),
+        ],
+        route=_projects_route(),
+    )
+
+    assert [project.slug for project in page.top_by_stars()] == [
+        "ten-first",
+        "ten-later",
+        "eight",
+        "four",
+        "one",
+    ]
+
+
 def test_enrichment_failure_falls_back_without_failing() -> None:
     fallback = ProjectFallbackMetadata(
         stars=7, forks=2, language="Python", topics=["tools"]

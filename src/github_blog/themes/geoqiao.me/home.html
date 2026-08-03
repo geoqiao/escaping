@@ -42,11 +42,25 @@
         <p class="profile-role">贷后策略分析师 / tool tinkerer</p>
         {% if metadata.profile.bio %}<p class="profile-bio">{{ metadata.profile.bio }}</p>{% endif %}
         {% if metadata.profile.links %}<div class="profile-links">{% for link in metadata.profile.links %}<a href="{{ link.url }}">{{ link.name }}</a>{% endfor %}</div>{% endif %}
-        <div class="featured-project">
-            <span>FEATURED PROJECT</span>
-            <a href="{{ branding.source_link_url or branding.powered_by_url }}">escaping ↗</a>
-            <small>Python · static publishing</small>
-        </div>
+        {% if top_projects %}
+        <section class="featured-projects" aria-labelledby="top-projects-title">
+            <header class="featured-projects-head">
+                <span id="top-projects-title">TOP PROJECTS</span>
+                <a href="{{ projects_path }}">VIEW ALL →</a>
+            </header>
+            <ol class="featured-project-list">
+                {% for project in top_projects %}
+                <li class="featured-project">
+                    <div class="featured-project-title">
+                        <a href="{{ project.url }}">{{ project.title }} ↗</a>
+                        {% if project.stars is not none %}<span>★ {{ project.stars }}</span>{% endif %}
+                    </div>
+                    {% if project.language or project.topics %}<small>{% if project.language %}{{ project.language }}{% endif %}{% if project.language and project.topics %} · {% endif %}{% if project.topics %}#{{ project.topics[0] }}{% endif %}</small>{% endif %}
+                </li>
+                {% endfor %}
+            </ol>
+        </section>
+        {% endif %}
     </aside>
 </div>
 {% endblock %}

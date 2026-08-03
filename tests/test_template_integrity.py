@@ -21,7 +21,13 @@ from github_blog.theme import ThemeLoader
 _ROOT = Path(__file__).parent.parent.absolute()
 
 
-def _settings(theme: str, *, title: str = "Site", author: str = "geoqiao") -> Settings:
+def _settings(
+    theme: str,
+    *,
+    title: str = "Site",
+    author: str = "geoqiao",
+    projects: list[dict[str, object]] | None = None,
+) -> Settings:
     data: dict[str, object] = {
         "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
         "site": {
@@ -34,6 +40,8 @@ def _settings(theme: str, *, title: str = "Site", author: str = "geoqiao") -> Se
         "theme": {"source": "builtin", "name": theme},
         "security": {"token_env": "TOKEN"},
     }
+    if projects is not None:
+        data["projects"] = projects
     return Settings.model_validate(data)
 
 
@@ -54,9 +62,13 @@ def _snap(
 
 
 def _render_theme(
-    theme: str, *, title: str = "Site", author: str = "geoqiao"
+    theme: str,
+    *,
+    title: str = "Site",
+    author: str = "geoqiao",
+    projects: list[dict[str, object]] | None = None,
 ) -> dict[str, str]:
-    settings = _settings(theme, title=title, author=author)
+    settings = _settings(theme, title=title, author=author, projects=projects)
     routes = RouteRegistry(str(settings.site.url))
     content = ContentCompiler(settings, route_registry=routes).compile(
         [
@@ -72,7 +84,7 @@ def _render_theme(
     )
     site = SiteBuilder(settings, route_registry=routes).build(
         content,
-        ProjectCompiler().compile([], route=routes.projects()),
+        ProjectCompiler().compile(settings.projects, route=routes.projects()),
         build_start_time=datetime(2026, 1, 20, tzinfo=timezone.utc),
     )
     assert not site.has_errors
@@ -194,6 +206,30 @@ def test_geoqiao_theme_renders_approved_quiet_ledger_identity() -> None:
     assert "ISSUE #1" in home
     assert "prism-quiet-ledger.css" in home
     assert "prism-nord.css" not in home
+
+
+def test_geoqiao_home_renders_five_configured_projects_ranked_by_stars() -> None:
+    projects: list[dict[str, object]] = [
+        {
+            "slug": f"project-{index}",
+            "title": f"Project {index}",
+            "repository": f"geoqiao/project-{index}",
+            "summary": f"Project {index} summary.",
+            "order": index,
+            "fallback_metadata": {"stars": stars, "language": "Python"},
+        }
+        for index, stars in enumerate((2, 13, 5, 8, 3, 21, 1))
+    ]
+
+    home = _render_theme("geoqiao.me", projects=projects)["index.html"]
+
+    ranked_titles = ("Project 5", "Project 1", "Project 3", "Project 2", "Project 4")
+    positions = [home.index(f">{title} ↗</a>") for title in ranked_titles]
+    assert positions == sorted(positions)
+    assert "Project 0 ↗" not in home
+    assert "Project 6 ↗" not in home
+    assert "★ 21" in home and "★ 13" in home
+    assert '<a href="/projects/">VIEW ALL →</a>' in home
 
 
 @pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
