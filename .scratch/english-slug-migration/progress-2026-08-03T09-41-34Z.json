@@ -1,0 +1,240 @@
+{
+  "repository": "geoqiao/geoqiao.github.io",
+  "status": "complete",
+  "updated_at": "2026-08-03T09:44:26.946249+00:00",
+  "applied_count": 29,
+  "applied": [
+    {
+      "number": 1,
+      "from": "rye-hao-yong-de-pythonbao-guan-li-gong-ju",
+      "to": "rye-python-package-manager-guide",
+      "outcome": "updated",
+      "verified_body_sha256": "9990187be5820f4f056610a4318de0c4694886f85683ec590c5a71c7d4384f03",
+      "completed_at": "2026-08-03T09:43:24.897759+00:00"
+    },
+    {
+      "number": 2,
+      "from": "excel-xue-xi-jing-yan-fen-xiang",
+      "to": "practical-excel-learning-tips",
+      "outcome": "updated",
+      "verified_body_sha256": "bfff7149347c3afc9fe10ecbab0d72f98784684b6c7229a414be88ac144edec7",
+      "completed_at": "2026-08-03T09:43:26.973798+00:00"
+    },
+    {
+      "number": 3,
+      "from": "with-sql-as-english",
+      "to": "learn-sql-in-plain-english",
+      "outcome": "updated",
+      "verified_body_sha256": "dbf890fd969a3872c6c4902957c6cdf2d7d7330e854d0c57e99f0f25e753d07c",
+      "completed_at": "2026-08-03T09:43:29.199698+00:00"
+    },
+    {
+      "number": 4,
+      "from": "guan-yu-li-shi",
+      "to": "history-as-a-rolling-wheel",
+      "outcome": "updated",
+      "verified_body_sha256": "c902221f602547533bd9e6993ff5e29d6a7821c1d6fdf34ab82df759b9646dbd",
+      "completed_at": "2026-08-03T09:43:31.368937+00:00"
+    },
+    {
+      "number": 5,
+      "from": "kong-diao-bo-xue-li-lun-de-ti-chu",
+      "to": "air-conditioning-exploitation-theory",
+      "outcome": "updated",
+      "verified_body_sha256": "ef105593e5a18b78f2ce1f9e59aba5b34f217fe06f2dcf609ae016785d94ca95",
+      "completed_at": "2026-08-03T09:43:33.334921+00:00"
+    },
+    {
+      "number": 7,
+      "from": "zong-de-huo-zhao-ba",
+      "to": "why-we-still-choose-to-live",
+      "outcome": "updated",
+      "verified_body_sha256": "bcad021273375c512f861cabc64a21aa83169b16c22e97eb16f6598c23c9a818",
+      "completed_at": "2026-08-03T09:43:35.760717+00:00"
+    },
+    {
+      "number": 8,
+      "from": "ji-yu-github-issues-de-ge-ren-blog-da-jian",
+      "to": "github-issues-blog-setup-guide",
+      "outcome": "updated",
+      "verified_body_sha256": "3712ab88130c60addc399907a48221b7475952d7203bea788367e4f3bf84d223",
+      "completed_at": "2026-08-03T09:43:38.136329+00:00"
+    },
+    {
+      "number": 10,
+      "from": "shottr-yuan-sheng-qing-qiao-qie-gong-neng-qiang-da-de-mian-fei-tu-gong",
+      "to": "shottr-lightweight-macos-screenshot-tool",
+      "outcome": "updated",
+      "verified_body_sha256": "89a5cb1776be02ee7449a8c993214467cfcde0aebf00fcdc9157d66b78a93659",
+      "completed_at": "2026-08-03T09:43:40.189061+00:00"
+    },
+    {
+      "number": 11,
+      "from": "pythonhuan-jing-an-zhuang-anacondawei-li",
+      "to": "install-python-with-anaconda",
+      "outcome": "updated",
+      "verified_body_sha256": "fe9a2be760a126397a59ee83dd33e40a6a7f2dcbaabe8fcb20b2af5a6d93ee5e",
+      "completed_at": "2026-08-03T09:43:42.235334+00:00"
+    },
+    {
+      "number": 12,
+      "from": "zhong-qi-qing-yong-obsidian",
+      "to": "use-obsidian-the-simple-way",
+      "outcome": "updated",
+      "verified_body_sha256": "3e328cf3a3c1488b05c3a7d73b18c9cc2cf41773a5027bd89f73d47940f018ee",
+      "completed_at": "2026-08-03T09:43:44.245272+00:00"
+    },
+    {
+      "number": 13,
+      "from": "wo-de-di-yi-ge-wan-zheng-de-ji-qi-xue-xi-xiang-mu-titaniczong-jie",
+      "to": "my-first-titanic-machine-learning-project",
+      "outcome": "updated",
+      "verified_body_sha256": "d172cb1786ee086c19b32b647758589d4d5f7b5478888203a8d897e5bee6db57",
+      "completed_at": "2026-08-03T09:43:46.412045+00:00"
+    },
+    {
+      "number": 15,
+      "from": "zong-you-yi-xie-app-zhi-neng-windows-yong",
+      "to": "run-windows-apps-on-mac-with-vmware",
+      "outcome": "updated",
+      "verified_body_sha256": "f420acc83509cae529000fdb498412dae2382b155c66669dffedfb9fd841cd42",
+      "completed_at": "2026-08-03T09:43:48.451927+00:00"
+    },
+    {
+      "number": 18,
+      "from": "pythonbian-ji-qi-wo-de-vscodepei-zhi",
+      "to": "my-vscode-setup-for-python",
+      "outcome": "updated",
+      "verified_body_sha256": "d2ca1cf330af29c13891dab0c6c9be139aefd9fccf32d1dab49541f5235f8e19",
+      "completed_at": "2026-08-03T09:43:51.065514+00:00"
+    },
+    {
+      "number": 20,
+      "from": "ji-yu-fastapi-de-crud-lian-xi-rss-ding-yue-guan-li",
+      "to": "build-an-rss-manager-with-fastapi",
+      "outcome": "updated",
+      "verified_body_sha256": "6192ad5e0be20bc66b095fdab2f37093a045a605127484f61eb71e48ab50e572",
+      "completed_at": "2026-08-03T09:43:53.182940+00:00"
+    },
+    {
+      "number": 21,
+      "from": "shi-yong-python-he-github-pages-da-jian-ge-ren-bo-ke",
+      "to": "build-a-python-blog-on-github-pages",
+      "outcome": "updated",
+      "verified_body_sha256": "ac9b017cefa05720ad685d679176dd690b1d76d18922f28c007ee6e343b6b296",
+      "completed_at": "2026-08-03T09:43:55.259715+00:00"
+    },
+    {
+      "number": 23,
+      "from": "uv-github-20k-star-de-zhong-ji-python-xiang-mu-guan-li-gong-ju",
+      "to": "uv-python-project-management-guide",
+      "outcome": "updated",
+      "verified_body_sha256": "a582dfeefc2eee0eaf7777a2c50d405b44dcc832aa387182f7ac0676f99112ab",
+      "completed_at": "2026-08-03T09:43:57.664505+00:00"
+    },
+    {
+      "number": 24,
+      "from": "wei-github-pages-ge-ren-bo-ke-tian-jia-yaml-pei-zhi-gong-neng-ji-yu",
+      "to": "add-yaml-config-to-github-pages-blog",
+      "outcome": "updated",
+      "verified_body_sha256": "3d0725826d4d4b0d1022ccf47fd95335c70fa0f7c02f3187d83e88face841500",
+      "completed_at": "2026-08-03T09:43:59.667280+00:00"
+    },
+    {
+      "number": 25,
+      "from": "bu-yao-jiu-jie-liao-zai-pandaszhong-shu-ju-shai-xuan-jiu-yong-ta",
+      "to": "filter-pandas-dataframes-with-loc",
+      "outcome": "updated",
+      "verified_body_sha256": "f72dc4c4f061f24ea7bb5a34811c60e5a9701204cfde0207bae23538ac632218",
+      "completed_at": "2026-08-03T09:44:01.719645+00:00"
+    },
+    {
+      "number": 26,
+      "from": "ru-he-dui-lian-xu-xing-shu-ju-jin-xing-fen-xiang-python",
+      "to": "optimal-binning-for-continuous-data-in-python",
+      "outcome": "updated",
+      "verified_body_sha256": "f0094215a9baaf4f4f0fc861a059c0d643a2082aa3119e88f89b2489ac103223",
+      "completed_at": "2026-08-03T09:44:03.929763+00:00"
+    },
+    {
+      "number": 27,
+      "from": "python-huan-jing-pei-zhi-cong-ling-kai-shi-uv-pdm-he-vscode-de-zui-jia",
+      "to": "python-setup-with-uv-pdm-and-vscode",
+      "outcome": "updated",
+      "verified_body_sha256": "d599da4e96e78faa6760db02707783d0fe5023708350b6026a50da3624a53c05",
+      "completed_at": "2026-08-03T09:44:05.984122+00:00"
+    },
+    {
+      "number": 28,
+      "from": "pei-zhi-vscode-de-mian-fei-ai-bian-cheng-zhu-shou-ollama-groqhe-kuo",
+      "to": "free-vscode-ai-with-ollama-groq-and-continue",
+      "outcome": "updated",
+      "verified_body_sha256": "ac179dacb99533b70352d8976d80d4de4080c38ca9a5d6c93396cdb8ec017c35",
+      "completed_at": "2026-08-03T09:44:08.401688+00:00"
+    },
+    {
+      "number": 29,
+      "from": "2024nian-zhong-zong-jie-kong-zhi-yu-qi-jian-chi-xia-qu",
+      "to": "2024-review-manage-expectations-and-keep-going",
+      "outcome": "updated",
+      "verified_body_sha256": "c321903b91fc8dae537990f37428e965093c8afcf5189d6f9dd5c3a453fd98d9",
+      "completed_at": "2026-08-03T09:44:10.594485+00:00"
+    },
+    {
+      "number": 30,
+      "from": "wo-xi-huan-dong-tian-de-xia-wu-zou-lu-qu-cheng-du-de-cha-guan-he-cha",
+      "to": "winter-walks-to-chengdu-teahouses",
+      "outcome": "updated",
+      "verified_body_sha256": "5068c9b509e757bfa6138d1008afb857b98c64450ff3d84f7e2f0a4bb666852d",
+      "completed_at": "2026-08-03T09:44:12.603986+00:00"
+    },
+    {
+      "number": 31,
+      "from": "2025nian-zhong-zong-jie-guan-zhu-zi-ji",
+      "to": "2025-review-focus-on-yourself",
+      "outcome": "updated",
+      "verified_body_sha256": "b620eea47c25a09314ad64a101cecdeda16a664091183e6fb57d0400e1e9b951",
+      "completed_at": "2026-08-03T09:44:14.664274+00:00"
+    },
+    {
+      "number": 32,
+      "from": "vibe-coding-shi-zhan-hou-gan-github-blog-with-trae",
+      "to": "vibe-coding-github-blog-with-trae",
+      "outcome": "updated",
+      "verified_body_sha256": "df4b46db91fc76ea07d3514685db582c85f3a00a986aef199e0f1e4f7b4853d9",
+      "completed_at": "2026-08-03T09:44:16.832993+00:00"
+    },
+    {
+      "number": 34,
+      "from": "bu-dong-git-bu-hui-qian-duan-yi-ge-wen-ke-sheng-de-github-blog",
+      "to": "build-a-github-blog-without-git-or-frontend",
+      "outcome": "updated",
+      "verified_body_sha256": "e981b219ffea03f5b55f2874881fb102f36a6e2b9c4b2531c724d113766b6998",
+      "completed_at": "2026-08-03T09:44:18.848192+00:00"
+    },
+    {
+      "number": 35,
+      "from": "cong-superpowers-xue-xi-gao-zhi-liang-ai-xie-zuo-yi-fen-gei-ce-lue-fen",
+      "to": "superpowers-claude-code-guide-for-strategy-analysts",
+      "outcome": "updated",
+      "verified_body_sha256": "2f0c5b890fcefbc330aee25e84a3654457d92fa6c650547e233b4ff673117b48",
+      "completed_at": "2026-08-03T09:44:21.733013+00:00"
+    },
+    {
+      "number": 36,
+      "from": "cong-obsidian-dao-bo-ke-wo-ru-he-yong-yi-tiao-ming-ling-ba-bi-ji-bian",
+      "to": "publish-obsidian-notes-with-one-command",
+      "outcome": "updated",
+      "verified_body_sha256": "3b71872d5290b4a269e275c6a46ea0dcc072d0b5f1b19db5d5f4f79a07af0175",
+      "completed_at": "2026-08-03T09:44:23.816133+00:00"
+    },
+    {
+      "number": 41,
+      "from": "what-s-on-my-pi-agent-ba-90-de-codex-desktop-zhuang-jin-zhong-duan",
+      "to": "terminal-codex-workflow-with-pi-and-herdr",
+      "outcome": "updated",
+      "verified_body_sha256": "ce72cb628ab28c5a3c71302ecc56e44347df18f50bf0267875290e1f454171dd",
+      "completed_at": "2026-08-03T09:44:26.785631+00:00"
+    }
+  ]
+}
