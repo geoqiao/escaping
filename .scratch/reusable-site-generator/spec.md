@@ -18,7 +18,7 @@ Make `escaping` installable and reusable without depending on its checkout direc
 ## Confirmed test seams
 
 1. `ThemeLoader`: a built-in Theme loads and copies assets outside the source checkout; a local Theme resolves from the Config root.
-2. CLI/consumer: `blog-gen --config /path/config.yaml` behaves independently of CWD.
+2. CLI/consumer: `escpe --config /path/config.yaml` behaves independently of CWD.
 3. Installed wheel: a clean consumer can load a packaged reference Theme and compile representative Issue snapshots.
 4. `RouteRegistry` / `SiteModelBuilder`: route, canonical URL, sitemap, and output mappings remain unchanged.
 5. `SiteCompiler`: failed builds preserve old output; complete builds produce validated artifacts.

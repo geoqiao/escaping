@@ -107,7 +107,7 @@ flowchart TD
 
     subgraph CompilerRepo["geoqiao/escaping<br/>Site Compiler 仓库"]
         Main["main"]
-        Source["src/github_blog/"]
+        Source["src/escaping/"]
         Config["config.yaml"]
         Templates["templates/"]
         Tests["tests/"]
@@ -116,7 +116,7 @@ flowchart TD
     subgraph Actions["GitHub Actions"]
         Checkout["Checkout escaping/main"]
         ShortToken["短期 GITHUB_TOKEN<br/>最小权限"]
-        Build["uv run blog-gen"]
+        Build["uv run escpe"]
         Artifact["actions/upload-pages-artifact"]
         Deploy["actions/deploy-pages"]
     end

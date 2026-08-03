@@ -4,8 +4,8 @@ from pathlib import Path
 
 import pytest
 
-from github_blog.config import BuiltinThemeConfig, LocalThemeConfig
-from github_blog.theme import ThemeLoader, ThemeResolutionError
+from escaping.config import BuiltinThemeConfig, LocalThemeConfig
+from escaping.theme import ThemeLoader, ThemeResolutionError
 
 
 def _theme(root: Path, name: str = "local") -> Path:

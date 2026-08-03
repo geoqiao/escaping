@@ -7,7 +7,7 @@ from pathlib import Path
 import yaml
 from yaml.resolver import BaseResolver
 
-from github_blog.config import BuiltinThemeConfig, Settings
+from escaping.config import BuiltinThemeConfig, Settings
 
 _PROJECT_ROOT = Path(__file__).parent.parent
 _CONFIG_EXAMPLE = _PROJECT_ROOT / "config.example.yaml"

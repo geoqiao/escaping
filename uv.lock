@@ -607,7 +607,7 @@ wheels = [
 ]
 
 [[package]]
-name = "github-blog"
+name = "escaping"
 version = "0.1.0"
 source = { editable = "." }
 dependencies = [

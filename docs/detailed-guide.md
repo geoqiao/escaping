@@ -42,7 +42,7 @@ Directory routes write `index.html`:
 
 `ThemeLoader` loads one declaration:
 
-- `source: builtin`: a package resource from `src/github_blog/themes/`;
+- `source: builtin`: a package resource from `src/escaping/themes/`;
 - `source: local`: a directory relative to the Config file.
 
 `geoqiao.me` is the default built-in Theme; Escape1 and Escape2 are alternative reference
@@ -50,7 +50,7 @@ Themes. Templates and static assets come from the same validated manifest and us
 `StrictUndefined` with autoescape. Theme fetching and commit pinning are orchestration concerns,
 not compiler behavior.
 
-The generator-owned `src/github_blog/static/comments.js` is copied into the selected Theme's
+The generator-owned `src/escaping/static/comments.js` is copied into the selected Theme's
 output asset directory. Theme `_comments.html` files declare only the container, safe data
 attributes, and light/dark default. The shared script preserves Issue-number binding, Utterances
 origin/source checks, `postMessage` + `MutationObserver` theme following, failure fallback, and
@@ -67,11 +67,11 @@ and only then atomically replaces the old output. Failed builds preserve the pre
 ```bash
 uv sync
 export GITHUB_TOKEN=...
-uv run blog-gen --config /path/to/site/config.yaml
+uv run escpe --config /path/to/site/config.yaml
 uv run python -m http.server 8000 --directory /path/to/site/output
 uv run pytest -q
-uv run ruff check src/github_blog tests
-uv run ruff format --check src/github_blog tests
+uv run ruff check src/escaping tests
+uv run ruff format --check src/escaping tests
 uv run ty check
 ```
 

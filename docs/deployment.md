@@ -7,13 +7,20 @@ Production orchestration belongs to the site repository, not `escaping`.
 The site repository owns its real `config.yaml`, Pages workflow, custom domain, and any local
 Theme. The generator owns only `config.example.yaml`, package resources, and the compiler.
 
+## Consumer naming contract
+
+The distribution and import namespace are both `escaping`; the only console entry point is
+`escpe`. The former `github-blog`/`github_blog` names and `blog-gen` command are intentionally
+not shipped, so external Pages workflows and local automation must update their install/import/
+invocation references together with the generator pin.
+
 A production workflow must:
 
 1. check out the site repository;
 2. check out `geoqiao/escaping` at a release or full 40-character commit SHA, never a moving
    `main` ref;
 3. install the pinned project with `uv run --project` and `--frozen`;
-4. invoke `blog-gen --config "$GITHUB_WORKSPACE/config.yaml"` explicitly;
+4. invoke `escpe --config "$GITHUB_WORKSPACE/config.yaml"` explicitly;
 5. upload `$GITHUB_WORKSPACE/output` as the Pages artifact;
 6. use `${{ github.token }}` through the Config-selected `GITHUB_TOKEN` variable.
 

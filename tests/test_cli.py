@@ -6,10 +6,10 @@ from pathlib import Path
 
 import pytest
 
-from github_blog.cli import run_cli
-from github_blog.config import Settings
-from github_blog.models.issue_snapshot import IssueSnapshot
-from github_blog.site_compiler import SiteCompiler
+from escaping.cli import run_cli
+from escaping.config import Settings
+from escaping.models.issue_snapshot import IssueSnapshot
+from escaping.site_compiler import SiteCompiler
 
 
 def _settings() -> Settings:
@@ -88,7 +88,7 @@ def test_cli_loads_an_explicit_config_and_reports_its_missing_token(
     unrelated_cwd.mkdir()
     monkeypatch.chdir(unrelated_cwd)
     monkeypatch.delenv("CLI_TEST_TOKEN", raising=False)
-    monkeypatch.setattr(sys, "argv", ["blog-gen", "--config", str(config)])
+    monkeypatch.setattr(sys, "argv", ["escpe", "--config", str(config)])
 
     with pytest.raises(SystemExit) as exc_info:
         run_cli()

@@ -8,10 +8,10 @@ from unittest.mock import patch
 
 import pytest
 
-from github_blog.config import Settings
-from github_blog.models.issue_snapshot import IssueSnapshot
-from github_blog.output_staging import OutputStagingError, OutputStagingService
-from github_blog.site_compiler import SiteCompiler
+from escaping.config import Settings
+from escaping.models.issue_snapshot import IssueSnapshot
+from escaping.output_staging import OutputStagingError, OutputStagingService
+from escaping.site_compiler import SiteCompiler
 
 
 def _snapshot(number: int, body: str) -> IssueSnapshot:
@@ -82,9 +82,7 @@ def test_failed_exchange_leaves_final_and_candidate_unchanged(tmp_path: Path) ->
     (staging / "index.html").write_text("new", encoding="utf-8")
 
     with (
-        patch(
-            "github_blog.output_staging._atomic_swap", side_effect=OSError("no swap")
-        ),
+        patch("escaping.output_staging._atomic_swap", side_effect=OSError("no swap")),
         pytest.raises(OutputStagingError, match="final output unchanged"),
     ):
         service.publish(staging)

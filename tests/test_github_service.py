@@ -3,13 +3,13 @@ from __future__ import annotations
 from datetime import datetime, timezone
 from unittest.mock import MagicMock, patch
 
-from github_blog.services.github_service import GitHubService
+from escaping.services.github_service import GitHubService
 
 
 def test_github_service_login_uses_supported_auth_api() -> None:
     with (
-        patch("github_blog.services.github_service.Github") as github,
-        patch("github_blog.services.github_service.Auth") as auth,
+        patch("escaping.services.github_service.Github") as github,
+        patch("escaping.services.github_service.Auth") as auth,
     ):
         auth.Token = MagicMock()
         GitHubService("fake-token")
@@ -18,7 +18,7 @@ def test_github_service_login_uses_supported_auth_api() -> None:
 
 
 def test_fetch_issue_snapshots_queries_all_states_and_isolates_fields() -> None:
-    with patch("github_blog.services.github_service.Github"):
+    with patch("escaping.services.github_service.Github"):
         issue = MagicMock()
         issue.number = 7
         issue.title = "Title"

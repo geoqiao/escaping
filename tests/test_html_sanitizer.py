@@ -12,7 +12,7 @@ from __future__ import annotations
 
 import pytest
 
-from github_blog.utils.html_sanitizer import sanitize_html
+from escaping.utils.html_sanitizer import sanitize_html
 
 
 @pytest.mark.parametrize(

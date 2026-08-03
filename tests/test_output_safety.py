@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from github_blog.output_safety import (
+from escaping.output_safety import (
     OutputContainmentError,
     validate_output_child_name,
     validate_output_containment,

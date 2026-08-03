@@ -15,7 +15,7 @@ from unittest.mock import MagicMock, patch
 
 from github.Issue import Issue as PyGithubIssue
 
-from github_blog.services.github_service import GitHubService, _to_issue_snapshot
+from escaping.services.github_service import GitHubService, _to_issue_snapshot
 
 
 def _make_label(name: str) -> MagicMock:
@@ -68,7 +68,7 @@ def _make_repo(issues: list[MagicMock]) -> MagicMock:
 # ---------------------------------------------------------------------------
 
 
-@patch("github_blog.services.github_service.Github")
+@patch("escaping.services.github_service.Github")
 def test_fetch_issue_snapshots_converts_and_selects(
     mock_github_class: MagicMock,
 ) -> None:
@@ -130,7 +130,7 @@ def test_fetch_issue_snapshots_converts_and_selects(
 # ---------------------------------------------------------------------------
 
 
-@patch("github_blog.services.github_service.Github")
+@patch("escaping.services.github_service.Github")
 def test_no_leak_and_no_mutation(mock_github_class: MagicMock) -> None:
     service = GitHubService("fake-token")
     issue = _make_issue(1, author="alice", labels=["type:blog"], is_pr=True)

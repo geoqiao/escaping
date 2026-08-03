@@ -4,10 +4,10 @@ from datetime import datetime, timezone
 
 import pytest
 
-from github_blog.config import Settings
-from github_blog.content_compiler import ContentCompiler
-from github_blog.models.content import ContentCompilationResult
-from github_blog.models.issue_snapshot import IssueSnapshot
+from escaping.config import Settings
+from escaping.content_compiler import ContentCompiler
+from escaping.models.content import ContentCompilationResult
+from escaping.models.issue_snapshot import IssueSnapshot
 
 _NOW = datetime(2026, 1, 10, tzinfo=timezone.utc)
 

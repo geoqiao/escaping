@@ -2,13 +2,13 @@ from __future__ import annotations
 
 from datetime import datetime, timezone
 
-from github_blog.config import Settings
-from github_blog.models.blog_post import BlogPost, BlogTag
-from github_blog.models.content import AboutPage, ContentCompilationResult, Idea
-from github_blog.models.site import SiteModel
-from github_blog.projects import ProjectCompiler
-from github_blog.routes import RouteRegistry
-from github_blog.site_builder import SiteBuilder
+from escaping.config import Settings
+from escaping.models.blog_post import BlogPost, BlogTag
+from escaping.models.content import AboutPage, ContentCompilationResult, Idea
+from escaping.models.site import SiteModel
+from escaping.projects import ProjectCompiler
+from escaping.routes import RouteRegistry
+from escaping.site_builder import SiteBuilder
 
 _BUILD_START = datetime(2026, 2, 1, tzinfo=timezone.utc)
 

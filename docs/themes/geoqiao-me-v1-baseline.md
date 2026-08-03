@@ -4,7 +4,7 @@
 
 `geoqiao.me` uses the approved A2 Quiet Ledger direction as its production
 baseline and the generator's default built-in Theme. It is maintained as a
-package resource in `src/github_blog/themes/geoqiao.me/`; consumers receive it
+package resource in `src/escaping/themes/geoqiao.me/`; consumers receive it
 inside the wheel and may choose a Config-relative local Theme instead.
 
 ## Visual system

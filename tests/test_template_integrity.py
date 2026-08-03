@@ -9,14 +9,14 @@ from pathlib import Path
 
 import pytest
 
-from github_blog.config import Settings
-from github_blog.content_compiler import ContentCompiler
-from github_blog.models.issue_snapshot import IssueSnapshot
-from github_blog.projects import ProjectCompiler
-from github_blog.routes import RouteRegistry
-from github_blog.services.render_service import RenderService
-from github_blog.site_builder import SiteBuilder
-from github_blog.theme import ThemeLoader
+from escaping.config import Settings
+from escaping.content_compiler import ContentCompiler
+from escaping.models.issue_snapshot import IssueSnapshot
+from escaping.projects import ProjectCompiler
+from escaping.routes import RouteRegistry
+from escaping.services.render_service import RenderService
+from escaping.site_builder import SiteBuilder
+from escaping.theme import ThemeLoader
 
 _ROOT = Path(__file__).parent.parent.absolute()
 
@@ -131,7 +131,7 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
 @pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
 def test_theme_favicon_is_a_valid_search_eligible_png(theme: str) -> None:
     favicon = (
-        _ROOT / "src/github_blog/themes" / theme / "static/images/favicon.png"
+        _ROOT / "src/escaping/themes" / theme / "static/images/favicon.png"
     ).read_bytes()
 
     assert favicon.startswith(b"\x89PNG\r\n\x1a\n")
@@ -157,7 +157,7 @@ def test_configured_site_identity_reaches_homepage_search_signals() -> None:
 
 
 def test_shared_comments_script_preserves_browser_contract() -> None:
-    script = (_ROOT / "src/github_blog/static/comments.js").read_text(encoding="utf-8")
+    script = (_ROOT / "src/escaping/static/comments.js").read_text(encoding="utf-8")
 
     assert "Element.prototype.insertAdjacentHTML" in script
     assert "MutationObserver" in script

@@ -29,7 +29,7 @@ HTML goes through the allowlist sanitizer.
 ```bash
 uv sync
 export GITHUB_TOKEN=ghp_xxx
-uv run blog-gen
+uv run escpe
 # Run from the repository root; serve output as the document root.
 uv run python -m http.server 8000 --directory output
 ```
@@ -44,8 +44,8 @@ the same template contract, comments behavior, canonical origin
 
 ```bash
 uv run pytest -q
-uv run ruff check src/github_blog tests
-uv run ruff format --check src/github_blog tests
+uv run ruff check src/escaping tests
+uv run ruff format --check src/escaping tests
 uv run ty check
 git diff --check
 ```

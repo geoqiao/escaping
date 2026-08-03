@@ -5,7 +5,7 @@ from pathlib import Path
 import pytest
 from pydantic import ValidationError
 
-from github_blog.config import (
+from escaping.config import (
     BuiltinThemeConfig,
     GithubConfig,
     Link,

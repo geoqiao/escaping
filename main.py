@@ -1,6 +1,6 @@
 import sys
 
-from github_blog.cli import run_cli
+from escaping.cli import run_cli
 
 if __name__ == "__main__":
     try:
