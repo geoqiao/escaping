@@ -19,9 +19,14 @@
   --ledger-code-emphasis: #111113;
   --ledger-inline-code-bg: #ececea;
   --ledger-signal-glow: rgba(196, 72, 58, 0.14);
-  --font-display: "Songti SC", STSong, SimSun, Georgia, serif;
-  --font-body: -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
-  --font-mono: ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+  --font-hero: "JetBrains Mono Variable", "JetBrains Mono", "LXGW WenKai", "Songti SC", STSong, SimSun, serif;
+  --font-display: "JetBrains Mono Variable", "JetBrains Mono", "Songti SC", STSong, SimSun, serif;
+  --font-body: "JetBrains Mono Variable", "JetBrains Mono", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
+  --meta-size: 11px;
+  --nav-size: 11px;
+  --utility-tracking: 0.065em;
+  --title-tracking: -0.01em;
 }
 
 html[data-theme="dark"] {
@@ -179,8 +184,8 @@ button {
   place-items: center;
   padding-inline: 13px;
   color: var(--ledger-fog);
-  font: 700 10px/1 var(--font-mono);
-  letter-spacing: 0.07em;
+  font: 700 var(--nav-size)/1 var(--font-mono);
+  letter-spacing: 0.06em;
   text-decoration: none;
   text-transform: uppercase;
 }
@@ -229,8 +234,8 @@ body[data-page="about"] .nav-about::after {
   background: transparent;
   border: 1px solid var(--ledger-rule);
   cursor: pointer;
-  font: 700 9px/1 var(--font-mono);
-  letter-spacing: 0.07em;
+  font: 700 var(--nav-size)/1 var(--font-mono);
+  letter-spacing: 0.05em;
   text-transform: uppercase;
 }
 
@@ -287,8 +292,8 @@ body[data-page="home"] .site-main {
 
 .ledger-hero h1 {
   margin: 0;
-  font: 600 clamp(30px, 3.3vw, 40px)/1.22 var(--font-display);
-  letter-spacing: -0.04em;
+  font: 400 clamp(30px, 3.3vw, 40px)/1.36 var(--font-hero);
+  letter-spacing: 0.025em;
 }
 
 .ledger-hero h1 span {
@@ -330,20 +335,21 @@ body[data-page="home"] .site-main {
 .issue-label {
   margin: 0;
   color: var(--ledger-fog);
-  font: 700 9px/1.4 var(--font-mono);
-  letter-spacing: 0.09em;
+  font: 700 var(--meta-size)/1.4 var(--font-mono);
+  letter-spacing: var(--utility-tracking);
   text-transform: uppercase;
 }
 
 .profile-rail h2 {
   margin: 6px 0 0;
   font: 700 28px/1.15 var(--font-display);
+  letter-spacing: var(--title-tracking);
 }
 
 .profile-role {
   margin: 8px 0 20px;
   color: var(--ledger-fog);
-  font: 700 10px/1.5 var(--font-mono);
+  font: 700 var(--meta-size)/1.5 var(--font-mono);
 }
 
 .profile-bio {
@@ -384,7 +390,7 @@ body[data-page="home"] .site-main {
 .featured-project-title > span,
 .featured-project small {
   color: var(--ledger-fog);
-  font: 700 9px/1.5 var(--font-mono);
+  font: 700 var(--meta-size)/1.5 var(--font-mono);
   letter-spacing: 0.07em;
 }
 
@@ -440,11 +446,12 @@ body[data-page="home"] .site-main {
 .section-heading h2 {
   margin: 0;
   font: 600 24px/1.2 var(--font-display);
+  letter-spacing: var(--title-tracking);
 }
 
 .section-heading > a {
   color: var(--ledger-fog);
-  font: 700 9px/1.4 var(--font-mono);
+  font: 700 var(--meta-size)/1.4 var(--font-mono);
   letter-spacing: 0.05em;
   text-decoration: none;
 }
@@ -463,7 +470,7 @@ body[data-page="home"] .site-main {
 .ledger-row > time {
   padding-top: 2px;
   color: var(--ledger-fog);
-  font: 600 10px/1.5 var(--font-mono);
+  font: 600 var(--meta-size)/1.5 var(--font-mono);
 }
 
 .ledger-track {
@@ -508,7 +515,7 @@ body[data-page="home"] .site-main {
   max-width: 650px;
   margin: 5px 0 0;
   font: 600 clamp(18px, 1.8vw, 23px)/1.4 var(--font-display);
-  letter-spacing: -0.015em;
+  letter-spacing: var(--title-tracking);
 }
 
 .ledger-entry h2 a,
@@ -531,7 +538,7 @@ body[data-page="home"] .site-main {
 .plain-tags a,
 .plain-tags span {
   color: var(--ledger-fog);
-  font: 700 9px/1.4 var(--font-mono);
+  font: 700 var(--meta-size)/1.4 var(--font-mono);
   text-decoration: none;
   text-transform: lowercase;
 }
@@ -578,7 +585,7 @@ body[data-page="home"] .site-main {
 }
 
 .quiet-article {
-  max-width: 720px;
+  max-width: 650px;
   padding-top: 64px;
   margin-inline: auto;
 }
@@ -590,7 +597,7 @@ body[data-page="home"] .site-main {
 .article-heading h1 {
   margin: 10px 0 18px;
   font: 600 clamp(27px, 3vw, 34px)/1.34 var(--font-display);
-  letter-spacing: -0.035em;
+  letter-spacing: var(--title-tracking);
 }
 
 .article-meta {
@@ -599,7 +606,7 @@ body[data-page="home"] .site-main {
   gap: 7px 16px;
   align-items: baseline;
   color: var(--ledger-fog);
-  font: 700 9px/1.5 var(--font-mono);
+  font: 700 var(--meta-size)/1.5 var(--font-mono);
   letter-spacing: 0.04em;
   text-transform: uppercase;
 }
@@ -610,14 +617,18 @@ body[data-page="home"] .site-main {
 
 .post-content {
   color: var(--ledger-prose);
-  font-size: 17px;
-  line-height: 1.92;
+  font-family: var(--font-body);
+  font-size: 18px;
+  font-weight: 400;
+  letter-spacing: 0.012em;
+  line-height: 1.95;
 }
 
 .post-content > p:first-child {
   margin-top: 26px;
   color: var(--ledger-ink);
-  font: 600 22px/1.75 var(--font-display);
+  font: 600 21px/1.78 var(--font-display);
+  letter-spacing: var(--title-tracking);
 }
 
 .post-content p,
@@ -627,7 +638,7 @@ body[data-page="home"] .site-main {
 .post-content pre,
 .post-content table,
 .post-content figure {
-  margin-block: 0 1.6em;
+  margin-block: 0 1.75em;
 }
 
 .post-content h1,
@@ -765,7 +776,7 @@ body[data-page="home"] .site-main {
 }
 
 .comments {
-  max-width: 720px;
+  max-width: 650px;
   min-height: 260px;
   padding-top: 26px;
   margin: 56px auto 0;
@@ -802,7 +813,7 @@ body[data-page="home"] .site-main {
   margin: auto auto 0;
   color: var(--ledger-fog);
   border-top: 1px solid var(--ledger-divider-soft);
-  font: 700 9px/1.4 var(--font-mono);
+  font: 700 var(--meta-size)/1.4 var(--font-mono);
   letter-spacing: 0.05em;
   text-transform: uppercase;
 }
