@@ -21,9 +21,12 @@
     <meta name="twitter:description" content="{% block twitter_description %}{{ meta_description }}{% endblock %}">
     <meta name="twitter:image" content="{% block twitter_image %}{{ theme_favicon_url }}{% endblock %}">
 
-    <script src="{{ theme_path }}/static/js/theme.js?v=quiet-ledger-3"></script>
-    <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-quiet-ledger.css?v=quiet-ledger-3">
-    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css?v=quiet-ledger-3">
+    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/jetbrains-mono@5.2.6/index.css">
+    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/lxgwwenkai-regular.css">
+    <script src="{{ theme_path }}/static/js/theme.js?v=quiet-ledger-4"></script>
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-quiet-ledger.css?v=quiet-ledger-4">
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css?v=quiet-ledger-4">
     <link rel="alternate" type="application/atom+xml" title="RSS" href="{{ atom_url }}">
     <link rel="icon" type="image/png" href="{{ theme_path }}/static/images/favicon.png">
     {% if structured_data is defined %}<script type="application/ld+json">{{ structured_data | tojson }}</script>{% endif %}
