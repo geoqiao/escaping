@@ -142,7 +142,7 @@ _ALLOWED_TAGS: frozenset[str] = frozenset(
 _ALLOWED_ATTRS: dict[str, frozenset[str]] = {
     "*": frozenset(),
     "a": frozenset({"href", "title"}),
-    "img": frozenset({"src", "alt", "title", "width", "height"}),
+    "img": frozenset({"src", "alt", "title", "width", "height", "loading", "decoding"}),
     "td": frozenset({"colspan", "rowspan", "align"}),
     "th": frozenset({"colspan", "rowspan", "align", "scope"}),
     "col": frozenset({"span", "align"}),
@@ -180,6 +180,11 @@ _SAFE_SCHEMES: frozenset[str] = frozenset(
 
 #: Attributes whose values are URLs and must be scheme-checked.
 _URL_ATTRS: frozenset[str] = frozenset({"href", "src", "cite"})
+
+_ENUM_ATTR_VALUES: dict[str, frozenset[str]] = {
+    "loading": frozenset({"eager", "lazy"}),
+    "decoding": frozenset({"async", "auto", "sync"}),
+}
 
 
 #: Characters that must not appear in URL attribute values because they
@@ -221,6 +226,9 @@ def _clean_attr_value(attr: str, value: str) -> str | None:
     Strips dangerous URL schemes from URL attributes. Non-URL attributes pass
     through unchanged.
     """
+    if attr in _ENUM_ATTR_VALUES:
+        normalized = value.strip().lower()
+        return normalized if normalized in _ENUM_ATTR_VALUES[attr] else None
     if attr in _URL_ATTRS:
         if not _is_safe_url(value):
             return None
@@ -348,6 +356,12 @@ class _SanitizingParser(HTMLParser):
             cleaned = _clean_attr_value(name_lower, value)
             if cleaned is not None:
                 result.append((name_lower, cleaned))
+        if tag == "img":
+            present = {name for name, _ in result}
+            if "loading" not in present:
+                result.append(("loading", "lazy"))
+            if "decoding" not in present:
+                result.append(("decoding", "async"))
         return result
 
 

@@ -5,6 +5,7 @@
     var STORAGE_KEY = 'theme';
     var LIGHT = 'light';
     var DARK = 'dark';
+    var THEME_COLORS = { light: '#f7f7f5', dark: '#0b0b0d' };
 
     function storedTheme() {
         try {
@@ -31,6 +32,8 @@
 
     function applyTheme(theme) {
         document.documentElement.setAttribute('data-theme', theme);
+        var themeColor = document.querySelector('#theme-color');
+        if (themeColor) themeColor.setAttribute('content', THEME_COLORS[theme]);
         updateButton(theme);
     }
 
