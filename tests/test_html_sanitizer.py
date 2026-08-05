@@ -65,6 +65,16 @@ def test_misc_safe_content() -> None:
     assert sanitize_html("") == ""
 
 
+def test_images_receive_browser_loading_defaults() -> None:
+    result = sanitize_html(
+        '<img src="https://example.com/photo.png" alt="A useful description" '
+        'width="1200" height="800">'
+    )
+
+    assert 'loading="lazy"' in result
+    assert 'decoding="async"' in result
+
+
 def test_bare_relative_href_is_removed() -> None:
     result = sanitize_html('<a href="not-a-site-route">text</a>')
     assert 'href="not-a-site-route"' not in result

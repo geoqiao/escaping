@@ -175,13 +175,18 @@ def test_shared_comments_script_preserves_browser_contract() -> None:
 class _MobileNavigationProbe(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
+        self.hamburger_tag: str | None = None
         self.hamburger: dict[str, str | None] | None = None
         self.scripts: list[str] = []
         self._script_data: list[str] | None = None
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         attributes = dict(attrs)
-        if tag == "label" and "hamb" in (attributes.get("class") or "").split():
+        if (
+            tag in {"button", "label"}
+            and "hamb" in (attributes.get("class") or "").split()
+        ):
+            self.hamburger_tag = tag
             self.hamburger = attributes
         if tag == "script":
             self._script_data = []
@@ -224,7 +229,7 @@ def test_geoqiao_theme_renders_approved_b_typography() -> None:
     assert (
         "https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/lxgwwenkai-regular.css"
     ) in home
-    assert "style.css?v=quiet-ledger-4" in home
+    assert "style.css?v=quiet-ledger-5" in home
     assert "演悲欢离合，当代岂无前代事？" in home  # noqa: RUF001
     assert "观抑扬褒贬，座中常有剧中人。" in home  # noqa: RUF001
 
@@ -269,7 +274,7 @@ def test_geoqiao_home_renders_five_configured_projects_ranked_by_stars() -> None
     assert '<a href="/projects/">VIEW ALL →</a>' in home
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2"])
 def test_mobile_navigation_is_keyboard_operable(theme: str) -> None:
     probe = _MobileNavigationProbe()
     probe.feed(_render_theme(theme)["index.html"])
@@ -289,6 +294,32 @@ def test_mobile_navigation_is_keyboard_operable(theme: str) -> None:
     assert "checkbox.checked = !checkbox.checked" in inline_scripts
     assert "checkbox.addEventListener('change'" in inline_scripts
     assert "label.setAttribute('aria-expanded'" in inline_scripts
+
+
+def test_geoqiao_mobile_navigation_uses_native_button_and_current_page_state() -> None:
+    html = _render_theme("geoqiao.me")
+    home = html["index.html"]
+    blog = html["blog/index.html"]
+    probe = _MobileNavigationProbe()
+    probe.feed(home)
+
+    assert probe.hamburger_tag == "button"
+    assert probe.hamburger is not None
+    assert probe.hamburger["type"] == "button"
+    assert probe.hamburger["aria-expanded"] == "false"
+    assert probe.hamburger["aria-controls"] == "header-nav"
+    assert 'class="side-menu"' not in home
+
+    inline_scripts = "\n".join(probe.scripts)
+    assert "menuButton.addEventListener('click'" in inline_scripts
+    assert "menuButton.setAttribute('aria-expanded'" in inline_scripts
+    assert "label.addEventListener('keydown'" not in inline_scripts
+
+    assert len(re.findall(r'aria-current="page"', home)) == 1
+    assert re.search(r'class="ledger-nav-link nav-home"[^>]+aria-current="page"', home)
+    assert len(re.findall(r'aria-current="page"', blog)) == 1
+    assert re.search(r'class="ledger-nav-link nav-blog"[^>]+aria-current="page"', blog)
+    assert '<meta name="theme-color" content="#f7f7f5" id="theme-color">' in home
 
 
 def _css_rule(source: str, selector: str) -> str:
