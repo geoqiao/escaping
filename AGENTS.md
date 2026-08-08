@@ -22,8 +22,23 @@ P3 产品决策未重新开启前，保留 Ideas 和 Projects，不引入 plugin
 - ADR：`docs/adr/`
 - Issue Content：`docs/contracts/issue-content-v1.md`
 - 测试策略：`docs/agents/testing.md`
-- Local Markdown tickets：`.scratch/<feature-slug>/`
+- Local scratch materials：`.scratch/<feature-slug>/`
 - Deployment contract：`docs/deployment.md`
+
+## Agent skills
+
+### Issue tracker
+
+Issues 和 specs 使用 GitHub Issues。详见 `docs/agents/issue-tracker.md`。
+
+### Triage labels
+
+使用默认五个 triage 标签。详见 `docs/agents/triage-labels.md`。
+
+### Domain docs
+
+使用 single-context 布局：根目录 `CONTEXT.md` 与 `docs/adr/`。详见
+`docs/agents/domain.md`。
 
 ## 关键实现约束
 
