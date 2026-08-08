@@ -213,7 +213,7 @@ def test_geoqiao_theme_renders_approved_quiet_ledger_identity() -> None:
     assert "prism-nord.css" not in home
 
 
-def test_geoqiao_theme_renders_approved_b_typography() -> None:
+def test_geoqiao_theme_renders_approved_reading_typography() -> None:
     html = _render_theme("geoqiao.me")
     home = html["index.html"]
     css = (
@@ -222,32 +222,37 @@ def test_geoqiao_theme_renders_approved_b_typography() -> None:
         .read_text("static/css/style.css")
     )
 
-    assert (
-        "https://cdn.jsdelivr.net/npm/@fontsource-variable/"
-        "jetbrains-mono@5.2.6/index.css"
-    ) in home
-    assert (
-        "https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/lxgwwenkai-regular.css"
-    ) in home
-    assert "style.css?v=quiet-ledger-5" in home
+    for font_stylesheet in (
+        "@fontsource-variable/jetbrains-mono@5.2.6/index.css",
+        "@fontsource-variable/source-serif-4@5.2.6/index.css",
+        "@fontsource-variable/noto-serif-sc@5.2.6/index.css",
+        "lxgw-wenkai-webfont@1.1.0/lxgwwenkai-regular.css",
+    ):
+        assert f"https://cdn.jsdelivr.net/npm/{font_stylesheet}" in home
+    assert "style.css?v=quiet-ledger-6" in home
     assert "演悲欢离合，当代岂无前代事？" in home  # noqa: RUF001
     assert "观抑扬褒贬，座中常有剧中人。" in home  # noqa: RUF001
 
+    assert '--font-hero: "LXGW WenKai"' in css
     assert (
-        '--font-hero: "JetBrains Mono Variable", "JetBrains Mono", "LXGW WenKai"' in css
+        '--font-display: "Source Serif 4 Variable", "Source Serif 4", '
+        '"Noto Serif SC Variable"' in css
     )
-    assert '--font-body: "JetBrains Mono Variable", "JetBrains Mono"' in css
-    assert '"PingFang SC"' in css
+    assert "--font-body: -apple-system, BlinkMacSystemFont" in css
+    assert '--font-mono: "JetBrains Mono Variable", "JetBrains Mono"' in css
 
     hero_rule = _css_rule(css, ".ledger-hero h1")
     article_rule = _css_rule(css, ".quiet-article")
     prose_rule = _css_rule(css, ".post-content")
+    lead_rule = _css_rule(css, ".post-content > p:first-child")
     assert "var(--font-hero)" in hero_rule
     assert "max-width: 650px" in article_rule
     assert "font-family: var(--font-body)" in prose_rule
     assert "font-size: 18px" in prose_rule
-    assert "line-height: 1.95" in prose_rule
-    assert "letter-spacing: 0.012em" in prose_rule
+    assert "line-height: 1.82" in prose_rule
+    assert "letter-spacing: 0" in prose_rule
+    assert "font-family: var(--font-body)" in lead_rule
+    assert "font-size: 19px" in lead_rule
 
 
 def test_geoqiao_home_renders_five_configured_projects_ranked_by_stars() -> None:

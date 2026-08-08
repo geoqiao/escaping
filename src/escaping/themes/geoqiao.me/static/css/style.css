@@ -19,14 +19,14 @@
   --ledger-code-emphasis: #111113;
   --ledger-inline-code-bg: #ececea;
   --ledger-signal-glow: rgba(196, 72, 58, 0.14);
-  --font-hero: "JetBrains Mono Variable", "JetBrains Mono", "LXGW WenKai", "Songti SC", STSong, SimSun, serif;
-  --font-display: "JetBrains Mono Variable", "JetBrains Mono", "Songti SC", STSong, SimSun, serif;
-  --font-body: "JetBrains Mono Variable", "JetBrains Mono", -apple-system, BlinkMacSystemFont, "PingFang SC", "Microsoft YaHei", sans-serif;
+  --font-hero: "LXGW WenKai", "Kaiti SC", STKaiti, KaiTi, serif;
+  --font-display: "Source Serif 4 Variable", "Source Serif 4", "Noto Serif SC Variable", "Noto Serif SC", "Source Han Serif SC", "Songti SC", STSong, serif;
+  --font-body: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans SC", sans-serif;
   --font-mono: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Monaco, Consolas, monospace;
   --meta-size: 11px;
   --nav-size: 11px;
   --utility-tracking: 0.065em;
-  --title-tracking: -0.01em;
+  --title-tracking: 0;
   --ease-out: cubic-bezier(0.23, 1, 0.32, 1);
 }
 
@@ -617,15 +617,18 @@ body[data-page="home"] .site-main {
   font-family: var(--font-body);
   font-size: 18px;
   font-weight: 400;
-  letter-spacing: 0.012em;
-  line-height: 1.95;
+  letter-spacing: 0;
+  line-height: 1.82;
 }
 
 .post-content > p:first-child {
   margin-top: 26px;
   color: var(--ledger-ink);
-  font: 600 21px/1.78 var(--font-display);
-  letter-spacing: var(--title-tracking);
+  font-family: var(--font-body);
+  font-size: 19px;
+  font-weight: 500;
+  letter-spacing: 0;
+  line-height: 1.82;
 }
 
 .post-content p,
