@@ -173,6 +173,7 @@ sitemap.xml
 _site/
 
 backup/
+.scratch/
 
 .vscode/
 .ruff_cache/
