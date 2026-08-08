@@ -1,0 +1,97 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  checks:
+    name: Checks (Python ${{ matrix.python-version }})
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        python-version: ["3.11", "3.14"]
+    steps:
+      - name: Check out source
+        uses: actions/checkout@11d5960a326750d5838078e36cf38b85af677262 # v4.4.0
+        with:
+          fetch-depth: 0
+          persist-credentials: false
+      - name: Set up Python
+        uses: actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065 # v5.6.0
+        with:
+          python-version: ${{ matrix.python-version }}
+      - name: Set up uv
+        uses: astral-sh/setup-uv@d4b2f3b6ecc6e67c4457f6d3e41ec42d3d0fcb86 # v5.4.2
+        with:
+          version: "0.12.0"
+      - name: Check lockfile
+        run: uv lock --check
+      - name: Install dependencies
+        run: uv sync --frozen
+      - name: Run tests
+        run: uv run pytest -q
+      - name: Check lint
+        run: uv run ruff check src/escaping tests
+      - name: Check formatting
+        run: uv run ruff format --check src/escaping tests
+      - name: Check types
+        run: uv run ty check
+      - name: Check committed diff whitespace
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          PULL_REQUEST_BASE_SHA: ${{ github.event.pull_request.base.sha }}
+          PULL_REQUEST_HEAD_SHA: ${{ github.event.pull_request.head.sha }}
+          PUSH_BEFORE_SHA: ${{ github.event.before }}
+          PUSH_HEAD_SHA: ${{ github.sha }}
+        run: |
+          set -euo pipefail
+
+          case "$EVENT_NAME" in
+            pull_request)
+              BASE_SHA="$PULL_REQUEST_BASE_SHA"
+              HEAD_SHA="$PULL_REQUEST_HEAD_SHA"
+              ;;
+            push)
+              BASE_SHA="$PUSH_BEFORE_SHA"
+              HEAD_SHA="$PUSH_HEAD_SHA"
+              ;;
+            *)
+              echo "Unsupported event: $EVENT_NAME" >&2
+              exit 1
+              ;;
+          esac
+
+          sha_is_valid() {
+            [[ "$1" =~ ^[0-9a-f]{40}$ ]]
+          }
+
+          if ! sha_is_valid "$HEAD_SHA"; then
+            echo "Invalid head SHA" >&2
+            exit 1
+          fi
+          if ! git cat-file -e "${HEAD_SHA}^{commit}"; then
+            echo "Head commit is not available locally" >&2
+            exit 1
+          fi
+
+          if [[ "$BASE_SHA" =~ ^0{40}$ ]]; then
+            # A first push has no parent; compare against Git's empty tree.
+            git diff --check \
+              4b825dc642cb6eb9a060e54bf8d69288fbee4904 "$HEAD_SHA" --
+          else
+            if ! sha_is_valid "$BASE_SHA"; then
+              echo "Invalid base SHA" >&2
+              exit 1
+            fi
+            if ! git cat-file -e "${BASE_SHA}^{commit}"; then
+              echo "Base commit is not available locally" >&2
+              exit 1
+            fi
+            git diff --check "$BASE_SHA" "$HEAD_SHA" --
+          fi

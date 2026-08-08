@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import os
 from collections.abc import Callable
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from typing import Protocol, cast
 
@@ -65,7 +65,7 @@ class SiteCompiler:
         self.project_enricher = project_enricher
 
     def generate(self) -> BuildResult:
-        build_start = datetime.now(timezone.utc)
+        build_start = datetime.now(UTC)
         diagnostics: list[Diagnostic] = []
         try:
             repository = self.github.get_repo(self.repo_name)

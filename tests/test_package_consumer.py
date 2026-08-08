@@ -47,7 +47,7 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
     consumer.mkdir()
     script = """
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 sys.path.insert(0, __WHEEL__)
 import escaping
@@ -64,7 +64,7 @@ settings = Settings.model_validate({
     'security': {'token_env': 'TOKEN'},
 })
 assert settings.theme.name == 'geoqiao.me'
-now = datetime(2026, 1, 1, tzinfo=timezone.utc)
+now = datetime(2026, 1, 1, tzinfo=UTC)
 snapshots = [
     IssueSnapshot(
         1,

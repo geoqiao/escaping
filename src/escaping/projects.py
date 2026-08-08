@@ -3,8 +3,9 @@ from __future__ import annotations
 from collections.abc import Callable, Sequence
 from dataclasses import dataclass
 
+from .build_result import Diagnostic
 from .config import ProjectCatalogEntry
-from .models.projects import Project, ProjectsPage
+from .models.projects import Project, ProjectCompilationResult, ProjectsPage
 from .routes import Route
 
 
@@ -26,8 +27,9 @@ class ProjectCompiler:
 
     def compile(
         self, entries: Sequence[ProjectCatalogEntry], *, route: Route
-    ) -> ProjectsPage:
+    ) -> ProjectCompilationResult:
         projects: list[Project] = []
+        diagnostics: list[Diagnostic] = []
         for entry in sorted(entries, key=lambda value: (value.order, value.slug)):
             fallback = entry.fallback_metadata
             values = ProjectEnrichment(
@@ -41,6 +43,20 @@ class ProjectCompiler:
                     enriched = self._enrich(entry.repository)
                 except Exception:
                     enriched = None
+                    outcome = (
+                        "configured fallback metadata was used"
+                        if fallback is not None
+                        else "metadata remains unavailable"
+                    )
+                    diagnostics.append(
+                        Diagnostic(
+                            "warning",
+                            "PROJECT_ENRICHMENT_FAILED",
+                            f"Project {entry.repository} metadata enrichment failed; "
+                            f"{outcome}.",
+                            field=f"projects.{entry.slug}",
+                        )
+                    )
                 if enriched is not None:
                     values = ProjectEnrichment(
                         stars=enriched.stars
@@ -68,6 +84,7 @@ class ProjectCompiler:
                 )
             )
         items = tuple(projects)
-        return ProjectsPage(
+        page = ProjectsPage(
             items, tuple(project for project in items if project.featured), route
         )
+        return ProjectCompilationResult(page, tuple(diagnostics))

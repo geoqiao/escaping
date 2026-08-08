@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
 
@@ -15,7 +15,7 @@ from escaping.site_compiler import SiteCompiler
 
 
 def _snapshot(number: int, body: str) -> IssueSnapshot:
-    now = datetime(2026, 1, number, tzinfo=timezone.utc)
+    now = datetime(2026, 1, number, tzinfo=UTC)
     return IssueSnapshot(
         number,
         "Post",

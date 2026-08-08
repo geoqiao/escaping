@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from datetime import timezone
+from datetime import UTC
 from pathlib import Path
 from typing import Any
 
@@ -209,8 +209,8 @@ class RenderService:
             "headline": post.title,
             "description": post.description,
             "url": post.route.canonical_url,
-            "datePublished": post.published_at.astimezone(timezone.utc).isoformat(),
-            "dateModified": post.updated_at.astimezone(timezone.utc).isoformat(),
+            "datePublished": post.published_at.astimezone(UTC).isoformat(),
+            "dateModified": post.updated_at.astimezone(UTC).isoformat(),
             "author": {"@type": "Person", "name": metadata.author},
         }
 

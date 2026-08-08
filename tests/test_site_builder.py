@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from escaping.config import Settings
 from escaping.models.blog_post import BlogPost, BlogTag
@@ -10,7 +10,7 @@ from escaping.projects import ProjectCompiler
 from escaping.routes import RouteRegistry
 from escaping.site_builder import SiteBuilder
 
-_BUILD_START = datetime(2026, 2, 1, tzinfo=timezone.utc)
+_BUILD_START = datetime(2026, 2, 1, tzinfo=UTC)
 
 
 def _settings(*, navigation_url: str = "/blog/", title: str = "Site") -> Settings:
@@ -41,7 +41,7 @@ def _settings(*, navigation_url: str = "/blog/", title: str = "Site") -> Setting
 def _blog(routes: RouteRegistry, number: int, *, naive: bool = False) -> BlogPost:
     published = datetime(2026, 1, number)
     if not naive:
-        published = published.replace(tzinfo=timezone.utc)
+        published = published.replace(tzinfo=UTC)
     tag_route = routes.tag("python")
     return BlogPost(
         issue_number=number,
@@ -65,8 +65,8 @@ def _content(
         title="Idea",
         description="Idea description",
         created_date="2026-01-02",
-        published_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
-        updated_at=datetime(2026, 1, 2, tzinfo=timezone.utc),
+        published_at=datetime(2026, 1, 2, tzinfo=UTC),
+        updated_at=datetime(2026, 1, 2, tzinfo=UTC),
         tags=(),
         body_html="<p>Idea.</p>",
         route=routes.idea(2),

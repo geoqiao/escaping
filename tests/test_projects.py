@@ -48,7 +48,7 @@ def test_project_catalog_strict_validation() -> None:
 
 
 def test_projects_sort_feature_and_use_github_links() -> None:
-    page = ProjectCompiler().compile(
+    result = ProjectCompiler().compile(
         [
             _entry("z", order=1),
             _entry("a", order=1, featured=True),
@@ -56,6 +56,7 @@ def test_projects_sort_feature_and_use_github_links() -> None:
         ],
         route=_projects_route(),
     )
+    page = result.page
     assert [project.slug for project in page.projects] == ["first", "a", "z"]
     assert [project.slug for project in page.featured] == ["a"]
     assert page.projects[0].url == "https://github.com/geoqiao/first"
@@ -66,7 +67,7 @@ def test_projects_rank_top_five_by_stars_with_catalog_order_tiebreaker() -> None
     def metadata(stars: int | None) -> ProjectFallbackMetadata:
         return ProjectFallbackMetadata(stars=stars)
 
-    page = ProjectCompiler().compile(
+    result = ProjectCompiler().compile(
         [
             _entry("unknown", order=0),
             _entry("ten-later", order=4, fallback=metadata(10)),
@@ -79,7 +80,7 @@ def test_projects_rank_top_five_by_stars_with_catalog_order_tiebreaker() -> None
         route=_projects_route(),
     )
 
-    assert [project.slug for project in page.top_by_stars()] == [
+    assert [project.slug for project in result.page.top_by_stars()] == [
         "ten-first",
         "ten-later",
         "eight",
@@ -100,10 +101,18 @@ def test_enrichment_failure_falls_back_without_failing() -> None:
             )
         raise RuntimeError("API unavailable")
 
-    page = ProjectCompiler(enrich).compile(
+    result = ProjectCompiler(enrich).compile(
         [_entry("fallback", fallback=fallback), _entry("live")],
         route=_projects_route(),
     )
-    values = {project.slug: project for project in page.projects}
+    values = {project.slug: project for project in result.page.projects}
     assert values["fallback"].stars == 7 and values["fallback"].topics == ("tools",)
     assert values["live"].stars == 10 and values["live"].language == "Rust"
+    assert [diagnostic.code for diagnostic in result.diagnostics] == [
+        "PROJECT_ENRICHMENT_FAILED"
+    ]
+    diagnostic = result.diagnostics[0]
+    assert diagnostic.severity == "warning"
+    assert diagnostic.field == "projects.fallback"
+    assert "geoqiao/fallback" in diagnostic.message
+    assert "API unavailable" not in diagnostic.message

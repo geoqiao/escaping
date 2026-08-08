@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -9,7 +9,7 @@ from escaping.content_compiler import ContentCompiler
 from escaping.models.content import ContentCompilationResult
 from escaping.models.issue_snapshot import IssueSnapshot
 
-_NOW = datetime(2026, 1, 10, tzinfo=timezone.utc)
+_NOW = datetime(2026, 1, 10, tzinfo=UTC)
 
 
 def _settings(about_number: int = 10) -> Settings:

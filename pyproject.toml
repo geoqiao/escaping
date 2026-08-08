@@ -3,7 +3,7 @@ name = "escpe"
 version = "0.1.0"
 description = "An opinionated GitHub Issues personal-site generator"
 readme = "README.md"
-requires-python = ">=3.9"
+requires-python = ">=3.11"
 dependencies = [
     "jinja2>=3.1.4",
     "marko>=2.1.2",

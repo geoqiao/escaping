@@ -1,8 +1,8 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from importlib.abc import Traversable
 from importlib.resources import files
+from importlib.resources.abc import Traversable
 from pathlib import Path, PurePosixPath
 
 import yaml

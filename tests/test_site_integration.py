@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 from escaping.artifact_validation import SiteArtifactValidator
@@ -56,7 +56,7 @@ def _settings(theme: str = "geoqiao.me", *, profile_avatar: str = "") -> Setting
 def _snapshot(
     number: int, kind: str, metadata: str, *, labels: tuple[str, ...] = ()
 ) -> IssueSnapshot:
-    created = datetime(2026, 1, number, 12, tzinfo=timezone.utc)
+    created = datetime(2026, 1, number, 12, tzinfo=UTC)
     return IssueSnapshot(
         number=number,
         title={"blog": "A Blog", "idea": "An Idea", "about": "About"}[kind],
@@ -97,7 +97,7 @@ def _render_representative_site(settings: Settings, tmp_path: Path) -> SiteModel
     site = SiteBuilder(settings, route_registry=routes).build(
         content,
         ProjectCompiler().compile(settings.projects, route=routes.projects()),
-        build_start_time=datetime(2026, 1, 20, tzinfo=timezone.utc),
+        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
     )
     assert not site.has_errors
     assert site.home.route is site.routes.route("home")

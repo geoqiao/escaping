@@ -8,7 +8,7 @@ from .build_result import Diagnostic
 from .config import Settings
 from .home_builder import _build_home
 from .models.content import ContentCompilationResult
-from .models.projects import ProjectsPage
+from .models.projects import ProjectCompilationResult, ProjectsPage
 from .models.site import (
     BrandingMetadata,
     CommentsMetadata,
@@ -35,15 +35,16 @@ class SiteBuilder:
     def build(
         self,
         content: ContentCompilationResult,
-        projects: ProjectsPage,
+        projects: ProjectCompilationResult,
         *,
         build_start_time: datetime,
     ) -> SiteModel:
-        diagnostics = list(content.diagnostics)
+        diagnostics = [*content.diagnostics, *projects.diagnostics]
+        projects_page = projects.page
         self._register_fixed_routes()
 
         try:
-            self._require_registered_content(content, projects)
+            self._require_registered_content(content, projects_page)
             archives = _build_archives(
                 content.blogs, self.settings.paths.page_size, self.routes
             )
@@ -79,7 +80,7 @@ class SiteBuilder:
             ideas_page=IdeasPage(self.routes.ideas(), content.ideas),
             ideas=content.ideas,
             about=content.about,
-            projects=projects,
+            projects=projects_page,
             tags=tags_result.index,
             tag_archives=tags_result.archives,
             feed=feed_result.feed,

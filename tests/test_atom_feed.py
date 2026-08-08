@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 import pytest
 
@@ -17,7 +17,7 @@ from escaping.models.site import (
 from escaping.routes import RouteRegistry
 
 _ATOM_NS = "http://www.w3.org/2005/Atom"
-_AWARE = datetime(2026, 1, 2, tzinfo=timezone.utc)
+_AWARE = datetime(2026, 1, 2, tzinfo=UTC)
 
 
 def _metadata(*, title: str = "Test & Notes") -> SiteMetadata:

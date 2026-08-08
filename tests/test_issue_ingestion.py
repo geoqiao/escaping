@@ -10,7 +10,7 @@ payload) without triggering per-Issue lazy completion (N+1).
 
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from github.Issue import Issue as PyGithubIssue
@@ -47,8 +47,8 @@ def _make_issue(
     issue.body = body
     issue.user = _make_user(author)
     issue.labels = [_make_label(name) for name in (labels or [])]
-    issue.created_at = created_at or datetime(2024, 1, 1, tzinfo=timezone.utc)
-    issue.updated_at = updated_at or datetime(2024, 1, 2, tzinfo=timezone.utc)
+    issue.created_at = created_at or datetime(2024, 1, 1, tzinfo=UTC)
+    issue.updated_at = updated_at or datetime(2024, 1, 2, tzinfo=UTC)
     issue._rawData = (
         {"pull_request": {"url": "https://api.github.com/repos/o/r/pulls/1"}}
         if is_pr
@@ -73,8 +73,8 @@ def test_fetch_issue_snapshots_converts_and_selects(
     mock_github_class: MagicMock,
 ) -> None:
     service = GitHubService("fake-token")
-    created = datetime(2024, 3, 1, 12, 0, tzinfo=timezone.utc)
-    updated = datetime(2024, 3, 2, 8, 30, tzinfo=timezone.utc)
+    created = datetime(2024, 3, 1, 12, 0, tzinfo=UTC)
+    updated = datetime(2024, 3, 2, 8, 30, tzinfo=UTC)
     plain = _make_issue(
         42,
         title="Using Rust",

@@ -2,6 +2,7 @@ from __future__ import annotations
 
 from dataclasses import dataclass, field
 
+from ..build_result import Diagnostic
 from ..routes import Route
 
 
@@ -46,3 +47,9 @@ class ProjectsPage:
     @property
     def canonical_url(self) -> str:
         return self.route.canonical_url
+
+
+@dataclass(frozen=True)
+class ProjectCompilationResult:
+    page: ProjectsPage
+    diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)

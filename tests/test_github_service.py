@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from unittest.mock import MagicMock, patch
 
 from escaping.services.github_service import GitHubService
@@ -26,7 +26,7 @@ def test_fetch_issue_snapshots_queries_all_states_and_isolates_fields() -> None:
         issue.user.login = "geoqiao"
         issue.labels = [MagicMock(name="ignored")]
         issue.labels[0].name = "published"
-        issue.created_at = datetime(2026, 1, 1, tzinfo=timezone.utc)
+        issue.created_at = datetime(2026, 1, 1, tzinfo=UTC)
         issue.updated_at = issue.created_at
         issue._rawData = {"pull_request": {"url": "x"}}
         repo = MagicMock()

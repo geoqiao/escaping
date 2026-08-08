@@ -24,7 +24,7 @@ from __future__ import annotations
 
 import re
 from pathlib import Path
-from typing import Annotated, Literal, Union
+from typing import Annotated, Literal
 from urllib.parse import urlparse, urlunparse
 
 import yaml
@@ -287,7 +287,7 @@ class LocalThemeConfig(BaseModel):
 
 
 ThemeConfig = Annotated[
-    Union[BuiltinThemeConfig, LocalThemeConfig], Field(discriminator="source")
+    BuiltinThemeConfig | LocalThemeConfig, Field(discriminator="source")
 ]
 
 

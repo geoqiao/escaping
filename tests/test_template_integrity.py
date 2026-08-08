@@ -3,7 +3,7 @@ from __future__ import annotations
 import json
 import re
 import struct
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from html.parser import HTMLParser
 from pathlib import Path
 
@@ -48,7 +48,7 @@ def _settings(
 def _snap(
     number: int, kind: str, metadata: str, *, labels: tuple[str, ...] = ()
 ) -> IssueSnapshot:
-    now = datetime(2026, 1, number, tzinfo=timezone.utc)
+    now = datetime(2026, 1, number, tzinfo=UTC)
     return IssueSnapshot(
         number,
         kind.title(),
@@ -85,7 +85,7 @@ def _render_theme(
     site = SiteBuilder(settings, route_registry=routes).build(
         content,
         ProjectCompiler().compile(settings.projects, route=routes.projects()),
-        build_start_time=datetime(2026, 1, 20, tzinfo=timezone.utc),
+        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
     )
     assert not site.has_errors
     loaded_theme = ThemeLoader(_ROOT).load(settings.theme)

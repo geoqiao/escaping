@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import sys
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from pathlib import Path
 
 import pytest
@@ -9,28 +9,30 @@ import pytest
 from escaping.cli import run_cli
 from escaping.config import Settings
 from escaping.models.issue_snapshot import IssueSnapshot
+from escaping.projects import ProjectEnrichment
 from escaping.site_compiler import SiteCompiler
 
 
-def _settings() -> Settings:
-    return Settings.model_validate(
-        {
-            "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
-            "site": {
-                "title": "geoqiao.me",
-                "author": "geoqiao",
-                "url": "https://geoqiao.me/",
-                "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
-            },
-            "about": {"issue_number": 10},
-            "security": {"token_env": "TOKEN"},
-            "paths": {"output": "output"},
-        }
-    )
+def _settings(*, projects: list[dict[str, object]] | None = None) -> Settings:
+    data: dict[str, object] = {
+        "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
+        "site": {
+            "title": "geoqiao.me",
+            "author": "geoqiao",
+            "url": "https://geoqiao.me/",
+            "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
+        },
+        "about": {"issue_number": 10},
+        "security": {"token_env": "TOKEN"},
+        "paths": {"output": "output"},
+    }
+    if projects is not None:
+        data["projects"] = projects
+    return Settings.model_validate(data)
 
 
 def _snapshot(number: int, kind: str, body: str) -> IssueSnapshot:
-    now = datetime(2026, 1, number, tzinfo=timezone.utc)
+    now = datetime(2026, 1, number, tzinfo=UTC)
     return IssueSnapshot(
         number,
         {"blog": "Post", "idea": "Idea", "about": "About"}[kind],
@@ -123,6 +125,40 @@ def test_strict_cli_generates_directory_routes_and_seo(
     assert "https://geoqiao.me" in (output / "sitemap.xml").read_text()
     assert not (output / "blog" / "post.html").exists()
     assert sentinel.read_text(encoding="utf-8") == "keep"
+
+
+def test_project_enrichment_warning_reaches_build_result(tmp_path: Path) -> None:
+    def enrich(_repository: str) -> ProjectEnrichment:
+        raise RuntimeError("token=super-secret")
+
+    result = SiteCompiler(
+        "unused",
+        "geoqiao/site",
+        _settings(
+            projects=[
+                {
+                    "slug": "fallback",
+                    "title": "Fallback",
+                    "repository": "geoqiao/fallback",
+                    "summary": "Fallback project.",
+                    "fallback_metadata": {"stars": 7},
+                }
+            ]
+        ),
+        config_root=tmp_path,
+        github_service=_FakeGitHub(_valid_snapshots()),
+        project_enricher=enrich,
+    ).generate()
+
+    assert result.success
+    warning = next(
+        diagnostic
+        for diagnostic in result.diagnostics
+        if diagnostic.code == "PROJECT_ENRICHMENT_FAILED"
+    )
+    assert warning.severity == "warning"
+    assert warning.field == "projects.fallback"
+    assert "token=super-secret" not in warning.message
 
 
 def test_content_error_preserves_existing_output(

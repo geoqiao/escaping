@@ -28,7 +28,7 @@ from __future__ import annotations
 
 import xml.etree.ElementTree as ET
 from collections.abc import Sequence
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 from typing import Protocol
 
 from .build_result import Diagnostic
@@ -88,7 +88,7 @@ def _format_rfc3339(dt: datetime) -> str:
             f"Cannot format naive datetime {dt!r} as RFC 3339; "
             "timezone-aware datetime required"
         )
-    utc_dt = dt.astimezone(timezone.utc)
+    utc_dt = dt.astimezone(UTC)
     return utc_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 
