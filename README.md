@@ -1,23 +1,25 @@
 <div align="center">
 
+<img src="docs/assets/escaping-logo.png" alt="escaping logo" width="180">
+
 # escaping
 
-### 把 GitHub Issues 编译成一个完整、可靠、可部署的个人网站。
+**把 GitHub Issues 编译成一个完整、可靠、可部署的个人网站。**
 
 一个 opinionated personal-site generator：以 Issues 为内容源，经由不可变模型、严格校验与原子发布，生成 Blog、Ideas、Projects、About、Tags、Atom 和完整 SEO artifacts。
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![GitHub Issues](https://img.shields.io/badge/Content-GitHub_Issues-181717?logo=github)](https://docs.github.com/issues)
-[![Static Site](https://img.shields.io/badge/Output-Static_Site-8B5CF6)](https://geoqiao.me/)
+[![Static Site](https://img.shields.io/badge/Output-Static_Site-315EFB)](https://geoqiao.me/)
 [![MIT License](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
 
-**[查看线上站点](https://geoqiao.me/)** · **[配置示例](config.example.yaml)** · **[部署契约](docs/deployment.md)**
+**[线上站点](https://geoqiao.me/)** · **[快速开始](#-快速开始)** · **[配置示例](config.example.yaml)** · **[完整指南](docs/detailed-guide.md)** · **[部署契约](docs/deployment.md)**
 
 </div>
 
 ---
 
-## 为什么是 escaping？
+## ✨ 为什么是 escaping？
 
 `escaping` 不把 GitHub Issues 当作一组需要即时渲染的数据，而是把它们当作一次确定性编译的输入。每次构建都会先完成内容解析、路由分配、HTML sanitization 和产物校验；只有整站通过后，才会原子替换当前输出。
 
@@ -32,7 +34,7 @@
 | 🔗 | **单一路由来源** | `RouteRegistry` 统一生成 canonical URL 与文件输出路径，避免手工拼接 |
 | 🚀 | **原子发布** | 新产物在 staging 中渲染和验证，失败不会破坏上一版站点 |
 
-## 编译流水线
+## 🧭 编译流水线
 
 ```mermaid
 flowchart LR
@@ -46,7 +48,7 @@ flowchart LR
 
 Renderer 和 artifact validator 只读取同一份 `SiteModel`。Theme 作为已经加载的依赖注入渲染层，因此内容、路由和发布安全不会散落到模板里。
 
-## 快速开始
+## 🚀 快速开始
 
 需要 Python 3.11+、[`uv`](https://docs.astral.sh/uv/) 和一个可读取目标仓库 Issues 的 GitHub Token。
 
@@ -100,7 +102,7 @@ Blog slug 由 Issue front matter 显式提供，不从标题推导；About 由�
 > [!NOTE]
 > Config 中的 output 和本地 Theme 等相对路径，始终以 **Config 文件所在目录** 为根，因此命令可以从任意工作目录执行。
 
-## 页面与路由
+## 🗺️ 页面与路由
 
 | 页面 | Canonical route |
 | --- | --- |
@@ -112,7 +114,7 @@ Blog slug 由 Issue front matter 显式提供，不从标题推导；About 由�
 | About | `/about/` |
 | Feed / discovery | `/atom.xml` · `/sitemap.xml` · `/robots.txt` |
 
-## Themes
+## 🎨 Themes
 
 不写 Theme 配置时，默认使用内置 `geoqiao.me`：
 
@@ -133,13 +135,13 @@ theme:
 
 `ThemeLoader` 只加载 package resources 或本地目录，不隐式执行 Git/HTTP fetch、cache 或 update。三个内置 Theme 共用生成器维护的 `comments.js`，包含 Utterances 自动主题同步、消息来源校验与 Safari lazy iframe 兼容处理。
 
-## 生成器与站点分离
+## 🏗️ 生成器与站点分离
 
 `escaping` 只拥有 compiler、models、validators、示例 Config 和内置 Themes。真实站点仓库拥有自己的 `config.yaml`、Pages workflow、`CNAME`，以及可选的本地 Theme。
 
 生产 workflow 应 pin `escaping` 的 release 或完整 commit SHA，并使用短期 `GITHUB_TOKEN` 构建 Pages artifact。这样生成器与站点即使无法原子变更，也能通过固定版本验证、升级和回滚。完整要求见 [`docs/deployment.md`](docs/deployment.md)。
 
-## 开发与验证
+## 🧪 开发与验证
 
 ```bash
 uv sync
@@ -152,6 +154,6 @@ git diff --check
 
 wheel consumer 测试会在源码目录之外构建代表性站点，验证 package resources、默认 Theme 与 Config-root 路径。旧 `.html` Blog URL 不生成 alias 或 redirect，决策记录见 [`ADR-0003`](docs/adr/0003-drop-legacy-html-urls.md)。
 
-## License
+## 📄 License
 
 [MIT](LICENSE) © geoqiao

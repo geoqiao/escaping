@@ -23,9 +23,9 @@
     <meta name="twitter:description" content="{% block twitter_description %}{{ meta_description }}{% endblock %}">
     <meta name="twitter:image" content="{% block twitter_image %}{{ theme_favicon_url }}{% endblock %}">
 
-    <script src="{{ theme_path }}/static/js/theme.js?v=signal-blue-1"></script>
-    <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-signal-blue.css?v=signal-blue-1">
-    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css?v=signal-blue-1">
+    <script src="{{ theme_path }}/static/js/theme.js?v=signal-blue-2"></script>
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-signal-blue.css?v=signal-blue-2">
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css?v=signal-blue-2">
     <link rel="alternate" type="application/atom+xml" title="RSS" href="{{ atom_url }}">
     <link rel="icon" type="image/png" href="{{ theme_path }}/static/images/favicon.png">
     {% if structured_data is defined %}<script type="application/ld+json">{{ structured_data | tojson }}</script>{% endif %}
@@ -43,10 +43,10 @@
                 <button class="hamb" type="button" aria-label="Toggle menu" aria-expanded="false" aria-controls="header-nav"><span class="hamb-line" aria-hidden="true"></span></button>
                 <nav class="ledger-nav" id="header-nav" aria-label="Primary navigation">
                     <ul>
-                        <li><a class="ledger-nav-link nav-home" href="{{ home_path }}"{% if current_page == 'home' %} aria-current="page"{% endif %}>Home</a></li>
+                        <li><a class="ledger-nav-link nav-home" href="{{ home_path }}"{% if current_page == 'home' %} aria-current="page"{% endif %}><span>Home</span></a></li>
                         {% for item in navigation_items %}
                         {% set nav_page = item.name | lower | replace('/', '-') %}
-                        <li><a class="ledger-nav-link nav-{{ nav_page }}" href="{{ item.url }}"{% if current_page == nav_page or (current_page == 'article' and nav_page == 'blog') %} aria-current="page"{% endif %}>{{ item.name }}</a></li>
+                        <li><a class="ledger-nav-link nav-{{ nav_page }}" href="{{ item.url }}"{% if current_page == nav_page or (current_page == 'article' and nav_page == 'blog') %} aria-current="page"{% endif %}><span>{{ item.name }}</span></a></li>
                         {% endfor %}
                         <li>
                             <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">

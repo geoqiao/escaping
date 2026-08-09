@@ -209,36 +209,38 @@ button {
 .ledger-nav-link {
   position: relative;
   display: grid;
-  place-items: center;
   padding-inline: 13px;
   color: var(--ledger-fog);
   font: 700 var(--nav-size)/1 var(--font-utility);
   letter-spacing: 0.06em;
+  place-items: center;
   text-decoration: none;
   text-transform: uppercase;
+  transition: color 140ms ease;
 }
 
-.ledger-nav-link::after {
-  position: absolute;
-  right: 13px;
-  bottom: 15px;
-  left: 13px;
-  height: 2px;
-  background: var(--ledger-accent);
-  content: "";
-  transform: scaleX(0);
-  transform-origin: left;
-  transition: transform 160ms ease;
+.ledger-nav-link > span {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
 }
 
 .ledger-nav-link:hover,
 .ledger-nav-link[aria-current="page"] {
-  color: var(--ledger-ink);
+  color: var(--ledger-accent);
 }
 
-.ledger-nav-link:hover::after,
-.ledger-nav-link[aria-current="page"]::after {
-  transform: scaleX(1);
+.ledger-nav-link[aria-current="page"] > span::after {
+  position: absolute;
+  top: 50%;
+  right: -9px;
+  width: 5px;
+  height: 5px;
+  background: var(--ledger-accent);
+  border-radius: 50%;
+  content: "";
+  transform: translateY(-50%);
 }
 
 .theme-toggle {
@@ -295,7 +297,7 @@ body[data-page="home"] .site-main {
 }
 
 body[data-page="article"] .site-main {
-  width: min(calc(100% - 80px), 868px);
+  width: min(calc(100% - 48px), 1108px);
   padding: 0 0 84px;
 }
 
@@ -396,7 +398,14 @@ body[data-page="article"] .site-main {
 
 .profile-links a {
   font: 700 10px/1.4 var(--font-utility);
+  text-decoration: none;
   text-transform: uppercase;
+}
+
+.profile-links a:hover,
+.featured-projects a:hover,
+.section-heading > a:hover {
+  color: var(--ledger-accent);
 }
 
 .featured-projects {
@@ -448,6 +457,7 @@ body[data-page="article"] .site-main {
   min-width: 0;
   overflow-wrap: anywhere;
   font: 700 15px/1.35 var(--font-display);
+  text-decoration: none;
 }
 
 .featured-project-title > span {
@@ -499,6 +509,7 @@ body[data-page="article"] .site-main {
   padding-top: 2px;
   color: var(--ledger-fog);
   font: 600 var(--meta-size)/1.5 var(--font-utility);
+  font-variant-numeric: tabular-nums;
 }
 
 .ledger-track {
@@ -531,6 +542,7 @@ body[data-page="article"] .site-main {
   border: 2px solid var(--ledger-bg);
   border-radius: 50%;
   box-shadow: 0 0 0 1px var(--ledger-divider);
+  transition: background 140ms ease, box-shadow 140ms ease;
 }
 
 .ledger-track span.is-live {
@@ -544,16 +556,27 @@ body[data-page="article"] .site-main {
   margin: 5px 0 0;
   font: 650 clamp(18px, 1.8vw, 23px)/1.4 var(--font-display);
   letter-spacing: var(--title-tracking);
+  text-wrap: pretty;
 }
 
 .ledger-entry h2 a,
 .ledger-entry h3 a {
   text-decoration: none;
+  transition: color 140ms ease;
 }
 
 .ledger-entry h2 a:hover,
-.ledger-entry h3 a:hover {
-  text-decoration: underline;
+.ledger-entry h3 a:hover,
+.ledger-entry h2 a:focus-visible,
+.ledger-entry h3 a:focus-visible {
+  color: var(--ledger-accent);
+}
+
+.ledger-row:has(.ledger-entry h2 a:hover) .ledger-track span,
+.ledger-row:has(.ledger-entry h3 a:hover) .ledger-track span,
+.ledger-row:focus-within .ledger-track span {
+  background: var(--ledger-accent);
+  box-shadow: 0 0 0 4px var(--ledger-signal-glow);
 }
 
 .plain-tags {
@@ -572,8 +595,8 @@ body[data-page="article"] .site-main {
 }
 
 .plain-tags a:hover {
-  color: var(--ledger-ink);
-  text-decoration: underline;
+  color: var(--ledger-accent);
+  text-decoration: none;
 }
 
 .quiet-page-head {
@@ -632,14 +655,20 @@ body[data-page="article"] .site-main {
 
 .article-layout {
   display: grid;
-  grid-template-columns: 96px minmax(0, 620px) 96px;
-  gap: 28px;
+  grid-template-columns: 220px minmax(0, 620px) 220px;
+  gap: 24px;
 }
 
 .article-issue {
+  display: flex;
+  justify-content: flex-end;
   padding-top: 5px;
   color: var(--ledger-fog);
   font-family: var(--font-utility);
+}
+
+.article-issue > div {
+  width: 96px;
 }
 
 .article-issue strong {
@@ -651,14 +680,15 @@ body[data-page="article"] .site-main {
   line-height: 1;
 }
 
-.article-issue > span,
-.article-issue > p {
+.article-issue span,
+.article-issue p {
   font-size: 10px;
+  font-variant-numeric: tabular-nums;
   font-weight: 650;
   letter-spacing: 0.08em;
 }
 
-.article-issue > p {
+.article-issue p {
   margin-top: 21px;
   line-height: 1.65;
   letter-spacing: 0.02em;
@@ -670,39 +700,89 @@ body[data-page="article"] .site-main {
 
 .article-toc {
   position: sticky;
-  top: 96px;
+  top: 28px;
   align-self: start;
+  width: 220px;
+  max-height: calc(100vh - 56px);
   padding-top: 8px;
+  overflow-y: auto;
   font-family: var(--font-utility);
+  scrollbar-color: var(--ledger-rule) transparent;
+  scrollbar-width: thin;
 }
 
 .article-toc > p {
   margin: 0 0 16px;
   color: var(--ledger-fog);
-  font-size: 11px;
-  font-weight: 700;
+  font-size: 12px;
+  font-weight: 750;
   letter-spacing: 0.08em;
 }
 
-.article-toc nav {
+.article-toc nav,
+.article-toc .toc-group,
+.article-toc .toc-children {
   display: grid;
-  gap: 12px;
+  gap: 7px;
 }
 
-.article-toc a {
+.article-toc .toc-children {
+  display: none;
+  padding: 2px 0 3px 14px;
+}
+
+.article-toc .toc-group.is-expanded .toc-children {
+  display: grid;
+}
+
+.article-toc .toc-link {
+  position: relative;
+  display: block;
+  width: 100%;
+  min-width: 0;
+  overflow: hidden;
+  padding: 4px 0;
   color: var(--ledger-fog);
-  font-size: 11px;
+  font-size: 12px;
+  font-weight: 620;
   line-height: 1.45;
   text-decoration: none;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  transition: color 140ms ease, font-weight 140ms ease;
 }
 
-.article-toc a:hover,
-.article-toc a.is-active {
+.article-toc .toc-level-3 {
+  font-size: 11px;
+  font-weight: 500;
+}
+
+.article-toc .toc-link:hover,
+.article-toc .toc-link[aria-current="location"] {
   color: var(--ledger-accent);
 }
 
-.article-toc a.is-subsection {
-  padding-left: 10px;
+.article-toc .toc-link[aria-current="location"] {
+  padding-left: 14px;
+}
+
+.article-toc .toc-link[aria-current="location"]::before {
+  position: absolute;
+  top: 0.72em;
+  left: 1px;
+  width: 5px;
+  height: 5px;
+  background: var(--ledger-accent);
+  border-radius: 50%;
+  content: "";
+}
+
+.article-toc .toc-children .toc-link[aria-current="location"] {
+  padding-left: 0;
+}
+
+.article-toc .toc-children .toc-link[aria-current="location"]::before {
+  left: -10px;
 }
 
 .quiet-article {
@@ -745,6 +825,7 @@ body[data-page="article"] .site-main {
   margin: 10px 0 18px;
   font: 700 38px/1.24 var(--font-display);
   letter-spacing: -0.05em;
+  text-wrap: balance;
 }
 
 .article-description {
@@ -752,6 +833,7 @@ body[data-page="article"] .site-main {
   color: var(--ledger-fog);
   font-size: 14px;
   line-height: 1.72;
+  text-wrap: pretty;
 }
 
 .article-byline {
@@ -825,6 +907,8 @@ body[data-page="article"] .site-main {
   font-family: var(--font-display);
   font-weight: 600;
   line-height: 1.35;
+  scroll-margin-top: 28px;
+  text-wrap: balance;
 }
 
 .post-content h2 {
@@ -1144,10 +1228,10 @@ body[data-page="article"] .site-main {
   text-transform: uppercase;
 }
 
-@media (max-width: 960px) {
+@media (max-width: 1170px) {
   body[data-page="article"] .site-main {
-    width: min(100%, 700px);
-    padding: 0 40px 84px;
+    width: min(calc(100% - 48px), 700px);
+    padding: 0 0 84px;
   }
 
   .article-page {
@@ -1156,7 +1240,8 @@ body[data-page="article"] .site-main {
   }
 
   .article-layout {
-    display: block;
+    grid-template-columns: minmax(0, 620px);
+    justify-content: center;
   }
 
   .article-issue,
@@ -1249,20 +1334,6 @@ body[data-page="article"] .site-main {
     padding: 12px 0;
     place-items: center;
     text-align: center;
-  }
-
-  .ledger-nav-link::after {
-    right: auto;
-    bottom: 6px;
-    left: 50%;
-    width: 28px;
-    transform: translateX(-50%) scaleX(0);
-    transform-origin: center;
-  }
-
-  .ledger-nav-link:hover::after,
-  .ledger-nav-link[aria-current="page"]::after {
-    transform: translateX(-50%) scaleX(1);
   }
 
   .theme-toggle {
@@ -1379,9 +1450,15 @@ body[data-page="article"] .site-main {
     padding-top: 44px;
   }
 
-  .article-heading h1,
-  .article-main .article-heading h1 {
+  .article-heading h1 {
     font-size: 27px;
+  }
+
+  .article-main .article-heading h1 {
+    font-size: clamp(22px, 5.8vw, 30px);
+    letter-spacing: -0.035em;
+    line-height: 1.32;
+    text-wrap: pretty;
   }
 
   .article-byline .plain-tags {
@@ -1409,7 +1486,7 @@ body[data-page="article"] .site-main {
   }
 
   .post-content > p:first-child {
-    font-size: 20px;
+    font-size: 18px;
   }
 
   .post-content h2 {
