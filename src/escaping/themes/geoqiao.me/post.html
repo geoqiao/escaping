@@ -10,31 +10,82 @@
 {% block twitter_url %}{{ post.canonical_url }}{% endblock %}
 {% block twitter_title %}{{ post.title }}{% endblock %}
 {% block twitter_description %}{{ post.description }}{% endblock %}
-{% block page_key %}blog{% endblock %}
+{% block page_key %}article{% endblock %}
 
 {% block content %}
-<article class="quiet-article">
-    <header class="article-heading">
-        <p class="utility-label">BLOG / ISSUE #{{ post.issue_number }}</p>
-        <h1>{{ post.title }}</h1>
-        <div class="article-meta">
-            <time datetime="{{ post.created_date }}">{{ post.created_date | replace('-', '.') }}</time>
-            {% if post.tags %}<div class="plain-tags">{% for tag in post.tags %}<a href="{{ tag.path }}">#{{ tag.name }}</a>{% endfor %}</div>{% endif %}
+<div class="article-page">
+    <div class="article-back">
+        {% for item in navigation_items %}{% if item.name | lower == 'blog' %}<a href="{{ item.url }}">← Back to Blog</a>{% endif %}{% endfor %}
+    </div>
+
+    <article class="article-layout">
+        <aside class="article-issue" aria-label="Article metadata">
+            <strong>{{ "%03d" | format(post.issue_number) }}</strong>
+            <span>ISSUE</span>
+            <p><time datetime="{{ post.created_date }}">{{ post.created_date | replace('-', '.') }}</time></p>
+        </aside>
+
+        <div class="article-main">
+            <header class="article-heading">
+                <p class="utility-label">BLOG / PUBLISHED</p>
+                <h1>{{ post.title }}</h1>
+                <p class="article-description">{{ post.description }}</p>
+                <div class="article-byline">
+                    {% if metadata.profile.avatar %}<img src="{{ metadata.profile.avatar }}" alt="" width="32" height="32">{% endif %}
+                    <span>{{ author_name }}</span>
+                    {% if post.tags %}<div class="plain-tags">{% for tag in post.tags %}<a href="{{ tag.path }}">#{{ tag.name }}</a>{% endfor %}</div>{% endif %}
+                </div>
+            </header>
+            <div class="post-content">{{ post.body_html|safe }}</div>
         </div>
-    </header>
-    <div class="post-content">{{ post.body_html|safe }}</div>
-</article>
+
+        <aside class="article-toc" aria-labelledby="article-toc-title">
+            <p id="article-toc-title">ON THIS PAGE</p>
+            <nav data-article-toc aria-label="Article sections"></nav>
+        </aside>
+    </article>
+</div>
 
 {% set comments_issue_number = post.issue_number %}{% include '_comments.html' %}
 
 <script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-  document.querySelectorAll("pre code.language-mermaid").forEach((code) => {
-    const pre = code.parentElement;
-    pre.className = "mermaid";
-    pre.textContent = code.textContent;
-  });
-  mermaid.initialize({ startOnLoad: false, theme: document.documentElement.dataset.theme === "dark" ? "dark" : "default" });
-  mermaid.run();
+  const toc = document.querySelector("[data-article-toc]");
+  const headings = [...document.querySelectorAll(".article-main .post-content h1, .article-main .post-content h2, .article-main .post-content h3")];
+
+  if (toc && headings.length) {
+    headings.forEach((heading, index) => {
+      if (!heading.id) heading.id = `section-${index + 1}`;
+      const link = document.createElement("a");
+      link.href = `#${heading.id}`;
+      link.textContent = heading.textContent;
+      if (heading.tagName === "H3") link.className = "is-subsection";
+      toc.appendChild(link);
+    });
+
+    const links = [...toc.querySelectorAll("a")];
+    links[0].classList.add("is-active");
+    if ("IntersectionObserver" in window) {
+      const observer = new IntersectionObserver((entries) => {
+        const visible = entries.find((entry) => entry.isIntersecting);
+        if (!visible) return;
+        links.forEach((link) => link.classList.toggle("is-active", link.hash === `#${visible.target.id}`));
+      }, { rootMargin: "-18% 0px -72%", threshold: 0 });
+      headings.forEach((heading) => observer.observe(heading));
+    }
+  } else {
+    document.querySelector(".article-toc")?.setAttribute("hidden", "");
+  }
+
+  const mermaidBlocks = document.querySelectorAll("pre code.language-mermaid");
+  if (mermaidBlocks.length) {
+    const { default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs");
+    mermaidBlocks.forEach((code) => {
+      const pre = code.parentElement;
+      pre.className = "mermaid";
+      pre.textContent = code.textContent;
+    });
+    mermaid.initialize({ startOnLoad: false, theme: document.documentElement.dataset.theme === "dark" ? "dark" : "default" });
+    mermaid.run();
+  }
 </script>
 {% endblock %}

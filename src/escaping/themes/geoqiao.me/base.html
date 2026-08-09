@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{% block description %}{{ meta_description }}{% endblock %}">
-    <meta name="theme-color" content="#f7f7f5" id="theme-color">
+    <meta name="theme-color" content="#f4f6f8" id="theme-color">
     <meta name="google-site-verification" content="{{ google_search_verification }}">
     <title>{% block title %}{{ blog_title }}{% endblock %}</title>
     {% block canonical %}{% endblock %}
@@ -23,14 +23,9 @@
     <meta name="twitter:description" content="{% block twitter_description %}{{ meta_description }}{% endblock %}">
     <meta name="twitter:image" content="{% block twitter_image %}{{ theme_favicon_url }}{% endblock %}">
 
-    <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin>
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/jetbrains-mono@5.2.6/index.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/source-serif-4@5.2.6/index.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@fontsource-variable/noto-serif-sc@5.2.6/index.css">
-    <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/lxgw-wenkai-webfont@1.1.0/lxgwwenkai-regular.css">
-    <script src="{{ theme_path }}/static/js/theme.js?v=quiet-ledger-5"></script>
-    <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-quiet-ledger.css?v=quiet-ledger-5">
-    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css?v=quiet-ledger-6">
+    <script src="{{ theme_path }}/static/js/theme.js?v=signal-blue-1"></script>
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-signal-blue.css?v=signal-blue-1">
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css?v=signal-blue-1">
     <link rel="alternate" type="application/atom+xml" title="RSS" href="{{ atom_url }}">
     <link rel="icon" type="image/png" href="{{ theme_path }}/static/images/favicon.png">
     {% if structured_data is defined %}<script type="application/ld+json">{{ structured_data | tojson }}</script>{% endif %}
@@ -41,14 +36,17 @@
     <div class="site-frame">
         <header class="ledger-header">
             <div class="ledger-header-inner">
-                <a href="{{ home_path }}" class="ledger-brand"><strong>{{ author_name }}</strong><span>/ notes</span></a>
+                <a href="{{ home_path }}" class="ledger-brand" aria-label="{{ author_name }} Notes — Home">
+                    <span class="ledger-brand-signal" aria-hidden="true"></span>
+                    <span class="ledger-brand-copy"><strong>{{ author_name }}</strong><small>NOTES / TOOLS / LIFE</small></span>
+                </a>
                 <button class="hamb" type="button" aria-label="Toggle menu" aria-expanded="false" aria-controls="header-nav"><span class="hamb-line" aria-hidden="true"></span></button>
                 <nav class="ledger-nav" id="header-nav" aria-label="Primary navigation">
                     <ul>
                         <li><a class="ledger-nav-link nav-home" href="{{ home_path }}"{% if current_page == 'home' %} aria-current="page"{% endif %}>Home</a></li>
                         {% for item in navigation_items %}
                         {% set nav_page = item.name | lower | replace('/', '-') %}
-                        <li><a class="ledger-nav-link nav-{{ nav_page }}" href="{{ item.url }}"{% if current_page == nav_page %} aria-current="page"{% endif %}>{{ item.name }}</a></li>
+                        <li><a class="ledger-nav-link nav-{{ nav_page }}" href="{{ item.url }}"{% if current_page == nav_page or (current_page == 'article' and nav_page == 'blog') %} aria-current="page"{% endif %}>{{ item.name }}</a></li>
                         {% endfor %}
                         <li>
                             <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">

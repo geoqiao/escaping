@@ -1,11 +1,11 @@
-// geoqiao.me A2 — Quiet Ledger theme controller.
+// geoqiao.me Signal Blue theme controller.
 (function() {
     'use strict';
 
     var STORAGE_KEY = 'theme';
     var LIGHT = 'light';
     var DARK = 'dark';
-    var THEME_COLORS = { light: '#f7f7f5', dark: '#0b0b0d' };
+    var THEME_COLORS = { light: '#f4f6f8', dark: '#0c1118' };
 
     function storedTheme() {
         try {

@@ -1,10 +1,10 @@
-/* Quiet Ledger syntax theme: restrained, near-monochrome, theme-aware. */
+/* Signal Blue syntax theme: restrained, near-monochrome, theme-aware. */
 
 code[class*="language-"],
 pre[class*="language-"] {
   color: var(--ledger-code-text);
   background: none;
-  font-family: var(--font-mono);
+  font-family: var(--font-code);
   line-height: 1.55;
   text-align: left;
   white-space: pre;

@@ -201,19 +201,31 @@ class _MobileNavigationProbe(HTMLParser):
             self._script_data.append(data)
 
 
-def test_geoqiao_theme_renders_approved_quiet_ledger_identity() -> None:
+def test_geoqiao_theme_renders_approved_signal_blue_identity() -> None:
     html = _render_theme("geoqiao.me")
     home = html["index.html"]
+    post = html["blog/post/index.html"]
 
     assert "演悲欢离合，当代岂无前代事？" in home  # noqa: RUF001
     assert "观抑扬褒贬，座中常有剧中人。" in home  # noqa: RUF001
     assert home.index('class="home-ledger-main"') < home.index('class="profile-rail"')
+    assert 'class="ledger-brand-signal"' in home
+    assert 'class="ledger-brand-copy"' in home
+    assert "NOTES / TOOLS / LIFE" in home
     assert "ISSUE #1" in home
-    assert "prism-quiet-ledger.css" in home
+    assert 'class="article-layout"' in post
+    assert 'class="article-issue"' in post
+    assert 'class="article-main"' in post
+    assert "data-article-toc" in post
+    assert "Post." in post
+    assert "prism-signal-blue.css" in home
+    assert "prism-quiet-ledger.css" not in home
     assert "prism-nord.css" not in home
 
 
-def test_geoqiao_theme_renders_approved_reading_typography() -> None:
+def test_geoqiao_theme_renders_approved_system_typography_and_centered_geometry() -> (
+    None
+):
     html = _render_theme("geoqiao.me")
     home = html["index.html"]
     css = (
@@ -222,31 +234,33 @@ def test_geoqiao_theme_renders_approved_reading_typography() -> None:
         .read_text("static/css/style.css")
     )
 
-    for font_stylesheet in (
-        "@fontsource-variable/jetbrains-mono@5.2.6/index.css",
-        "@fontsource-variable/source-serif-4@5.2.6/index.css",
-        "@fontsource-variable/noto-serif-sc@5.2.6/index.css",
-        "lxgw-wenkai-webfont@1.1.0/lxgwwenkai-regular.css",
-    ):
-        assert f"https://cdn.jsdelivr.net/npm/{font_stylesheet}" in home
-    assert "style.css?v=quiet-ledger-6" in home
+    assert "cdn.jsdelivr.net/npm/@fontsource" not in home
+    assert "lxgw-wenkai-webfont" not in home
+    assert "style.css?v=signal-blue-1" in home
     assert "演悲欢离合，当代岂无前代事？" in home  # noqa: RUF001
     assert "观抑扬褒贬，座中常有剧中人。" in home  # noqa: RUF001
 
-    assert '--font-hero: "LXGW WenKai"' in css
-    assert (
-        '--font-display: "Source Serif 4 Variable", "Source Serif 4", '
-        '"Noto Serif SC Variable"' in css
-    )
-    assert "--font-body: -apple-system, BlinkMacSystemFont" in css
-    assert '--font-mono: "JetBrains Mono Variable", "JetBrains Mono"' in css
+    assert "--ledger-accent: #315efb" in css
+    assert "--font-sans: -apple-system, BlinkMacSystemFont" in css
+    assert "--font-hero: var(--font-sans)" in css
+    assert "--font-display: var(--font-sans)" in css
+    assert "--font-body: var(--font-sans)" in css
+    assert "--font-utility: var(--font-sans)" in css
+    assert "--font-code: ui-monospace" in css
+    assert "#1d1d20" not in css
+    assert "#36363b" not in css
 
     hero_rule = _css_rule(css, ".ledger-hero h1")
-    article_rule = _css_rule(css, ".quiet-article")
+    home_shell_rule = _css_rule(css, 'body[data-page="home"] .site-main')
+    article_rule = _css_rule(css, ".article-layout")
+    article_main_rule = _css_rule(css, ".article-main")
     prose_rule = _css_rule(css, ".post-content")
     lead_rule = _css_rule(css, ".post-content > p:first-child")
     assert "var(--font-hero)" in hero_rule
-    assert "max-width: 650px" in article_rule
+    assert "font: 640" in hero_rule
+    assert "1190px" in home_shell_rule
+    assert "96px minmax(0, 620px) 96px" in article_rule
+    assert "min-width: 0" in article_main_rule
     assert "font-family: var(--font-body)" in prose_rule
     assert "font-size: 18px" in prose_rule
     assert "line-height: 1.82" in prose_rule
@@ -324,7 +338,12 @@ def test_geoqiao_mobile_navigation_uses_native_button_and_current_page_state() -
     assert re.search(r'class="ledger-nav-link nav-home"[^>]+aria-current="page"', home)
     assert len(re.findall(r'aria-current="page"', blog)) == 1
     assert re.search(r'class="ledger-nav-link nav-blog"[^>]+aria-current="page"', blog)
-    assert '<meta name="theme-color" content="#f7f7f5" id="theme-color">' in home
+    assert '<meta name="theme-color" content="#f4f6f8" id="theme-color">' in home
+    article = html["blog/post/index.html"]
+    assert len(re.findall(r'aria-current="page"', article)) == 1
+    assert re.search(
+        r'class="ledger-nav-link nav-blog"[^>]+aria-current="page"', article
+    )
 
 
 def _css_rule(source: str, selector: str) -> str:
