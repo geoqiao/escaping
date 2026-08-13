@@ -121,8 +121,10 @@ class SiteBuilder:
             github_name=settings.github.username,
             github_repo=settings.github.repo,
             navigation=tuple(navigation),
+            thesis=tuple(settings.site.thesis),
             profile=SiteProfile(
                 avatar=settings.profile.avatar,
+                tagline=settings.profile.tagline,
                 bio=settings.profile.bio,
                 links=tuple(
                     SiteLink(link.name, link.url) for link in settings.profile.links

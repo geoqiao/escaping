@@ -116,7 +116,8 @@ Blog slug 由 Issue front matter 显式提供，不从标题推导；About 由�
 
 ## 🎨 Themes
 
-不写 Theme 配置时，默认使用内置 `geoqiao.me`：
+不写 Theme 配置时，默认使用中文优先的内置 `geoqiao.me`；`Escape1` 和
+`Escape2` 仍作为可选内置 Theme：
 
 ```yaml
 theme:

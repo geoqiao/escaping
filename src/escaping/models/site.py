@@ -22,6 +22,7 @@ class SiteLink:
 @dataclass(frozen=True)
 class SiteProfile:
     avatar: str = ""
+    tagline: str = ""
     bio: str = ""
     links: tuple[SiteLink, ...] = field(default_factory=tuple)
 
@@ -59,6 +60,7 @@ class SiteMetadata:
     github_name: str
     github_repo: str
     navigation: tuple[SiteLink, ...]
+    thesis: tuple[str, ...]
     profile: SiteProfile
     branding: BrandingMetadata
     comments: CommentsMetadata

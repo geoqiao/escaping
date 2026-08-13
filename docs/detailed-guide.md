@@ -45,10 +45,10 @@ Directory routes write `index.html`:
 - `source: builtin`: a package resource from `src/escaping/themes/`;
 - `source: local`: a directory relative to the Config file.
 
-`geoqiao.me` is the default built-in Theme; Escape1 and Escape2 are alternative reference
-Themes. Templates and static assets come from the same validated manifest and use Jinja
-`StrictUndefined` with autoescape. Theme fetching and commit pinning are orchestration concerns,
-not compiler behavior.
+`geoqiao.me` is the Chinese-first default built-in Theme; Escape1 and Escape2 are
+alternative reference Themes. Templates and static assets come from the same
+validated manifest and use Jinja `StrictUndefined` with autoescape. Theme
+fetching and commit pinning are orchestration concerns, not compiler behavior.
 
 The generator-owned `src/escaping/static/comments.js` is copied into the selected Theme's
 output asset directory. Theme `_comments.html` files declare only the container, safe data

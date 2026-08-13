@@ -26,16 +26,22 @@ def _settings(
     *,
     title: str = "Site",
     author: str = "geoqiao",
+    thesis: list[str] | None = None,
+    tagline: str = "",
     projects: list[dict[str, object]] | None = None,
 ) -> Settings:
+    site: dict[str, object] = {
+        "title": title,
+        "author": author,
+        "url": "https://geoqiao.me/",
+        "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
+    }
+    if thesis is not None:
+        site["thesis"] = thesis
     data: dict[str, object] = {
         "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
-        "site": {
-            "title": title,
-            "author": author,
-            "url": "https://geoqiao.me/",
-            "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
-        },
+        "site": site,
+        "profile": {"tagline": tagline},
         "about": {"issue_number": 10},
         "theme": {"source": "builtin", "name": theme},
         "security": {"token_env": "TOKEN"},
@@ -66,9 +72,18 @@ def _render_theme(
     *,
     title: str = "Site",
     author: str = "geoqiao",
+    thesis: list[str] | None = None,
+    tagline: str = "",
     projects: list[dict[str, object]] | None = None,
 ) -> dict[str, str]:
-    settings = _settings(theme, title=title, author=author, projects=projects)
+    settings = _settings(
+        theme,
+        title=title,
+        author=author,
+        thesis=thesis,
+        tagline=tagline,
+        projects=projects,
+    )
     routes = RouteRegistry(str(settings.site.url))
     content = ContentCompiler(settings, route_registry=routes).compile(
         [
@@ -156,6 +171,28 @@ def test_configured_site_identity_reaches_homepage_search_signals() -> None:
     assert website["name"] == "Geo Qiao"
 
 
+def test_geoqiao_home_renders_configured_thesis_lines_and_profile_tagline() -> None:
+    home = _render_theme(
+        "geoqiao.me",
+        thesis=["Question assumptions.", "Build useful tools."],
+        tagline="Analyst / tool builder",
+    )["index.html"]
+
+    assert (
+        '<h1 id="home-thesis"><span>Question assumptions.</span>'
+        "<span>Build useful tools.</span></h1>"
+    ) in home
+    assert '<p class="profile-role">Analyst / tool builder</p>' in home
+
+
+def test_geoqiao_home_omits_unconfigured_thesis_and_tagline() -> None:
+    home = _render_theme("geoqiao.me", thesis=[], tagline="")["index.html"]
+
+    assert 'class="ledger-hero"' not in home
+    assert 'id="home-thesis"' not in home
+    assert 'class="profile-role"' not in home
+
+
 def test_shared_comments_script_preserves_browser_contract() -> None:
     script = (_ROOT / "src/escaping/static/comments.js").read_text(encoding="utf-8")
 
@@ -206,8 +243,6 @@ def test_geoqiao_theme_renders_approved_signal_blue_identity() -> None:
     home = html["index.html"]
     post = html["blog/post/index.html"]
 
-    assert "演悲欢离合，当代岂无前代事？" in home  # noqa: RUF001
-    assert "观抑扬褒贬，座中常有剧中人。" in home  # noqa: RUF001
     assert home.index('class="home-ledger-main"') < home.index('class="profile-rail"')
     assert 'class="ledger-brand-signal"' in home
     assert 'class="ledger-brand-copy"' in home
@@ -237,8 +272,6 @@ def test_geoqiao_theme_renders_approved_system_typography_and_centered_geometry(
     assert "cdn.jsdelivr.net/npm/@fontsource" not in home
     assert "lxgw-wenkai-webfont" not in home
     assert "style.css?v=signal-blue-2" in home
-    assert "演悲欢离合，当代岂无前代事？" in home  # noqa: RUF001
-    assert "观抑扬褒贬，座中常有剧中人。" in home  # noqa: RUF001
 
     assert "--ledger-accent: #315efb" in css
     assert "--font-sans: -apple-system, BlinkMacSystemFont" in css

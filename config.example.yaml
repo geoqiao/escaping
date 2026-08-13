@@ -12,6 +12,10 @@ site:
   author: Your Name
   description: Short description
   language: en
+  # Each list item is one deliberate Home thesis line; [] omits the section.
+  thesis:
+    - A deliberate statement about your site's perspective.
+    - A second line, when the thought needs one.
   # navigation:          # optional
   #   items:
   #     - name: Blog
@@ -27,6 +31,7 @@ site:
 
 profile:
   avatar: https://github.com/username.png
+  tagline: Researcher / tool builder
   bio: |
     A short bio about yourself.
   links:

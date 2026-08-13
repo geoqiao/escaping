@@ -23,10 +23,12 @@ def _settings(*, navigation_url: str = "/blog/", title: str = "Site") -> Setting
                 "url": "https://example.com/",
                 "description": "Description",
                 "language": "en",
+                "thesis": ["Question assumptions.", "Build useful tools."],
                 "navigation": {"items": [{"name": "Blog", "url": navigation_url}]},
             },
             "profile": {
                 "avatar": "/avatar.png",
+                "tagline": "Analyst / tool builder",
                 "bio": "Bio",
                 "links": [{"name": "GitHub", "url": "https://github.com/owner"}],
             },
@@ -102,6 +104,8 @@ def test_site_builder_composes_metadata_routes_and_internal_page_models() -> Non
     assert not site.has_errors
     assert site.metadata.title == "Site"
     assert site.metadata.navigation[0].url == "/blog/"
+    assert site.metadata.thesis == ("Question assumptions.", "Build useful tools.")
+    assert site.metadata.profile.tagline == "Analyst / tool builder"
     assert site.metadata.profile.bio == "Bio"
     assert site.metadata.comments.repo == "owner/site"
     assert site.metadata.theme.name == "geoqiao.me"

@@ -6,9 +6,11 @@
 {% block content %}
 <div class="home-ledger-shell">
     <div class="home-ledger-main">
+        {% if metadata.thesis %}
         <section class="ledger-hero" aria-labelledby="home-thesis">
-            <h1 id="home-thesis"><span>演悲欢离合，当代岂无前代事？</span><span>观抑扬褒贬，座中常有剧中人。</span></h1>
+            <h1 id="home-thesis">{% for line in metadata.thesis %}<span>{{ line }}</span>{% endfor %}</h1>
         </section>
+        {% endif %}
 
         <section class="recent-posts" aria-labelledby="recent-posts-title">
             <header class="section-heading">
@@ -39,7 +41,7 @@
         {% if metadata.profile.avatar %}<div class="profile-avatar-wrap"><img src="{{ metadata.profile.avatar }}" alt="{{ metadata.author }}" class="profile-avatar" width="112" height="112"></div>{% endif %}
         <p class="utility-label">PROFILE / ACTIVE</p>
         <h2>{{ metadata.author }}</h2>
-        <p class="profile-role">贷后策略分析师 / tool tinkerer</p>
+        {% if metadata.profile.tagline %}<p class="profile-role">{{ metadata.profile.tagline }}</p>{% endif %}
         {% if metadata.profile.bio %}<p class="profile-bio">{{ metadata.profile.bio }}</p>{% endif %}
         {% if metadata.profile.links %}<div class="profile-links">{% for link in metadata.profile.links %}<a href="{{ link.url }}">{{ link.name }}</a>{% endfor %}</div>{% endif %}
         {% if top_projects %}
