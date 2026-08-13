@@ -2,11 +2,11 @@ from __future__ import annotations
 
 from datetime import datetime
 
-from .atom_feed import _AtomFeedBuilder
-from .blog_archive import _build_archives
+from .atom_feed import AtomFeedBuilder
+from .blog_archive import build_archives
 from .build_result import Diagnostic
 from .config import Settings
-from .home_builder import _build_home
+from .home_builder import build_home
 from .models.content import ContentCompilationResult
 from .models.projects import ProjectCompilationResult, ProjectsPage
 from .models.site import (
@@ -20,11 +20,11 @@ from .models.site import (
     ThemeMetadata,
 )
 from .routes import RouteCollisionError, RouteRegistry
-from .tag_taxonomy import _build_tag_taxonomy
+from .tag_taxonomy import build_tag_taxonomy
 
 
 class SiteBuilder:
-    """Build the complete SiteModel; page-specific builders stay internal."""
+    """Build the complete SiteModel by coordinating modular page builders."""
 
     def __init__(
         self, settings: Settings, route_registry: RouteRegistry | None = None
@@ -45,17 +45,17 @@ class SiteBuilder:
 
         try:
             self._require_registered_content(content, projects_page)
-            archives = _build_archives(
+            archives = build_archives(
                 content.blogs, self.settings.paths.page_size, self.routes
             )
-            tags_result = _build_tag_taxonomy(content.blogs, self.routes)
+            tags_result = build_tag_taxonomy(content.blogs, self.routes)
             diagnostics.extend(tags_result.diagnostics)
         except (RouteCollisionError, ValueError) as exc:
             diagnostics.append(
                 Diagnostic("error", "ROUTE_COLLISION", str(exc), field="route")
             )
-            archives = _build_archives((), self.settings.paths.page_size, self.routes)
-            tags_result = _build_tag_taxonomy((), self.routes)
+            archives = build_archives((), self.settings.paths.page_size, self.routes)
+            tags_result = build_tag_taxonomy((), self.routes)
 
         try:
             metadata = self._build_metadata(validate_navigation=True)
@@ -65,8 +65,8 @@ class SiteBuilder:
             )
             metadata = self._build_metadata(validate_navigation=False)
 
-        home = _build_home(content.blogs, self.routes)
-        feed_result = _AtomFeedBuilder(
+        home = build_home(content.blogs, self.routes)
+        feed_result = AtomFeedBuilder(
             metadata,
             build_start_time=build_start_time,
             route_registry=self.routes,

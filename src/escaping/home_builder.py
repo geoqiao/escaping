@@ -9,7 +9,7 @@ from .routes import RouteRegistry
 HOME_POST_COUNT = 5
 
 
-def _build_home(posts: Sequence[BlogPost], routes: RouteRegistry) -> HomePage:
+def build_home(posts: Sequence[BlogPost], routes: RouteRegistry) -> HomePage:
     """Build Home content; SiteBuilder is the only production caller."""
     recent = sorted(
         posts,

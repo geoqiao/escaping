@@ -138,11 +138,11 @@ def _find_illegal_xml_char(value: str) -> int | None:
 
 
 # ---------------------------------------------------------------------------
-# Internal feed builder
+# Feed builder
 # ---------------------------------------------------------------------------
 
 
-class _AtomFeedBuilder:
+class AtomFeedBuilder:
     """Build a strict Blog-only Atom feed from validated ``BlogPost`` values.
 
     The builder is the feed seam: validated posts, settings, and an

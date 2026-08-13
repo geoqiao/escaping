@@ -27,7 +27,7 @@ class _AggregatedTag:
     posts: tuple[BlogPost, ...]
 
 
-def _build_tag_taxonomy(
+def build_tag_taxonomy(
     posts: Sequence[BlogPost], routes: RouteRegistry
 ) -> TagTaxonomyResult:
     """Build Blog tags; SiteBuilder is the only production caller."""
