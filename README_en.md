@@ -4,8 +4,8 @@
 Issues. It compiles conforming Issue snapshots from
 `docs/contracts/issue-content-v1.md` into one `SiteModel`. A single
 `RouteRegistry` owns page routes, output paths, canonical URLs, Atom, sitemap,
-robots, and internal links. The complete artifact is validated before atomic
-publication.
+robots, and internal links. The complete artifact is validated before portable
+staged publication using directory renames with rollback.
 
 ## v1 routes
 
