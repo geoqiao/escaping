@@ -214,6 +214,8 @@ class _MobileNavigationProbe(HTMLParser):
         super().__init__()
         self.hamburger_tag: str | None = None
         self.hamburger: dict[str, str | None] | None = None
+        self.scrim_tag: str | None = None
+        self.scrim: dict[str, str | None] | None = None
         self.scripts: list[str] = []
         self._script_data: list[str] | None = None
 
@@ -225,6 +227,9 @@ class _MobileNavigationProbe(HTMLParser):
         ):
             self.hamburger_tag = tag
             self.hamburger = attributes
+        if "navigation-scrim" in (attributes.get("class") or "").split():
+            self.scrim_tag = tag
+            self.scrim = attributes
         if tag == "script":
             self._script_data = []
 
@@ -369,6 +374,36 @@ def test_geoqiao_mobile_navigation_uses_native_button_and_current_page_state() -
     assert re.search(
         r'class="ledger-nav-link nav-blog"[^>]+aria-current="page"', article
     )
+
+
+def test_geoqiao_mobile_navigation_has_opaque_scrim_dismissal_contract() -> None:
+    home = _render_theme("geoqiao.me")["index.html"]
+    probe = _MobileNavigationProbe()
+    probe.feed(home)
+    css = (
+        ThemeLoader(_ROOT)
+        .load(_settings("geoqiao.me").theme)
+        .read_text("static/css/style.css")
+    )
+
+    assert probe.scrim_tag == "button"
+    assert probe.scrim is not None
+    assert probe.scrim["type"] == "button"
+    assert probe.scrim["tabindex"] == "-1"
+    assert probe.scrim["hidden"] is None
+
+    inline_scripts = "\n".join(probe.scripts)
+    assert "scrim.addEventListener('click'" in inline_scripts
+    assert "scrim.hidden = !expanded" in inline_scripts
+    assert "menuButton.focus()" in inline_scripts
+
+    mobile_panel_rule = _css_rule(css, ".ledger-nav")
+    scrim_rule = _css_rule(css, ".navigation-scrim")
+    assert "background: var(--ledger-paper)" in mobile_panel_rule
+    assert "position: fixed" in scrim_rule
+    assert "inset: 0" in scrim_rule
+    assert "background: var(--ledger-scrim)" in scrim_rule
+    assert ".navigation-scrim:not([hidden])" in css
 
 
 def _css_rule(source: str, selector: str) -> str:

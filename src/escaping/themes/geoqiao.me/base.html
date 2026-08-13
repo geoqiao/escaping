@@ -57,6 +57,7 @@
                 </nav>
             </div>
         </header>
+        <button class="navigation-scrim" type="button" tabindex="-1" aria-label="Close navigation" hidden></button>
 
         <div class="site-content">
             <main class="site-main" id="main-content" tabindex="-1">
@@ -77,15 +78,24 @@
     <script>
     (function() {
         var menuButton = document.querySelector('.hamb');
-        if (menuButton) {
+        var scrim = document.querySelector('.navigation-scrim');
+        if (menuButton && scrim) {
+            function setMenuOpen(expanded) {
+                menuButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+                scrim.hidden = !expanded;
+            }
+            function closeMenu() {
+                setMenuOpen(false);
+                menuButton.focus();
+            }
             menuButton.addEventListener('click', function() {
                 var expanded = menuButton.getAttribute('aria-expanded') === 'true';
-                menuButton.setAttribute('aria-expanded', expanded ? 'false' : 'true');
+                setMenuOpen(!expanded);
             });
+            scrim.addEventListener('click', closeMenu);
             document.addEventListener('keydown', function(event) {
                 if (event.key === 'Escape' && menuButton.getAttribute('aria-expanded') === 'true') {
-                    menuButton.setAttribute('aria-expanded', 'false');
-                    menuButton.focus();
+                    closeMenu();
                 }
             });
         }
