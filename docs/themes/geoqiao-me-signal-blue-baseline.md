@@ -3,9 +3,10 @@
 ## Decision
 
 `geoqiao.me` uses the approved centered Signal Blue direction as its production
-baseline and the generator's default built-in Theme. It is maintained as a
-package resource in `src/escaping/themes/geoqiao.me/`; consumers receive it
-inside the wheel and may choose a Config-relative local Theme instead.
+baseline and the generator's Chinese-first default built-in Theme. It is
+maintained as a package resource in `src/escaping/themes/geoqiao.me/`; consumers
+receive it inside the wheel and may instead choose Escape1, Escape2, or a
+Config-relative local Theme.
 
 ## Visual system
 
@@ -17,9 +18,10 @@ inside the wheel and may choose a Config-relative local Theme instead.
   dependency.
 - **Header:** a blue identity rule and stacked `GEO QIAO` / `NOTES / TOOLS /
   LIFE` wordmark share the existing 72px Header with navigation.
-- **Home:** the approved two-line opera quotation, a centered Issue timeline,
-  and a right-side profile rail on desktop. Mobile hides the profile rail and
-  leads with content.
+- **Home:** the Config-owned, line-structured Site Thesis, a centered Issue
+  timeline, and a right-side profile rail on desktop. An empty Site Thesis
+  omits the hero section. The profile tagline also comes from Config. Mobile
+  hides the profile rail and leads with content.
 - **Blog archive:** the current centered 900px shell and quiet ledger rows.
 - **Blog article:** equal 96px metadata/outline rails around a centered 620px
   reading column. The outline is generated from rendered `h1`/`h2`/`h3` headings;

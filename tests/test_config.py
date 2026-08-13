@@ -97,6 +97,18 @@ def test_profile_and_branding_reject_unsafe_rendered_urls() -> None:
         )
 
 
+@pytest.mark.parametrize(
+    "thesis",
+    [
+        ["A deliberate line.", "   "],
+        ["A deliberate line.", 42],
+    ],
+)
+def test_site_thesis_rejects_blank_or_non_string_lines(thesis: object) -> None:
+    with pytest.raises(ValidationError):
+        Settings.model_validate({**_BASE, "site": {**_BASE["site"], "thesis": thesis}})
+
+
 def test_https_origin_and_dynamic_token_name() -> None:
     assert GithubConfig(repo="o/r", allowed_authors=["A"]).username == "o"
     with pytest.raises(ValidationError):

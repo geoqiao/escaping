@@ -55,8 +55,8 @@ Issues 和 specs 使用 GitHub Issues。详见 `docs/agents/issue-tracker.md`。
    - `postMessage` + `MutationObserver` 自动主题同步；
    - message origin/source 校验；
    - Safari 注入 iframe `loading="lazy"` 移除兼容。
-9. 不得弱化 HTML sanitizer、output containment、artifact validator 或 atomic output
-   staging。
+9. 不得弱化 HTML sanitizer、output containment、artifact validator 或 staged output
+   publication。
 10. GitHub Token 环境变量名由 `settings.security.token_env` 决定。
 
 ## 当前结构

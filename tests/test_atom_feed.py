@@ -29,6 +29,7 @@ def _metadata(*, title: str = "Test & Notes") -> SiteMetadata:
         github_name="owner",
         github_repo="owner/site",
         navigation=(),
+        thesis=(),
         profile=SiteProfile(),
         branding=BrandingMetadata(True, "Powered by", "https://example.com/", ""),
         comments=CommentsMetadata("owner/site", "github-light", "auto"),

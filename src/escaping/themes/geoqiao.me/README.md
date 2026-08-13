@@ -1,12 +1,17 @@
 # geoqiao.me Theme
 
-The default built-in Theme uses the approved centered Signal Blue direction:
-neutral light and dark surfaces, Signal Blue `#315efb` / `#83a0ff` accents,
-and an Apple/system sans stack for display, prose, navigation, and metadata.
-Code keeps a local system monospace stack and the Theme has no Webfont
-dependency.
+The Chinese-first default built-in Theme uses the approved centered Signal Blue
+direction: neutral light and dark surfaces, Signal Blue `#315efb` / `#83a0ff`
+accents, and an Apple/system sans stack for display, prose, navigation, and
+metadata. Code keeps a local system monospace stack and the Theme has no Webfont
+dependency. Escape1 and Escape2 remain available built-in alternatives.
 
 Home retains the centered Issue timeline and right-side profile rail on desktop.
+Its principal message renders the Config-owned Site Thesis as deliberate lines,
+and the profile rail renders the Config-owned Site Profile tagline. Header
+branding, page introductions, labels, empty states, and navigation copy remain
+Theme-owned editorial voice.
+
 Blog archives use the same quiet ledger rows. Blog articles use a centered
 three-column composition with immutable Issue metadata, a 620px reading column,
 and a generated section outline; the side rails collapse below desktop widths.

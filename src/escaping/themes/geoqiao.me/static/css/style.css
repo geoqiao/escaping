@@ -11,6 +11,7 @@
   --ledger-divider: rgba(18, 24, 38, 0.2);
   --ledger-divider-soft: rgba(18, 24, 38, 0.09);
   --ledger-header-bg: rgba(255, 255, 255, 0.95);
+  --ledger-scrim: rgba(18, 24, 38, 0.52);
   --ledger-prose: #293244;
   --ledger-code-bg: #edf1f6;
   --ledger-code-text: #20283a;
@@ -43,6 +44,7 @@ html[data-theme="dark"] {
   --ledger-divider: rgba(242, 245, 250, 0.17);
   --ledger-divider-soft: rgba(242, 245, 250, 0.075);
   --ledger-header-bg: rgba(18, 25, 37, 0.95);
+  --ledger-scrim: rgba(0, 0, 0, 0.68);
   --ledger-prose: #d4dbe7;
   --ledger-code-bg: #151d2a;
   --ledger-code-text: #e1e7f0;
@@ -272,6 +274,17 @@ button {
 
 .hamb {
   display: none;
+}
+
+.navigation-scrim {
+  position: fixed;
+  z-index: 40;
+  inset: 0;
+  display: none;
+  padding: 0;
+  background: var(--ledger-scrim);
+  border: 0;
+  cursor: default;
 }
 
 .hamb:active,
@@ -1309,13 +1322,17 @@ body[data-page="article"] .site-main {
     top: 100%;
     right: 0;
     left: 0;
-    background: var(--ledger-header-bg);
+    background: var(--ledger-paper);
     border-bottom: 1px solid var(--ledger-divider-soft);
     opacity: 0;
     visibility: hidden;
     pointer-events: none;
     transform: translateY(-6px);
     transition: opacity 140ms var(--ease-out), transform 160ms var(--ease-out), visibility 0s linear 160ms;
+  }
+
+  .navigation-scrim:not([hidden]) {
+    display: block;
   }
 
   .ledger-nav ul {

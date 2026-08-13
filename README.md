@@ -21,7 +21,7 @@
 
 ## ✨ 为什么是 escaping？
 
-`escaping` 不把 GitHub Issues 当作一组需要即时渲染的数据，而是把它们当作一次确定性编译的输入。每次构建都会先完成内容解析、路由分配、HTML sanitization 和产物校验；只有整站通过后，才会原子替换当前输出。
+`escaping` 不把 GitHub Issues 当作一组需要即时渲染的数据，而是把它们当作一次确定性编译的输入。每次构建都会先完成内容解析、路由分配、HTML sanitization 和产物校验；只有整站通过后，才会通过可回滚的目录 rename 发布当前输出。
 
 这让一个轻量的个人站同时拥有清晰的内容工作流和可靠的发布边界：
 
@@ -32,7 +32,7 @@
 | 🎨 | **可替换 Theme** | 内置 `geoqiao.me`、`Escape1`、`Escape2`，也支持 Config-relative 本地 Theme |
 | 🔒 | **默认安全** | Markdown HTML allowlist、严格 URL 校验、输出目录 containment、Jinja autoescape |
 | 🔗 | **单一路由来源** | `RouteRegistry` 统一生成 canonical URL 与文件输出路径，避免手工拼接 |
-| 🚀 | **原子发布** | 新产物在 staging 中渲染和验证，失败不会破坏上一版站点 |
+| 🚀 | **分阶段发布** | 新产物在 staging 中渲染和验证，再通过目录 rename 与 rollback 替换本地输出 |
 
 ## 🧭 编译流水线
 
@@ -43,7 +43,7 @@ flowchart LR
     C --> D["Immutable SiteModel"]
     D --> E["Theme Renderer"]
     E --> F["Artifact Validator"]
-    F --> G["Atomic Output"]
+    F --> G["Staged Output Publication"]
 ```
 
 Renderer 和 artifact validator 只读取同一份 `SiteModel`。Theme 作为已经加载的依赖注入渲染层，因此内容、路由和发布安全不会散落到模板里。
@@ -116,7 +116,8 @@ Blog slug 由 Issue front matter 显式提供，不从标题推导；About 由�
 
 ## 🎨 Themes
 
-不写 Theme 配置时，默认使用内置 `geoqiao.me`：
+不写 Theme 配置时，默认使用中文优先的内置 `geoqiao.me`；`Escape1` 和
+`Escape2` 仍作为可选内置 Theme：
 
 ```yaml
 theme:

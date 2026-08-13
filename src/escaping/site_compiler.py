@@ -127,6 +127,8 @@ class SiteCompiler:
         except (OSError, OutputStagingError, ValueError, RuntimeError) as exc:
             logger.exception("strict_build_failed")
             diagnostics.append(Diagnostic("error", "BUILD_FAILED", str(exc)))
+            if isinstance(exc, OutputStagingError) and exc.recovery_paths:
+                return BuildResult(False, tuple(diagnostics))
             return self._fail_staging(staging, staging_dir, diagnostics)
 
     def _github_project_enricher(self, repository_name: str) -> ProjectEnrichment:

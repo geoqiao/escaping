@@ -6,8 +6,8 @@ unrecognized settings fail loudly instead of being silently ignored.
 Configuration contract (per accepted spec):
 - ``github``: repository identity and a non-empty ``allowed_authors`` list.
 - ``site``: top-level site identity — title, author/display name, canonical
-  HTTPS origin, description, language, and navigation.
-- ``profile``: Site Profile — avatar, short bio, and links only.
+  HTTPS origin, description, language, line-structured thesis, and navigation.
+- ``profile``: Site Profile — avatar, short tagline, bio, and links only.
 - ``about``: immutable About Issue selection by ``issue_number``.
 - ``paths``: output and page-size configuration (positive, default 10).
 - ``theme``: explicit built-in package resource or Config-relative local source.
@@ -170,8 +170,8 @@ class NavigationConfig(BaseModel):
 class SiteConfig(BaseModel):
     """Top-level site identity.
 
-    Owns display name, canonical HTTPS origin, description, language, and
-    navigation.  The canonical origin must use HTTPS.
+    Owns display name, canonical HTTPS origin, description, language, Site
+    Thesis lines, and navigation.  The canonical origin must use HTTPS.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -181,7 +181,15 @@ class SiteConfig(BaseModel):
     url: HttpUrl
     description: str = ""
     language: str = "en"
+    thesis: list[str] = Field(default_factory=list)
     navigation: NavigationConfig = Field(default_factory=NavigationConfig)
+
+    @field_validator("thesis")
+    @classmethod
+    def validate_thesis(cls, v: list[str]) -> list[str]:
+        if any(not line.strip() for line in v):
+            raise ValueError("thesis must not contain blank lines")
+        return v
 
     @field_validator("url", mode="before")
     @classmethod
@@ -215,7 +223,7 @@ class SiteConfig(BaseModel):
 
 
 class SiteProfileConfig(BaseModel):
-    """Site Profile — avatar, short bio, and links only.
+    """Site Profile — avatar, short tagline, bio, and links only.
 
     The detailed About narrative belongs to About Issue Content, not this
     section.
@@ -224,6 +232,7 @@ class SiteProfileConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     avatar: str = ""
+    tagline: str = ""
     bio: str = ""
     links: list[Link] = Field(default_factory=list)
 

@@ -30,6 +30,24 @@ Config, workflow, `CNAME`, and local Theme changes should trigger a build. Issue
 trigger it because Issues are the content source. Branch/PR validation may build and upload an
 artifact, but the deploy job must be guarded to `refs/heads/main`.
 
+## Publication safety boundaries
+
+Live Pages protection and local output protection are separate:
+
+- The Site Orchestrator deploy job depends on a successful build and artifact upload. A failed
+  build therefore leaves the currently deployed Pages artifact untouched.
+- The Site Compiler renders and validates a complete candidate in an owned staging directory
+  before local publication begins. Compile, render, or validation failures leave an existing local
+  output tree unchanged.
+- Local publication uses portable directory renames. When output already exists, the compiler
+  renames it to an owned sibling backup, promotes staging, and restores the backup if promotion
+  fails. A successful local rebuild may briefly have no output path between those renames; it never
+  copies a partial candidate into output file by file.
+
+Backup cleanup failure is reported as a warning after the complete new output is published. If
+rollback also fails, the build fails with explicit final, candidate, and backup paths and preserves
+the recoverable trees for manual recovery.
+
 ## Why the compiler is pinned
 
 Generator and site repositories cannot change atomically. A full SHA makes templates, Config
@@ -46,7 +64,8 @@ Before production cutover, verify at least:
 - canonical, Open Graph, Twitter, and JSON-LD URLs;
 - Atom entry/self links, sitemap membership, and robots sitemap URL;
 - Issue-number comments and light/dark synchronization;
-- failed builds leave the currently deployed artifact untouched.
+- Site Orchestrator gating leaves the currently deployed artifact untouched when a build fails;
+- compiler staging leaves existing local output unchanged when compilation or validation fails.
 
 The site must be served from the artifact root. `output/` is a filesystem directory, not a URL
 prefix.

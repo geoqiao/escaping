@@ -7,7 +7,7 @@ from .models.blog_post import BlogPost
 from .routes import RouteRegistry
 
 
-def _build_archives(
+def build_archives(
     posts: Sequence[BlogPost], page_size: int, routes: RouteRegistry
 ) -> tuple[ArchivePage, ...]:
     """Build paginated Blog archives; SiteBuilder is the only caller."""

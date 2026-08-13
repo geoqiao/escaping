@@ -11,7 +11,7 @@ IssueSnapshot[] + Settings + Project Catalog
   → SiteModel(SiteMetadata + pages + Routes)
   → RenderService(LoadedTheme)
   → SiteArtifactValidator
-  → atomic output publication
+  → staged output publication
 ```
 
 `Settings` is explicitly injected into compilation and `SiteBuilder`. Rendering and artifact
@@ -45,10 +45,10 @@ Directory routes write `index.html`:
 - `source: builtin`: a package resource from `src/escaping/themes/`;
 - `source: local`: a directory relative to the Config file.
 
-`geoqiao.me` is the default built-in Theme; Escape1 and Escape2 are alternative reference
-Themes. Templates and static assets come from the same validated manifest and use Jinja
-`StrictUndefined` with autoescape. Theme fetching and commit pinning are orchestration concerns,
-not compiler behavior.
+`geoqiao.me` is the Chinese-first default built-in Theme; Escape1 and Escape2 are
+alternative reference Themes. Templates and static assets come from the same
+validated manifest and use Jinja `StrictUndefined` with autoescape. Theme
+fetching and commit pinning are orchestration concerns, not compiler behavior.
 
 The generator-owned `src/escaping/static/comments.js` is copied into the selected Theme's
 output asset directory. Theme `_comments.html` files declare only the container, safe data
@@ -60,7 +60,10 @@ the Safari workaround that removes injected iframe `loading="lazy"`.
 
 Output paths are contained beneath the Config directory. A build writes to a registered staging
 directory, validates all expected routes, metadata, links, resources, XML, sitemap, and robots,
-and only then atomically replaces the old output. Failed builds preserve the previous site.
+and only then publishes it with portable directory renames. Failures before publication preserve
+the previous output. A successful replacement of existing local output may have a brief path
+window while the old tree is held in a uniquely owned backup; promotion failure restores that
+backup, and rollback failure preserves both recovery trees with explicit path diagnostics.
 
 ## Commands
 
