@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -14,14 +15,14 @@ from escaping.output_staging import OutputStagingError, OutputStagingService
 from escaping.site_compiler import SiteCompiler
 
 
-def _snapshot(number: int, body: str) -> IssueSnapshot:
+def _snapshot(number: int, body: str, *, kind: str = "blog") -> IssueSnapshot:
     now = datetime(2026, 1, number, tzinfo=UTC)
     return IssueSnapshot(
         number,
         "Post",
         "geoqiao",
         body,
-        ("type:blog", "published"),
+        (f"type:{kind}", "published"),
         now,
         now,
         False,
@@ -73,7 +74,7 @@ def test_publish_replaces_existing_tree_without_partial_output(tmp_path: Path) -
     assert not (final / "stale.txt").exists()
 
 
-def test_failed_exchange_leaves_final_and_candidate_unchanged(tmp_path: Path) -> None:
+def test_failed_promotion_restores_previous_output(tmp_path: Path) -> None:
     service = OutputStagingService("output", tmp_path)
     final = tmp_path / "output"
     final.mkdir()
@@ -81,14 +82,107 @@ def test_failed_exchange_leaves_final_and_candidate_unchanged(tmp_path: Path) ->
     staging = service.create_staging_directory()
     (staging / "index.html").write_text("new", encoding="utf-8")
 
+    real_rename = os.rename
+
+    def fail_candidate_promotion(source: Path, destination: Path) -> None:
+        if Path(source) == staging and Path(destination) == final:
+            raise OSError("injected promotion failure")
+        real_rename(source, destination)
+
     with (
-        patch("escaping.output_staging._atomic_swap", side_effect=OSError("no swap")),
-        pytest.raises(OutputStagingError, match="final output unchanged"),
+        patch(
+            "escaping.output_staging.os.rename",
+            side_effect=fail_candidate_promotion,
+        ),
+        pytest.raises(OutputStagingError, match="restored previous output"),
     ):
         service.publish(staging)
 
     assert (final / "index.html").read_text(encoding="utf-8") == "old"
     assert (staging / "index.html").read_text(encoding="utf-8") == "new"
+    assert not list(tmp_path.glob(".output.backup.*"))
+
+
+def test_failed_rollback_preserves_recovery_trees_and_reports_paths(
+    tmp_path: Path,
+) -> None:
+    output = tmp_path / "output"
+    output.mkdir()
+    (output / "index.html").write_text("old", encoding="utf-8")
+    real_rename = os.rename
+
+    def fail_publication_and_rollback(source: Path, destination: Path) -> None:
+        source_path = Path(source)
+        destination_path = Path(destination)
+        if destination_path == output and source_path.name.startswith(
+            ".output.staging."
+        ):
+            raise OSError("injected promotion failure")
+        if destination_path == output and source_path.name.startswith(
+            ".output.backup."
+        ):
+            raise OSError("injected rollback failure")
+        real_rename(source, destination)
+
+    with patch(
+        "escaping.output_staging.os.rename",
+        side_effect=fail_publication_and_rollback,
+    ):
+        result = SiteCompiler(
+            "unused",
+            "geoqiao/site",
+            _settings(),
+            config_root=tmp_path,
+            github_service=_FakeGitHub(
+                [
+                    _snapshot(
+                        1,
+                        '---\ndescription: About.\ncreated_date: "2026-01-01"'
+                        "\n---\n\nAbout.",
+                        kind="about",
+                    )
+                ]
+            ),
+        ).generate()
+
+    assert not result.success
+    staging = next(tmp_path.glob(".output.staging.*"))
+    backup = next(tmp_path.glob(".output.backup.*"))
+    assert not output.exists()
+    assert (staging / "index.html").exists()
+    assert (backup / "index.html").read_text(encoding="utf-8") == "old"
+    diagnostic = next(
+        item
+        for item in result.diagnostics
+        if item.code == "BUILD_FAILED" and "rollback" in item.message.lower()
+    )
+    assert str(output) in diagnostic.message
+    assert str(staging) in diagnostic.message
+    assert str(backup) in diagnostic.message
+
+
+def test_backup_cleanup_failure_warns_after_successful_publication(
+    tmp_path: Path,
+) -> None:
+    service = OutputStagingService("output", tmp_path)
+    final = tmp_path / "output"
+    final.mkdir()
+    (final / "index.html").write_text("old", encoding="utf-8")
+    staging = service.create_staging_directory()
+    (staging / "index.html").write_text("new", encoding="utf-8")
+
+    with patch(
+        "escaping.output_staging.shutil.rmtree",
+        side_effect=OSError("injected cleanup failure"),
+    ):
+        diagnostics = service.publish(staging)
+
+    backup = next(tmp_path.glob(".output.backup.*"))
+    assert (final / "index.html").read_text(encoding="utf-8") == "new"
+    assert (backup / "index.html").read_text(encoding="utf-8") == "old"
+    assert [item.code for item in diagnostics] == ["BACKUP_CLEANUP_FAILED"]
+    assert diagnostics[0].severity == "warning"
+    assert str(backup) in diagnostics[0].message
 
 
 def test_cleanup_rejects_unregistered_candidate(tmp_path: Path) -> None:

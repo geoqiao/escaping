@@ -46,7 +46,7 @@ flowchart TD
         Themes["Themes<br/>Escape1 / Escape2 / geoqiao.me"]
         Staging["隔离的 Staging 目录"]
         Validator["SiteArtifactValidator<br/>路由、Meta、资源、JSON-LD<br/>Atom、Sitemap、Robots 验证"]
-        Publisher["OutputStagingService<br/>原子发布"]
+        Publisher["OutputStagingService<br/>便携式分阶段发布"]
         Output["output/<br/>完整静态站点"]
         Failed["终止构建<br/>清理 Staging 并保留旧站点"]
     end
@@ -91,7 +91,8 @@ flowchart TD
 - `Settings` 显式传入 `SiteCompiler`，再由编排层把完整配置或对应配置段传给下游组件，不存在全局配置单例；
 - `RouteRegistry` 是 canonical URL 与输出路径的唯一注册入口；
 - 渲染只消费内部 `SiteModel`，不会直接读取 GitHub Issue；
-- 新产物必须在 Staging 中完整验证，验证成功后才会原子替换现有 `output/`。
+- 新产物必须在 Staging 中完整验证，验证成功后才会通过目录 rename 与 rollback 发布到
+  `output/`；成功替换本地旧输出时允许短暂路径空窗。
 
 ## 生产流程
 

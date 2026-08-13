@@ -11,7 +11,7 @@ IssueSnapshot[] + Settings + Project Catalog
   → SiteModel(SiteMetadata + pages + Routes)
   → RenderService(LoadedTheme)
   → SiteArtifactValidator
-  → atomic output publication
+  → staged output publication
 ```
 
 `Settings` is explicitly injected into compilation and `SiteBuilder`. Rendering and artifact
@@ -60,7 +60,10 @@ the Safari workaround that removes injected iframe `loading="lazy"`.
 
 Output paths are contained beneath the Config directory. A build writes to a registered staging
 directory, validates all expected routes, metadata, links, resources, XML, sitemap, and robots,
-and only then atomically replaces the old output. Failed builds preserve the previous site.
+and only then publishes it with portable directory renames. Failures before publication preserve
+the previous output. A successful replacement of existing local output may have a brief path
+window while the old tree is held in a uniquely owned backup; promotion failure restores that
+backup, and rollback failure preserves both recovery trees with explicit path diagnostics.
 
 ## Commands
 
