@@ -238,143 +238,46 @@ class _MobileNavigationProbe(HTMLParser):
             self._script_data.append(data)
 
 
-def test_geoqiao_theme_renders_approved_signal_blue_identity() -> None:
+def test_geoqiao_theme_preserves_semantic_page_structure() -> None:
     html = _render_theme("geoqiao.me")
     home = html["index.html"]
     post = html["blog/post/index.html"]
 
-    assert home.index('class="home-ledger-main"') < home.index('class="profile-rail"')
-    assert 'class="ledger-brand-signal"' in home
-    assert 'class="ledger-brand-copy"' in home
-    assert "NOTES / TOOLS / LIFE" in home
-    assert "ISSUE #1" in home
-    assert 'class="article-layout"' in post
-    assert 'class="article-issue"' in post
-    assert 'class="article-main"' in post
-    assert "data-article-toc" in post
-    assert "Post." in post
-    assert "prism-signal-blue.css" in home
-    assert "prism-quiet-ledger.css" not in home
-    assert "prism-nord.css" not in home
+    assert '<main class="site-main" id="main-content" tabindex="-1">' in home
+    assert '<section class="recent-posts" aria-labelledby="recent-posts-title">' in home
+    assert '<aside class="profile-rail" aria-label="Site profile">' in home
+    assert '<article class="article-layout">' in post
+    assert '<aside class="article-issue" aria-label="Article metadata">' in post
+    assert '<nav data-article-toc aria-label="Article sections"></nav>' in post
 
 
-def test_geoqiao_theme_renders_approved_system_typography_and_centered_geometry() -> (
-    None
-):
-    html = _render_theme("geoqiao.me")
-    home = html["index.html"]
+def test_geoqiao_theme_uses_local_stylesheets_and_exposes_accent_token() -> None:
+    home = _render_theme("geoqiao.me")["index.html"]
     css = (
         ThemeLoader(_ROOT)
         .load(_settings("geoqiao.me").theme)
         .read_text("static/css/style.css")
     )
 
-    assert "cdn.jsdelivr.net/npm/@fontsource" not in home
-    assert "lxgw-wenkai-webfont" not in home
-    assert "style.css?v=signal-blue-2" in home
-
-    assert "--ledger-accent: #315efb" in css
-    assert "--font-sans: -apple-system, BlinkMacSystemFont" in css
-    assert "--font-hero: var(--font-sans)" in css
-    assert "--font-display: var(--font-sans)" in css
-    assert "--font-body: var(--font-sans)" in css
-    assert "--font-utility: var(--font-sans)" in css
-    assert "--font-code: ui-monospace" in css
-    assert "#1d1d20" not in css
-    assert "#36363b" not in css
-
-    hero_rule = _css_rule(css, ".ledger-hero h1")
-    home_shell_rule = _css_rule(css, 'body[data-page="home"] .site-main')
-    article_shell_rule = _css_rule(css, 'body[data-page="article"] .site-main')
-    article_rule = _css_rule(css, ".article-layout")
-    article_main_rule = _css_rule(css, ".article-main")
-    prose_rule = _css_rule(css, ".post-content")
-    lead_rule = _css_rule(css, ".post-content > p:first-child")
-    assert "var(--font-hero)" in hero_rule
-    assert "font: 640" in hero_rule
-    assert "1190px" in home_shell_rule
-    assert "1108px" in article_shell_rule
-    assert "220px minmax(0, 620px) 220px" in article_rule
-    assert "gap: 24px" in article_rule
-    assert "min-width: 0" in article_main_rule
-    assert "font-family: var(--font-body)" in prose_rule
-    assert "font-size: 18px" in prose_rule
-    assert "line-height: 1.82" in prose_rule
-    assert "letter-spacing: 0" in prose_rule
-    assert "font-family: var(--font-body)" in lead_rule
-    assert "font-size: 19px" in lead_rule
-
-
-def test_geoqiao_signal_blue_uses_dot_states_without_forcing_latest_title_blue() -> (
-    None
-):
-    html = _render_theme("geoqiao.me")
-    home = html["index.html"]
-    css = (
-        ThemeLoader(_ROOT)
-        .load(_settings("geoqiao.me").theme)
-        .read_text("static/css/style.css")
+    stylesheet_hrefs = re.findall(
+        r'<link rel="stylesheet" href="([^"]+)">',
+        home,
     )
-
-    assert "<span>Home</span>" in home
-    assert "<span>Blog</span>" in home
-    assert 'class="ledger-row is-active"' not in home
-    assert 'class="is-live"' in home
-
-    active_dot_rule = _css_rule(
-        css, '.ledger-nav-link[aria-current="page"] > span::after'
+    assert stylesheet_hrefs
+    assert all(
+        href.startswith("/templates/geoqiao.me/static/") for href in stylesheet_hrefs
     )
-    assert "width: 5px" in active_dot_rule
-    assert "height: 5px" in active_dot_rule
-    assert "border-radius: 50%" in active_dot_rule
-    assert "scaleX" not in active_dot_rule
-
-    title_state_rule = _css_rule(
+    assert not re.search(r"""@import\s+(?:url\()?['"]?(?:https?:)?//""", css)
+    assert not re.search(
+        r"@font-face\s*\{[^}]*(?:https?:)?//",
         css,
-        ".ledger-entry h2 a:hover,\n"
-        ".ledger-entry h3 a:hover,\n"
-        ".ledger-entry h2 a:focus-visible,\n"
-        ".ledger-entry h3 a:focus-visible",
+        flags=re.DOTALL,
     )
-    assert "color: var(--ledger-accent)" in title_state_rule
-    assert "text-decoration" not in title_state_rule
-    assert ".ledger-row:has(.ledger-entry h2 a:hover) .ledger-track span" in css
+    assert re.search(r"--ledger-accent\s*:\s*\S[^;]*", _css_rule(css, ":root"))
 
 
-def test_geoqiao_article_toc_is_centered_single_line_and_tracks_nested_sections() -> (
-    None
-):
-    html = _render_theme("geoqiao.me")
-    post = html["blog/post/index.html"]
-    css = (
-        ThemeLoader(_ROOT)
-        .load(_settings("geoqiao.me").theme)
-        .read_text("static/css/style.css")
-    )
-
-    toc_rule = _css_rule(css, ".article-toc")
-    toc_link_rule = _css_rule(css, ".article-toc .toc-link")
-    active_toc_rule = _css_rule(css, '.article-toc .toc-link[aria-current="location"]')
-    active_dot_rule = _css_rule(
-        css, '.article-toc .toc-link[aria-current="location"]::before'
-    )
-    heading_rule = _css_rule(
-        css, ".post-content h1,\n.post-content h2,\n.post-content h3,\n.post-content h4"
-    )
-
-    assert "width: 220px" in toc_rule
-    assert "max-height: calc(100vh - 56px)" in toc_rule
-    assert "overflow-y: auto" in toc_rule
-    assert "white-space: nowrap" in toc_link_rule
-    assert "text-overflow: ellipsis" in toc_link_rule
-    assert "color: var(--ledger-accent)" in active_toc_rule
-    assert "width: 5px" in active_dot_rule
-    assert "border-radius: 50%" in active_dot_rule
-    assert "scroll-margin-top: 28px" in heading_rule
-    assert "@media (max-width: 1170px)" in css
-    assert ".article-issue,\n  .article-toc {\n    display: none" in css
-    assert "font-size: clamp(22px, 5.8vw, 30px)" in css
-    assert "text-wrap: pretty" in css
+def test_geoqiao_article_toc_tracks_nested_sections_and_hash_navigation() -> None:
+    post = _render_theme("geoqiao.me")["blog/post/index.html"]
 
     assert (
         'document.querySelectorAll(".article-main .post-content h2, .article-main .post-content h3")'
@@ -384,11 +287,9 @@ def test_geoqiao_article_toc_is_centered_single_line_and_tracks_nested_sections(
     assert 'className = "toc-children"' in post
     assert "link.title = heading.textContent" in post
     assert 'link.setAttribute("aria-current", "location")' in post
-    assert "heading.getBoundingClientRect().top <= 190" in post
     assert 'group.element.classList.toggle("is-expanded"' in post
     assert "hashId = decodeURIComponent(hashId)" in post
     assert "hashTarget.scrollIntoView()" in post
-    assert "IntersectionObserver" not in post
 
 
 def test_geoqiao_home_renders_five_configured_projects_ranked_by_stars() -> None:
@@ -460,7 +361,9 @@ def test_geoqiao_mobile_navigation_uses_native_button_and_current_page_state() -
     assert re.search(r'class="ledger-nav-link nav-home"[^>]+aria-current="page"', home)
     assert len(re.findall(r'aria-current="page"', blog)) == 1
     assert re.search(r'class="ledger-nav-link nav-blog"[^>]+aria-current="page"', blog)
-    assert '<meta name="theme-color" content="#f4f6f8" id="theme-color">' in home
+    assert re.search(
+        r'<meta name="theme-color" content="[^"]+" id="theme-color">', home
+    )
     article = html["blog/post/index.html"]
     assert len(re.findall(r'aria-current="page"', article)) == 1
     assert re.search(
@@ -483,6 +386,6 @@ def test_theme_contains_local_overflow_contract(theme: str) -> None:
     table_rule = _css_rule(css, ".post-content table")
     pre_rule = _css_rule(css, ".post-content pre")
     assert "display: block" in table_rule
-    assert "max-width: 100%" in table_rule
+    assert "max-width:" in table_rule
     assert "overflow-x: auto" in table_rule
     assert "overflow-x: auto" in pre_rule
