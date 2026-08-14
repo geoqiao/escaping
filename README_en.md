@@ -36,9 +36,8 @@ uv run python -m http.server 8000 --directory output
 
 `security.token_env` selects the token environment variable dynamically. The
 generator ships `config.example.yaml`, and the default Theme is `geoqiao.me`.
-Escape1, Escape2, and geoqiao.me share
-the same template contract, comments behavior, canonical origin
-`https://geoqiao.me`, and RouteRegistry rules.
+Escape1, Escape2, and geoqiao.me share the same template contract, comments
+behavior, canonical origin `https://geoqiao.me`, and RouteRegistry rules.
 
 ## Verification
 

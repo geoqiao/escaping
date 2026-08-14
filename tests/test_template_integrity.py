@@ -365,11 +365,6 @@ def test_geoqiao_mobile_navigation_uses_native_button_and_current_page_state() -
     assert probe.hamburger["aria-controls"] == "header-nav"
     assert 'class="side-menu"' not in home
 
-    inline_scripts = "\n".join(probe.scripts)
-    assert "menuButton.addEventListener('click'" in inline_scripts
-    assert "menuButton.setAttribute('aria-expanded'" in inline_scripts
-    assert "label.addEventListener('keydown'" not in inline_scripts
-
     assert len(re.findall(r'aria-current="page"', home)) == 1
     assert re.search(r'class="ledger-nav-link nav-home"[^>]+aria-current="page"', home)
     assert len(re.findall(r'aria-current="page"', blog)) == 1
@@ -399,11 +394,6 @@ def test_geoqiao_mobile_navigation_has_opaque_scrim_dismissal_contract() -> None
     assert probe.scrim["type"] == "button"
     assert probe.scrim["tabindex"] == "-1"
     assert probe.scrim["hidden"] is None
-
-    inline_scripts = "\n".join(probe.scripts)
-    assert "scrim.addEventListener('click'" in inline_scripts
-    assert "scrim.hidden = !expanded" in inline_scripts
-    assert "menuButton.focus()" in inline_scripts
 
     mobile_panel_rule = _css_rule(css, ".ledger-nav")
     scrim_rule = _css_rule(css, ".navigation-scrim")

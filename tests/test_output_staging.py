@@ -234,7 +234,7 @@ def test_publish_and_cleanup_reject_staging_replaced_by_symlink(
 
     with pytest.raises(OutputStagingError, match="symlink"):
         service.publish(staging)
-    with pytest.raises(OutputStagingError):
+    with pytest.raises(OutputStagingError, match="unregistered"):
         service.cleanup(staging)
 
     assert output.is_dir()

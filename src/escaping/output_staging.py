@@ -247,8 +247,9 @@ class OutputStagingService:
         Raises:
             FileNotFoundError: If *staging_dir* does not exist.
             OutputStagingError: If the path is unregistered, external,
-                moved, symlinked, or wrong-parent, or publication/rollback
-                fails.
+                moved, symlinked, wrong-parent, or disappears/becomes
+                unreadable during identity verification, or
+                publication/rollback fails.
         """
         self._verify_registered(staging_dir)
 
@@ -348,8 +349,9 @@ class OutputStagingService:
 
         Raises:
             OutputStagingError: If the path exists but is unregistered,
-                external, moved, symlinked, or wrong-parent (programming
-                error).
+                external, moved, symlinked, wrong-parent, or disappears/becomes
+                unreadable during identity verification (programming or
+                concurrency error).
         """
         resolved = staging_dir.resolve()
 
