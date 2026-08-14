@@ -10,23 +10,34 @@ from threading import Thread
 
 import pytest
 
-pytest.importorskip("playwright.sync_api")
+_PLAYWRIGHT_PACKAGE_MESSAGE = (
+    "Playwright Python package is required for browser tests; run `uv sync`."
+)
+try:
+    pytest.importorskip("playwright.sync_api", reason=_PLAYWRIGHT_PACKAGE_MESSAGE)
+except pytest.skip.Exception:
+    if os.environ.get("CI", "").lower() == "true":
+        pytest.fail(
+            f"{_PLAYWRIGHT_PACKAGE_MESSAGE} CI must install dev dependencies.",
+            pytrace=False,
+        )
+    raise
 
-from playwright.sync_api import (
+from playwright.sync_api import (  # noqa: E402
     Error,
     Page,
     expect,
     sync_playwright,
 )
 
-from escaping.config import Settings
-from escaping.content_compiler import ContentCompiler
-from escaping.models.issue_snapshot import IssueSnapshot
-from escaping.projects import ProjectCompiler
-from escaping.routes import RouteRegistry
-from escaping.services.render_service import RenderService
-from escaping.site_builder import SiteBuilder
-from escaping.theme import ThemeLoader
+from escaping.config import Settings  # noqa: E402
+from escaping.content_compiler import ContentCompiler  # noqa: E402
+from escaping.models.issue_snapshot import IssueSnapshot  # noqa: E402
+from escaping.projects import ProjectCompiler  # noqa: E402
+from escaping.routes import RouteRegistry  # noqa: E402
+from escaping.services.render_service import RenderService  # noqa: E402
+from escaping.site_builder import SiteBuilder  # noqa: E402
+from escaping.theme import ThemeLoader  # noqa: E402
 
 _ROOT = Path(__file__).parent.parent.absolute()
 
@@ -187,7 +198,9 @@ def test_mobile_navigation_user_journey(mobile_page: Page) -> None:
     mobile_page.keyboard.press("Enter")
     expect(menu_button).to_have_attribute("aria-expanded", "true")
     expect(scrim).to_be_visible()
-    scrim.press("Enter")
+    scrim_box = scrim.bounding_box()
+    assert scrim_box is not None
+    scrim.click(position={"x": scrim_box["width"] / 2, "y": scrim_box["height"] - 1})
     expect(menu_button).to_have_attribute("aria-expanded", "false")
     expect(scrim).to_be_hidden()
     expect(menu_button).to_be_focused()
