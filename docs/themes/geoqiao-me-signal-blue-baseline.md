@@ -22,6 +22,8 @@ Config-relative local Theme.
   timeline, and a right-side profile rail on desktop. An empty Site Thesis
   omits the hero section. The profile tagline also comes from Config. Mobile
   hides the profile rail and leads with content.
+- Home always renders exactly one `h1`; without a Site Thesis, the site-title
+  `h1` is visually hidden while remaining in the accessibility tree.
 - **Blog archive:** the current centered 900px shell and quiet ledger rows.
 - **Blog article:** equal 96px metadata/outline rails around a centered 620px
   reading column. The outline is generated from rendered `h1`/`h2`/`h3` headings;

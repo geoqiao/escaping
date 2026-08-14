@@ -6,7 +6,7 @@
 
 **把 GitHub Issues 编译成一个完整、可靠、可部署的个人网站。**
 
-一个 opinionated personal-site generator：以 Issues 为内容源，经由不可变模型、严格校验与原子发布，生成 Blog、Ideas、Projects、About、Tags、Atom 和完整 SEO artifacts。
+一个 opinionated personal-site generator：以 Issues 为内容源，经由不可变模型、严格校验与分阶段发布，生成 Blog、Ideas、Projects、About、Tags、Atom 和完整 SEO artifacts。
 
 [![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![GitHub Issues](https://img.shields.io/badge/Content-GitHub_Issues-181717?logo=github)](https://docs.github.com/issues)

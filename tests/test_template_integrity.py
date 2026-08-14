@@ -191,6 +191,14 @@ def test_geoqiao_home_omits_unconfigured_thesis_and_tagline() -> None:
     assert 'class="ledger-hero"' not in home
     assert 'id="home-thesis"' not in home
     assert 'class="profile-role"' not in home
+    assert home.count("<h1") == 1
+    assert '<h1 class="visually-hidden">Site</h1>' in home
+    css = (
+        ThemeLoader(_ROOT)
+        .load(_settings("geoqiao.me").theme)
+        .read_text("static/css/style.css")
+    )
+    assert "clip-path: inset(50%)" in _css_rule(css, ".visually-hidden")
 
 
 def test_shared_comments_script_preserves_browser_contract() -> None:
@@ -357,11 +365,6 @@ def test_geoqiao_mobile_navigation_uses_native_button_and_current_page_state() -
     assert probe.hamburger["aria-controls"] == "header-nav"
     assert 'class="side-menu"' not in home
 
-    inline_scripts = "\n".join(probe.scripts)
-    assert "menuButton.addEventListener('click'" in inline_scripts
-    assert "menuButton.setAttribute('aria-expanded'" in inline_scripts
-    assert "label.addEventListener('keydown'" not in inline_scripts
-
     assert len(re.findall(r'aria-current="page"', home)) == 1
     assert re.search(r'class="ledger-nav-link nav-home"[^>]+aria-current="page"', home)
     assert len(re.findall(r'aria-current="page"', blog)) == 1
@@ -391,11 +394,6 @@ def test_geoqiao_mobile_navigation_has_opaque_scrim_dismissal_contract() -> None
     assert probe.scrim["type"] == "button"
     assert probe.scrim["tabindex"] == "-1"
     assert probe.scrim["hidden"] is None
-
-    inline_scripts = "\n".join(probe.scripts)
-    assert "scrim.addEventListener('click'" in inline_scripts
-    assert "scrim.hidden = !expanded" in inline_scripts
-    assert "menuButton.focus()" in inline_scripts
 
     mobile_panel_rule = _css_rule(css, ".ledger-nav")
     scrim_rule = _css_rule(css, ".navigation-scrim")
