@@ -191,6 +191,14 @@ def test_geoqiao_home_omits_unconfigured_thesis_and_tagline() -> None:
     assert 'class="ledger-hero"' not in home
     assert 'id="home-thesis"' not in home
     assert 'class="profile-role"' not in home
+    assert home.count("<h1") == 1
+    assert '<h1 class="visually-hidden">Site</h1>' in home
+    css = (
+        ThemeLoader(_ROOT)
+        .load(_settings("geoqiao.me").theme)
+        .read_text("static/css/style.css")
+    )
+    assert "clip-path: inset(50%)" in _css_rule(css, ".visually-hidden")
 
 
 def test_shared_comments_script_preserves_browser_contract() -> None:

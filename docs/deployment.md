@@ -48,12 +48,18 @@ Backup cleanup failure is reported as a warning after the complete new output is
 rollback also fails, the build fails with explicit final, candidate, and backup paths and preserves
 the recoverable trees for manual recovery.
 
+Staging ownership checks run before each mutation. The interval between a check and its mutation is
+a known local TOCTOU window and is not closed by this design. Concurrent local builds targeting the
+same output directory are unsupported; the compiler does not provide a build lock.
+
 ## Why the compiler is pinned
 
 Generator and site repositories cannot change atomically. A full SHA makes templates, Config
 schema, routing, sanitization, and output validation reproducible. The site changes its pin only
-after a consumer build succeeds. Rollback is changing the pin to the previously verified SHA and
-running the workflow again.
+after a consumer build succeeds. Rollback changes the pin to the previously verified SHA and runs
+the workflow again. If the site PR also changed `config.yaml` in a way the older generator rejects,
+the rollback must revert that site Config commit together with the pin: `extra="forbid"` means
+unknown fields fail, so re-pinning alone can leave a Config that the previous generator cannot load.
 
 ## Artifact verification
 
