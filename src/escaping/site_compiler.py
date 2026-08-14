@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import Protocol, cast
 
 import structlog
+from jinja2 import TemplateError, TemplateSyntaxError
 
 from .artifact_validation import SiteArtifactValidator
 from .build_result import BuildResult, Diagnostic
@@ -124,6 +125,16 @@ class SiteCompiler:
                 return self._fail_staging(staging, staging_dir, diagnostics)
             diagnostics.extend(staging.publish(staging_dir))
             return BuildResult(True, tuple(diagnostics))
+        except TemplateError as exc:
+            logger.exception("template_render_failed")
+            diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "TEMPLATE_RENDER_FAILED",
+                    self._template_error_message(exc),
+                )
+            )
+            return self._fail_staging(staging, staging_dir, diagnostics)
         except (OSError, OutputStagingError, ValueError, RuntimeError) as exc:
             logger.exception("strict_build_failed")
             diagnostics.append(Diagnostic("error", "BUILD_FAILED", str(exc)))
@@ -150,6 +161,15 @@ class SiteCompiler:
             target = output_dir / path
             target.parent.mkdir(parents=True, exist_ok=True)
             target.write_text(content, encoding="utf-8")
+
+    @staticmethod
+    def _template_error_message(exc: TemplateError) -> str:
+        message = str(exc)
+        if isinstance(exc, TemplateSyntaxError):
+            template = exc.name or "<unknown>"
+            line = exc.lineno or "unknown"
+            return f"{message} (template={template} line={line})"
+        return message
 
     @staticmethod
     def _fail_staging(

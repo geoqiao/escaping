@@ -25,6 +25,8 @@ sibling of the final output, within the containment boundary validated by
 The service owns and tracks every staging directory and backup path it
 creates.  At mutation boundaries it rejects arbitrary, external, moved,
 symlinked, wrong-parent, or unregistered paths.
+
+Concurrent local builds targeting the same output directory are unsupported.
 """
 
 from __future__ import annotations
@@ -170,7 +172,13 @@ class OutputStagingService:
 
         if path.exists():
             expected_identity = registry[resolved]
-            actual_identity = _st_identity(path)
+            try:
+                actual_identity = _st_identity(path)
+            except OSError as exc:
+                raise OutputStagingError(
+                    f"{label} disappeared or became unreadable during verification: "
+                    f"{path} ({exc})"
+                ) from exc
             if expected_identity != actual_identity:
                 raise OutputStagingError(
                     f"{label} identity mismatch (path was replaced or moved): {path}"
@@ -203,7 +211,14 @@ class OutputStagingService:
         resolved = self._validate_owned_sibling(backup_dir, "backup")
         if backup_dir.exists() or backup_dir.is_symlink():
             raise OutputStagingError(f"backup path already exists: {backup_dir}")
-        self._registered_backups[resolved] = _st_identity(self._output)
+        try:
+            self._registered_backups[resolved] = _st_identity(self._output)
+        except OSError as exc:
+            raise OutputStagingError(
+                "final output disappeared before backup reservation; concurrent "
+                "local builds to the same output are unsupported: "
+                f"final={self._output} ({exc})"
+            ) from exc
         return backup_dir
 
     def _deregister_backup(self, backup_dir: Path) -> None:
