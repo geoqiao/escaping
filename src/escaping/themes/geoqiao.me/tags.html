@@ -5,18 +5,19 @@
 {% block page_key %}tags{% endblock %}
 
 {% block content %}
-<section class="quiet-tag-list">
-    <header class="quiet-page-head">
-        <h1>Tags</h1>
+<section class="page-shell tags-page" aria-labelledby="tags-title">
+    <header class="page-intro">
+        <p class="utility-label">INDEX / SUBJECTS</p>
+        <h1 id="tags-title">Tags</h1>
         <p>按主题回看已经写下的内容。</p>
     </header>
 
     {% if tags_index.tags %}
-    <div class="tag-rows">
+    <div class="tag-matrix">
         {% for item in tags_index.tags %}
-        <a class="tag-row" href="{{ item.route.canonical_path }}">
+        <a class="tag-cell" href="{{ item.route.canonical_path }}">
             <span>#{{ item.name }}</span>
-            <small>{{ item.count }} {% if item.count == 1 %}entry{% else %}entries{% endif %}</small>
+            <small>{{ "%02d" | format(item.count) }} {% if item.count == 1 %}entry{% else %}entries{% endif %}</small>
         </a>
         {% endfor %}
     </div>

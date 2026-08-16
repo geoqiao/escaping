@@ -1,0 +1,105 @@
+<script type="module">
+  const toc = document.querySelector("[data-article-toc]");
+  const headings = [...document.querySelectorAll(".article-main .post-content h2, .article-main .post-content h3")];
+
+  if (toc && headings.length) {
+    const usedIds = new Set();
+    const groups = [];
+    const links = [];
+    let currentGroup = null;
+
+    const headingSlug = (value) => {
+      const slug = value.normalize("NFKC").toLowerCase().replace(/[^\p{Letter}\p{Number}]+/gu, "-").replace(/^-+|-+$/g, "");
+      return slug || "section";
+    };
+    const assignStableId = (heading) => {
+      const base = heading.id || headingSlug(heading.textContent);
+      let id = base;
+      let suffix = 2;
+      while (usedIds.has(id)) id = `${base}-${suffix++}`;
+      heading.id = id;
+      usedIds.add(id);
+    };
+    const createLink = (heading, level) => {
+      const link = document.createElement("a");
+      const label = document.createElement("span");
+      link.className = `toc-link toc-level-${level}`;
+      link.href = `#${heading.id}`;
+      link.dataset.tocTarget = heading.id;
+      link.title = heading.textContent;
+      label.textContent = heading.textContent;
+      link.appendChild(label);
+      links.push(link);
+      return link;
+    };
+
+    headings.forEach(assignStableId);
+    headings.forEach((heading) => {
+      if (heading.tagName === "H2" || !currentGroup) {
+        const group = document.createElement("div");
+        group.className = "toc-group";
+        group.dataset.tocGroup = heading.id;
+        heading.dataset.tocParent = heading.id;
+        group.appendChild(createLink(heading, 2));
+        toc.appendChild(group);
+        currentGroup = { element: group, heading, children: null };
+        groups.push(currentGroup);
+        return;
+      }
+      heading.dataset.tocParent = currentGroup.heading.id;
+      if (!currentGroup.children) {
+        currentGroup.children = document.createElement("div");
+        currentGroup.children.className = "toc-children";
+        currentGroup.element.appendChild(currentGroup.children);
+      }
+      currentGroup.children.appendChild(createLink(heading, 3));
+    });
+
+    const setActive = (heading) => {
+      const parentId = heading.dataset.tocParent || heading.id;
+      links.forEach((link) => {
+        if (link.dataset.tocTarget === heading.id) link.setAttribute("aria-current", "location");
+        else link.removeAttribute("aria-current");
+      });
+      groups.forEach((group) => group.element.classList.toggle("is-expanded", group.heading.id === parentId));
+    };
+    let updateFrame = 0;
+    const updateActive = () => {
+      updateFrame = 0;
+      let activeHeading = headings[0];
+      headings.forEach((heading) => { if (heading.getBoundingClientRect().top <= 190) activeHeading = heading; });
+      setActive(activeHeading);
+    };
+    const scheduleUpdate = () => {
+      if (updateFrame) return;
+      updateFrame = window.requestAnimationFrame(updateActive);
+    };
+    links.forEach((link) => link.addEventListener("click", () => {
+      const heading = document.getElementById(link.dataset.tocTarget);
+      if (heading) setActive(heading);
+    }));
+    if (window.location.hash) {
+      let hashId = window.location.hash.slice(1);
+      try { hashId = decodeURIComponent(hashId); } catch (error) { /* Ignore malformed fragments. */ }
+      const hashTarget = document.getElementById(hashId);
+      if (hashTarget) window.requestAnimationFrame(() => hashTarget.scrollIntoView());
+    }
+    updateActive();
+    window.addEventListener("scroll", scheduleUpdate, { passive: true });
+    window.addEventListener("resize", scheduleUpdate);
+  } else {
+    document.querySelector(".article-toc")?.setAttribute("hidden", "");
+  }
+
+  const mermaidBlocks = document.querySelectorAll("pre code.language-mermaid");
+  if (mermaidBlocks.length) {
+    const { default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs");
+    mermaidBlocks.forEach((code) => {
+      const pre = code.parentElement;
+      pre.className = "mermaid";
+      pre.textContent = code.textContent;
+    });
+    mermaid.initialize({ startOnLoad: false, theme: document.documentElement.dataset.theme === "dark" ? "dark" : "default" });
+    mermaid.run();
+  }
+</script>

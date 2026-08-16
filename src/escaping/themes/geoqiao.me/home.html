@@ -4,67 +4,56 @@
 {% block page_key %}home{% endblock %}
 
 {% block content %}
-<div class="home-ledger-shell">
-    <div class="home-ledger-main">
-        {% if metadata.thesis %}
-        <section class="ledger-hero" aria-labelledby="home-thesis">
-            <h1 id="home-thesis">{% for line in metadata.thesis %}<span>{{ line }}</span>{% endfor %}</h1>
-        </section>
-        {% else %}
-        <h1 class="visually-hidden">{{ blog_title }}</h1>
-        {% endif %}
+{% if home_page.recent_posts %}
+{% set latest = home_page.recent_posts[0] %}
+<section class="home-hero" aria-labelledby="latest-title">
+    <div class="home-hero-inner">
+        <article class="latest-story">
+            <p class="latest-meta">LATEST WRITING · ISSUE {{ "%03d" | format(latest.issue_number) }} · {{ latest.created_date | replace('-', '.') }}</p>
+            <h1 id="latest-title"><a href="{{ latest.detail_path }}">{{ latest.title }}</a></h1>
+            <p class="latest-description">{{ latest.description }}</p>
+            {% if latest.tags %}<div class="plain-tags latest-tags">{% for tag in latest.tags %}<a href="{{ tag.path }}">#{{ tag.name }}</a>{% endfor %}</div>{% endif %}
+        </article>
 
-        <section class="recent-posts" aria-labelledby="recent-posts-title">
-            <header class="section-heading">
-                <h2 id="recent-posts-title">Recent Posts</h2>
-                {% for link in metadata.navigation %}{% if link.name == 'Blog' %}<a href="{{ link.url }}">完整归档 →</a>{% endif %}{% endfor %}
-            </header>
-            {% if home_page.recent_posts %}
-            <div class="ledger-list">
-                {% for post in home_page.recent_posts %}
-                <article class="ledger-row">
-                    <time datetime="{{ post.created_date }}">{{ post.created_date | replace('-', '.') }}</time>
-                    <div class="ledger-track" aria-hidden="true"><span{% if loop.first %} class="is-live"{% endif %}></span></div>
-                    <div class="ledger-entry">
-                        <p class="issue-label">ISSUE #{{ post.issue_number }}</p>
-                        <h3><a href="{{ post.detail_path }}">{{ post.title }}</a></h3>
-                        {% if post.tags %}<div class="plain-tags">{% for tag in post.tags %}<a href="{{ tag.path }}">#{{ tag.name }}</a>{% endfor %}</div>{% endif %}
-                    </div>
-                </article>
-                {% endfor %}
-            </div>
-            {% else %}
-            <p class="empty-state">还没有公开的 Blog。</p>
-            {% endif %}
-        </section>
+        <figure class="author-mark" aria-label="Geo Qiao author mark">
+            <span class="author-mark-ghost" aria-hidden="true">GQ</span>
+            <img src="{{ theme_path }}/static/images/author-mark.png" alt="" width="1024" height="1024">
+            <figcaption>{{ author_name }} / Personal writing</figcaption>
+        </figure>
     </div>
+</section>
 
-    <aside class="profile-rail" aria-label="Site profile">
-        {% if metadata.profile.avatar %}<div class="profile-avatar-wrap"><img src="{{ metadata.profile.avatar }}" alt="{{ metadata.author }}" class="profile-avatar" width="112" height="112"></div>{% endif %}
-        <p class="utility-label">PROFILE / ACTIVE</p>
-        <h2>{{ metadata.author }}</h2>
-        {% if metadata.profile.tagline %}<p class="profile-role">{{ metadata.profile.tagline }}</p>{% endif %}
-        {% if metadata.profile.bio %}<p class="profile-bio">{{ metadata.profile.bio }}</p>{% endif %}
-        {% if metadata.profile.links %}<div class="profile-links">{% for link in metadata.profile.links %}<a href="{{ link.url }}">{{ link.name }}</a>{% endfor %}</div>{% endif %}
-        {% if top_projects %}
-        <section class="featured-projects" aria-labelledby="top-projects-title">
-            <header class="featured-projects-head">
-                <span id="top-projects-title">TOP PROJECTS</span>
-                <a href="{{ projects_path }}">VIEW ALL →</a>
-            </header>
-            <ol class="featured-project-list">
-                {% for project in top_projects %}
-                <li class="featured-project">
-                    <div class="featured-project-title">
-                        <a href="{{ project.url }}">{{ project.title }} ↗</a>
-                        {% if project.stars is not none %}<span>★ {{ project.stars }}</span>{% endif %}
-                    </div>
-                    {% if project.language or project.topics %}<small>{% if project.language %}{{ project.language }}{% endif %}{% if project.language and project.topics %} · {% endif %}{% if project.topics %}#{{ project.topics[0] }}{% endif %}</small>{% endif %}
-                </li>
-                {% endfor %}
-            </ol>
-        </section>
+<section class="recent-writing" aria-labelledby="recent-writing-title">
+    <div class="recent-writing-inner">
+        <header class="section-heading">
+            <div><p class="utility-label">RECENT</p><h2 id="recent-writing-title">Recent writing</h2></div>
+            {% for link in metadata.navigation %}{% if link.name | lower == 'blog' %}<a class="section-link" href="{{ link.url }}">View all Blog <span aria-hidden="true">→</span></a>{% endif %}{% endfor %}
+        </header>
+
+        {% if home_page.recent_posts | length > 1 %}
+        <div class="editorial-list home-recent-list" role="list">
+            {% for post in home_page.recent_posts[1:] %}
+            <article class="editorial-row" role="listitem">
+                <div class="editorial-meta"><strong>{{ "%03d" | format(post.issue_number) }}</strong><time datetime="{{ post.created_date }}">{{ post.created_date | replace('-', '.') }}</time></div>
+                <div class="editorial-copy">
+                    <h3><a href="{{ post.detail_path }}">{{ post.title }}</a></h3>
+                    {% if post.tags %}<div class="plain-tags">{% for tag in post.tags %}<a href="{{ tag.path }}">#{{ tag.name }}</a>{% endfor %}</div>{% endif %}
+                </div>
+                <a class="row-arrow" href="{{ post.detail_path }}" aria-label="Read {{ post.title }}"><span aria-hidden="true">→</span></a>
+            </article>
+            {% endfor %}
+        </div>
+        {% else %}
+        <p class="empty-state">More writing is on the way.</p>
         {% endif %}
-    </aside>
-</div>
+    </div>
+</section>
+{% else %}
+<section class="home-hero home-hero-empty" aria-labelledby="latest-title">
+    <div class="home-hero-inner">
+        <div class="latest-story"><p class="latest-meta">PERSONAL WRITING</p><h1 id="latest-title">{{ blog_title }}</h1><p class="latest-description">{{ meta_description }}</p></div>
+        <figure class="author-mark" aria-label="Geo Qiao author mark"><span class="author-mark-ghost" aria-hidden="true">GQ</span><img src="{{ theme_path }}/static/images/author-mark.png" alt="" width="1024" height="1024"><figcaption>{{ author_name }} / Personal writing</figcaption></figure>
+    </div>
+</section>
+{% endif %}
 {% endblock %}

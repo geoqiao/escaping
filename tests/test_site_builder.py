@@ -113,6 +113,13 @@ def test_site_builder_composes_metadata_routes_and_internal_page_models() -> Non
 
     assert site.home.route is routes.route("home")
     assert [post.issue_number for post in site.home.recent_posts] == [6, 5, 4, 3, 2]
+    assert [post.description for post in site.home.recent_posts] == [
+        "Description 6",
+        "Description 5",
+        "Description 4",
+        "Description 3",
+        "Description 2",
+    ]
     assert [len(page.entries) for page in site.archives] == [2, 2, 2]
     assert site.archives[0].route is routes.route("blog")
     assert site.archives[0].next_route is site.archives[1].route

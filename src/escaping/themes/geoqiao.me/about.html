@@ -8,17 +8,18 @@
 {% block page_key %}about{% endblock %}
 
 {% block content %}
-<article class="quiet-about">
+<article class="page-shell about-page">
     <header class="about-heading">
         <div>
-            <p class="utility-label">ABOUT / ISSUE #{{ about_page.issue_number }}</p>
+            <p class="utility-label">ABOUT / ISSUE {{ "%03d" | format(about_page.issue_number) }}</p>
             <h1>About</h1>
-            {% if metadata.profile.bio %}<p>{{ metadata.profile.bio }}</p>{% endif %}
+            {% if metadata.profile.bio %}<p>{{ metadata.profile.bio }}</p>{% else %}<p>{{ about_page.description }}</p>{% endif %}
         </div>
-        {% if metadata.profile.avatar %}<div class="about-avatar-wrap"><img src="{{ metadata.profile.avatar }}" alt="{{ author_name }}" width="96" height="96"></div>{% endif %}
+        {% set about_mark = metadata.profile.avatar or theme_path ~ '/static/images/author-mark.png' %}
+        <figure class="about-mark" aria-label="{{ author_name }} profile image"><img src="{{ about_mark }}" alt="{{ author_name }}" width="1024" height="1024"></figure>
     </header>
 
-    <div class="post-content">{{ about_page.body_html|safe }}</div>
+    <div class="about-body post-content">{{ about_page.body_html|safe }}</div>
 
     {% if metadata.profile.links %}
     <nav class="about-links" aria-label="Profile links">

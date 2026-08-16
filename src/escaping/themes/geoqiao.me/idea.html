@@ -13,17 +13,29 @@
 {% block page_key %}ideas{% endblock %}
 
 {% block content %}
-<article class="quiet-article idea-article">
-    <header class="article-heading">
-        <p class="utility-label">IDEA / ISSUE #{{ idea.issue_number }}</p>
-        <h1>{{ idea.title }}</h1>
-        <div class="article-meta">
+<div class="article-page page-shell idea-page">
+    <div class="article-back">{% for item in navigation_items %}{% if item.name | lower == 'ideas' %}<a class="back-link" href="{{ item.url }}">← Back to Ideas</a>{% endif %}{% endfor %}</div>
+    <article class="article-layout">
+        <aside class="article-issue" aria-label="Article metadata">
+            <strong>{{ "%03d" | format(idea.issue_number) }}</strong><span>IDEA</span>
             <time datetime="{{ idea.created_date }}">{{ idea.created_date | replace('-', '.') }}</time>
-            {% if idea.tags %}<div class="plain-tags">{% for tag in idea.tags %}<span>#{{ tag.name }}</span>{% endfor %}</div>{% endif %}
+        </aside>
+        <div class="article-main">
+            <header class="article-heading">
+                <p class="utility-label">IDEA / IN PROGRESS</p>
+                <h1>{{ idea.title }}</h1>
+                <p class="article-description">{{ idea.description }}</p>
+                {% if idea.tags %}<div class="plain-tags">{% for tag in idea.tags %}<span>#{{ tag.name }}</span>{% endfor %}</div>{% endif %}
+            </header>
+            <div class="post-content">{{ idea.body_html|safe }}</div>
         </div>
-    </header>
-    <div class="post-content">{{ idea.body_html|safe }}</div>
-</article>
+        <aside class="article-toc" aria-labelledby="article-toc-title">
+            <p id="article-toc-title">ON THIS PAGE</p>
+            <nav data-article-toc aria-label="Article sections"></nav>
+        </aside>
+    </article>
+</div>
 
 {% set comments_issue_number = idea.issue_number %}{% include '_comments.html' %}
+{% include '_article_tools.html' %}
 {% endblock %}

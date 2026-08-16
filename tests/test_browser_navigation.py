@@ -215,3 +215,23 @@ def test_mobile_navigation_user_journey(mobile_page: Page) -> None:
     expect(blog_link).to_be_focused()
     for index in range(background_regions.count()):
         expect(background_regions.nth(index)).not_to_have_attribute("inert")
+
+
+def test_theme_follows_system_until_the_user_chooses(mobile_page: Page) -> None:
+    root = mobile_page.locator("html")
+    menu = mobile_page.get_by_role("button", name="Toggle menu")
+    toggle = mobile_page.locator(".theme-toggle")
+
+    mobile_page.evaluate("localStorage.removeItem('theme')")
+    mobile_page.emulate_media(color_scheme="dark")
+    mobile_page.reload(wait_until="load")
+    expect(root).to_have_attribute("data-theme", "dark")
+
+    menu.click()
+    expect(toggle).to_be_visible()
+    toggle.click()
+    expect(root).to_have_attribute("data-theme", "light")
+    assert mobile_page.evaluate("localStorage.getItem('theme')") == "light"
+
+    mobile_page.emulate_media(color_scheme="dark")
+    expect(root).to_have_attribute("data-theme", "light")

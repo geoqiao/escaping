@@ -5,9 +5,10 @@
 {% block page_key %}projects{% endblock %}
 
 {% block content %}
-<section class="project-list">
-    <header class="quiet-page-head">
-        <h1>Projects</h1>
+<section class="page-shell projects-page" aria-labelledby="projects-title">
+    <header class="page-intro">
+        <p class="utility-label">TOOLS / SYSTEMS</p>
+        <h1 id="projects-title">Projects</h1>
         <p>持续维护、也持续修正的工具与作品。</p>
     </header>
 
@@ -15,16 +16,19 @@
     <div class="project-rows">
         {% for project in projects.projects %}
         <article class="project-row">
-            <p class="utility-label">{% if project.featured %}FEATURED{% else %}PROJECT{% endif %}{% if project.language %} / {{ project.language }}{% endif %}</p>
-            <h2><a href="{{ project.url }}">{{ project.title }} ↗</a></h2>
-            <p>{{ project.summary }}</p>
-            {% if project.stars is not none or project.forks is not none or project.topics %}
-            <div class="project-meta">
-                {% if project.stars is not none %}<span>★ {{ project.stars }}</span>{% endif %}
-                {% if project.forks is not none %}<span>⑂ {{ project.forks }}</span>{% endif %}
-                {% for topic in project.topics %}<span>#{{ topic }}</span>{% endfor %}
+            <div class="project-number">{{ "%02d" | format(loop.index) }}</div>
+            <div class="project-copy">
+                <p class="utility-label">{% if project.featured %}FEATURED{% else %}PROJECT{% endif %}{% if project.language %} / {{ project.language }}{% endif %}</p>
+                <h2><a href="{{ project.url }}">{{ project.title }} ↗</a></h2>
+                <p>{{ project.summary }}</p>
+                {% if project.stars is not none or project.forks is not none or project.topics %}
+                <div class="project-meta">
+                    {% if project.stars is not none %}<span>★ {{ project.stars }}</span>{% endif %}
+                    {% if project.forks is not none %}<span>⑂ {{ project.forks }}</span>{% endif %}
+                    {% for topic in project.topics %}<span>#{{ topic }}</span>{% endfor %}
+                </div>
+                {% endif %}
             </div>
-            {% endif %}
         </article>
         {% endfor %}
     </div>
