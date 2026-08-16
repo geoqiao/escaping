@@ -235,3 +235,43 @@ def test_theme_follows_system_until_the_user_chooses(mobile_page: Page) -> None:
 
     mobile_page.emulate_media(color_scheme="dark")
     expect(root).to_have_attribute("data-theme", "light")
+
+
+def test_mobile_blog_titles_use_the_full_row_and_navigation_is_centered(
+    mobile_page: Page, site_server: str
+) -> None:
+    mobile_page.goto(f"{site_server}/blog/", wait_until="load")
+    row = mobile_page.locator(".editorial-row").first
+    copy = row.locator(".editorial-copy")
+    title = copy.locator("h2")
+    menu = mobile_page.locator(".hamb")
+    menu_line = menu.locator(".hamb-line")
+
+    row_box = row.bounding_box()
+    copy_box = copy.bounding_box()
+    menu_box = menu.bounding_box()
+    line_box = menu_line.bounding_box()
+    assert row_box is not None and copy_box is not None
+    assert menu_box is not None and line_box is not None
+    assert copy_box["width"] == pytest.approx(row_box["width"], abs=1)
+    assert (
+        title.evaluate("element => parseFloat(getComputedStyle(element).fontSize)")
+        <= 22
+    )
+    assert menu.evaluate("element => getComputedStyle(element).display") == "grid"
+    assert line_box["x"] + line_box["width"] / 2 == pytest.approx(
+        menu_box["x"] + menu_box["width"] / 2, abs=0.5
+    )
+    assert line_box["y"] + line_box["height"] / 2 == pytest.approx(
+        menu_box["y"] + menu_box["height"] / 2, abs=0.5
+    )
+
+    menu.click()
+    blog_link = mobile_page.get_by_role(
+        "navigation", name="Primary navigation"
+    ).get_by_role("link", name="Blog", exact=True)
+    expect(blog_link).to_be_visible()
+    assert (
+        blog_link.evaluate("element => getComputedStyle(element).justifyContent")
+        == "center"
+    )

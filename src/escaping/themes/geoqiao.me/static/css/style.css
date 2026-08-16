@@ -1199,7 +1199,8 @@ html[data-theme="dark"] .post-content a {
   .hamb {
     position: relative;
     z-index: 102;
-    display: block;
+    display: grid;
+    place-items: center;
   }
 
   .ledger-nav {
@@ -1237,6 +1238,8 @@ html[data-theme="dark"] .post-content a {
     min-height: 48px;
     display: flex;
     align-items: center;
+    justify-content: center;
+    text-align: center;
     font-size: 18px;
   }
 
@@ -1355,15 +1358,30 @@ html[data-theme="dark"] .post-content a {
   }
 
   .editorial-meta {
-    grid-column: 1 / -1;
+    grid-column: 1;
+    grid-row: 1;
     display: flex;
     align-items: center;
     gap: 14px;
   }
 
+  .editorial-copy {
+    grid-column: 1 / -1;
+    grid-row: 2;
+  }
+
+  .row-arrow {
+    grid-column: 2;
+    grid-row: 1;
+    justify-self: end;
+  }
+
   .editorial-copy h2,
   .editorial-copy h3 {
-    font-size: 24px;
+    font-size: 22px;
+    line-height: 1.34;
+    letter-spacing: -0.025em;
+    text-wrap: pretty;
   }
 
   .page-shell {

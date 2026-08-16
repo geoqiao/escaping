@@ -28,6 +28,7 @@ def _settings(
     author: str = "geoqiao",
     thesis: list[str] | None = None,
     tagline: str = "",
+    bio: str = "",
     projects: list[dict[str, object]] | None = None,
 ) -> Settings:
     site: dict[str, object] = {
@@ -41,7 +42,7 @@ def _settings(
     data: dict[str, object] = {
         "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
         "site": site,
-        "profile": {"tagline": tagline},
+        "profile": {"tagline": tagline, "bio": bio},
         "about": {"issue_number": 10},
         "theme": {"source": "builtin", "name": theme},
         "security": {"token_env": "TOKEN"},
@@ -74,6 +75,7 @@ def _render_theme(
     author: str = "geoqiao",
     thesis: list[str] | None = None,
     tagline: str = "",
+    bio: str = "",
     projects: list[dict[str, object]] | None = None,
 ) -> dict[str, str]:
     settings = _settings(
@@ -82,6 +84,7 @@ def _render_theme(
         author=author,
         thesis=thesis,
         tagline=tagline,
+        bio=bio,
         projects=projects,
     )
     routes = RouteRegistry(str(settings.site.url))
@@ -194,6 +197,19 @@ def test_geoqiao_home_has_one_visible_editorial_heading() -> None:
     assert home.count("<h1") == 1
     assert 'id="latest-title"' in home
     assert 'class="profile-rail"' not in home
+
+
+def test_geoqiao_about_body_is_the_only_owner_of_profile_copy() -> None:
+    about = _render_theme(
+        "geoqiao.me",
+        bio="This profile copy must not repeat above the About body.",
+    )["about/index.html"]
+
+    assert "This profile copy must not repeat above the About body." not in about
+    assert (
+        '<div class="about-body post-content"><p>Body <strong>content</strong>.</p>'
+        in about
+    )
 
 
 def test_shared_comments_script_preserves_browser_contract() -> None:
