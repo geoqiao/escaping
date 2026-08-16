@@ -10,6 +10,7 @@ from .blog_post import BlogTag
 class HomePostEntry:
     issue_number: int
     title: str
+    description: str
     created_date: str
     detail_path: str
     tags: tuple[BlogTag, ...] = field(default_factory=tuple)

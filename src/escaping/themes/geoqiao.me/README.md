@@ -1,26 +1,24 @@
 # geoqiao.me Theme
 
-The Chinese-first default built-in Theme uses the approved centered Signal Blue
-direction: neutral light and dark surfaces, Signal Blue `#315efb` / `#83a0ff`
-accents, and an Apple/system sans stack for display, prose, navigation, and
-metadata. Code keeps a local system monospace stack and the Theme has no Webfont
-dependency. Escape1 and Escape2 remain available built-in alternatives.
+The default built-in Theme is a Chinese-first personal writer system built around
+Geo Qiao's magenta-and-mint gestural `GQ` mark. It uses local system fonts,
+neutral light and deep-plum dark surfaces, restrained motion, and no remote
+Webfont dependency. First visit follows the operating-system color scheme; an
+explicit visitor choice is stored locally.
 
-Home retains the centered Issue timeline and right-side profile rail on desktop.
-Its principal message renders the Config-owned Site Thesis as deliberate lines,
-and the profile rail renders the Config-owned Site Profile tagline. Header
-branding, page introductions, labels, empty states, and navigation copy remain
-Theme-owned editorial voice.
+Home dedicates the first viewport to the newest Blog entry and the author mark.
+The following section lists up to four more posts as borderless editorial rows.
+Profile and About copy stay off Home; About remains its own long-form page, and
+Blog archive pages own pagination.
 
-Blog archives use the same quiet ledger rows. Blog articles use a centered
-three-column composition with immutable Issue metadata, a 620px reading column,
-and a generated section outline; the side rails collapse below desktop widths.
-The Header uses the `GEO QIAO` / `NOTES / TOOLS / LIFE` wordmark with a Signal
-Blue identity rule.
+Blog, Ideas, and Tag archives share the same editorial index grammar without a
+card grid or dense dividers. Blog and Idea details use a 720px reading column,
+immutable Issue metadata, and a desktop section outline that collapses on small
+screens. Projects use numbered work rows, Tags use a subject matrix, and About
+uses the same reading and author-mark language.
 
-The Theme is distributed in the `escaping` wheel and renders the complete strict
-SiteModel: Home, Blog archive/detail/pagination, Ideas, About, Projects, and
-Tags. `_comments.html` owns only the comments container and Theme default; the
-generator-owned shared `comments.js` provides Issue-number binding, automatic
-theme synchronization, message validation, and the Safari lazy-iframe
-workaround.
+The Theme renders the complete strict SiteModel: Home, Blog archive/detail and
+pagination, Ideas, About, Projects, and Tags. `_comments.html` owns only the
+comments container and Theme default; the generator-owned shared `comments.js`
+provides immutable Issue-number binding, automatic Theme synchronization,
+message validation, and the Safari lazy-iframe workaround.

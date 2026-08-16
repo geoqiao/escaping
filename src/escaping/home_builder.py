@@ -22,6 +22,7 @@ def build_home(posts: Sequence[BlogPost], routes: RouteRegistry) -> HomePage:
             HomePostEntry(
                 issue_number=post.issue_number,
                 title=post.title,
+                description=post.description,
                 created_date=post.created_date,
                 detail_path=post.route.canonical_path,
                 tags=post.tags,

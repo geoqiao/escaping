@@ -5,7 +5,7 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="description" content="{% block description %}{{ meta_description }}{% endblock %}">
-    <meta name="theme-color" content="#f4f6f8" id="theme-color">
+    <meta name="theme-color" content="#f4f5f6" id="theme-color">
     <meta name="google-site-verification" content="{{ google_search_verification }}">
     <title>{% block title %}{{ blog_title }}{% endblock %}</title>
     {% block canonical %}{% endblock %}
@@ -23,9 +23,9 @@
     <meta name="twitter:description" content="{% block twitter_description %}{{ meta_description }}{% endblock %}">
     <meta name="twitter:image" content="{% block twitter_image %}{{ theme_favicon_url }}{% endblock %}">
 
-    <script src="{{ theme_path }}/static/js/theme.js?v=signal-blue-2"></script>
-    <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-signal-blue.css?v=signal-blue-2">
-    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css?v=signal-blue-2">
+    <script src="{{ theme_path }}/static/js/theme.js?v=geo-writer-1"></script>
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-signal-blue.css?v=geo-writer-1">
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css?v=geo-writer-1">
     <link rel="alternate" type="application/atom+xml" title="RSS" href="{{ atom_url }}">
     <link rel="icon" type="image/png" href="{{ theme_path }}/static/images/favicon.png">
     {% if structured_data is defined %}<script type="application/ld+json">{{ structured_data | tojson }}</script>{% endif %}
@@ -33,24 +33,24 @@
 </head>
 <body data-page="{{ current_page }}">
     <a href="#main-content" class="skip-link">{{ skip_link_text }}</a>
+    <div class="scroll-progress" aria-hidden="true"></div>
     <div class="site-frame">
         <header class="ledger-header">
             <div class="ledger-header-inner">
-                <a href="{{ home_path }}" class="ledger-brand" aria-label="{{ author_name }} Notes — Home">
-                    <span class="ledger-brand-signal" aria-hidden="true"></span>
-                    <span class="ledger-brand-copy"><strong>{{ author_name }}</strong><small>NOTES / TOOLS / LIFE</small></span>
+                <a href="{{ home_path }}" class="ledger-brand" aria-label="{{ author_name }} — Home"{% if current_page == 'home' %} aria-current="page"{% endif %}>
+                    <span class="ledger-brand-signal" aria-hidden="true"><i></i><i></i></span>
+                    <strong>{{ author_name }}</strong>
                 </a>
                 <button class="hamb" type="button" aria-label="Toggle menu" aria-expanded="false" aria-controls="header-nav"><span class="hamb-line" aria-hidden="true"></span></button>
                 <nav class="ledger-nav" id="header-nav" aria-label="Primary navigation">
                     <ul>
-                        <li><a class="ledger-nav-link nav-home" href="{{ home_path }}"{% if current_page == 'home' %} aria-current="page"{% endif %}><span>Home</span></a></li>
                         {% for item in navigation_items %}
                         {% set nav_page = item.name | lower | replace('/', '-') %}
                         <li><a class="ledger-nav-link nav-{{ nav_page }}" href="{{ item.url }}"{% if current_page == nav_page or (current_page == 'article' and nav_page == 'blog') %} aria-current="page"{% endif %}><span>{{ item.name }}</span></a></li>
                         {% endfor %}
                         <li>
                             <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">
-                                <span class="theme-toggle-icon" aria-hidden="true">◐</span><span data-theme-label>Dark</span>
+                                <span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span data-theme-label>Dark</span>
                             </button>
                         </li>
                     </ul>
@@ -67,9 +67,14 @@
 
         {% block footer %}
         <footer class="ledger-footer">
-            <span>&copy; {{ author_name }}</span>
-            <a href="{{ atom_url }}">RSS</a>
-            {% if branding.show_powered_by %}<a href="{{ branding.powered_by_url }}">source ↗</a>{% endif %}
+            <div class="footer-inner">
+                <nav class="footer-links" aria-label="Footer links">
+                    <a href="{{ atom_url }}">RSS</a>
+                    {% for link in metadata.profile.links %}<a href="{{ link.url }}">{{ link.name }}</a>{% endfor %}
+                    {% if branding.show_powered_by %}<a href="{{ branding.powered_by_url }}">Source</a>{% endif %}
+                </nav>
+                <span>&copy; {{ author_name }}</span>
+            </div>
         </footer>
         {% endblock %}
     </div>
@@ -77,6 +82,7 @@
     <script src="{{ theme_path }}/static/js/prism.js"></script>
     <script>
     (function() {
+        var progress = document.querySelector('.scroll-progress');
         var menuButton = document.querySelector('.hamb');
         var scrim = document.querySelector('.navigation-scrim');
         var backgroundRegions = document.querySelectorAll('.skip-link, .ledger-brand, .site-content, .ledger-footer');
@@ -107,6 +113,15 @@
                     setMenuOpen(false);
                 }
             });
+        }
+        if (progress) {
+            function updateProgress() {
+                var maximum = document.documentElement.scrollHeight - window.innerHeight;
+                progress.style.transform = 'scaleX(' + (maximum > 0 ? window.scrollY / maximum : 0) + ')';
+            }
+            window.addEventListener('scroll', updateProgress, { passive: true });
+            window.addEventListener('resize', updateProgress);
+            updateProgress();
         }
     })();
     </script>

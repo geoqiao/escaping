@@ -171,34 +171,29 @@ def test_configured_site_identity_reaches_homepage_search_signals() -> None:
     assert website["name"] == "Geo Qiao"
 
 
-def test_geoqiao_home_renders_configured_thesis_lines_and_profile_tagline() -> None:
+def test_geoqiao_home_promotes_latest_post_without_profile_copy() -> None:
     home = _render_theme(
         "geoqiao.me",
         thesis=["Question assumptions.", "Build useful tools."],
         tagline="Analyst / tool builder",
     )["index.html"]
 
-    assert (
-        '<h1 id="home-thesis"><span>Question assumptions.</span>'
-        "<span>Build useful tools.</span></h1>"
-    ) in home
-    assert '<p class="profile-role">Analyst / tool builder</p>' in home
+    assert '<section class="home-hero" aria-labelledby="latest-title">' in home
+    assert '<article class="latest-story">' in home
+    assert '<p class="latest-description">Post.</p>' in home
+    assert 'class="author-mark"' in home
+    assert "/static/images/author-mark.png" in home
+    assert "Question assumptions." not in home
+    assert "Build useful tools." not in home
+    assert "Analyst / tool builder" not in home
 
 
-def test_geoqiao_home_omits_unconfigured_thesis_and_tagline() -> None:
+def test_geoqiao_home_has_one_visible_editorial_heading() -> None:
     home = _render_theme("geoqiao.me", thesis=[], tagline="")["index.html"]
 
-    assert 'class="ledger-hero"' not in home
-    assert 'id="home-thesis"' not in home
-    assert 'class="profile-role"' not in home
     assert home.count("<h1") == 1
-    assert '<h1 class="visually-hidden">Site</h1>' in home
-    css = (
-        ThemeLoader(_ROOT)
-        .load(_settings("geoqiao.me").theme)
-        .read_text("static/css/style.css")
-    )
-    assert "clip-path: inset(50%)" in _css_rule(css, ".visually-hidden")
+    assert 'id="latest-title"' in home
+    assert 'class="profile-rail"' not in home
 
 
 def test_shared_comments_script_preserves_browser_contract() -> None:
@@ -257,14 +252,18 @@ def test_geoqiao_theme_preserves_semantic_page_structure() -> None:
     post = html["blog/post/index.html"]
 
     assert '<main class="site-main" id="main-content" tabindex="-1">' in home
-    assert '<section class="recent-posts" aria-labelledby="recent-posts-title">' in home
-    assert '<aside class="profile-rail" aria-label="Site profile">' in home
+    assert '<section class="home-hero" aria-labelledby="latest-title">' in home
+    assert (
+        '<section class="recent-writing" aria-labelledby="recent-writing-title">'
+        in home
+    )
+    assert '<figure class="author-mark" aria-label="Geo Qiao author mark">' in home
     assert '<article class="article-layout">' in post
     assert '<aside class="article-issue" aria-label="Article metadata">' in post
     assert '<nav data-article-toc aria-label="Article sections"></nav>' in post
 
 
-def test_geoqiao_theme_uses_local_stylesheets_and_exposes_accent_token() -> None:
+def test_geoqiao_theme_uses_local_stylesheets_and_personal_palette() -> None:
     home = _render_theme("geoqiao.me")["index.html"]
     css = (
         ThemeLoader(_ROOT)
@@ -286,7 +285,21 @@ def test_geoqiao_theme_uses_local_stylesheets_and_exposes_accent_token() -> None
         css,
         flags=re.DOTALL,
     )
-    assert re.search(r"--ledger-accent\s*:\s*\S[^;]*", _css_rule(css, ":root"))
+    root_rule = _css_rule(css, ":root")
+    assert re.search(r"--accent-pink\s*:\s*#d439a7", root_rule)
+    assert re.search(r"--accent-mint\s*:\s*#44b99f", root_rule)
+    assert "text-decoration: underline" not in css
+
+
+def test_geoqiao_reading_indexes_use_focused_content_widths() -> None:
+    css = (
+        ThemeLoader(_ROOT)
+        .load(_settings("geoqiao.me").theme)
+        .read_text("static/css/style.css")
+    )
+
+    assert "width: min(1040px, calc(100% - 64px))" in _css_rule(css, ".index-page")
+    assert "width: min(960px, calc(100% - 64px))" in _css_rule(css, ".about-page")
 
 
 def test_geoqiao_article_toc_tracks_nested_sections_and_hash_navigation() -> None:
@@ -305,7 +318,7 @@ def test_geoqiao_article_toc_tracks_nested_sections_and_hash_navigation() -> Non
     assert "hashTarget.scrollIntoView()" in post
 
 
-def test_geoqiao_home_renders_five_configured_projects_ranked_by_stars() -> None:
+def test_geoqiao_projects_stay_on_their_own_page() -> None:
     projects: list[dict[str, object]] = [
         {
             "slug": f"project-{index}",
@@ -318,15 +331,14 @@ def test_geoqiao_home_renders_five_configured_projects_ranked_by_stars() -> None
         for index, stars in enumerate((2, 13, 5, 8, 3, 21, 1))
     ]
 
-    home = _render_theme("geoqiao.me", projects=projects)["index.html"]
+    rendered = _render_theme("geoqiao.me", projects=projects)
+    home = rendered["index.html"]
+    project_page = rendered["projects/index.html"]
 
-    ranked_titles = ("Project 5", "Project 1", "Project 3", "Project 2", "Project 4")
-    positions = [home.index(f">{title} ↗</a>") for title in ranked_titles]
-    assert positions == sorted(positions)
-    assert "Project 0 ↗" not in home
-    assert "Project 6 ↗" not in home
-    assert "★ 21" in home and "★ 13" in home
-    assert '<a href="/projects/">VIEW ALL →</a>' in home
+    assert "Project 5 ↗" not in home
+    assert "Project 5 ↗" in project_page
+    assert "Project 0 ↗" in project_page
+    assert "★ 21" in project_page and "★ 13" in project_page
 
 
 @pytest.mark.parametrize("theme", ["Escape1", "Escape2"])
@@ -366,7 +378,7 @@ def test_geoqiao_mobile_navigation_uses_native_button_and_current_page_state() -
     assert 'class="side-menu"' not in home
 
     assert len(re.findall(r'aria-current="page"', home)) == 1
-    assert re.search(r'class="ledger-nav-link nav-home"[^>]+aria-current="page"', home)
+    assert re.search(r'class="ledger-brand"[^>]+aria-current="page"', home)
     assert len(re.findall(r'aria-current="page"', blog)) == 1
     assert re.search(r'class="ledger-nav-link nav-blog"[^>]+aria-current="page"', blog)
     assert re.search(
@@ -397,10 +409,10 @@ def test_geoqiao_mobile_navigation_has_opaque_scrim_dismissal_contract() -> None
 
     mobile_panel_rule = _css_rule(css, ".ledger-nav")
     scrim_rule = _css_rule(css, ".navigation-scrim")
-    assert "background: var(--ledger-paper)" in mobile_panel_rule
+    assert "background: var(--page-bg)" in mobile_panel_rule
     assert "position: fixed" in scrim_rule
     assert "inset: 0" in scrim_rule
-    assert "background: var(--ledger-scrim)" in scrim_rule
+    assert "background: var(--scrim)" in scrim_rule
     assert ".navigation-scrim:not([hidden])" in css
 
 

@@ -1,11 +1,11 @@
-// geoqiao.me Signal Blue theme controller.
+// geoqiao.me personal writer theme controller.
 (function() {
     'use strict';
 
     var STORAGE_KEY = 'theme';
     var LIGHT = 'light';
     var DARK = 'dark';
-    var THEME_COLORS = { light: '#f4f6f8', dark: '#0c1118' };
+    var THEME_COLORS = { light: '#f4f5f6', dark: '#29242a' };
 
     function storedTheme() {
         try {
