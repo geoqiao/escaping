@@ -244,6 +244,63 @@ def test_mobile_navigation_is_keyboard_operable_for_every_theme(
     expect(menu_control).to_be_focused()
 
 
+def test_geoqiao_mobile_navigation_contains_focus_and_resets_cleanly(
+    mobile_page: Page,
+) -> None:
+    menu_control = mobile_page.get_by_role(
+        "button", name="Toggle menu", include_hidden=True
+    )
+    controlled_id = menu_control.get_attribute("aria-controls")
+    assert controlled_id
+    menu = mobile_page.locator(f"#{controlled_id}")
+    menu_controls = menu.get_by_role("link").or_(menu.get_by_role("button"))
+    blog_link = menu.get_by_role("link", name="Blog", exact=True)
+    scrim = mobile_page.get_by_role("button", name="Close navigation")
+    line = menu_control.locator('[aria-hidden="true"]')
+
+    button_box = menu_control.bounding_box()
+    line_box = line.bounding_box()
+    assert button_box is not None and line_box is not None
+    assert line_box["x"] + line_box["width"] / 2 == pytest.approx(
+        button_box["x"] + button_box["width"] / 2, abs=2
+    )
+    assert line_box["y"] + line_box["height"] / 2 == pytest.approx(
+        button_box["y"] + button_box["height"] / 2, abs=2
+    )
+
+    menu_control.focus()
+    mobile_page.keyboard.press("Enter")
+    expect(menu_control).to_have_attribute("aria-expanded", "true")
+    expect(scrim).to_be_visible()
+    assert mobile_page.locator("[inert]").count() > 0
+
+    for _ in range(menu_controls.count() + 1):
+        mobile_page.keyboard.press("Tab")
+        expect(mobile_page.locator("[inert]:focus, [inert] :focus")).to_have_count(0)
+
+    mobile_page.keyboard.press("Escape")
+    expect(menu_control).to_have_attribute("aria-expanded", "false")
+    expect(scrim).to_be_hidden()
+    expect(menu_control).to_be_focused()
+
+    mobile_page.keyboard.press("Enter")
+    expect(menu_control).to_have_attribute("aria-expanded", "true")
+    scrim.click()
+    expect(menu_control).to_have_attribute("aria-expanded", "false")
+    expect(scrim).to_be_hidden()
+    expect(menu_control).to_be_focused()
+
+    mobile_page.keyboard.press("Enter")
+    expect(menu_control).to_have_attribute("aria-expanded", "true")
+    blog_link.focus()
+    expect(blog_link).to_be_focused()
+    mobile_page.set_viewport_size({"width": 1024, "height": 768})
+    expect(menu_control).to_have_attribute("aria-expanded", "false")
+    expect(scrim).to_be_hidden()
+    expect(blog_link).to_be_focused()
+    expect(mobile_page.locator("[inert]")).to_have_count(0)
+
+
 def test_theme_follows_system_until_the_user_chooses(mobile_page: Page) -> None:
     root = mobile_page.locator("html")
     menu = mobile_page.get_by_role("button", name="Toggle menu")
@@ -326,7 +383,7 @@ def test_geoqiao_article_toc_supports_nested_hash_navigation_and_active_state(
 def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
     theme_page: tuple[str, Page, str],
 ) -> None:
-    _, page, site_server = theme_page
+    theme, page, site_server = theme_page
     page.route("https://utteranc.es/**", lambda route: route.abort())
 
     page.set_viewport_size({"width": 1440, "height": 900})
@@ -361,3 +418,46 @@ def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
     assert metrics["pageScrollWidth"] <= metrics["pageClientWidth"] + 1
     for element_name in ("table", "pre"):
         assert metrics[element_name]
+
+    if theme != "geoqiao.me":
+        return
+
+    page.goto(f"{site_server}/blog/", wait_until="load")
+    blog_row = page.locator(".editorial-row").first
+    blog_title_area = blog_row.locator(".editorial-copy")
+    row_box = blog_row.bounding_box()
+    title_area_box = blog_title_area.bounding_box()
+    assert row_box is not None and title_area_box is not None
+    assert title_area_box["width"] >= row_box["width"] * 0.78
+    assert page.evaluate(
+        "document.documentElement.scrollWidth <= "
+        "document.documentElement.clientWidth + 1"
+    )
+
+    page.goto(f"{site_server}/about/", wait_until="load")
+    about_heading = page.locator(".about-heading")
+    about_title = about_heading.get_by_role("heading", name="About", exact=True)
+    about_mark = about_heading.get_by_role("figure", name=re.compile(r"author mark$"))
+    about_body = page.locator(".about-body")
+    heading_box = about_heading.bounding_box()
+    title_box = about_title.bounding_box()
+    mark_box = about_mark.bounding_box()
+    body_box = about_body.bounding_box()
+    viewport = page.viewport_size
+    assert heading_box is not None and body_box is not None
+    assert title_box is not None and mark_box is not None
+    assert viewport is not None
+    assert heading_box["width"] == pytest.approx(body_box["width"], rel=0.1)
+    assert heading_box["x"] == pytest.approx(body_box["x"], abs=8)
+    assert title_box["x"] >= heading_box["x"] - 1
+    assert mark_box["x"] + mark_box["width"] <= (
+        heading_box["x"] + heading_box["width"] + 1
+    )
+    assert mark_box["width"] <= heading_box["width"] * 0.4
+    assert mark_box["width"] <= viewport["width"] * 0.4
+    assert title_box["y"] < mark_box["y"] + mark_box["height"]
+    assert mark_box["y"] < title_box["y"] + title_box["height"]
+    assert page.evaluate(
+        "document.documentElement.scrollWidth <= "
+        "document.documentElement.clientWidth + 1"
+    )
