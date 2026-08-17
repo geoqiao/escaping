@@ -117,6 +117,23 @@ Blog slug 由 Issue front matter 显式提供，不从标题推导；About 由�
 | About | `/about/` |
 | Feed / discovery | `/atom.xml` · `/sitemap.xml` · `/robots.txt` |
 
+## 🔗 Config-owned origin 与历史 URL
+
+canonical origin 由站点仓库的 Site Config 所有：`site.url` 是输入值，生产站点当前配置为
+`https://geoqiao.me/`。生成器仓库不持有生产 `config.yaml`；RouteRegistry、canonical、
+Open Graph、Atom、sitemap 和 robots 都从调用时传入的 origin 派生，所以同一个 compiler
+也可以服务其它站点。
+
+以下两种 URL 迁移不要混为一谈：
+
+- **旧 `.html` Blog URL：** compiler 不生成 `/blog/{slug}.html`，也不生成 alias 或
+  redirect。这是 [`ADR-0003`](docs/adr/0003-drop-legacy-html-urls.md) 的既有决定。
+- **拼音 slug migration：** 站点仓库可以维护显式的、一次性的
+  `/blog/old-pinyin-slug/` → `/blog/new-english-slug/` mapping，在 compiler 生成新
+  canonical 页面后，由 site-owned `render_slug_redirects.py` 写入兼容页。这不是
+  标题推导 slug，也不是 compiler 对旧 `.html` URL 的例外；边界见
+  [`ADR-0005`](docs/adr/0005-site-owned-blog-slug-migration-redirects.md)。
+
 ## 🎨 Themes
 
 不写 Theme 配置时，默认使用中文优先的内置 `geoqiao.me`；`Escape1` 和
@@ -141,9 +158,16 @@ theme:
 
 ## 🏗️ 生成器与站点分离
 
-`escaping` 只拥有 compiler、models、validators、示例 Config 和内置 Themes。真实站点仓库拥有自己的 `config.yaml`、Pages workflow、`CNAME`，以及可选的本地 Theme。
+`escaping` 只拥有 compiler、models、validators、示例 Config、内置 Themes 和可复制的
+workflow 模板。真实站点仓库拥有自己的 `config.yaml`、Pages workflow、`CNAME`，以及
+可选的本地 Theme。
 
-生产 workflow 应 pin `escaping` 的 release 或完整 commit SHA，并使用短期 `GITHUB_TOKEN` 构建 Pages artifact。这样生成器与站点即使无法原子变更，也能通过固定版本验证、升级和回滚。完整要求见 [`docs/deployment.md`](docs/deployment.md)。
+生产 workflow 应 pin `escaping` 的 release 或完整 commit SHA，并使用短期 `GITHUB_TOKEN` 构建
+Pages artifact。当前 geoqiao.me consumer 使用
+`geoqiao/escaping@cfec81fdcee6f321fc433f2cb4342d3243ced6f1`；这样生成器与站点即使无法原子变更，
+也能通过固定版本验证、升级和回滚。完整要求见
+[`docs/deployment.md`](docs/deployment.md) 与
+[`Pages workflow 模板`](docs/deployment/geoqiao-pages.yml)。
 
 ## 🧪 开发与验证
 
@@ -156,7 +180,11 @@ uv run ty check
 git diff --check
 ```
 
-wheel consumer 测试会在源码目录之外构建代表性站点，验证 package resources、默认 Theme 与 Config-root 路径。旧 `.html` Blog URL 不生成 alias 或 redirect，决策记录见 [`ADR-0003`](docs/adr/0003-drop-legacy-html-urls.md)。
+wheel consumer 测试会在源码目录之外构建代表性站点，验证 package resources、默认 Theme 与 Config-root 路径。
+旧 `.html` Blog URL 不生成 alias 或 redirect；站点仓库若有拼音 slug migration，则在编译后独立执行
+site-owned redirect 后处理。决策分别记录于
+[`ADR-0003`](docs/adr/0003-drop-legacy-html-urls.md) 和
+[`ADR-0005`](docs/adr/0005-site-owned-blog-slug-migration-redirects.md)。
 
 ## 📄 License
 

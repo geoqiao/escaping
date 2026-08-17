@@ -2,22 +2,30 @@
 
 ## 当前职责
 
-`geoqiao.me` 使用两个仓库，但只有一个内容权威来源：
+geoqiao.me 使用两个仓库，但只有一个内容权威来源：
 
 | 仓库 | 职责 |
 |---|---|
-| `geoqiao/escaping` | Site Compiler 源码、主题、配置和部署 workflow 模板 |
-| `geoqiao/geoqiao.github.io` | GitHub Issues 内容、Pages workflow、Pages 发布目标 |
+| `geoqiao/escaping` | Site Compiler 源码、内置 Themes、`config.example.yaml` 和可复制的 Pages workflow 模板（非生产 workflow） |
+| `geoqiao/geoqiao.github.io` | GitHub Issues 内容、真实 `config.yaml`、Pages workflow、`CNAME`、可选本地 Theme 和站点迁移脚本 |
 
 GitHub Issue 是 Blog、Idea、About 的唯一内容来源。`escaping` 只读 Issues，
 不会创建、编辑、删除、加标签或发布 Issue。
+
+生产 `config.yaml` 只属于站点仓库；生成器仓库只提供
+[`config.example.yaml`](../config.example.yaml)。同样，生产 Pages workflow 只在
+站点仓库执行，生成器仓库中的模板只是供站点仓库复制和修改的文档材料。
+
+源码中的内置 Theme 位于 `src/escaping/themes/`，不再有旧的 `templates/` 源码目录。
+构建产物中可能出现 `/templates/<theme>/` 这样的静态资源 URL，那是输出约定，不是
+Theme 的源码路径。
 
 ## Site Compiler 代码架构
 
 ```mermaid
 flowchart TD
     subgraph Inputs["输入层"]
-        Config["config.yaml"]
+        Config["站点仓库的 config.yaml<br/>Site Config"]
         Token["security.token_env 指定的环境变量"]
         Issues["GitHub Issues"]
     end
@@ -43,7 +51,7 @@ flowchart TD
 
     subgraph Rendering["渲染与发布层"]
         RenderService["RenderService<br/>Jinja2 与 Markdown 渲染"]
-        Themes["Themes<br/>Escape1 / Escape2 / geoqiao.me"]
+        Themes["内置 Themes<br/>src/escaping/themes/"]
         Staging["隔离的 Staging 目录"]
         Validator["SiteArtifactValidator<br/>路由、Meta、资源、JSON-LD<br/>Atom、Sitemap、Robots 验证"]
         Publisher["OutputStagingService<br/>便携式分阶段发布"]
@@ -102,24 +110,30 @@ flowchart TD
 
     subgraph TargetRepo["geoqiao/geoqiao.github.io<br/>内容仓库与 Pages 目标仓库"]
         Issues["GitHub Issues<br/>Blog / Idea / About"]
-        Workflow[".github/workflows/pages.yml"]
+        SiteConfig["config.yaml<br/>Site Config 与 canonical origin"]
+        Workflow[".github/workflows/pages.yml<br/>site-owned"]
+        Migrations["content-migrations/<br/>显式 slug migration map"]
+        RedirectScript["scripts/render_slug_redirects.py<br/>site-owned post-processing"]
+        CNAME["CNAME<br/>site-owned custom domain"]
         HistoricalFiles["仓库根目录历史生成文件<br/>不再作为发布源"]
     end
 
     subgraph CompilerRepo["geoqiao/escaping<br/>Site Compiler 仓库"]
-        Main["main"]
+        PinnedCompiler["cfec81fdcee6f321fc433f2cb4342d3243ced6f1<br/>reviewed full SHA"]
         Source["src/escaping/"]
-        Config["config.yaml"]
-        Templates["templates/"]
+        BuiltinThemes["src/escaping/themes/"]
+        ExampleConfig["config.example.yaml<br/>非生产示例"]
         Tests["tests/"]
     end
 
     subgraph Actions["GitHub Actions"]
-        Checkout["Checkout escaping/main"]
+        SiteCheckout["Checkout site repository<br/>workflow event ref"]
+        CompilerCheckout["Checkout geoqiao/escaping@full SHA<br/>path: compiler"]
         ShortToken["短期 GITHUB_TOKEN<br/>最小权限"]
-        Build["uv run escpe"]
+        Build["uv run --project compiler --frozen<br/>escpe --config $GITHUB_WORKSPACE/config.yaml"]
+        Redirects["site-owned redirect post-processing<br/>after compiler, before upload"]
         Artifact["actions/upload-pages-artifact"]
-        Deploy["actions/deploy-pages"]
+        Deploy["actions/deploy-pages<br/>only after successful build"]
     end
 
     Pages["GitHub Pages CDN"]
@@ -130,16 +144,25 @@ flowchart TD
     Author --> Issues
     Issues -->|"Issue 事件"| Workflow
     Manual --> Workflow
-    Workflow --> Checkout
-    Main --> Checkout
-    Checkout --> Source
+    Workflow --> SiteCheckout
+    SiteCheckout --> SiteConfig
+    SiteCheckout --> Migrations
+    SiteCheckout --> RedirectScript
+    SiteCheckout --> CNAME
+    Workflow --> CompilerCheckout
+    PinnedCompiler --> CompilerCheckout
+    CompilerCheckout --> Source
+    CompilerCheckout --> BuiltinThemes
+    ExampleConfig -.->|"仅供开发者复制"| SiteConfig
+    SiteConfig --> Build
     Source --> Build
-    Config --> Build
-    Templates --> Build
-    Workflow --> ShortToken
+    BuiltinThemes --> Build
     ShortToken -->|"读取 Issues"| Issues
     Issues --> Build
-    Build --> Artifact
+    Build --> Redirects
+    Migrations --> Redirects
+    RedirectScript --> Redirects
+    Redirects --> Artifact
     Artifact --> Deploy
     Deploy --> Pages
     DNS --> Pages
@@ -148,8 +171,13 @@ flowchart TD
     Tests -.->|"开发期验证"| Source
 ```
 
-Issue comments不触发静态构建，因为 Utterances 会实时读取评论。Open/closed 状态
-不决定发布状态；只有 `published` label 控制发布。
+Issue comments 不触发静态构建，因为 Utterances 会实时读取评论。Open/closed 状态不
+决定发布状态；只有 `published` label 控制发布。
+
+这里的 `main` 只属于站点仓库的生产 deploy guard，不是编译器的依赖版本。当前 workflow
+先 checkout 站点仓库，再用 `actions/checkout` 的 `repository`、`ref` 和 `path` 参数
+把生成器 checkout 到 `compiler/`；生成器 `ref` 必须是审核过的 release 或完整 40 字符
+SHA，不能是 moving `main`。
 
 ## Workflow 所在位置
 
@@ -159,13 +187,13 @@ Issue comments不触发静态构建，因为 Utterances 会实时读取评论。
 geoqiao/geoqiao.github.io/.github/workflows/pages.yml
 ```
 
-本仓库提供可复制的模板：
+当前生产文件可在
+[站点仓库的 Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml)
+核对。本仓库提供可复制的
+[Pages workflow 模板](deployment/geoqiao-pages.yml)；模板不会被 `escaping` 自己执行，
+复制后必须由站点仓库持有真实 `config.yaml`、workflow、`CNAME` 和站点迁移文件。
 
-```text
-docs/deployment/geoqiao-pages.yml
-```
-
-模板使用：
+模板以及当前站点 workflow 使用：
 
 - `actions/checkout@v4`
 - `astral-sh/setup-uv@v6`
@@ -177,8 +205,24 @@ docs/deployment/geoqiao-pages.yml
 - `id-token: write`
 - `GITHUB_TOKEN: ${{ github.token }}`
 
-模板不会 clone、push 生成文件，不使用个人 PAT、`G_T`、
+workflow 不会 clone、push 生成文件，不使用个人 PAT、`G_T`、
 `repository_dispatch` 或 `issue_comment`。
+
+## Site-owned slug migration 后处理
+
+编译器先根据当前 Issue front matter 生成新的 canonical Blog 路由。对于一次性的内容
+slug 迁移，站点仓库可以在编译成功后、上传 Pages artifact 前运行：
+
+```text
+python3 scripts/render_slug_redirects.py --map content-migrations/blog-slugs-2026-08.json --output output
+```
+
+当前站点的 mapping 显式把旧的拼音式 `/blog/{slug}/` 路由指向新的英文 slug。脚本只
+在目标 canonical 页面已经存在且旧源路径不再占用时写入静态兼容页；源页面仍是当前
+canonical 时跳过，源和目标都不存在或同时存在则失败。这是站点仓库拥有的迁移后处理，
+不是 `RouteRegistry` 的自动 slug 推导，也不把旧 `.html` 路由重新加入生成器；边界见
+[`ADR-0005`](adr/0005-site-owned-blog-slug-migration-redirects.md) 和
+[`ADR-0003`](adr/0003-drop-legacy-html-urls.md)。
 
 ## Pages 设置
 
@@ -186,7 +230,11 @@ docs/deployment/geoqiao-pages.yml
 
 1. Build and deployment → Source 选择 **GitHub Actions**；
 2. Custom domain 设置为 `geoqiao.me`；
-3. DNS 稳定后启用 **Enforce HTTPS**。
+3. 确认证书可用并启用 **Enforce HTTPS**。
+
+这些设置和 `CNAME` 都属于站点仓库/Pages 运维边界，不是生成器的运行时状态。`site.url`
+是站点 Config-owned 的 canonical origin，生产站点当前以 `https://geoqiao.me/` 作为该
+输入；RouteRegistry、canonical、Feed、sitemap 和 robots 都从这个输入派生。
 
 `geoqiao.me` 的 apex DNS 应只保留 GitHub Pages 的四条 A 记录：
 
@@ -214,29 +262,37 @@ security:
 注入，不写入配置、Issue、workflow 或日志。不要把密码、Token、Cookie 提交到仓库
 或发送给 Agent。
 
-## 当前生产状态
+## 当前 consumer pin（稳定契约，不是运行快照）
 
-以下是 2026-08-02 完成生产切换后的快照：
+当前 `geoqiao.github.io` workflow 使用以下完整 40 字符 SHA：
 
-```mermaid
-flowchart LR
-    Compiler["escaping/main<br/>ec23f86"] --> Workflow["Pages workflow"]
-    Target["geoqiao.github.io/main<br/>4cb1341"] --> Workflow
-    Workflow --> Build["构建成功"]
-    Build --> Artifact["Pages Artifact<br/>8834821597"]
-    Artifact --> Deploy["部署成功<br/>Run 30752288816"]
-    Deploy --> Domain["geoqiao.me"]
-
-    LegacyTrigger["旧 trigger.yml"] -->|"已删除"| Retired["旧发布链路已退役"]
-    LegacySecret["G_T Secrets"] -->|"已删除"| Retired
-    LegacyWorkflow["旧 gen_site workflow"] -->|"已禁用"| Retired
-
-    Domain --> HTTPS["HTTPS 证书<br/>等待 GitHub 异步签发"]
+```text
+geoqiao/escaping@cfec81fdcee6f321fc433f2cb4342d3243ced6f1
 ```
 
-生产切换已经完成：
+该 pin 对应当前已验证的 Theme、路由、Config schema、sanitization 和 artifact
+validation 组合。升级时先验证站点 consumer，再更新站点仓库的 pin；回滚时恢复上一个
+已验证的完整 SHA，并按
+[`docs/deployment.md`](deployment.md) 的 Config 兼容规则重新运行 workflow。
 
-- Pages 发布源是 GitHub Actions 上传的 artifact，不是目标仓库根目录；
-- 旧 `trigger.yml`、`G_T` secrets 和 branch-root 发布链路已经退役；
-- 历史 `.html` URL 不保留 redirect 或兼容别名；
-- DNS 已指向 GitHub Pages；当前唯一待完成的运维项是证书签发后启用 **Enforce HTTPS**。
+这里不记录某次运行的 commit 缩写、Pages artifact 编号、Actions run ID 或证书签发
+快照：这些是会过期的站点运维观测，不是双仓库架构契约。需要确认实时部署时，应直接
+查看站点 workflow、Pages 设置和当前 artifact。
+
+## Publication safety boundaries
+
+Live Pages protection and local output protection are separate:
+
+- The Site Orchestrator deploy job depends on a successful build and artifact upload. A failed
+  build therefore leaves the currently deployed Pages artifact untouched.
+- The Site Compiler renders and validates a complete candidate in an owned staging directory
+  before local publication begins. Compile, render, or validation failures leave an existing
+  local `output` tree unchanged.
+- Local publication uses portable directory renames. When output already exists, the compiler
+  renames it to an owned sibling backup, promotes staging, and restores the backup if promotion
+  fails. A successful local rebuild may briefly have no output path between those renames; it
+  never copies a partial candidate into output file by file.
+
+Staging ownership checks run before each mutation. The interval between a check and its mutation
+is a known local TOCTOU window and is not closed by this design. Concurrent local builds targeting
+the same output directory are unsupported; the compiler does not provide a build lock.

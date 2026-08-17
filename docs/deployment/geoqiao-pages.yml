@@ -1,0 +1,86 @@
+# Copy this file to geoqiao/geoqiao.github.io/.github/workflows/pages.yml.
+# This file is a template only. The production workflow remains owned by the
+# site repository. Keep the compiler ref at a reviewed full 40-character SHA.
+name: Build and deploy geoqiao.me
+
+on:
+  workflow_dispatch:
+  issues:
+    types: [opened, edited, labeled, unlabeled, closed, reopened]
+  push:
+    paths:
+      - ".github/workflows/pages.yml"
+      - "config.yaml"
+      - "content-migrations/**"
+      - "scripts/**"
+      - "tests/**"
+      - "theme/**"
+      - "CNAME"
+
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    steps:
+      - name: Checkout site repository
+        uses: actions/checkout@v4
+
+      - name: Checkout pinned escaping compiler
+        uses: actions/checkout@v4
+        with:
+          repository: geoqiao/escaping
+          ref: cfec81fdcee6f321fc433f2cb4342d3243ced6f1
+          path: compiler
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v6
+        with:
+          enable-cache: true
+          cache-dependency-glob: compiler/uv.lock
+          version: "0.12.0"
+
+      - name: Set up Python
+        run: uv python install 3.11
+
+      - name: Test site migration tooling
+        run: python3 -m unittest -v tests/test_render_slug_redirects.py
+
+      - name: Generate site from the site Config
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: >-
+          uv run --project "$GITHUB_WORKSPACE/compiler" --frozen
+          escpe --config "$GITHUB_WORKSPACE/config.yaml"
+
+      # This step is site-owned post-processing, not part of escaping.
+      - name: Render Blog slug compatibility pages
+        run: >-
+          python3 scripts/render_slug_redirects.py
+          --map content-migrations/blog-slugs-2026-08.json
+          --output output
+
+      - name: Upload Pages artifact
+        uses: actions/upload-pages-artifact@v3
+        with:
+          path: output
+
+  deploy:
+    if: github.ref == 'refs/heads/main'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - name: Deploy to GitHub Pages
+        id: deployment
+        uses: actions/deploy-pages@v4

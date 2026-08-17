@@ -7,6 +7,10 @@ Production orchestration belongs to the site repository, not `escaping`.
 The site repository owns its real `config.yaml`, Pages workflow, custom domain, and any local
 Theme. The generator owns only `config.example.yaml`, package resources, and the compiler.
 
+The copyable [Pages workflow template](deployment/geoqiao-pages.yml) is documentation, not a
+workflow that runs from `escaping`. After copying it, the site repository owns and reviews the
+resulting workflow and all site-specific migration steps.
+
 ## Consumer naming contract
 
 The product and GitHub repository are named `escaping`. Its Python distribution and only console
@@ -19,16 +23,50 @@ with the generator pin.
 A production workflow must:
 
 1. check out the site repository;
-2. check out `geoqiao/escaping` at a release or full 40-character commit SHA, never a moving
-   `main` ref;
+2. check out `geoqiao/escaping` at a reviewed release or full 40-character commit SHA, never a
+   moving `main` ref;
 3. install the pinned project with `uv run --project` and `--frozen`;
 4. invoke `escpe --config "$GITHUB_WORKSPACE/config.yaml"` explicitly;
-5. upload `$GITHUB_WORKSPACE/output` as the Pages artifact;
-6. use `${{ github.token }}` through the Config-selected `GITHUB_TOKEN` variable.
+5. optionally run site-owned post-processing after the compiler succeeds and before artifact
+   upload;
+6. upload `$GITHUB_WORKSPACE/output` as the Pages artifact;
+7. use `${{ github.token }}` through the Config-selected `GITHUB_TOKEN` variable.
 
-Config, workflow, `CNAME`, and local Theme changes should trigger a build. Issue events may also
-trigger it because Issues are the content source. Branch/PR validation may build and upload an
-artifact, but the deploy job must be guarded to `refs/heads/main`.
+The current geoqiao.me consumer pins:
+
+```text
+geoqiao/escaping@cfec81fdcee6f321fc433f2cb4342d3243ced6f1
+```
+
+The site workflow uses `actions/checkout@v4` for both checkouts, places the pinned compiler at
+`compiler/`, installs uv `0.12.0` with `astral-sh/setup-uv@v6`, and invokes the compiler with the
+explicit site Config. Keep the full SHA in the site workflow; do not shorten it to the first
+seven characters in architecture or deployment instructions.
+
+Config, workflow, `CNAME`, local Theme, and migration tooling changes should trigger a build.
+Issue events may also trigger it because Issues are the content source. Branch/PR validation may
+build and upload an artifact, but the deploy job must be guarded to `refs/heads/main`.
+
+## Site-owned slug migration post-processing
+
+The compiler owns the current canonical routes. A site repository may maintain an explicit,
+temporary mapping for a published Blog slug migration and render compatibility pages after the
+compiler has produced the new canonical page:
+
+```text
+python3 scripts/render_slug_redirects.py --map content-migrations/blog-slugs-2026-08.json --output output
+```
+
+This post-processing belongs to the site repository because the site owns the migration history,
+retirement timing, and Pages artifact. It must not infer slugs from titles or turn migration
+entries into a general compiler feature. The current script accepts only slash-form Blog routes,
+checks that the target exists, skips a source that is still the current canonical page, and
+fails on ambiguous or missing source/target state.
+
+This is separate from historical `.html` Blog URLs. ADR-0003 still rejects `.html` aliases and
+compatibility redirects; the site-owned mapping only covers explicit non-`.html` slug migrations.
+The boundary is recorded in
+[ADR-0005](adr/0005-site-owned-blog-slug-migration-redirects.md).
 
 ## Publication safety boundaries
 
@@ -70,6 +108,7 @@ Before production cutover, verify at least:
 - canonical, Open Graph, Twitter, and JSON-LD URLs;
 - Atom entry/self links, sitemap membership, and robots sitemap URL;
 - Issue-number comments and light/dark synchronization;
+- explicit site-owned slug migration pages, when a migration map is present;
 - Site Orchestrator gating leaves the currently deployed artifact untouched when a build fails;
 - compiler staging leaves existing local output unchanged when compilation or validation fails.
 
