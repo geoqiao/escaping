@@ -91,15 +91,7 @@
     document.querySelector(".article-toc")?.setAttribute("hidden", "");
   }
 
-  const mermaidBlocks = document.querySelectorAll("pre code.language-mermaid");
-  if (mermaidBlocks.length) {
-    const { default: mermaid } = await import("https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs");
-    mermaidBlocks.forEach((code) => {
-      const pre = code.parentElement;
-      pre.className = "mermaid";
-      pre.textContent = code.textContent;
-    });
-    mermaid.initialize({ startOnLoad: false, theme: document.documentElement.dataset.theme === "dark" ? "dark" : "default" });
-    mermaid.run();
-  }
 </script>
+<script src="{{ theme_path }}/static/js/mermaid.js"
+        data-runtime-src="{{ theme_path }}/static/vendor/mermaid-11.16.1/mermaid.min.js"
+        data-mermaid-theme="auto" defer></script>

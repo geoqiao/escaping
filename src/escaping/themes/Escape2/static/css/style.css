@@ -18,9 +18,9 @@
   --header-bg: #252627;
   --footer-bg: #252627;
 
-  --font-header: 'JetBrains Mono', 'Fira Mono', monospace;
-  --font-body: 'Source Sans 3', 'Open Sans', sans-serif;
-  --font-code: 'JetBrains Mono', 'Fira Mono', monospace;
+  --font-header: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
+  --font-body: system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --font-code: ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
 
   --width: 760px;
   --break-large: 992px;

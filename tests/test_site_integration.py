@@ -179,6 +179,25 @@ def test_missing_referenced_script_fails_artifact_validation(
     )
 
 
+def test_missing_deferred_runtime_asset_fails_artifact_validation(
+    tmp_path: Path,
+) -> None:
+    settings = _settings()
+    site = _render_representative_site(settings, tmp_path)
+    mermaid_path = next(
+        (tmp_path / "templates" / settings.theme.name / "static/vendor").glob(
+            "mermaid-*/mermaid.min.js"
+        )
+    )
+    mermaid_path.unlink()
+
+    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
+    assert any(
+        diagnostic.code == "MISSING_ASSET" and "mermaid.min.js" in diagnostic.message
+        for diagnostic in diagnostics
+    )
+
+
 def test_missing_same_origin_absolute_asset_fails_artifact_validation(
     tmp_path: Path,
 ) -> None:

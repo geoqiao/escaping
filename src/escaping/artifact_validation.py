@@ -44,6 +44,8 @@ class _HTMLProbe(HTMLParser):
             self.links.append((tag, values["href"]))
         if tag in {"script", "img", "source"} and values.get("src"):
             self.resources.append((tag, values["src"]))
+        if tag == "script" and values.get("data-runtime-src"):
+            self.resources.append((tag, values["data-runtime-src"]))
         if tag == "img" and values.get("srcset"):
             self.resources.extend((tag, url) for url in _srcset_urls(values["srcset"]))
         if tag == "link" and values.get("rel", "").casefold() == "canonical":

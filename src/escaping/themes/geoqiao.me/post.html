@@ -28,7 +28,8 @@
                 <h1>{{ post.title }}</h1>
                 <p class="article-description">{{ post.description }}</p>
                 <div class="article-byline">
-                    <img src="{{ theme_path }}/static/images/author-mark.png" alt="" width="36" height="36">
+                    {% set author_image = metadata.profile.avatar or theme_path ~ '/static/images/author-mark.png' %}
+                    <img src="{{ author_image }}" alt="" width="36" height="36">
                     <span>{{ author_name }}</span>
                     {% if post.tags %}<div class="plain-tags">{% for tag in post.tags %}<a href="{{ tag.path }}">#{{ tag.name }}</a>{% endfor %}</div>{% endif %}
                 </div>

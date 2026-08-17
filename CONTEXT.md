@@ -53,9 +53,9 @@ A repository-owned, curated description of a project displayed by the personal s
 _Avoid_: Project issue, repository mirror
 
 **Site Profile**:
-Repository-owned structured identity data shared by Home and site-wide presentation, currently an avatar, short tagline, bio, and links; the detailed About narrative belongs to About Issue Content.
+Repository-owned structured identity data made available to a Theme, currently an avatar, optional tagline, bio, and links; profile copy is not required Home content, and the detailed About narrative belongs to About Issue Content.
 _Avoid_: About page content, About Issue metadata
 
 **Site Thesis**:
-A repository-owned statement arranged in one or more deliberate lines and presented as the principal message on Home; it expresses the site's perspective rather than describing its author.
+A repository-owned statement arranged in one or more deliberate lines and made available as an optional Theme presentation hint; configuring it does not require a Theme to place slogan copy on Home.
 _Avoid_: Theme copy, Site Profile bio, hero placeholder

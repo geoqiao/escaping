@@ -6,10 +6,21 @@ neutral light and deep-plum dark surfaces, restrained motion, and no remote
 Webfont dependency. First visit follows the operating-system color scheme; an
 explicit visitor choice is stored locally.
 
-Home dedicates the first viewport to the newest Blog entry and the author mark.
-The following section lists up to four more posts as borderless editorial rows.
-Profile and About copy stay off Home; About remains its own long-form page, and
-Blog archive pages own pagination.
+On small screens, the menu exposes its expanded state, closes with Escape from
+inside the navigation, restores focus to the menu toggle, and makes the page
+background inert while open.
+
+Mermaid 11.16.1 is maintained once in the generator-owned shared `escaping/static`
+package resources. The build injects its loader and licensed vendored runtime into
+this Theme's output assets; the browser fetches them only when a Mermaid code block
+is present.
+
+Home dedicates the first viewport to the newest Blog entry and the configured
+profile avatar, falling back to the bundled author mark. Author labels and the
+decorative monogram come from the configured author name. The following section
+lists up to four more posts as borderless editorial rows. Profile and About copy
+stay off Home; About remains its own long-form page, and Blog archive pages own
+pagination.
 
 Blog, Ideas, and Tag archives share the same editorial index grammar without a
 card grid or dense dividers. Blog and Idea details use a 720px reading column,

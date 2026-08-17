@@ -4,6 +4,7 @@
 {% block page_key %}home{% endblock %}
 
 {% block content %}
+{% set author_image = metadata.profile.avatar or theme_path ~ '/static/images/author-mark.png' %}
 {% if home_page.recent_posts %}
 {% set latest = home_page.recent_posts[0] %}
 <section class="home-hero" aria-labelledby="latest-title">
@@ -15,9 +16,9 @@
             {% if latest.tags %}<div class="plain-tags latest-tags">{% for tag in latest.tags %}<a href="{{ tag.path }}">#{{ tag.name }}</a>{% endfor %}</div>{% endif %}
         </article>
 
-        <figure class="author-mark" aria-label="Geo Qiao author mark">
-            <span class="author-mark-ghost" aria-hidden="true">GQ</span>
-            <img src="{{ theme_path }}/static/images/author-mark.png" alt="" width="1024" height="1024">
+        <figure class="author-mark" aria-label="{{ author_name }} author mark">
+            <span class="author-mark-ghost" aria-hidden="true">{{ author_initials }}</span>
+            <img src="{{ author_image }}" alt="" width="1024" height="1024">
             <figcaption>{{ author_name }} / Personal writing</figcaption>
         </figure>
     </div>
@@ -52,7 +53,7 @@
 <section class="home-hero home-hero-empty" aria-labelledby="latest-title">
     <div class="home-hero-inner">
         <div class="latest-story"><p class="latest-meta">PERSONAL WRITING</p><h1 id="latest-title">{{ blog_title }}</h1><p class="latest-description">{{ meta_description }}</p></div>
-        <figure class="author-mark" aria-label="Geo Qiao author mark"><span class="author-mark-ghost" aria-hidden="true">GQ</span><img src="{{ theme_path }}/static/images/author-mark.png" alt="" width="1024" height="1024"><figcaption>{{ author_name }} / Personal writing</figcaption></figure>
+        <figure class="author-mark" aria-label="{{ author_name }} author mark"><span class="author-mark-ghost" aria-hidden="true">{{ author_initials }}</span><img src="{{ author_image }}" alt="" width="1024" height="1024"><figcaption>{{ author_name }} / Personal writing</figcaption></figure>
     </div>
 </section>
 {% endif %}

@@ -18,6 +18,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 from .config import BuiltinThemeConfig, LocalThemeConfig
 
 _THEME_API_VERSION = "1"
+_MERMAID_VENDOR_DIRECTORY = "vendor/mermaid-11.16.1"
 _REQUIRED_TEMPLATES = (
     "base.html",
     "home.html",
@@ -105,12 +106,22 @@ class LoadedTheme:
             raise ThemeResolutionError("theme static asset directory is missing")
         destination = output_dir / "templates" / self.name / "static"
         _copy_resource_tree(static, destination)
-        shared_comments = files("escaping").joinpath("static/comments.js")
+        shared_static = files("escaping").joinpath("static")
+        shared_comments = shared_static.joinpath("comments.js")
         if not shared_comments.is_file():
             raise ThemeResolutionError("shared comments asset is missing")
         comments_target = destination / "js" / "comments.js"
         comments_target.parent.mkdir(parents=True, exist_ok=True)
         comments_target.write_bytes(shared_comments.read_bytes())
+        shared_mermaid = shared_static.joinpath("mermaid.js")
+        if not shared_mermaid.is_file():
+            raise ThemeResolutionError("shared Mermaid loader is missing")
+        mermaid_target = destination / "js" / "mermaid.js"
+        mermaid_target.write_bytes(shared_mermaid.read_bytes())
+        mermaid_vendor = _resource_at(shared_static, _MERMAID_VENDOR_DIRECTORY)
+        if not mermaid_vendor.is_dir():
+            raise ThemeResolutionError("shared Mermaid vendor assets are missing")
+        _copy_resource_tree(mermaid_vendor, destination / _MERMAID_VENDOR_DIRECTORY)
 
 
 class ThemeLoader:

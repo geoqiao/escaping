@@ -6,8 +6,9 @@ unrecognized settings fail loudly instead of being silently ignored.
 Configuration contract (per accepted spec):
 - ``github``: repository identity and a non-empty ``allowed_authors`` list.
 - ``site``: top-level site identity — title, author/display name, canonical
-  HTTPS origin, description, language, line-structured thesis, and navigation.
-- ``profile``: Site Profile — avatar, short tagline, bio, and links only.
+  HTTPS origin, description, language, optional Theme presentation hints, and
+  navigation.
+- ``profile``: Site Profile — avatar, optional Theme-specific copy, and links.
 - ``about``: immutable About Issue selection by ``issue_number``.
 - ``paths``: output and page-size configuration (positive, default 10).
 - ``theme``: explicit built-in package resource or Config-relative local source.
@@ -170,8 +171,9 @@ class NavigationConfig(BaseModel):
 class SiteConfig(BaseModel):
     """Top-level site identity.
 
-    Owns display name, canonical HTTPS origin, description, language, Site
-    Thesis lines, and navigation.  The canonical origin must use HTTPS.
+    Owns display name, canonical HTTPS origin, description, language, optional
+    Site Thesis lines made available to Themes, and navigation. The canonical
+    origin must use HTTPS.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -223,10 +225,10 @@ class SiteConfig(BaseModel):
 
 
 class SiteProfileConfig(BaseModel):
-    """Site Profile — avatar, short tagline, bio, and links only.
+    """Site Profile — avatar, optional Theme-specific copy, and links.
 
     The detailed About narrative belongs to About Issue Content, not this
-    section.
+    section. Themes decide whether and where to render tagline and bio.
     """
 
     model_config = ConfigDict(extra="forbid")
