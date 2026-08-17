@@ -24,6 +24,7 @@ escpe = "escaping.cli:run_cli"
 [tool.setuptools.package-data]
 escaping = [
     "static/*.js",
+    "static/vendor/**/*",
     "themes/**/*",
 ]
 

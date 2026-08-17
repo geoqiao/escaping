@@ -56,10 +56,16 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
     assert not any(name.startswith("github_blog/") for name in names)
     assert "escpe = escaping.cli:run_cli\n" in entry_points
     assert "blog-gen" not in entry_points
-    for theme in ("Escape1", "Escape2", "geoqiao.me"):
-        vendor_root = f"escaping/themes/{theme}/{_MERMAID_DIRECTORY}"
-        assert f"{vendor_root}/mermaid.min.js" in names
-        assert f"{vendor_root}/LICENSE" in names
+    vendor_root = f"escaping/{_MERMAID_DIRECTORY}"
+    assert "escaping/static/mermaid.js" in names
+    assert f"{vendor_root}/mermaid.min.js" in names
+    assert f"{vendor_root}/LICENSE" in names
+    assert f"{vendor_root}/README.md" in names
+    assert [
+        name
+        for name in names
+        if name.endswith(f"mermaid-{_MERMAID_VERSION}/mermaid.min.js")
+    ] == [f"{vendor_root}/mermaid.min.js"]
     consumer = tmp_path / "consumer"
     consumer.mkdir()
     script = """
@@ -135,8 +141,10 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me'):
     destination = root / ('assets-' + theme_name)
     theme.copy_assets(destination)
     vendor = destination / 'templates' / theme_name / '__MERMAID_DIRECTORY__'
+    assert (destination / 'templates' / theme_name / 'static/js/mermaid.js').is_file()
     assert (vendor / 'mermaid.min.js').is_file()
     assert (vendor / 'LICENSE').is_file()
+    assert (vendor / 'README.md').is_file()
 """.replace("__WHEEL__", repr(str(wheel)))
     script = script.replace("__MERMAID_DIRECTORY__", _MERMAID_DIRECTORY)
     subprocess.run(  # noqa: S603

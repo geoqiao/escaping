@@ -190,11 +190,6 @@ def test_theme_runtime_dependencies_are_local_and_reproducible(theme: str) -> No
     assert f'src="/templates/{theme}/static/js/mermaid.js"' in post
 
     loaded_theme = ThemeLoader(_ROOT).load(_settings(theme).theme)
-    assert loaded_theme.resource_root.joinpath(_MERMAID_ASSET).is_file()
-    assert loaded_theme.resource_root.joinpath(
-        f"static/vendor/mermaid-{_MERMAID_VERSION}/LICENSE"
-    ).is_file()
-
     css_dir = loaded_theme.resource_root.joinpath("static/css")
     css = "\n".join(
         resource.read_text(encoding="utf-8")
@@ -323,6 +318,14 @@ def test_shared_comments_script_preserves_security_and_compatibility_contract() 
     assert 'event.data.type === "error"' in script
     assert "if (!resizeReceived && loadingMsg) showError();" in script
     assert "}, 20000);" in script
+
+
+def test_shared_mermaid_loader_preserves_lazy_and_security_contract() -> None:
+    script = (_ROOT / "src/escaping/static/mermaid.js").read_text(encoding="utf-8")
+
+    assert "if (!loader || !runtimeSrc || !codeBlocks.length) return;" in script
+    assert 'securityLevel: "strict"' in script
+    assert "startOnLoad: false" in script
 
 
 def test_geoqiao_theme_preserves_semantic_page_structure() -> None:

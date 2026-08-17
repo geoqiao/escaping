@@ -7,6 +7,8 @@ import pytest
 from escaping.config import BuiltinThemeConfig, LocalThemeConfig
 from escaping.theme import ThemeLoader, ThemeResolutionError
 
+_MERMAID_VENDOR = "static/vendor/mermaid-11.16.1"
+
 
 def _theme(root: Path, name: str = "local") -> Path:
     theme = root / name
@@ -51,10 +53,16 @@ def test_builtin_theme_loads_and_copies_assets_outside_checkout(
     assert source.environment().get_template("home.html")
     assert source.environment().undefined.__name__ == "StrictUndefined"
     assert source.asset_url_path == f"/templates/{name}"
+    assert not source.resource_root.joinpath("static/js/mermaid.js").is_file()
+    assert not source.resource_root.joinpath(_MERMAID_VENDOR).is_dir()
     source.copy_assets(tmp_path / "output")
-    assert (
-        tmp_path / "output" / "templates" / name / "static" / "css" / "style.css"
-    ).is_file()
+    static = tmp_path / "output" / "templates" / name / "static"
+    assert (static / "css" / "style.css").is_file()
+    assert (static / "js" / "comments.js").is_file()
+    assert (static / "js" / "mermaid.js").is_file()
+    assert (static / "vendor/mermaid-11.16.1/mermaid.min.js").is_file()
+    assert (static / "vendor/mermaid-11.16.1/LICENSE").is_file()
+    assert (static / "vendor/mermaid-11.16.1/README.md").is_file()
 
 
 def test_local_theme_resolves_from_config_root_instead_of_cwd(
