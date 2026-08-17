@@ -4,10 +4,23 @@ import os
 import shutil
 import subprocess
 import sys
+import tomllib
 import zipfile
 from pathlib import Path
 
 _PROJECT_ROOT = Path(__file__).parent.parent.absolute()
+_MERMAID_VERSION = "11.16.1"
+_MERMAID_DIRECTORY = f"static/vendor/mermaid-{_MERMAID_VERSION}"
+
+
+def test_packaging_declares_an_explicit_setuptools_backend() -> None:
+    project = tomllib.loads((_PROJECT_ROOT / "pyproject.toml").read_text())
+
+    assert project["build-system"]["build-backend"] == "setuptools.build_meta"
+    assert any(
+        requirement.startswith("setuptools")
+        for requirement in project["build-system"]["requires"]
+    )
 
 
 def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
@@ -43,6 +56,10 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
     assert not any(name.startswith("github_blog/") for name in names)
     assert "escpe = escaping.cli:run_cli\n" in entry_points
     assert "blog-gen" not in entry_points
+    for theme in ("Escape1", "Escape2", "geoqiao.me"):
+        vendor_root = f"escaping/themes/{theme}/{_MERMAID_DIRECTORY}"
+        assert f"{vendor_root}/mermaid.min.js" in names
+        assert f"{vendor_root}/LICENSE" in names
     consumer = tmp_path / "consumer"
     consumer.mkdir()
     script = """
@@ -52,8 +69,10 @@ from pathlib import Path
 sys.path.insert(0, __WHEEL__)
 import escaping
 from escaping.config import Settings
+from escaping.config import BuiltinThemeConfig
 from escaping.models.issue_snapshot import IssueSnapshot
 from escaping.site_compiler import SiteCompiler
+from escaping.theme import ThemeLoader
 assert '.whl/' in escaping.__file__.replace('\\\\', '/')
 
 root = Path.cwd()
@@ -109,7 +128,17 @@ home_html = (root / 'output/index.html').read_text(encoding='utf-8')
 assert 'aria-label="Owner author mark"' in home_html
 assert 'Geo Qiao' not in home_html
 assert '>GQ<' not in home_html
+assert (root / 'output/templates/geoqiao.me/__MERMAID_DIRECTORY__/mermaid.min.js').is_file()
+assert (root / 'output/templates/geoqiao.me/__MERMAID_DIRECTORY__/LICENSE').is_file()
+for theme_name in ('Escape1', 'Escape2', 'geoqiao.me'):
+    theme = ThemeLoader(root).load(BuiltinThemeConfig(name=theme_name))
+    destination = root / ('assets-' + theme_name)
+    theme.copy_assets(destination)
+    vendor = destination / 'templates' / theme_name / '__MERMAID_DIRECTORY__'
+    assert (vendor / 'mermaid.min.js').is_file()
+    assert (vendor / 'LICENSE').is_file()
 """.replace("__WHEEL__", repr(str(wheel)))
+    script = script.replace("__MERMAID_DIRECTORY__", _MERMAID_DIRECTORY)
     subprocess.run(  # noqa: S603
         [sys.executable, "-c", script],
         cwd=consumer,

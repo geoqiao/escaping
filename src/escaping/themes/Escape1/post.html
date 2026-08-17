@@ -40,16 +40,7 @@
 
 {% set comments_issue_number = post.issue_number %}{% include '_comments.html' %}
 
-<script type="module">
-  import mermaid from "https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs";
-
-  document.querySelectorAll("pre code.language-mermaid").forEach((code) => {
-    const pre = code.parentElement;
-    pre.className = "mermaid";
-    pre.textContent = code.textContent;
-  });
-
-  mermaid.initialize({ startOnLoad: false });
-  mermaid.run();
-</script>
+<script src="{{ theme_path }}/static/js/mermaid.js"
+        data-runtime-src="{{ theme_path }}/static/vendor/mermaid-11.16.1/mermaid.min.js"
+        data-mermaid-theme="default" defer></script>
 {% endblock %}

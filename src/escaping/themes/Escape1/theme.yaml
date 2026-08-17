@@ -17,3 +17,4 @@ required_assets:
   - static/css
   - static/js
   - static/images
+  - static/vendor/mermaid-11.16.1

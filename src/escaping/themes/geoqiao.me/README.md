@@ -6,6 +6,9 @@ neutral light and deep-plum dark surfaces, restrained motion, and no remote
 Webfont dependency. First visit follows the operating-system color scheme; an
 explicit visitor choice is stored locally.
 
+Mermaid 11.16.1 is vendored with its license under `static/vendor` and fetched
+by the browser only when a Mermaid code block is present.
+
 Home dedicates the first viewport to the newest Blog entry and the configured
 profile avatar, falling back to the bundled author mark. Author labels and the
 decorative monogram come from the configured author name. The following section

@@ -19,6 +19,8 @@ from escaping.site_builder import SiteBuilder
 from escaping.theme import ThemeLoader
 
 _ROOT = Path(__file__).parent.parent.absolute()
+_MERMAID_VERSION = "11.16.1"
+_MERMAID_ASSET = f"static/vendor/mermaid-{_MERMAID_VERSION}/mermaid.min.js"
 
 
 def _settings(
@@ -147,6 +149,64 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
         assert f'data-issue-number="{issue_number}"' in rendered, page_name
         assert 'data-comments-repo="geoqiao/site"' in rendered, page_name
         assert 'data-comments-theme-mode="auto"' in rendered, page_name
+
+
+class _RuntimeResourceProbe(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.resources: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = {key: value or "" for key, value in attrs}
+        if tag == "script":
+            for key in ("src", "data-runtime-src"):
+                if attributes.get(key):
+                    self.resources.append(attributes[key])
+        if tag == "link" and set(attributes.get("rel", "").split()) & {
+            "stylesheet",
+            "preconnect",
+            "modulepreload",
+            "preload",
+        }:
+            self.resources.append(attributes.get("href", ""))
+
+
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
+def test_theme_runtime_dependencies_are_local_and_reproducible(theme: str) -> None:
+    rendered = _render_theme(theme)
+    probe = _RuntimeResourceProbe()
+    for output_path, html in rendered.items():
+        if output_path.endswith(".html"):
+            probe.feed(html)
+
+    assert not [
+        resource
+        for resource in probe.resources
+        if resource.startswith(("https://", "http://", "//"))
+    ]
+    post = rendered["blog/post/index.html"]
+    asset_url = f"/templates/{theme}/{_MERMAID_ASSET}"
+    assert f'data-runtime-src="{asset_url}"' in post
+    assert f'src="/templates/{theme}/static/js/mermaid.js"' in post
+
+    loaded_theme = ThemeLoader(_ROOT).load(_settings(theme).theme)
+    assert loaded_theme.resource_root.joinpath(_MERMAID_ASSET).is_file()
+    assert loaded_theme.resource_root.joinpath(
+        f"static/vendor/mermaid-{_MERMAID_VERSION}/LICENSE"
+    ).is_file()
+
+    css_dir = loaded_theme.resource_root.joinpath("static/css")
+    css = "\n".join(
+        resource.read_text(encoding="utf-8")
+        for resource in css_dir.iterdir()
+        if resource.is_file() and resource.name.endswith(".css")
+    )
+    assert not re.search(r"@import\s+(?:url\()?['\"]?(?:https?:)?//", css)
+    assert not re.search(
+        r"@font-face\s*\{[^}]*url\(\s*['\"]?(?:https?:)?//",
+        css,
+        flags=re.DOTALL,
+    )
 
 
 @pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])

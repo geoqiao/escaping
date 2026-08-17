@@ -81,7 +81,8 @@ def built_site_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
                 "slug: a-blog\n"
                 "description: A blog post.\n"
                 'created_date: "2026-01-01"\n'
-                "---\n\nA blog post."
+                "---\n\nA blog post.\n\n"
+                "```mermaid\nflowchart LR\n  A[Local] --> B[Diagram]\n```"
             ),
             labels=("type:blog", "published"),
             created_at=build_time,
@@ -236,6 +237,32 @@ def test_theme_follows_system_until_the_user_chooses(mobile_page: Page) -> None:
 
     mobile_page.emulate_media(color_scheme="dark")
     expect(root).to_have_attribute("data-theme", "light")
+
+
+def test_mermaid_diagram_uses_the_local_theme_runtime(
+    mobile_page: Page, site_server: str
+) -> None:
+    mermaid_requests: list[str] = []
+    mobile_page.on(
+        "request",
+        lambda request: (
+            mermaid_requests.append(request.url) if "mermaid" in request.url else None
+        ),
+    )
+    mobile_page.route("https://utteranc.es/**", lambda route: route.abort())
+
+    mobile_page.goto(f"{site_server}/blog/a-blog/", wait_until="load")
+
+    expect(mobile_page.locator("pre.mermaid svg")).to_have_count(1)
+    assert mermaid_requests
+    assert all(request.startswith(site_server) for request in mermaid_requests)
+    assert (
+        sum(
+            "/static/vendor/mermaid-11.16.1/mermaid.min.js" in request
+            for request in mermaid_requests
+        )
+        == 1
+    )
 
 
 def test_mobile_blog_titles_use_the_full_row_and_navigation_is_centered(

@@ -152,9 +152,6 @@ class RouteRegistry:
             return None
         return self.route_for_path(parsed.path)
 
-    def route_for_output(self, output_path: str) -> Route | None:
-        return self._output_paths.get(output_path.casefold())
-
     def routes(self) -> tuple[Route, ...]:
         return tuple(self._routes.values())
 
