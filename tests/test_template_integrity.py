@@ -318,6 +318,11 @@ def test_shared_comments_script_preserves_security_and_compatibility_contract() 
     assert ".contentWindow.postMessage(" in script
     assert 'event.origin !== "https://utteranc.es"' in script
     assert "event.source !== iframe.contentWindow" in script
+    assert "utterancesScript.onerror = function ()" in script
+    assert 'event.data.type === "resize"' in script
+    assert 'event.data.type === "error"' in script
+    assert "if (!resizeReceived && loadingMsg) showError();" in script
+    assert "}, 20000);" in script
 
 
 def test_geoqiao_theme_preserves_semantic_page_structure() -> None:

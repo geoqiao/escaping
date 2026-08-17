@@ -6,6 +6,10 @@ neutral light and deep-plum dark surfaces, restrained motion, and no remote
 Webfont dependency. First visit follows the operating-system color scheme; an
 explicit visitor choice is stored locally.
 
+On small screens, the menu exposes its expanded state, closes with Escape from
+inside the navigation, restores focus to the menu toggle, and makes the page
+background inert while open.
+
 Mermaid 11.16.1 is vendored with its license under `static/vendor` and fetched
 by the browser only when a Mermaid code block is present.
 

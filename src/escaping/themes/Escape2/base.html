@@ -81,6 +81,14 @@
                     checkbox.dispatchEvent(new Event('change', { bubbles: true }));
                 }
             });
+            document.addEventListener('keydown', function(event) {
+                if (event.key === 'Escape' && checkbox.checked) {
+                    event.preventDefault();
+                    checkbox.checked = false;
+                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                    label.focus();
+                }
+            });
         }
     })();
     </script>

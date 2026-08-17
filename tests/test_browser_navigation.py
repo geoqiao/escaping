@@ -8,6 +8,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
+from typing import Any
 from urllib.parse import quote
 
 import pytest
@@ -29,6 +30,7 @@ from playwright.sync_api import (  # noqa: E402
     Browser,
     Error,
     Page,
+    Playwright,
     expect,
     sync_playwright,
 )
@@ -44,6 +46,7 @@ from escaping.theme import ThemeLoader  # noqa: E402
 
 _ROOT = Path(__file__).parent.parent.absolute()
 _THEMES = ("Escape1", "Escape2", "geoqiao.me")
+_MERMAID_RENDER_TIMEOUT_MS = 15_000
 
 
 def _browser_settings(theme: str) -> Settings:
@@ -173,26 +176,40 @@ def site_server(site_servers: dict[str, str]) -> str:
 
 
 @pytest.fixture(scope="session")
-def browser() -> Iterator[Browser]:
+def playwright_api() -> Iterator[Playwright]:
+    with sync_playwright() as playwright:
+        yield playwright
+
+
+@pytest.fixture(scope="session")
+def browser(playwright_api: Playwright) -> Iterator[Browser]:
     message = (
         "Chromium is unavailable; install it with `uv run playwright install chromium`."
     )
-    with sync_playwright() as playwright_api:
-        try:
-            browser = playwright_api.chromium.launch()
-        except Error as exc:
-            if os.environ.get("CI", "").lower() == "true":
-                raise
-            pytest.skip(f"{message} ({exc})")
-        try:
-            yield browser
-        finally:
-            browser.close()
+    try:
+        browser = playwright_api.chromium.launch()
+    except Error as exc:
+        if os.environ.get("CI", "").lower() == "true":
+            raise
+        pytest.skip(f"{message} ({exc})")
+    try:
+        yield browser
+    finally:
+        browser.close()
+
+
+@pytest.fixture(scope="session")
+def mobile_context_options(playwright_api: Playwright) -> dict[str, Any]:
+    return dict(playwright_api.devices["iPhone 13"])
 
 
 @pytest.fixture
-def mobile_page(browser: Browser, site_server: str) -> Iterator[Page]:
-    context = browser.new_context(viewport={"width": 390, "height": 844})
+def mobile_page(
+    browser: Browser,
+    site_server: str,
+    mobile_context_options: dict[str, Any],
+) -> Iterator[Page]:
+    context = browser.new_context(**mobile_context_options)
     page = context.new_page()
     try:
         page.goto(f"{site_server}/", wait_until="load")
@@ -206,10 +223,11 @@ def theme_page(
     request: pytest.FixtureRequest,
     browser: Browser,
     site_servers: dict[str, str],
+    mobile_context_options: dict[str, Any],
 ) -> Iterator[tuple[str, Page, str]]:
     theme = str(request.param)
     site_server = site_servers[theme]
-    context = browser.new_context(viewport={"width": 390, "height": 844})
+    context = browser.new_context(**mobile_context_options)
     page = context.new_page()
     try:
         page.goto(f"{site_server}/", wait_until="load")
@@ -221,7 +239,7 @@ def theme_page(
 def test_mobile_navigation_is_keyboard_operable_for_every_theme(
     theme_page: tuple[str, Page, str],
 ) -> None:
-    theme, page, _ = theme_page
+    _, page, _ = theme_page
     menu_control = page.get_by_role("button", name="Toggle menu")
     controlled_id = menu_control.get_attribute("aria-controls")
     assert controlled_id
@@ -238,7 +256,9 @@ def test_mobile_navigation_is_keyboard_operable_for_every_theme(
     expect(menu_control).to_have_attribute("aria-expanded", "true")
     expect(blog_link).to_be_in_viewport()
 
-    page.keyboard.press("Escape" if theme == "geoqiao.me" else "Enter")
+    blog_link.focus()
+    expect(blog_link).to_be_focused()
+    page.keyboard.press("Escape")
     expect(menu_control).to_have_attribute("aria-expanded", "false")
     expect(blog_link).not_to_be_in_viewport()
     expect(menu_control).to_be_focused()
@@ -257,6 +277,12 @@ def test_geoqiao_mobile_navigation_contains_focus_and_resets_cleanly(
     blog_link = menu.get_by_role("link", name="Blog", exact=True)
     scrim = mobile_page.get_by_role("button", name="Close navigation")
     line = menu_control.locator('[aria-hidden="true"]')
+    background_regions = (
+        ".skip-link",
+        ".ledger-brand",
+        ".site-content",
+        ".ledger-footer",
+    )
 
     button_box = menu_control.bounding_box()
     line_box = line.bounding_box()
@@ -272,10 +298,19 @@ def test_geoqiao_mobile_navigation_contains_focus_and_resets_cleanly(
     mobile_page.keyboard.press("Enter")
     expect(menu_control).to_have_attribute("aria-expanded", "true")
     expect(scrim).to_be_visible()
-    assert mobile_page.locator("[inert]").count() > 0
+    for selector in background_regions:
+        expect(mobile_page.locator(selector)).to_have_attribute("inert", "")
 
-    for _ in range(menu_controls.count() + 1):
+    for _ in range(menu_controls.count()):
         mobile_page.keyboard.press("Tab")
+        assert mobile_page.evaluate(
+            """() => {
+                const active = document.activeElement;
+                const menu = document.getElementById('header-nav');
+                const toggle = document.querySelector('.hamb');
+                return active === toggle || (menu && menu.contains(active));
+            }"""
+        )
         expect(mobile_page.locator("[inert]:focus, [inert] :focus")).to_have_count(0)
 
     mobile_page.keyboard.press("Escape")
@@ -335,7 +370,9 @@ def test_mermaid_diagram_uses_the_local_theme_runtime(
 
     mobile_page.goto(f"{site_server}/blog/a-blog/", wait_until="load")
 
-    expect(mobile_page.locator("pre.mermaid svg")).to_have_count(1)
+    expect(mobile_page.locator("pre.mermaid svg")).to_have_count(
+        1, timeout=_MERMAID_RENDER_TIMEOUT_MS
+    )
     assert mermaid_requests
     assert all(request.startswith(site_server) for request in mermaid_requests)
     assert (
@@ -396,6 +433,9 @@ def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
 
     page.set_viewport_size({"width": 390, "height": 844})
     page.goto(f"{site_server}/blog/a-blog/", wait_until="load")
+    expect(page.locator("pre.mermaid svg")).to_have_count(
+        1, timeout=_MERMAID_RENDER_TIMEOUT_MS
+    )
     metrics = page.evaluate(
         """() => {
             const root = document.documentElement;
@@ -425,10 +465,15 @@ def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
     page.goto(f"{site_server}/blog/", wait_until="load")
     blog_row = page.locator(".editorial-row").first
     blog_title_area = blog_row.locator(".editorial-copy")
+    blog_title = blog_title_area.get_by_role("heading", level=2)
     row_box = blog_row.bounding_box()
     title_area_box = blog_title_area.bounding_box()
     assert row_box is not None and title_area_box is not None
-    assert title_area_box["width"] >= row_box["width"] * 0.78
+    assert title_area_box["width"] == pytest.approx(row_box["width"], abs=1.5)
+    assert (
+        blog_title.evaluate("element => parseFloat(getComputedStyle(element).fontSize)")
+        <= 22.5
+    )
     assert page.evaluate(
         "document.documentElement.scrollWidth <= "
         "document.documentElement.clientWidth + 1"
@@ -439,6 +484,9 @@ def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
     about_title = about_heading.get_by_role("heading", name="About", exact=True)
     about_mark = about_heading.get_by_role("figure", name=re.compile(r"author mark$"))
     about_body = page.locator(".about-body")
+    about_section_title = about_body.get_by_role(
+        "heading", name="Things I Do", exact=True
+    )
     heading_box = about_heading.bounding_box()
     title_box = about_title.bounding_box()
     mark_box = about_mark.bounding_box()
@@ -453,8 +501,20 @@ def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
     assert mark_box["x"] + mark_box["width"] <= (
         heading_box["x"] + heading_box["width"] + 1
     )
-    assert mark_box["width"] <= heading_box["width"] * 0.4
-    assert mark_box["width"] <= viewport["width"] * 0.4
+    assert mark_box["width"] <= heading_box["width"] * 0.35
+    assert mark_box["width"] <= viewport["width"] * 0.35
+    assert (
+        about_title.evaluate(
+            "element => parseFloat(getComputedStyle(element).fontSize)"
+        )
+        <= viewport["width"] * 0.13
+    )
+    assert (
+        about_section_title.evaluate(
+            "element => parseFloat(getComputedStyle(element).fontSize)"
+        )
+        <= body_box["width"] * 0.08
+    )
     assert title_box["y"] < mark_box["y"] + mark_box["height"]
     assert mark_box["y"] < title_box["y"] + title_box["height"]
     assert page.evaluate(
