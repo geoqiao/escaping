@@ -93,7 +93,8 @@ def built_site_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
             title="About",
             author="geoqiao",
             body=(
-                '---\ndescription: About.\ncreated_date: "2026-01-01"\n---\n\nAbout.'
+                '---\ndescription: About.\ncreated_date: "2026-01-01"\n---\n\n'
+                "About.\n\n## Things I Do\n\n- Build useful tools."
             ),
             labels=("type:about", "published"),
             created_at=build_time,
@@ -274,4 +275,36 @@ def test_mobile_blog_titles_use_the_full_row_and_navigation_is_centered(
     assert (
         blog_link.evaluate("element => getComputedStyle(element).justifyContent")
         == "center"
+    )
+
+
+def test_mobile_about_keeps_identity_and_content_in_one_reading_scale(
+    mobile_page: Page, site_server: str
+) -> None:
+    mobile_page.goto(f"{site_server}/about/", wait_until="load")
+    heading = mobile_page.locator(".about-heading")
+    title = heading.locator("h1")
+    mark = heading.locator(".about-mark")
+    body = mobile_page.locator(".about-body")
+    section_title = body.locator("h2")
+
+    heading_box = heading.bounding_box()
+    title_box = title.bounding_box()
+    mark_box = mark.bounding_box()
+    body_box = body.bounding_box()
+    assert heading_box is not None and body_box is not None
+    assert title_box is not None and mark_box is not None
+    assert heading_box["width"] == pytest.approx(body_box["width"], abs=1)
+    assert mark_box["width"] <= 100
+    assert title_box["y"] < mark_box["y"] + mark_box["height"]
+    assert mark_box["y"] < title_box["y"] + title_box["height"]
+    assert (
+        title.evaluate("element => parseFloat(getComputedStyle(element).fontSize)")
+        <= 46
+    )
+    assert (
+        section_title.evaluate(
+            "element => parseFloat(getComputedStyle(element).fontSize)"
+        )
+        <= 26
     )
