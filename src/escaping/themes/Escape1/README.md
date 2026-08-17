@@ -12,5 +12,7 @@ canonical routes, sanitization, and empty states remain shared.
 On small screens, the menu exposes its expanded state, closes with Escape from
 inside the navigation, and restores focus to the menu toggle.
 
-Mermaid 11.16.1 is vendored with its license under `static/vendor` and fetched
-by the browser only when a Mermaid code block is present.
+Mermaid 11.16.1 is maintained once in the generator-owned shared `escaping/static`
+package resources. The build injects its loader and licensed vendored runtime into
+this Theme's output assets; the browser fetches them only when a Mermaid code block
+is present.

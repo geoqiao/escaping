@@ -10,8 +10,10 @@ On small screens, the menu exposes its expanded state, closes with Escape from
 inside the navigation, restores focus to the menu toggle, and makes the page
 background inert while open.
 
-Mermaid 11.16.1 is vendored with its license under `static/vendor` and fetched
-by the browser only when a Mermaid code block is present.
+Mermaid 11.16.1 is maintained once in the generator-owned shared `escaping/static`
+package resources. The build injects its loader and licensed vendored runtime into
+this Theme's output assets; the browser fetches them only when a Mermaid code block
+is present.
 
 Home dedicates the first viewport to the newest Blog entry and the configured
 profile avatar, falling back to the bundled author mark. Author labels and the
