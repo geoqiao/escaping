@@ -5,7 +5,7 @@ from datetime import datetime
 from .atom_feed import AtomFeedBuilder
 from .blog_archive import build_archives
 from .build_result import Diagnostic
-from .config import BuiltinThemeConfig, Settings
+from .config import Settings
 from .home_builder import build_home
 from .models.content import ContentCompilationResult
 from .models.projects import ProjectCompilationResult, ProjectsPage
@@ -21,12 +21,6 @@ from .models.site import (
 )
 from .routes import RouteCollisionError, RouteRegistry
 from .tag_taxonomy import build_tag_taxonomy
-
-_BUILTIN_THEME_UNRENDERED_FIELDS = {
-    "geoqiao.me": ("site.thesis", "profile.tagline", "profile.bio"),
-    "Escape1": ("site.thesis", "profile.tagline"),
-    "Escape2": ("site.thesis", "profile.tagline"),
-}
 
 
 class SiteBuilder:
@@ -46,7 +40,6 @@ class SiteBuilder:
         build_start_time: datetime,
     ) -> SiteModel:
         diagnostics = [*content.diagnostics, *projects.diagnostics]
-        diagnostics.extend(self._theme_contract_diagnostics())
         projects_page = projects.page
         self._register_fixed_routes()
 
@@ -93,27 +86,6 @@ class SiteBuilder:
             feed=feed_result.feed,
             routes=self.routes,
             diagnostics=tuple(diagnostics),
-        )
-
-    def _theme_contract_diagnostics(self) -> tuple[Diagnostic, ...]:
-        theme = self.settings.theme
-        if not isinstance(theme, BuiltinThemeConfig):
-            return ()
-        configured_values = {
-            "site.thesis": self.settings.site.thesis,
-            "profile.tagline": self.settings.profile.tagline,
-            "profile.bio": self.settings.profile.bio,
-        }
-        return tuple(
-            Diagnostic(
-                "warning",
-                "THEME_FIELD_NOT_RENDERED",
-                f"Built-in Theme {theme.name!r} does not render {field}; "
-                "the value remains available to compatible local Themes.",
-                field=field,
-            )
-            for field in _BUILTIN_THEME_UNRENDERED_FIELDS.get(theme.name, ())
-            if configured_values[field]
         )
 
     def _register_fixed_routes(self) -> None:

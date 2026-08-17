@@ -13,8 +13,8 @@ site:
   description: Short description
   language: en
   # Optional Theme presentation hint retained for local Theme compatibility.
-  # The bundled Themes currently do not render thesis; a non-empty value with
-  # one of them emits a build warning. geoqiao.me intentionally has no slogan.
+  # The bundled Themes currently do not render thesis; geoqiao.me intentionally
+  # has no slogan.
   # thesis:
   #   - A deliberate statement about your site's perspective.
   #   - A second line, when the thought needs one.

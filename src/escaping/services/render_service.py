@@ -82,7 +82,7 @@ class RenderService:
             "atom_url": atom.canonical_url,
             "theme_favicon_url": metadata.theme.favicon_url,
             "author_name": metadata.author,
-            "author_mark_initials": self._author_mark_initials(metadata.author),
+            "author_initials": self._author_initials(metadata.author),
             "meta_description": metadata.description,
             "google_search_verification": metadata.google_search_verification,
             "theme_path": metadata.theme.asset_path,
@@ -95,7 +95,7 @@ class RenderService:
         }
 
     @staticmethod
-    def _author_mark_initials(author_name: str) -> str:
+    def _author_initials(author_name: str) -> str:
         words = author_name.split()
         if not words:
             return ""

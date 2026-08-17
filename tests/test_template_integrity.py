@@ -211,12 +211,13 @@ def test_geoqiao_author_images_prefer_the_configured_profile_avatar() -> None:
 
     for page in (home, post, about):
         assert f'src="{avatar}"' in page
+        assert f'<img src="{avatar}" alt=""' in page
         assert "/static/images/author-mark.png" not in page
         assert "Geo Qiao" not in page
         assert ">GQ<" not in page
-    assert 'aria-label="Ada Lovelace profile image"' in home
-    assert 'alt="Ada Lovelace"' in post
-    assert 'aria-label="Ada Lovelace profile image"' in about
+    assert 'aria-label="Ada Lovelace author mark"' in home
+    assert 'aria-label="Ada Lovelace author mark"' in about
+    assert '<span class="author-mark-ghost" aria-hidden="true">AL</span>' in home
 
 
 def test_geoqiao_theme_mark_fallback_has_no_identity_leaks() -> None:
@@ -227,11 +228,11 @@ def test_geoqiao_theme_mark_fallback_has_no_identity_leaks() -> None:
 
     for page in (home, post, about):
         assert "/static/images/author-mark.png" in page
+        assert 'static/images/author-mark.png" alt=""' in page
         assert "Geo Qiao" not in page
         assert ">GQ<" not in page
-    assert 'aria-label="Ada Lovelace profile image"' in home
-    assert 'alt="Ada Lovelace"' in post
-    assert 'aria-label="Ada Lovelace profile image"' in about
+    assert 'aria-label="Ada Lovelace author mark"' in home
+    assert 'aria-label="Ada Lovelace author mark"' in about
 
 
 def test_geoqiao_about_body_is_the_only_owner_of_profile_copy() -> None:
@@ -308,7 +309,7 @@ def test_geoqiao_theme_preserves_semantic_page_structure() -> None:
         '<section class="recent-writing" aria-labelledby="recent-writing-title">'
         in home
     )
-    assert '<figure class="author-mark" aria-label="geoqiao profile image">' in home
+    assert '<figure class="author-mark" aria-label="geoqiao author mark">' in home
     assert '<article class="article-layout">' in post
     assert '<aside class="article-issue" aria-label="Article metadata">' in post
     assert '<nav data-article-toc aria-label="Article sections"></nav>' in post

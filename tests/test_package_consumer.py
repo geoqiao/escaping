@@ -106,7 +106,7 @@ assert (root / 'output/blog/post/index.html').is_file()
 assert (root / 'output/templates/geoqiao.me/static/css/style.css').is_file()
 assert (root / 'output/templates/geoqiao.me/static/js/comments.js').is_file()
 home_html = (root / 'output/index.html').read_text(encoding='utf-8')
-assert 'aria-label="Owner profile image"' in home_html
+assert 'aria-label="Owner author mark"' in home_html
 assert 'Geo Qiao' not in home_html
 assert '>GQ<' not in home_html
 """.replace("__WHEEL__", repr(str(wheel)))

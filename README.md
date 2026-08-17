@@ -100,8 +100,7 @@ Blog slug 由 Issue front matter 显式提供，不从标题推导；About 由�
 
 默认 `geoqiao.me` 会优先使用 `profile.avatar`，未配置时回退到内置 mark；
 它不会把 Site Thesis、tagline 或 profile bio 放到首页。为兼容本地 Theme，这些字段
-仍被 Schema 接受并进入 `SiteModel`；已知内置 Theme 不消费非空字段时，构建会给出
-warning。
+仍被 Schema 接受并进入 `SiteModel`，具体展示由 Theme 决定。
 
 > [!NOTE]
 > Config 中的 output 和本地 Theme 等相对路径，始终以 **Config 文件所在目录** 为根，因此命令可以从任意工作目录执行。

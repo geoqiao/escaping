@@ -15,7 +15,7 @@
             <h1>About</h1>
         </div>
         {% set about_mark = metadata.profile.avatar or theme_path ~ '/static/images/author-mark.png' %}
-        <figure class="about-mark" aria-label="{{ author_name }} profile image"><img src="{{ about_mark }}" alt="{{ author_name }}" width="1024" height="1024"></figure>
+        <figure class="about-mark" aria-label="{{ author_name }} author mark"><img src="{{ about_mark }}" alt="" width="1024" height="1024"></figure>
     </header>
 
     <div class="about-body post-content">{{ about_page.body_html|safe }}</div>
