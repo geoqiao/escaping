@@ -39,6 +39,9 @@ def test_example_config_strict_loads_with_default_theme() -> None:
     assert settings.security.token_env == "GITHUB_TOKEN"  # noqa: S105
     assert settings.about.issue_number >= 1
     assert settings.theme == BuiltinThemeConfig(name="geoqiao.me")
+    assert settings.site.thesis == []
+    assert settings.profile.tagline == ""
+    assert settings.profile.bio == ""
 
 
 def test_example_config_has_no_duplicate_keys() -> None:

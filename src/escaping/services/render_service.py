@@ -82,6 +82,7 @@ class RenderService:
             "atom_url": atom.canonical_url,
             "theme_favicon_url": metadata.theme.favicon_url,
             "author_name": metadata.author,
+            "author_mark_initials": self._author_mark_initials(metadata.author),
             "meta_description": metadata.description,
             "google_search_verification": metadata.google_search_verification,
             "theme_path": metadata.theme.asset_path,
@@ -92,6 +93,15 @@ class RenderService:
             "comments": metadata.comments,
             "metadata": metadata,
         }
+
+    @staticmethod
+    def _author_mark_initials(author_name: str) -> str:
+        words = author_name.split()
+        if not words:
+            return ""
+        if len(words) == 1:
+            return words[0][:2].upper()
+        return f"{words[0][0]}{words[-1][0]}".upper()
 
     def _render_home(self, site: SiteModel, home: HomePage) -> str:
         context = self._common_context(site)

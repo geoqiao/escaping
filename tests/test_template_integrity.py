@@ -26,6 +26,7 @@ def _settings(
     *,
     title: str = "Site",
     author: str = "geoqiao",
+    avatar: str = "",
     thesis: list[str] | None = None,
     tagline: str = "",
     bio: str = "",
@@ -42,7 +43,7 @@ def _settings(
     data: dict[str, object] = {
         "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
         "site": site,
-        "profile": {"tagline": tagline, "bio": bio},
+        "profile": {"avatar": avatar, "tagline": tagline, "bio": bio},
         "about": {"issue_number": 10},
         "theme": {"source": "builtin", "name": theme},
         "security": {"token_env": "TOKEN"},
@@ -73,6 +74,7 @@ def _render_theme(
     *,
     title: str = "Site",
     author: str = "geoqiao",
+    avatar: str = "",
     thesis: list[str] | None = None,
     tagline: str = "",
     bio: str = "",
@@ -82,6 +84,7 @@ def _render_theme(
         theme,
         title=title,
         author=author,
+        avatar=avatar,
         thesis=thesis,
         tagline=tagline,
         bio=bio,
@@ -199,6 +202,38 @@ def test_geoqiao_home_has_one_visible_editorial_heading() -> None:
     assert 'class="profile-rail"' not in home
 
 
+def test_geoqiao_author_images_prefer_the_configured_profile_avatar() -> None:
+    avatar = "https://example.com/ada.png"
+    rendered = _render_theme("geoqiao.me", author="Ada Lovelace", avatar=avatar)
+    home = rendered["index.html"]
+    post = rendered["blog/post/index.html"]
+    about = rendered["about/index.html"]
+
+    for page in (home, post, about):
+        assert f'src="{avatar}"' in page
+        assert "/static/images/author-mark.png" not in page
+        assert "Geo Qiao" not in page
+        assert ">GQ<" not in page
+    assert 'aria-label="Ada Lovelace profile image"' in home
+    assert 'alt="Ada Lovelace"' in post
+    assert 'aria-label="Ada Lovelace profile image"' in about
+
+
+def test_geoqiao_theme_mark_fallback_has_no_identity_leaks() -> None:
+    rendered = _render_theme("geoqiao.me", author="Ada Lovelace")
+    home = rendered["index.html"]
+    post = rendered["blog/post/index.html"]
+    about = rendered["about/index.html"]
+
+    for page in (home, post, about):
+        assert "/static/images/author-mark.png" in page
+        assert "Geo Qiao" not in page
+        assert ">GQ<" not in page
+    assert 'aria-label="Ada Lovelace profile image"' in home
+    assert 'alt="Ada Lovelace"' in post
+    assert 'aria-label="Ada Lovelace profile image"' in about
+
+
 def test_geoqiao_about_body_is_the_only_owner_of_profile_copy() -> None:
     about = _render_theme(
         "geoqiao.me",
@@ -273,7 +308,7 @@ def test_geoqiao_theme_preserves_semantic_page_structure() -> None:
         '<section class="recent-writing" aria-labelledby="recent-writing-title">'
         in home
     )
-    assert '<figure class="author-mark" aria-label="Geo Qiao author mark">' in home
+    assert '<figure class="author-mark" aria-label="geoqiao profile image">' in home
     assert '<article class="article-layout">' in post
     assert '<aside class="article-issue" aria-label="Article metadata">' in post
     assert '<nav data-article-toc aria-label="Article sections"></nav>' in post

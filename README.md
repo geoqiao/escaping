@@ -85,7 +85,6 @@ site:
 
 profile:
   avatar: https://github.com/username.png
-  bio: A short bio about yourself.
   links:
     - name: GitHub
       url: https://github.com/username
@@ -98,6 +97,11 @@ security:
 ```
 
 Blog slug 由 Issue front matter 显式提供，不从标题推导；About 由不可变 Issue number 选择。完整字段见 [`config.example.yaml`](config.example.yaml)，内容格式见 [`Issue Content v1`](docs/contracts/issue-content-v1.md)。
+
+默认 `geoqiao.me` 会优先使用 `profile.avatar`，未配置时回退到内置 mark；
+它不会把 Site Thesis、tagline 或 profile bio 放到首页。为兼容本地 Theme，这些字段
+仍被 Schema 接受并进入 `SiteModel`；已知内置 Theme 不消费非空字段时，构建会给出
+warning。
 
 > [!NOTE]
 > Config 中的 output 和本地 Theme 等相对路径，始终以 **Config 文件所在目录** 为根，因此命令可以从任意工作目录执行。

@@ -50,6 +50,12 @@ alternative reference Themes. Templates and static assets come from the same
 validated manifest and use Jinja `StrictUndefined` with autoescape. Theme
 fetching and commit pinning are orchestration concerns, not compiler behavior.
 
+Site Thesis and Site Profile copy remain in `SiteMetadata` for compatible local
+Themes, but presentation is Theme-specific. The bundled Themes do not render
+thesis or tagline; `geoqiao.me` also keeps profile bio out of Home and About.
+Configuring a field known to be unrendered by the selected built-in Theme emits
+a warning rather than dropping the value or failing the build.
+
 The generator-owned `src/escaping/static/comments.js` is copied into the selected Theme's
 output asset directory. Theme `_comments.html` files declare only the container, safe data
 attributes, and light/dark default. The shared script preserves Issue-number binding, Utterances

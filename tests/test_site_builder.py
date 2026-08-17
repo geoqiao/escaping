@@ -1,8 +1,11 @@
 from __future__ import annotations
 
 from datetime import UTC, datetime
+from pathlib import Path
 
-from escaping.config import Settings
+import pytest
+
+from escaping.config import BuiltinThemeConfig, LocalThemeConfig, Settings
 from escaping.models.blog_post import BlogPost, BlogTag
 from escaping.models.content import AboutPage, ContentCompilationResult, Idea
 from escaping.models.site import SiteModel
@@ -154,6 +157,47 @@ def test_site_builder_has_intentional_empty_blog_models() -> None:
     assert site.home.recent_posts == ()
     assert site.tags.tags == () and site.tag_archives == ()
     assert site.feed.entries == () and site.feed.updated == _BUILD_START
+
+
+@pytest.mark.parametrize(
+    ("theme", "expected_fields"),
+    [
+        (
+            BuiltinThemeConfig(name="geoqiao.me"),
+            {"site.thesis", "profile.tagline", "profile.bio"},
+        ),
+        (
+            BuiltinThemeConfig(name="Escape1"),
+            {"site.thesis", "profile.tagline"},
+        ),
+        (
+            BuiltinThemeConfig(name="Escape2"),
+            {"site.thesis", "profile.tagline"},
+        ),
+        (LocalThemeConfig(name="custom", path=Path("theme")), set()),
+    ],
+    ids=("geoqiao", "escape1", "escape2", "local"),
+)
+def test_site_builder_reports_only_known_unrendered_theme_fields(
+    theme: BuiltinThemeConfig | LocalThemeConfig, expected_fields: set[str]
+) -> None:
+    settings = _settings().model_copy(update={"theme": theme})
+    routes = RouteRegistry(str(settings.site.url))
+
+    site = _build(settings, routes, _content(routes))
+
+    warnings = {
+        diagnostic.field
+        for diagnostic in site.diagnostics
+        if diagnostic.code == "THEME_FIELD_NOT_RENDERED"
+    }
+    assert warnings == expected_fields
+    assert site.metadata.thesis == (
+        "Question assumptions.",
+        "Build useful tools.",
+    )
+    assert site.metadata.profile.tagline == "Analyst / tool builder"
+    assert site.metadata.profile.bio == "Bio"
 
 
 def test_site_builder_reports_navigation_and_atom_safety_errors() -> None:

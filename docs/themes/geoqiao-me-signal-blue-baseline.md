@@ -16,14 +16,14 @@ Config-relative local Theme.
 - **Typography:** Apple/system sans for display, prose, navigation, and metadata;
   code uses the local system monospace stack. The Theme has no Webfont loading
   dependency.
-- **Header:** a blue identity rule and stacked `GEO QIAO` / `NOTES / TOOLS /
-  LIFE` wordmark share the existing 72px Header with navigation.
-- **Home:** the Config-owned, line-structured Site Thesis, a centered Issue
-  timeline, and a right-side profile rail on desktop. An empty Site Thesis
-  omits the hero section. The profile tagline also comes from Config. Mobile
-  hides the profile rail and leads with content.
-- Home always renders exactly one `h1`; without a Site Thesis, the site-title
-  `h1` is visually hidden while remaining in the accessibility tree.
+- **Header:** the configured author name and identity signal share the Header
+  with navigation; no author name is hard-coded by the Theme.
+- **Home:** the newest Blog entry leads the first viewport beside the configured
+  Site Profile avatar, with the bundled author mark as fallback. Site Thesis,
+  tagline, and bio copy stay off Home; the following section lists recent Blog
+  entries without a profile rail.
+- Home always renders exactly one `h1`: the newest Blog title, or the site title
+  when no Blog entry exists.
 - **Blog archive:** the current centered 900px shell and quiet ledger rows.
 - **Blog article:** equal 96px metadata/outline rails around a centered 620px
   reading column. The outline is generated from rendered `h1`/`h2`/`h3` headings;
