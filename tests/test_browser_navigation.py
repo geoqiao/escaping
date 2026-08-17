@@ -320,7 +320,9 @@ def test_geoqiao_mobile_navigation_contains_focus_and_resets_cleanly(
 
     mobile_page.keyboard.press("Enter")
     expect(menu_control).to_have_attribute("aria-expanded", "true")
-    scrim.click()
+    scrim_box = scrim.bounding_box()
+    assert scrim_box is not None
+    scrim.click(position={"x": scrim_box["width"] / 2, "y": scrim_box["height"] - 1})
     expect(menu_control).to_have_attribute("aria-expanded", "false")
     expect(scrim).to_be_hidden()
     expect(menu_control).to_be_focused()
