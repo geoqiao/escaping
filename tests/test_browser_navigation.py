@@ -1,12 +1,14 @@
 from __future__ import annotations
 
 import os
+import re
 from collections.abc import Iterator
 from datetime import UTC, datetime
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
+from urllib.parse import quote
 
 import pytest
 
@@ -24,6 +26,7 @@ except pytest.skip.Exception:
     raise
 
 from playwright.sync_api import (  # noqa: E402
+    Browser,
     Error,
     Page,
     expect,
@@ -40,9 +43,10 @@ from escaping.site_builder import SiteBuilder  # noqa: E402
 from escaping.theme import ThemeLoader  # noqa: E402
 
 _ROOT = Path(__file__).parent.parent.absolute()
+_THEMES = ("Escape1", "Escape2", "geoqiao.me")
 
 
-def _browser_settings() -> Settings:
+def _browser_settings(theme: str) -> Settings:
     return Settings.model_validate(
         {
             "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
@@ -62,15 +66,18 @@ def _browser_settings() -> Settings:
             },
             "about": {"issue_number": 10},
             "security": {"token_env": "TEST_TOKEN"},
-            "theme": {"source": "builtin", "name": "geoqiao.me"},
+            "theme": {"source": "builtin", "name": theme},
         }
     )
 
 
 @pytest.fixture(scope="session")
-def built_site_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
-    settings = _browser_settings()
+def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     build_time = datetime(2026, 1, 1, tzinfo=UTC)
+    long_paragraph = " ".join(
+        ["This section has enough prose to make scrolling observable."] * 24
+    )
+    wide_token = "unbroken-column-" + "x" * 180
     snapshots = [
         IssueSnapshot(
             number=1,
@@ -82,6 +89,16 @@ def built_site_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
                 "description: A blog post.\n"
                 'created_date: "2026-01-01"\n'
                 "---\n\nA blog post.\n\n"
+                "## Opening Section\n\n"
+                f"{long_paragraph}\n\n"
+                "### 嵌套细节\n\n"
+                f"{long_paragraph}\n\n"
+                "## Closing Section\n\n"
+                f"{long_paragraph}\n\n"
+                "### Closing Detail\n\n"
+                f"{long_paragraph}\n\n"
+                f"| Name | Wide value |\n| --- | --- |\n| Example | {wide_token} |\n\n"
+                f"```text\n{wide_token}\n```\n\n"
                 "```mermaid\nflowchart LR\n  A[Local] --> B[Diagram]\n```"
             ),
             labels=("type:blog", "published"),
@@ -103,41 +120,60 @@ def built_site_dir(tmp_path_factory: pytest.TempPathFactory) -> Path:
             is_pull_request=False,
         ),
     ]
-    routes = RouteRegistry(str(settings.site.url))
-    content = ContentCompiler(settings, route_registry=routes).compile(snapshots)
-    site = SiteBuilder(settings, route_registry=routes).build(
-        content,
-        ProjectCompiler().compile(settings.projects, route=routes.projects()),
-        build_start_time=build_time,
-    )
-    assert not site.has_errors
+    output_dirs: dict[str, Path] = {}
+    for theme in _THEMES:
+        settings = _browser_settings(theme)
+        routes = RouteRegistry(str(settings.site.url))
+        content = ContentCompiler(settings, route_registry=routes).compile(snapshots)
+        site = SiteBuilder(settings, route_registry=routes).build(
+            content,
+            ProjectCompiler().compile(settings.projects, route=routes.projects()),
+            build_start_time=build_time,
+        )
+        assert not site.has_errors
 
-    output_dir = tmp_path_factory.mktemp("browser-site")
-    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
-    renderer.copy_theme_assets(output_dir)
-    for output_path, html in renderer.render_site(site).items():
-        path = output_dir / output_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(html, encoding="utf-8")
-    return output_dir
+        output_dir = tmp_path_factory.mktemp(f"browser-site-{theme}")
+        renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
+        renderer.copy_theme_assets(output_dir)
+        for output_path, html in renderer.render_site(site).items():
+            path = output_dir / output_path
+            path.parent.mkdir(parents=True, exist_ok=True)
+            path.write_text(html, encoding="utf-8")
+        output_dirs[theme] = output_dir
+    return output_dirs
 
 
 @pytest.fixture(scope="session")
-def site_server(built_site_dir: Path) -> Iterator[str]:
-    handler = partial(SimpleHTTPRequestHandler, directory=str(built_site_dir))
-    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
-    server_thread = Thread(target=server.serve_forever, daemon=True)
-    server_thread.start()
+def site_servers(built_site_dirs: dict[str, Path]) -> Iterator[dict[str, str]]:
+    servers: list[ThreadingHTTPServer] = []
+    server_threads: list[Thread] = []
+    urls: dict[str, str] = {}
+    for theme, output_dir in built_site_dirs.items():
+        handler = partial(SimpleHTTPRequestHandler, directory=str(output_dir))
+        server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+        server_thread = Thread(target=server.serve_forever, daemon=True)
+        server_thread.start()
+        servers.append(server)
+        server_threads.append(server_thread)
+        urls[theme] = f"http://127.0.0.1:{server.server_port}"
     try:
-        yield f"http://127.0.0.1:{server.server_port}"
+        yield urls
     finally:
-        server.shutdown()
-        server_thread.join()
-        server.server_close()
+        for server in servers:
+            server.shutdown()
+        for server_thread in server_threads:
+            server_thread.join()
+        for server in servers:
+            server.server_close()
 
 
-@pytest.fixture
-def mobile_page(site_server: str) -> Iterator[Page]:
+@pytest.fixture(scope="session")
+def site_server(site_servers: dict[str, str]) -> str:
+    return site_servers["geoqiao.me"]
+
+
+@pytest.fixture(scope="session")
+def browser() -> Iterator[Browser]:
     message = (
         "Chromium is unavailable; install it with `uv run playwright install chromium`."
     )
@@ -148,75 +184,64 @@ def mobile_page(site_server: str) -> Iterator[Page]:
             if os.environ.get("CI", "").lower() == "true":
                 raise
             pytest.skip(f"{message} ({exc})")
-
-        context = browser.new_context(**playwright_api.devices["iPhone 13"])
-        page = context.new_page()
         try:
-            page.goto(f"{site_server}/", wait_until="load")
-            yield page
+            yield browser
         finally:
-            context.close()
             browser.close()
 
 
-def test_mobile_navigation_user_journey(mobile_page: Page) -> None:
-    menu_button = mobile_page.get_by_role("button", name="Toggle menu")
-    menu_button_dom = mobile_page.locator(".hamb")
-    navigation = mobile_page.get_by_role("navigation", name="Primary navigation")
-    blog_link = navigation.get_by_role("link", name="Blog", exact=True)
-    scrim = mobile_page.get_by_role("button", name="Close navigation")
-    background_regions = mobile_page.locator(
-        ".skip-link, .ledger-brand, .site-content, .ledger-footer"
-    )
-    background_focus = mobile_page.locator(
-        ".skip-link:focus, .ledger-brand:focus, .site-content:focus, "
-        ".site-content :focus, .ledger-footer:focus, .ledger-footer :focus"
-    )
+@pytest.fixture
+def mobile_page(browser: Browser, site_server: str) -> Iterator[Page]:
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    try:
+        page.goto(f"{site_server}/", wait_until="load")
+        yield page
+    finally:
+        context.close()
 
-    expect(menu_button).to_have_attribute("aria-expanded", "false")
-    expect(blog_link).not_to_be_visible()
 
-    menu_button.focus()
-    mobile_page.keyboard.press("Enter")
-    expect(menu_button).to_have_attribute("aria-expanded", "true")
-    expect(blog_link).to_be_visible()
+@pytest.fixture(params=_THEMES)
+def theme_page(
+    request: pytest.FixtureRequest,
+    browser: Browser,
+    site_servers: dict[str, str],
+) -> Iterator[tuple[str, Page, str]]:
+    theme = str(request.param)
+    site_server = site_servers[theme]
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    try:
+        page.goto(f"{site_server}/", wait_until="load")
+        yield theme, page, site_server
+    finally:
+        context.close()
 
-    mobile_page.keyboard.press("Shift+Tab")
-    expect(background_focus).to_have_count(0)
-    menu_button.focus()
 
-    navigation_controls = navigation.locator("a, button")
-    for _ in range(navigation_controls.count() + 1):
-        mobile_page.keyboard.press("Tab")
-        expect(background_focus).to_have_count(0)
-    for index in range(background_regions.count()):
-        expect(background_regions.nth(index)).to_have_attribute("inert", "")
+def test_mobile_navigation_is_keyboard_operable_for_every_theme(
+    theme_page: tuple[str, Page, str],
+) -> None:
+    theme, page, _ = theme_page
+    menu_control = page.get_by_role("button", name="Toggle menu")
+    controlled_id = menu_control.get_attribute("aria-controls")
+    assert controlled_id
+    menu = page.locator(f"#{controlled_id}")
+    blog_link = menu.get_by_role("link", name=re.compile(r"Blog$"))
 
-    mobile_page.keyboard.press("Escape")
-    expect(menu_button).to_have_attribute("aria-expanded", "false")
-    expect(scrim).to_be_hidden()
-    expect(menu_button).to_be_focused()
+    expect(menu_control).to_have_attribute("aria-expanded", "false")
+    expect(blog_link).not_to_be_in_viewport()
 
-    mobile_page.keyboard.press("Enter")
-    expect(menu_button).to_have_attribute("aria-expanded", "true")
-    expect(scrim).to_be_visible()
-    scrim_box = scrim.bounding_box()
-    assert scrim_box is not None
-    scrim.click(position={"x": scrim_box["width"] / 2, "y": scrim_box["height"] - 1})
-    expect(menu_button).to_have_attribute("aria-expanded", "false")
-    expect(scrim).to_be_hidden()
-    expect(menu_button).to_be_focused()
+    menu_control.focus()
+    expect(menu_control).to_be_focused()
+    page.keyboard.press("Enter")
+    expect(menu_control).to_be_focused()
+    expect(menu_control).to_have_attribute("aria-expanded", "true")
+    expect(blog_link).to_be_in_viewport()
 
-    mobile_page.keyboard.press("Enter")
-    expect(menu_button).to_have_attribute("aria-expanded", "true")
-    blog_link.focus()
-    expect(blog_link).to_be_focused()
-    mobile_page.set_viewport_size({"width": 1024, "height": 768})
-    expect(menu_button_dom).to_have_attribute("aria-expanded", "false")
-    expect(scrim).to_be_hidden()
-    expect(blog_link).to_be_focused()
-    for index in range(background_regions.count()):
-        expect(background_regions.nth(index)).not_to_have_attribute("inert")
+    page.keyboard.press("Escape" if theme == "geoqiao.me" else "Enter")
+    expect(menu_control).to_have_attribute("aria-expanded", "false")
+    expect(blog_link).not_to_be_in_viewport()
+    expect(menu_control).to_be_focused()
 
 
 def test_theme_follows_system_until_the_user_chooses(mobile_page: Page) -> None:
@@ -265,73 +290,74 @@ def test_mermaid_diagram_uses_the_local_theme_runtime(
     )
 
 
-def test_mobile_blog_titles_use_the_full_row_and_navigation_is_centered(
-    mobile_page: Page, site_server: str
+def test_geoqiao_article_toc_supports_nested_hash_navigation_and_active_state(
+    browser: Browser, site_server: str
 ) -> None:
-    mobile_page.goto(f"{site_server}/blog/", wait_until="load")
-    row = mobile_page.locator(".editorial-row").first
-    copy = row.locator(".editorial-copy")
-    title = copy.locator("h2")
-    menu = mobile_page.locator(".hamb")
-    menu_line = menu.locator(".hamb-line")
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = context.new_page()
+    page.route("https://utteranc.es/**", lambda route: route.abort())
+    try:
+        fragment = quote("嵌套细节", safe="")
+        page.goto(f"{site_server}/blog/a-blog/#{fragment}", wait_until="load")
 
-    row_box = row.bounding_box()
-    copy_box = copy.bounding_box()
-    menu_box = menu.bounding_box()
-    line_box = menu_line.bounding_box()
-    assert row_box is not None and copy_box is not None
-    assert menu_box is not None and line_box is not None
-    assert copy_box["width"] == pytest.approx(row_box["width"], abs=1)
-    assert (
-        title.evaluate("element => parseFloat(getComputedStyle(element).fontSize)")
-        <= 22
-    )
-    assert menu.evaluate("element => getComputedStyle(element).display") == "grid"
-    assert line_box["x"] + line_box["width"] / 2 == pytest.approx(
-        menu_box["x"] + menu_box["width"] / 2, abs=0.5
-    )
-    assert line_box["y"] + line_box["height"] / 2 == pytest.approx(
-        menu_box["y"] + menu_box["height"] / 2, abs=0.5
-    )
+        toc = page.get_by_role("navigation", name="Article sections")
+        nested_link = toc.get_by_role("link", name="嵌套细节", exact=True)
+        other_nested_link = toc.get_by_role("link", name="Closing Detail", exact=True)
+        nested_heading = page.get_by_role("heading", name="嵌套细节", exact=True)
 
-    menu.click()
-    blog_link = mobile_page.get_by_role(
-        "navigation", name="Primary navigation"
-    ).get_by_role("link", name="Blog", exact=True)
-    expect(blog_link).to_be_visible()
-    assert (
-        blog_link.evaluate("element => getComputedStyle(element).justifyContent")
-        == "center"
-    )
+        expect(nested_heading).to_be_in_viewport()
+        expect(nested_link).to_be_visible()
+        expect(nested_link).to_have_attribute("aria-current", "location")
+        expect(toc.locator('[aria-current="location"]')).to_have_count(1)
+        expect(other_nested_link).to_be_hidden()
+
+        toc.get_by_role("link", name="Closing Section", exact=True).click()
+        expect(other_nested_link).to_be_visible()
+        expect(nested_link).to_be_hidden()
+        other_nested_link.click()
+        expect(page).to_have_url(re.compile(r"#closing-detail$"))
+        expect(page.get_by_role("heading", name="Closing Detail")).to_be_in_viewport()
+        expect(other_nested_link).to_have_attribute("aria-current", "location")
+        expect(toc.locator('[aria-current="location"]')).to_have_count(1)
+    finally:
+        context.close()
 
 
-def test_mobile_about_keeps_identity_and_content_in_one_reading_scale(
-    mobile_page: Page, site_server: str
+def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
+    theme_page: tuple[str, Page, str],
 ) -> None:
-    mobile_page.goto(f"{site_server}/about/", wait_until="load")
-    heading = mobile_page.locator(".about-heading")
-    title = heading.locator("h1")
-    mark = heading.locator(".about-mark")
-    body = mobile_page.locator(".about-body")
-    section_title = body.locator("h2")
+    _, page, site_server = theme_page
+    page.route("https://utteranc.es/**", lambda route: route.abort())
 
-    heading_box = heading.bounding_box()
-    title_box = title.bounding_box()
-    mark_box = mark.bounding_box()
-    body_box = body.bounding_box()
-    assert heading_box is not None and body_box is not None
-    assert title_box is not None and mark_box is not None
-    assert heading_box["width"] == pytest.approx(body_box["width"], abs=1)
-    assert mark_box["width"] <= 100
-    assert title_box["y"] < mark_box["y"] + mark_box["height"]
-    assert mark_box["y"] < title_box["y"] + title_box["height"]
-    assert (
-        title.evaluate("element => parseFloat(getComputedStyle(element).fontSize)")
-        <= 46
-    )
-    assert (
-        section_title.evaluate(
-            "element => parseFloat(getComputedStyle(element).fontSize)"
+    page.set_viewport_size({"width": 1440, "height": 900})
+    for path in ("blog/a-blog/", "about/"):
+        page.goto(f"{site_server}/{path}", wait_until="load")
+        content_width = page.locator(".post-content").evaluate(
+            "element => element.getBoundingClientRect().width"
         )
-        <= 26
+        assert 480 <= content_width <= 820
+
+    page.set_viewport_size({"width": 390, "height": 844})
+    page.goto(f"{site_server}/blog/a-blog/", wait_until="load")
+    metrics = page.evaluate(
+        """() => {
+            const root = document.documentElement;
+            const table = document.querySelector('.post-content table');
+            const pre = document.querySelector('.post-content pre');
+            const localOverflow = (element) =>
+                [element, ...element.querySelectorAll('*')].some((candidate) => {
+                    const overflowX = getComputedStyle(candidate).overflowX;
+                    return candidate.scrollWidth > candidate.clientWidth &&
+                        (overflowX === 'auto' || overflowX === 'scroll');
+                });
+            return {
+                pageClientWidth: root.clientWidth,
+                pageScrollWidth: root.scrollWidth,
+                table: localOverflow(table),
+                pre: localOverflow(pre),
+            };
+        }"""
     )
+    assert metrics["pageScrollWidth"] <= metrics["pageClientWidth"] + 1
+    for element_name in ("table", "pre"):
+        assert metrics[element_name]

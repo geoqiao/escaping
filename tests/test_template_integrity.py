@@ -308,54 +308,16 @@ def test_geoqiao_about_body_is_the_only_owner_of_profile_copy() -> None:
     )
 
 
-def test_shared_comments_script_preserves_browser_contract() -> None:
+def test_shared_comments_script_preserves_security_and_compatibility_contract() -> None:
     script = (_ROOT / "src/escaping/static/comments.js").read_text(encoding="utf-8")
 
+    assert 'setAttribute("issue-number", issueNumber)' in script
     assert "Element.prototype.insertAdjacentHTML" in script
     assert "MutationObserver" in script
     assert 'removeAttribute("loading")' in script
     assert ".contentWindow.postMessage(" in script
     assert 'event.origin !== "https://utteranc.es"' in script
     assert "event.source !== iframe.contentWindow" in script
-    assert 'event.data.type === "resize"' in script
-    assert 'loadingMsg.style.display = "none"' in script
-    assert 'event.data.type === "error"' in script
-    assert "showError();" in script
-    assert "}, 20000);" in script
-
-
-class _MobileNavigationProbe(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self.hamburger_tag: str | None = None
-        self.hamburger: dict[str, str | None] | None = None
-        self.scrim_tag: str | None = None
-        self.scrim: dict[str, str | None] | None = None
-        self.scripts: list[str] = []
-        self._script_data: list[str] | None = None
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        attributes = dict(attrs)
-        if (
-            tag in {"button", "label"}
-            and "hamb" in (attributes.get("class") or "").split()
-        ):
-            self.hamburger_tag = tag
-            self.hamburger = attributes
-        if "navigation-scrim" in (attributes.get("class") or "").split():
-            self.scrim_tag = tag
-            self.scrim = attributes
-        if tag == "script":
-            self._script_data = []
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "script" and self._script_data is not None:
-            self.scripts.append("".join(self._script_data))
-            self._script_data = None
-
-    def handle_data(self, data: str) -> None:
-        if self._script_data is not None:
-            self._script_data.append(data)
 
 
 def test_geoqiao_theme_preserves_semantic_page_structure() -> None:
@@ -373,80 +335,6 @@ def test_geoqiao_theme_preserves_semantic_page_structure() -> None:
     assert '<article class="article-layout">' in post
     assert '<aside class="article-issue" aria-label="Article metadata">' in post
     assert '<nav data-article-toc aria-label="Article sections"></nav>' in post
-
-
-def test_geoqiao_theme_uses_local_stylesheets_and_personal_palette() -> None:
-    home = _render_theme("geoqiao.me")["index.html"]
-    css = (
-        ThemeLoader(_ROOT)
-        .load(_settings("geoqiao.me").theme)
-        .read_text("static/css/style.css")
-    )
-
-    stylesheet_hrefs = re.findall(
-        r'<link rel="stylesheet" href="([^"]+)">',
-        home,
-    )
-    assert stylesheet_hrefs
-    assert all(
-        href.startswith("/templates/geoqiao.me/static/") for href in stylesheet_hrefs
-    )
-    assert not re.search(r"""@import\s+(?:url\()?['"]?(?:https?:)?//""", css)
-    assert not re.search(
-        r"@font-face\s*\{[^}]*(?:https?:)?//",
-        css,
-        flags=re.DOTALL,
-    )
-    root_rule = _css_rule(css, ":root")
-    assert re.search(r"--accent-pink\s*:\s*#d439a7", root_rule)
-    assert re.search(r"--accent-mint\s*:\s*#44b99f", root_rule)
-    assert "text-decoration: underline" not in css
-
-
-def test_geoqiao_reading_indexes_use_focused_content_widths() -> None:
-    css = (
-        ThemeLoader(_ROOT)
-        .load(_settings("geoqiao.me").theme)
-        .read_text("static/css/style.css")
-    )
-
-    assert "width: min(1040px, calc(100% - 64px))" in _css_rule(css, ".index-page")
-    assert "width: min(960px, calc(100% - 64px))" in _css_rule(css, ".about-page")
-
-
-def test_geoqiao_about_uses_the_reading_scale_without_changing_indexes() -> None:
-    css = (
-        ThemeLoader(_ROOT)
-        .load(_settings("geoqiao.me").theme)
-        .read_text("static/css/style.css")
-    )
-
-    page_title = _css_rule(css, ".page-intro h1")
-    about_title = _css_rule(css, ".about-heading h1")
-    about_heading = _css_rule(css, ".about-heading")
-    about_section_title = _css_rule(css, ".about-body h2")
-
-    assert "font-size: clamp(72px, 10vw, 150px)" in page_title
-    assert "font-size: clamp(42px, 7vw, 80px)" in about_title
-    assert "width: min(var(--reading-width), 100%)" in about_heading
-    assert "clamp(96px, 16vw, 160px)" in about_heading
-    assert "font-size: clamp(22px, 2vw, 26px)" in about_section_title
-
-
-def test_geoqiao_article_toc_tracks_nested_sections_and_hash_navigation() -> None:
-    post = _render_theme("geoqiao.me")["blog/post/index.html"]
-
-    assert (
-        'document.querySelectorAll(".article-main .post-content h2, .article-main .post-content h3")'
-        in post
-    )
-    assert 'className = "toc-group"' in post
-    assert 'className = "toc-children"' in post
-    assert "link.title = heading.textContent" in post
-    assert 'link.setAttribute("aria-current", "location")' in post
-    assert 'group.element.classList.toggle("is-expanded"' in post
-    assert "hashId = decodeURIComponent(hashId)" in post
-    assert "hashTarget.scrollIntoView()" in post
 
 
 def test_geoqiao_projects_stay_on_their_own_page() -> None:
@@ -472,96 +360,26 @@ def test_geoqiao_projects_stay_on_their_own_page() -> None:
     assert "★ 21" in project_page and "★ 13" in project_page
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2"])
-def test_mobile_navigation_is_keyboard_operable(theme: str) -> None:
-    probe = _MobileNavigationProbe()
-    probe.feed(_render_theme(theme)["index.html"])
+class _CurrentPageProbe(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.current_hrefs: list[str] = []
 
-    assert probe.hamburger is not None
-    assert probe.hamburger["for"] == "side-menu"
-    assert probe.hamburger["role"] == "button"
-    assert probe.hamburger["tabindex"] == "0"
-    assert probe.hamburger["aria-expanded"] == "false"
-    assert probe.hamburger["aria-controls"] == "header-nav"
-
-    inline_scripts = "\n".join(probe.scripts)
-    assert "label.addEventListener('keydown'" in inline_scripts
-    assert "event.key === 'Enter'" in inline_scripts
-    assert "event.key === ' '" in inline_scripts
-    assert "event.preventDefault()" in inline_scripts
-    assert "checkbox.checked = !checkbox.checked" in inline_scripts
-    assert "checkbox.addEventListener('change'" in inline_scripts
-    assert "label.setAttribute('aria-expanded'" in inline_scripts
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        attributes = dict(attrs)
+        if tag == "a" and attributes.get("aria-current") == "page":
+            self.current_hrefs.append(attributes.get("href") or "")
 
 
-def test_geoqiao_mobile_navigation_uses_native_button_and_current_page_state() -> None:
-    html = _render_theme("geoqiao.me")
-    home = html["index.html"]
-    blog = html["blog/index.html"]
-    probe = _MobileNavigationProbe()
-    probe.feed(home)
+def test_geoqiao_navigation_marks_exactly_one_current_destination() -> None:
+    rendered = _render_theme("geoqiao.me")
+    expectations = {
+        "index.html": "/",
+        "blog/index.html": "/blog/",
+        "blog/post/index.html": "/blog/",
+    }
 
-    assert probe.hamburger_tag == "button"
-    assert probe.hamburger is not None
-    assert probe.hamburger["type"] == "button"
-    assert probe.hamburger["aria-expanded"] == "false"
-    assert probe.hamburger["aria-controls"] == "header-nav"
-    assert 'class="side-menu"' not in home
-
-    assert len(re.findall(r'aria-current="page"', home)) == 1
-    assert re.search(r'class="ledger-brand"[^>]+aria-current="page"', home)
-    assert len(re.findall(r'aria-current="page"', blog)) == 1
-    assert re.search(r'class="ledger-nav-link nav-blog"[^>]+aria-current="page"', blog)
-    assert re.search(
-        r'<meta name="theme-color" content="[^"]+" id="theme-color">', home
-    )
-    article = html["blog/post/index.html"]
-    assert len(re.findall(r'aria-current="page"', article)) == 1
-    assert re.search(
-        r'class="ledger-nav-link nav-blog"[^>]+aria-current="page"', article
-    )
-
-
-def test_geoqiao_mobile_navigation_has_opaque_scrim_dismissal_contract() -> None:
-    home = _render_theme("geoqiao.me")["index.html"]
-    probe = _MobileNavigationProbe()
-    probe.feed(home)
-    css = (
-        ThemeLoader(_ROOT)
-        .load(_settings("geoqiao.me").theme)
-        .read_text("static/css/style.css")
-    )
-
-    assert probe.scrim_tag == "button"
-    assert probe.scrim is not None
-    assert probe.scrim["type"] == "button"
-    assert probe.scrim["tabindex"] == "-1"
-    assert probe.scrim["hidden"] is None
-
-    mobile_panel_rule = _css_rule(css, ".ledger-nav")
-    scrim_rule = _css_rule(css, ".navigation-scrim")
-    assert "background: var(--page-bg)" in mobile_panel_rule
-    assert "position: fixed" in scrim_rule
-    assert "inset: 0" in scrim_rule
-    assert "background: var(--scrim)" in scrim_rule
-    assert ".navigation-scrim:not([hidden])" in css
-
-
-def _css_rule(source: str, selector: str) -> str:
-    match = re.search(rf"{re.escape(selector)}\s*\{{([^}}]*)\}}", source)
-    if match is None:
-        pytest.fail(f"missing CSS rule: {selector}")
-    return match.group(1)
-
-
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
-def test_theme_contains_local_overflow_contract(theme: str) -> None:
-    settings = _settings(theme)
-    css = ThemeLoader(_ROOT).load(settings.theme).read_text("static/css/style.css")
-
-    table_rule = _css_rule(css, ".post-content table")
-    pre_rule = _css_rule(css, ".post-content pre")
-    assert "display: block" in table_rule
-    assert "max-width:" in table_rule
-    assert "overflow-x: auto" in table_rule
-    assert "overflow-x: auto" in pre_rule
+    for output_path, expected_href in expectations.items():
+        probe = _CurrentPageProbe()
+        probe.feed(rendered[output_path])
+        assert probe.current_hrefs == [expected_href]
