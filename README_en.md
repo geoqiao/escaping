@@ -39,6 +39,9 @@ generator ships `config.example.yaml`, and the default Theme is `geoqiao.me`.
 The canonical origin is owned by `site.url` in the site repository's Site Config,
 not by a Theme or by the generator. Escape1, Escape2, and geoqiao.me share the
 same template contract, comments behavior, and RouteRegistry rules.
+The production workflow is owned by the site repository; see the
+[site Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml).
+Any consumer workflow must pin the compiler to a reviewed release or full 40-character SHA.
 
 ## Canonical origin and URL migration boundaries
 

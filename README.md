@@ -162,10 +162,11 @@ theme:
 workflow 模板。真实站点仓库拥有自己的 `config.yaml`、Pages workflow、`CNAME`，以及
 可选的本地 Theme。
 
-生产 workflow 应 pin `escaping` 的 release 或完整 commit SHA，并使用短期 `GITHUB_TOKEN` 构建
-Pages artifact。当前 geoqiao.me consumer 使用
-`geoqiao/escaping@cfec81fdcee6f321fc433f2cb4342d3243ced6f1`；这样生成器与站点即使无法原子变更，
-也能通过固定版本验证、升级和回滚。完整要求见
+生产 workflow 应 pin `escaping` 的 reviewed release 或完整 40 字符 commit SHA，并使用短期
+`GITHUB_TOKEN` 构建 Pages artifact。实际站点 workflow 由
+[站点仓库 Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml)
+作为 source of truth；这样生成器与站点即使无法原子变更，也能通过固定版本验证、升级和回滚。
+完整要求见
 [`docs/deployment.md`](docs/deployment.md) 与
 [`Pages workflow 模板`](docs/deployment/geoqiao-pages.yml)。
 

@@ -113,13 +113,13 @@ flowchart TD
         SiteConfig["config.yaml<br/>Site Config 与 canonical origin"]
         Workflow[".github/workflows/pages.yml<br/>site-owned"]
         Migrations["content-migrations/<br/>显式 slug migration map"]
-        RedirectScript["scripts/render_slug_redirects.py<br/>site-owned post-processing"]
+        RedirectScript["scripts/render_slug_redirects.py<br/>site-owned redirect + final validation"]
         CNAME["CNAME<br/>site-owned custom domain"]
         HistoricalFiles["仓库根目录历史生成文件<br/>不再作为发布源"]
     end
 
     subgraph CompilerRepo["geoqiao/escaping<br/>Site Compiler 仓库"]
-        PinnedCompiler["cfec81fdcee6f321fc433f2cb4342d3243ced6f1<br/>reviewed full SHA"]
+        PinnedCompiler["reviewed full 40-character SHA<br/>site workflow source of truth"]
         Source["src/escaping/"]
         BuiltinThemes["src/escaping/themes/"]
         ExampleConfig["config.example.yaml<br/>非生产示例"]
@@ -131,7 +131,7 @@ flowchart TD
         CompilerCheckout["Checkout geoqiao/escaping@full SHA<br/>path: compiler"]
         ShortToken["短期 GITHUB_TOKEN<br/>最小权限"]
         Build["uv run --project compiler --frozen<br/>escpe --config $GITHUB_WORKSPACE/config.yaml"]
-        Redirects["site-owned redirect post-processing<br/>after compiler, before upload"]
+        Redirects["site-owned redirect + final artifact validation<br/>after compiler, before upload"]
         Artifact["actions/upload-pages-artifact"]
         Deploy["actions/deploy-pages<br/>only after successful build"]
     end
@@ -187,18 +187,20 @@ SHA，不能是 moving `main`。
 geoqiao/geoqiao.github.io/.github/workflows/pages.yml
 ```
 
-当前生产文件可在
-[站点仓库的 Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml)
-核对。本仓库提供可复制的
+生产文件应以[站点仓库的 Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml)
+为 source of truth。本仓库提供可复制的
 [Pages workflow 模板](deployment/geoqiao-pages.yml)；模板不会被 `escaping` 自己执行，
 复制后必须由站点仓库持有真实 `config.yaml`、workflow、`CNAME` 和站点迁移文件。
 
-模板以及当前站点 workflow 使用：
+该 workflow contract 使用不可变的 action SHA：
 
-- `actions/checkout@v4`
-- `astral-sh/setup-uv@v6`
-- `actions/upload-pages-artifact@v3`
-- `actions/deploy-pages@v4`
+- `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1`（v7.0.1）；两次 checkout 都设置
+  `persist-credentials: false`；
+- `astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d`（v10.0.1）；
+- `actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9`（v5）；
+- `actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128`（v5）。
+- `concurrency` 使用 `group: "pages"` 和 `cancel-in-progress: false`；
+- redirect CLI 使用 `--repository-root "$GITHUB_WORKSPACE"`，并在上传前完成最终 artifact 验证。
 - `contents: read`
 - `issues: read`
 - `pages: write`
@@ -214,12 +216,13 @@ workflow 不会 clone、push 生成文件，不使用个人 PAT、`G_T`、
 slug 迁移，站点仓库可以在编译成功后、上传 Pages artifact 前运行：
 
 ```text
-python3 scripts/render_slug_redirects.py --map content-migrations/blog-slugs-2026-08.json --output output
+python3 scripts/render_slug_redirects.py --map content-migrations/blog-slugs-2026-08.json --output output --repository-root "$GITHUB_WORKSPACE"
 ```
 
 当前站点的 mapping 显式把旧的拼音式 `/blog/{slug}/` 路由指向新的英文 slug。脚本只
-在目标 canonical 页面已经存在且旧源路径不再占用时写入静态兼容页；源页面仍是当前
-canonical 时跳过，源和目标都不存在或同时存在则失败。这是站点仓库拥有的迁移后处理，
+在目标 canonical 页面已经存在且旧源路径不再占用时写入静态兼容页，并验证最终 Pages
+artifact 的 smoke 文件、redirect 内容和完整树差异；源页面仍是当前 canonical 时跳过，
+源和目标都不存在或同时存在则失败。这是站点仓库拥有的迁移后处理，
 不是 `RouteRegistry` 的自动 slug 推导，也不把旧 `.html` 路由重新加入生成器；边界见
 [`ADR-0005`](adr/0005-site-owned-blog-slug-migration-redirects.md) 和
 [`ADR-0003`](adr/0003-drop-legacy-html-urls.md)。
@@ -262,22 +265,20 @@ security:
 注入，不写入配置、Issue、workflow 或日志。不要把密码、Token、Cookie 提交到仓库
 或发送给 Agent。
 
-## 当前 consumer pin（稳定契约，不是运行快照）
+## Pinning and freshness
 
-当前 `geoqiao.github.io` workflow 使用以下完整 40 字符 SHA：
+生产 workflow 必须把 Site Compiler pin 到 reviewed release 或完整 40 字符 commit SHA，
+并把 action pin 固定为 reviewed full SHA；禁止使用 moving `main`、短 SHA 或 mutable
+action tag。实际站点 workflow 是 source of truth：
+[geoqiao.github.io/.github/workflows/pages.yml](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml)。
 
-```text
-geoqiao/escaping@cfec81fdcee6f321fc433f2cb4342d3243ced6f1
-```
+可复制模板中的 compiler `ref` 使用 `REVIEWED_FULL_SHA` 占位符；复制到站点仓库前，必须
+替换为经过 consumer build 验证的完整 SHA。升级和回滚按
+[`docs/deployment.md`](deployment.md) 的 Config 兼容规则执行。
 
-该 pin 对应当前已验证的 Theme、路由、Config schema、sanitization 和 artifact
-validation 组合。升级时先验证站点 consumer，再更新站点仓库的 pin；回滚时恢复上一个
-已验证的完整 SHA，并按
-[`docs/deployment.md`](deployment.md) 的 Config 兼容规则重新运行 workflow。
-
-这里不记录某次运行的 commit 缩写、Pages artifact 编号、Actions run ID 或证书签发
-快照：这些是会过期的站点运维观测，不是双仓库架构契约。需要确认实时部署时，应直接
-查看站点 workflow、Pages 设置和当前 artifact。
+本架构文档不记录某次上线的 consumer SHA、commit 缩写、Pages artifact 编号、Actions
+run ID 或证书签发快照；这些会过期的站点运维观测应直接从实际 workflow、Pages 设置和
+当前 artifact 核对。
 
 ## Publication safety boundaries
 

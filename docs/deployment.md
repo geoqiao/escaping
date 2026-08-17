@@ -32,16 +32,20 @@ A production workflow must:
 6. upload `$GITHUB_WORKSPACE/output` as the Pages artifact;
 7. use `${{ github.token }}` through the Config-selected `GITHUB_TOKEN` variable.
 
-The current geoqiao.me consumer pins:
+The [site repository Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml)
+is the source of truth for the production compiler ref and action pins. The checked-in template
+uses the following immutable action SHAs:
 
-```text
-geoqiao/escaping@cfec81fdcee6f321fc433f2cb4342d3243ced6f1
-```
+- `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1` (v7.0.1); both checkout steps
+  set `persist-credentials: false`;
+- `astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d` (v10.0.1);
+- `actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9` (v5);
+- `actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128` (v5).
 
-The site workflow uses `actions/checkout@v4` for both checkouts, places the pinned compiler at
-`compiler/`, installs uv `0.12.0` with `astral-sh/setup-uv@v6`, and invokes the compiler with the
-explicit site Config. Keep the full SHA in the site workflow; do not shorten it to the first
-seven characters in architecture or deployment instructions.
+The workflow uses concurrency group `pages` with `cancel-in-progress: false`. The compiler
+ref in the template is the `REVIEWED_FULL_SHA` placeholder; replace it with the reviewed
+full 40-character Site Compiler SHA before copying the template. Stable architecture docs do
+not record a consumer-specific current compiler pin.
 
 Config, workflow, `CNAME`, local Theme, and migration tooling changes should trigger a build.
 Issue events may also trigger it because Issues are the content source. Branch/PR validation may
@@ -50,11 +54,11 @@ build and upload an artifact, but the deploy job must be guarded to `refs/heads/
 ## Site-owned slug migration post-processing
 
 The compiler owns the current canonical routes. A site repository may maintain an explicit,
-temporary mapping for a published Blog slug migration and render compatibility pages after the
-compiler has produced the new canonical page:
+temporary mapping for a published Blog slug migration and render and validate the final Pages
+artifact after the compiler has produced the new canonical page:
 
 ```text
-python3 scripts/render_slug_redirects.py --map content-migrations/blog-slugs-2026-08.json --output output
+python3 scripts/render_slug_redirects.py --map content-migrations/blog-slugs-2026-08.json --output output --repository-root "$GITHUB_WORKSPACE"
 ```
 
 This post-processing belongs to the site repository because the site owns the migration history,
@@ -62,6 +66,8 @@ retirement timing, and Pages artifact. It must not infer slugs from titles or tu
 entries into a general compiler feature. The current script accepts only slash-form Blog routes,
 checks that the target exists, skips a source that is still the current canonical page, and
 fails on ambiguous or missing source/target state.
+The production step also validates the required smoke artifacts, redirect HTML, and the complete
+artifact tree delta before the Pages artifact is uploaded; it is not only a renderer.
 
 This is separate from historical `.html` Blog URLs. ADR-0003 still rejects `.html` aliases and
 compatibility redirects; the site-owned mapping only covers explicit non-`.html` slug migrations.
