@@ -318,6 +318,25 @@ def test_geoqiao_reading_indexes_use_focused_content_widths() -> None:
     assert "width: min(960px, calc(100% - 64px))" in _css_rule(css, ".about-page")
 
 
+def test_geoqiao_about_uses_the_reading_scale_without_changing_indexes() -> None:
+    css = (
+        ThemeLoader(_ROOT)
+        .load(_settings("geoqiao.me").theme)
+        .read_text("static/css/style.css")
+    )
+
+    page_title = _css_rule(css, ".page-intro h1")
+    about_title = _css_rule(css, ".about-heading h1")
+    about_heading = _css_rule(css, ".about-heading")
+    about_section_title = _css_rule(css, ".about-body h2")
+
+    assert "font-size: clamp(72px, 10vw, 150px)" in page_title
+    assert "font-size: clamp(42px, 7vw, 80px)" in about_title
+    assert "width: min(var(--reading-width), 100%)" in about_heading
+    assert "clamp(96px, 16vw, 160px)" in about_heading
+    assert "font-size: clamp(22px, 2vw, 26px)" in about_section_title
+
+
 def test_geoqiao_article_toc_tracks_nested_sections_and_hash_navigation() -> None:
     post = _render_theme("geoqiao.me")["blog/post/index.html"]
 

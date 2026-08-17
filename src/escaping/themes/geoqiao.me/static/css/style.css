@@ -626,8 +626,7 @@ html[data-theme="light"] .author-mark figcaption {
   margin-bottom: clamp(72px, 9vw, 132px);
 }
 
-.page-intro h1,
-.about-heading h1 {
+.page-intro h1 {
   margin: 18px 0 0;
   font-size: clamp(72px, 10vw, 150px);
   font-weight: 650;
@@ -635,8 +634,7 @@ html[data-theme="light"] .author-mark figcaption {
   letter-spacing: -0.075em;
 }
 
-.page-intro > p:last-child,
-.about-heading > div > p:last-child {
+.page-intro > p:last-child {
   max-width: 620px;
   margin: 40px 0 0;
   color: var(--body-text);
@@ -1080,11 +1078,20 @@ html[data-theme="dark"] .post-content a {
 }
 
 .about-heading {
+  width: min(var(--reading-width), 100%);
+  margin: 0 auto clamp(56px, 6vw, 88px);
   display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(240px, 320px);
+  grid-template-columns: minmax(0, 1fr) clamp(96px, 16vw, 160px);
   align-items: center;
-  gap: clamp(40px, 6vw, 72px);
-  margin-bottom: clamp(80px, 10vw, 150px);
+  gap: clamp(24px, 3.5vw, 44px);
+}
+
+.about-heading h1 {
+  margin: 18px 0 0;
+  font-size: clamp(42px, 7vw, 80px);
+  font-weight: 650;
+  line-height: 0.9;
+  letter-spacing: -0.055em;
 }
 
 .about-mark {
@@ -1102,9 +1109,15 @@ html[data-theme="dark"] .post-content a {
   margin: 0 auto;
 }
 
+.about-body h2 {
+  margin: 56px 0 18px;
+  font-size: clamp(22px, 2vw, 26px);
+  letter-spacing: -0.02em;
+}
+
 .about-links {
   width: min(var(--reading-width), 100%);
-  margin: 72px auto 0;
+  margin: 88px auto 0;
   display: flex;
   flex-wrap: wrap;
   gap: 16px 32px;
@@ -1280,8 +1293,7 @@ html[data-theme="dark"] .post-content a {
     gap: 18px;
   }
 
-  .page-intro h1,
-  .about-heading h1 {
+  .page-intro h1 {
     font-size: clamp(64px, 17vw, 108px);
   }
 
@@ -1305,14 +1317,6 @@ html[data-theme="dark"] .post-content a {
     margin: 0 0 2px auto;
   }
 
-  .about-heading {
-    grid-template-columns: 1fr;
-  }
-
-  .about-mark {
-    width: min(72vw, 400px);
-    justify-self: center;
-  }
 }
 
 @media (max-width: 560px) {
@@ -1392,8 +1396,7 @@ html[data-theme="dark"] .post-content a {
     margin-bottom: 72px;
   }
 
-  .page-intro > p:last-child,
-  .about-heading > div > p:last-child {
+  .page-intro > p:last-child {
     margin-top: 28px;
     font-size: 16px;
   }
