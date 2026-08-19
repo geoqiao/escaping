@@ -37,7 +37,7 @@ from .models.atom_feed import (
     AtomFeed,
     AtomFeedResult,
 )
-from .models.blog_post import BlogPost
+from .models.blog_post import BlogPost, blog_post_sort_key
 from .routes import RouteRegistry
 
 # ---------------------------------------------------------------------------
@@ -293,7 +293,7 @@ class AtomFeedBuilder:
         # issue_number desc.
         sorted_posts = sorted(
             valid_posts,
-            key=lambda post: (post.published_at, post.issue_number),
+            key=blog_post_sort_key,
             reverse=True,
         )
 

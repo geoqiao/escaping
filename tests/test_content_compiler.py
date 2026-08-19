@@ -8,6 +8,7 @@ from escaping.config import Settings
 from escaping.content_compiler import ContentCompiler
 from escaping.models.content import ContentCompilationResult
 from escaping.models.issue_snapshot import IssueSnapshot
+from escaping.routes import RouteRegistry
 
 _NOW = datetime(2026, 1, 10, tzinfo=UTC)
 
@@ -25,6 +26,13 @@ def _settings(about_number: int = 10) -> Settings:
             "about": {"issue_number": about_number},
             "security": {"token_env": "TEST_TOKEN"},
         }
+    )
+
+
+def _compiler(about_number: int = 10) -> ContentCompiler:
+    settings = _settings(about_number)
+    return ContentCompiler(
+        settings, route_registry=RouteRegistry(str(settings.site.url))
     )
 
 
@@ -65,7 +73,7 @@ def _codes(result: ContentCompilationResult) -> set[str]:
 
 
 def test_compiles_blog_idea_and_configured_about_once() -> None:
-    result = ContentCompiler(_settings()).compile(
+    result = _compiler().compile(
         [_snapshot(1, "blog"), _snapshot(2, "idea"), _snapshot(10, "about")]
     )
 
@@ -79,7 +87,7 @@ def test_compiles_blog_idea_and_configured_about_once() -> None:
 
 def test_ideas_forbid_slug_sort_and_keep_tags_outside_blog_taxonomy() -> None:
     older = _NOW.replace(day=8)
-    result = ContentCompiler(_settings()).compile(
+    result = _compiler().compile(
         [
             _snapshot(2, "idea", labels=("tag:tools",), created_at=older),
             _snapshot(3, "idea", labels=("tag:notes",)),
@@ -92,7 +100,7 @@ def test_ideas_forbid_slug_sort_and_keep_tags_outside_blog_taxonomy() -> None:
     assert [tag.name for tag in result.ideas[1].tags] == ["tools"]
     assert {tag.name for blog in result.blogs for tag in blog.tags} == {"python"}
 
-    invalid = ContentCompiler(_settings()).compile(
+    invalid = _compiler().compile(
         [
             _snapshot(
                 2,
@@ -119,16 +127,14 @@ def test_about_failure_matrix(
     configured: IssueSnapshot, other: IssueSnapshot | None, expected: str
 ) -> None:
     snapshots = [configured] + ([other] if other is not None else [])
-    result = ContentCompiler(_settings()).compile(snapshots)
+    result = _compiler().compile(snapshots)
     assert expected in _codes(result)
     assert result.about is None
 
 
 def test_missing_about_and_about_tags_fail() -> None:
-    missing = ContentCompiler(_settings()).compile([_snapshot(1, "blog")])
+    missing = _compiler().compile([_snapshot(1, "blog")])
     assert "ABOUT_MISSING" in _codes(missing)
 
-    tagged = ContentCompiler(_settings()).compile(
-        [_snapshot(10, "about", labels=("tag:profile",))]
-    )
+    tagged = _compiler().compile([_snapshot(10, "about", labels=("tag:profile",))])
     assert "ABOUT_TAG_FORBIDDEN" in _codes(tagged)

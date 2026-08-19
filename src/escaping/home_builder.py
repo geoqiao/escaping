@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from .models.blog_post import BlogPost
+from .models.blog_post import BlogPost, blog_post_sort_key
 from .models.home_page import HomePage, HomePostEntry
 from .routes import RouteRegistry
 
@@ -13,7 +13,7 @@ def build_home(posts: Sequence[BlogPost], routes: RouteRegistry) -> HomePage:
     """Build Home content; SiteBuilder is the only production caller."""
     recent = sorted(
         posts,
-        key=lambda post: (post.published_at, post.issue_number),
+        key=blog_post_sort_key,
         reverse=True,
     )[:HOME_POST_COUNT]
     return HomePage(

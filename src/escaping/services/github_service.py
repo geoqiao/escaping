@@ -1,4 +1,3 @@
-import structlog
 from github import Auth, Github
 from github.Issue import Issue
 from github.Repository import Repository
@@ -6,22 +5,10 @@ from tenacity import retry, stop_after_attempt, wait_exponential
 
 from escaping.models.issue_snapshot import IssueSnapshot
 
-logger = structlog.get_logger()
-
 
 class GitHubService:
     def __init__(self, token: str) -> None:
-        self.gh = self._login(token)
-
-    def _login(self, token: str) -> Github:
-        try:
-            # Compatibility with different PyGithub versions
-            if hasattr(Auth, "Token"):
-                return Github(auth=Auth.Token(token))
-            return Github(token)
-        except Exception as e:
-            logger.error("github_login_failed", error=str(e))
-            raise
+        self.gh = Github(auth=Auth.Token(token))
 
     @retry(
         stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
