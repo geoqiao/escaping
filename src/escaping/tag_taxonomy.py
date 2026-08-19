@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from dataclasses import dataclass
 
 from .build_result import Diagnostic
-from .models.blog_post import BlogPost
+from .models.blog_post import BlogPost, blog_post_sort_key
 from .models.tag_taxonomy import (
     TagArchive,
     TagArchiveEntry,
@@ -74,7 +74,7 @@ def _build_archive(
 ) -> TagArchive:
     posts = sorted(
         tag.posts,
-        key=lambda post: (post.published_at, post.issue_number),
+        key=blog_post_sort_key,
         reverse=True,
     )
     return TagArchive(

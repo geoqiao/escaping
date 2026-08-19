@@ -50,7 +50,3 @@ class TagTaxonomyResult:
     index: TagsIndex
     archives: tuple[TagArchive, ...] = field(default_factory=tuple)
     diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)
-
-    @property
-    def has_errors(self) -> bool:
-        return any(d.severity == "error" for d in self.diagnostics)

@@ -3,7 +3,7 @@ from __future__ import annotations
 from collections.abc import Sequence
 
 from .models.blog_archive import ArchiveEntry, ArchivePage
-from .models.blog_post import BlogPost
+from .models.blog_post import BlogPost, blog_post_sort_key
 from .routes import RouteRegistry
 
 
@@ -13,7 +13,7 @@ def build_archives(
     """Build paginated Blog archives; SiteBuilder is the only caller."""
     sorted_posts = sorted(
         posts,
-        key=lambda post: (post.published_at, post.issue_number),
+        key=blog_post_sort_key,
         reverse=True,
     )
     page_slices = (

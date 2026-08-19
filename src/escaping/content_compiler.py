@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import re
 import unicodedata
-from collections.abc import Callable, Sequence
+from collections.abc import Sequence
 from datetime import datetime
 
 from marko import Markdown
@@ -10,7 +10,7 @@ from marko.ext.gfm import GFM
 
 from .build_result import Diagnostic
 from .config import Settings
-from .models.blog_post import BlogPost, BlogTag
+from .models.blog_post import BlogPost, BlogTag, blog_post_sort_key
 from .models.content import AboutPage, ContentCompilationResult, Idea
 from .models.issue_snapshot import IssueSnapshot
 from .routes import RouteCollisionError, RouteRegistry
@@ -46,14 +46,10 @@ class ContentCompiler:
         self,
         settings: Settings,
         *,
-        markdown_renderer: Callable[[str], str] | None = None,
-        sanitizer: Callable[[str], str] | None = None,
-        route_registry: RouteRegistry | None = None,
+        route_registry: RouteRegistry,
     ) -> None:
         self._settings = settings
-        self._render_markdown = markdown_renderer or _render_markdown
-        self._sanitize = sanitizer or sanitize_html
-        self._routes = route_registry or RouteRegistry(str(settings.site.url))
+        self._routes = route_registry
 
     def compile(self, snapshots: Sequence[IssueSnapshot]) -> ContentCompilationResult:
         diagnostics: list[Diagnostic] = []
@@ -240,7 +236,7 @@ class ContentCompiler:
             blogs=tuple(
                 sorted(
                     blogs,
-                    key=lambda post: (post.published_at, post.issue_number),
+                    key=blog_post_sort_key,
                     reverse=True,
                 )
             ),
@@ -424,7 +420,7 @@ class ContentCompiler:
         self, snapshot: IssueSnapshot, body: str, diagnostics: list[Diagnostic]
     ) -> str | None:
         try:
-            rendered = self._render_markdown(body)
+            rendered = _render_markdown(body)
         except Exception:
             diagnostics.append(
                 self._error(
@@ -436,7 +432,7 @@ class ContentCompiler:
             )
             return None
         try:
-            return self._sanitize(rendered)
+            return sanitize_html(rendered)
         except Exception:
             diagnostics.append(
                 self._error(

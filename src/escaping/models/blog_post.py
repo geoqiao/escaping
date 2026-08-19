@@ -36,3 +36,7 @@ class BlogPost:
     @property
     def canonical_url(self) -> str:
         return self.route.canonical_url
+
+
+def blog_post_sort_key(post: BlogPost) -> tuple[datetime, int]:
+    return post.published_at, post.issue_number

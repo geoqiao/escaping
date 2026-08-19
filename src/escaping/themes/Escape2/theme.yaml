@@ -2,17 +2,7 @@ api_version: "1"
 capabilities:
   - comments
   - markdown
-required_templates:
-  - base.html
-  - home.html
-  - index.html
-  - post.html
-  - tag.html
-  - tags.html
-  - ideas.html
-  - idea.html
-  - about.html
-  - projects.html
+required_templates: []
 required_assets:
   - static/css
   - static/js

@@ -31,7 +31,3 @@ class AtomFeed:
 class AtomFeedResult:
     feed: AtomFeed
     diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)
-
-    @property
-    def has_errors(self) -> bool:
-        return any(d.severity == "error" for d in self.diagnostics)

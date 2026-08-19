@@ -26,11 +26,9 @@ from .tag_taxonomy import build_tag_taxonomy
 class SiteBuilder:
     """Build the complete SiteModel by coordinating modular page builders."""
 
-    def __init__(
-        self, settings: Settings, route_registry: RouteRegistry | None = None
-    ) -> None:
+    def __init__(self, settings: Settings, route_registry: RouteRegistry) -> None:
         self.settings = settings
-        self.routes = route_registry or RouteRegistry(str(settings.site.url))
+        self.routes = route_registry
 
     def build(
         self,
