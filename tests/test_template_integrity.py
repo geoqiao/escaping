@@ -242,6 +242,7 @@ def test_geoqiao_home_promotes_latest_post_without_profile_copy() -> None:
     assert '<section class="home-hero" aria-labelledby="latest-title">' in home
     assert '<article class="latest-story">' in home
     assert '<p class="latest-description">Post.</p>' in home
+    assert '<a class="latest-read" href="/blog/post/">Read this issue' in home
     assert 'class="author-mark"' in home
     assert "/static/images/author-mark.png" in home
     assert "Question assumptions." not in home

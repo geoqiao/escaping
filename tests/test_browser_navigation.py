@@ -84,7 +84,7 @@ def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
     snapshots = [
         IssueSnapshot(
             number=1,
-            title="A Blog",
+            title="我试了 6 款 Agent Orchestrator，这是我的最终选择",  # noqa: RUF001
             author="geoqiao",
             body=(
                 "---\n"
@@ -336,6 +336,74 @@ def test_geoqiao_mobile_navigation_contains_focus_and_resets_cleanly(
     expect(scrim).to_be_hidden()
     expect(blog_link).to_be_focused()
     expect(mobile_page.locator("[inert]")).to_have_count(0)
+
+
+def test_geoqiao_mobile_home_keeps_the_latest_story_readable_and_actionable(
+    browser: Browser, site_server: str
+) -> None:
+    titles = (
+        "我试了 6 款 Agent Orchestrator，这是我的最终选择",  # noqa: RUF001
+        "从零开始搭建一个完全自动化的个人博客发布流水线",
+        "AnUnusuallyLongUnbrokenAgentName",
+    )
+    for width, height in ((390, 844), (430, 932), (600, 844)):
+        context = browser.new_context(viewport={"width": width, "height": height})
+        page = context.new_page()
+        try:
+            page.goto(f"{site_server}/", wait_until="load")
+            expect(page.locator(".author-mark")).to_be_hidden()
+            read_link = page.get_by_role("link", name="Read this issue")
+            expect(read_link).to_be_visible()
+            read_link_box = read_link.bounding_box()
+            recent_box = page.locator(".recent-writing").bounding_box()
+            assert read_link_box is not None and recent_box is not None
+            assert read_link_box["height"] >= 44
+            assert recent_box["y"] <= height
+
+            for title in titles:
+                page.locator("#latest-title a").evaluate(
+                    "(element, value) => { element.textContent = value; }", title
+                )
+                metrics = page.locator("#latest-title").evaluate(
+                    """element => {
+                        const range = document.createRange();
+                        range.selectNodeContents(element);
+                        const lines = new Set(
+                            [...range.getClientRects()].map(rect => Math.round(rect.top))
+                        );
+                        return {
+                            lines: lines.size,
+                            scrollWidth: element.scrollWidth,
+                            clientWidth: element.clientWidth,
+                            pageScrollWidth: document.documentElement.scrollWidth,
+                            pageClientWidth: document.documentElement.clientWidth,
+                        };
+                    }"""
+                )
+                assert metrics["lines"] <= 3
+                assert metrics["scrollWidth"] <= metrics["clientWidth"] + 1
+                assert metrics["pageScrollWidth"] <= metrics["pageClientWidth"] + 1
+
+            if width == 600:
+                page.goto(f"{site_server}/blog/a-blog/", wait_until="load")
+                article_title = page.locator(".article-heading h1")
+                article_title.evaluate(
+                    "element => { element.textContent = "
+                    "'从零开始搭建一个完全自动化的个人博客发布流水线'; }"
+                )
+                assert article_title.evaluate(
+                    "element => element.scrollWidth <= element.clientWidth + 1"
+                )
+        finally:
+            context.close()
+
+    context = browser.new_context(viewport={"width": 1440, "height": 900})
+    page = context.new_page()
+    try:
+        page.goto(f"{site_server}/", wait_until="load")
+        expect(page.locator(".author-mark")).to_be_visible()
+    finally:
+        context.close()
 
 
 def test_theme_follows_system_until_the_user_chooses(mobile_page: Page) -> None:

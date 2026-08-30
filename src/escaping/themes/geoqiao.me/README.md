@@ -15,12 +15,13 @@ package resources. The build injects its loader and licensed vendored runtime in
 this Theme's output assets; the browser fetches them only when a Mermaid code block
 is present.
 
-Home dedicates the first viewport to the newest Blog entry and the configured
-profile avatar, falling back to the bundled author mark. Author labels and the
-decorative monogram come from the configured author name. The following section
-lists up to four more posts as borderless editorial rows. Profile and About copy
-stay off Home; About remains its own long-form page, and Blog archive pages own
-pagination.
+Home leads with the newest Blog entry and a direct reading action. Desktop keeps
+the configured profile avatar, falling back to the bundled author mark; mobile
+removes that decoration so the latest story and the start of Recent writing fit in
+the first viewport. Author labels and the desktop decorative monogram come from
+the configured author name. The following section lists up to four more posts as
+borderless editorial rows. Profile and About copy stay off Home; About remains its
+own long-form page, and Blog archive pages own pagination.
 
 Blog, Ideas, and Tag archives share the same editorial index grammar without a
 card grid or dense dividers. Blog and Idea details use a 720px reading column,

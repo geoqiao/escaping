@@ -14,6 +14,7 @@
             <h1 id="latest-title"><a href="{{ latest.detail_path }}">{{ latest.title }}</a></h1>
             <p class="latest-description">{{ latest.description }}</p>
             {% if latest.tags %}<div class="plain-tags latest-tags">{% for tag in latest.tags %}<a href="{{ tag.path }}">#{{ tag.name }}</a>{% endfor %}</div>{% endif %}
+            <a class="latest-read" href="{{ latest.detail_path }}">Read this issue <span aria-hidden="true">→</span></a>
         </article>
 
         <figure class="author-mark" aria-label="{{ author_name }} author mark">
