@@ -351,7 +351,8 @@ def test_geoqiao_mobile_home_keeps_the_latest_story_readable_and_actionable(
         page = context.new_page()
         try:
             page.goto(f"{site_server}/", wait_until="load")
-            expect(page.locator(".author-mark")).to_be_hidden()
+            expect(page.locator(".author-mark")).to_have_count(0)
+            expect(page.locator(".home-intro")).to_be_visible()
             read_link = page.get_by_role("link", name="Read this issue")
             expect(read_link).to_be_visible()
             read_link_box = read_link.bounding_box()
@@ -401,7 +402,29 @@ def test_geoqiao_mobile_home_keeps_the_latest_story_readable_and_actionable(
     page = context.new_page()
     try:
         page.goto(f"{site_server}/", wait_until="load")
-        expect(page.locator(".author-mark")).to_be_visible()
+        expect(page.locator(".author-mark")).to_have_count(0)
+        home_box = page.locator(".home-hero-inner").bounding_box()
+        recent_box = page.locator(".recent-writing").bounding_box()
+        recent_inner_box = page.locator(".recent-writing-inner").bounding_box()
+        assert home_box is not None and recent_box is not None
+        assert recent_inner_box is not None
+        assert 760 <= home_box["width"] <= 840
+        assert recent_inner_box["width"] == pytest.approx(home_box["width"], abs=1)
+        assert recent_inner_box["x"] == pytest.approx(home_box["x"], abs=1)
+        assert recent_box["y"] <= 660
+        assert (
+            page.locator("#latest-title").evaluate(
+                "element => parseFloat(getComputedStyle(element).fontSize)"
+            )
+            <= 40.5
+        )
+
+        page.set_viewport_size({"width": 1920, "height": 1080})
+        home_box = page.locator(".home-hero-inner").bounding_box()
+        recent_inner_box = page.locator(".recent-writing-inner").bounding_box()
+        assert home_box is not None and recent_inner_box is not None
+        assert recent_inner_box["width"] == pytest.approx(home_box["width"], abs=1)
+        assert recent_inner_box["x"] == pytest.approx(home_box["x"], abs=1)
     finally:
         context.close()
 
@@ -500,6 +523,27 @@ def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
             "element => element.getBoundingClientRect().width"
         )
         assert 480 <= content_width <= 820
+
+    if theme == "geoqiao.me":
+        page.goto(f"{site_server}/blog/a-blog/", wait_until="load")
+        article_box = page.locator(".article-main").bounding_box()
+        assert article_box is not None
+        assert 660 <= article_box["width"] <= 700
+        assert abs(article_box["x"] + article_box["width"] / 2 - 720) <= 24
+
+        page.goto(f"{site_server}/blog/", wait_until="load")
+        index_box = page.locator(".index-page").bounding_box()
+        first_row_box = page.locator(".editorial-row").first.bounding_box()
+        assert index_box is not None and first_row_box is not None
+        assert 760 <= index_box["width"] <= 840
+        assert first_row_box["y"] <= 420
+        assert first_row_box["height"] <= 100
+        assert (
+            page.get_by_role("heading", name="Blog", exact=True).evaluate(
+                "element => parseFloat(getComputedStyle(element).fontSize)"
+            )
+            <= 56.5
+        )
 
     page.set_viewport_size({"width": 390, "height": 844})
     page.goto(f"{site_server}/blog/a-blog/", wait_until="load")
