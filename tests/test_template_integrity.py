@@ -239,12 +239,15 @@ def test_geoqiao_home_promotes_latest_post_without_profile_copy() -> None:
         tagline="Analyst / tool builder",
     )["index.html"]
 
-    assert '<section class="home-hero" aria-labelledby="latest-title">' in home
-    assert '<article class="latest-story">' in home
+    assert '<section class="home-hero" aria-labelledby="home-title">' in home
+    assert '<header class="home-intro">' in home
+    assert '<h1 id="home-title">Site</h1>' in home
+    assert '<article class="latest-story" aria-labelledby="latest-title">' in home
+    assert '<h2 id="latest-title"><a href="/blog/post/">Blog</a></h2>' in home
     assert '<p class="latest-description">Post.</p>' in home
     assert '<a class="latest-read" href="/blog/post/">Read this issue' in home
-    assert 'class="author-mark"' in home
-    assert "/static/images/author-mark.png" in home
+    assert 'class="author-mark"' not in home
+    assert "/static/images/author-mark.png" not in home
     assert "Question assumptions." not in home
     assert "Build useful tools." not in home
     assert "Analyst / tool builder" not in home
@@ -254,7 +257,8 @@ def test_geoqiao_home_has_one_visible_editorial_heading() -> None:
     home = _render_theme("geoqiao.me", thesis=[], tagline="")["index.html"]
 
     assert home.count("<h1") == 1
-    assert 'id="latest-title"' in home
+    assert 'id="home-title"' in home
+    assert '<h2 id="latest-title">' in home
     assert 'class="profile-rail"' not in home
 
 
@@ -265,15 +269,16 @@ def test_geoqiao_author_images_prefer_the_configured_profile_avatar() -> None:
     post = rendered["blog/post/index.html"]
     about = rendered["about/index.html"]
 
-    for page in (home, post, about):
+    assert avatar not in home
+    assert 'class="author-mark"' not in home
+    for page in (post, about):
         assert f'src="{avatar}"' in page
         assert f'<img src="{avatar}" alt=""' in page
         assert "/static/images/author-mark.png" not in page
+    for page in (home, post, about):
         assert "Geo Qiao" not in page
         assert ">GQ<" not in page
-    assert 'aria-label="Ada Lovelace author mark"' in home
     assert 'aria-label="Ada Lovelace author mark"' in about
-    assert '<span class="author-mark-ghost" aria-hidden="true">AL</span>' in home
 
 
 def test_geoqiao_theme_mark_fallback_has_no_identity_leaks() -> None:
@@ -282,12 +287,14 @@ def test_geoqiao_theme_mark_fallback_has_no_identity_leaks() -> None:
     post = rendered["blog/post/index.html"]
     about = rendered["about/index.html"]
 
-    for page in (home, post, about):
+    assert "/static/images/author-mark.png" not in home
+    assert 'class="author-mark"' not in home
+    for page in (post, about):
         assert "/static/images/author-mark.png" in page
         assert 'static/images/author-mark.png" alt=""' in page
+    for page in (home, post, about):
         assert "Geo Qiao" not in page
         assert ">GQ<" not in page
-    assert 'aria-label="Ada Lovelace author mark"' in home
     assert 'aria-label="Ada Lovelace author mark"' in about
 
 
@@ -335,12 +342,14 @@ def test_geoqiao_theme_preserves_semantic_page_structure() -> None:
     post = html["blog/post/index.html"]
 
     assert '<main class="site-main" id="main-content" tabindex="-1">' in home
-    assert '<section class="home-hero" aria-labelledby="latest-title">' in home
+    assert '<section class="home-hero" aria-labelledby="home-title">' in home
+    assert '<header class="home-intro">' in home
+    assert '<article class="latest-story" aria-labelledby="latest-title">' in home
     assert (
         '<section class="recent-writing" aria-labelledby="recent-writing-title">'
         in home
     )
-    assert '<figure class="author-mark" aria-label="geoqiao author mark">' in home
+    assert 'class="author-mark"' not in home
     assert '<article class="article-layout">' in post
     assert '<aside class="article-issue" aria-label="Article metadata">' in post
     assert '<nav data-article-toc aria-label="Article sections"></nav>' in post
