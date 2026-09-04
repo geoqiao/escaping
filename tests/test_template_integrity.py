@@ -216,6 +216,71 @@ def test_theme_favicon_is_a_valid_search_eligible_png(theme: str) -> None:
     assert width >= 48
 
 
+def _css_block(css: str, selector: str) -> str:
+    match = re.search(
+        rf"(?m)^{re.escape(selector)} \{{\n(.*?)\n^\}}", css, flags=re.DOTALL
+    )
+    assert match is not None, f"missing CSS rule: {selector}"
+    return match.group(1)
+
+
+def test_escape2_home_intro_is_the_thesis_without_identity_or_navigation() -> None:
+    home = _render_theme(
+        "Escape2",
+        title="Site",
+        bio="Profile copy",
+        thesis=["Escaping is a static blog system based on GitHub Issues."],
+    )["index.html"]
+
+    assert (
+        '<p class="intro-line">Escaping is a static blog system '
+        "based on GitHub Issues.</p>" in home
+    )
+    assert "<h1" not in home
+    assert "Profile copy" not in home
+    assert 'class="nav-actions"' not in home
+    assert 'class="authorImageWrapper"' not in home
+
+
+def test_escape2_archive_rows_and_tags_are_unboxed() -> None:
+    css = (_ROOT / "src/escaping/themes/Escape2/static/css/style.css").read_text(
+        encoding="utf-8"
+    )
+
+    assert ".postListItem:hover" not in css
+    row = _css_block(css, ".postListItem")
+    assert "border-bottom: 1px solid var(--border);" in row
+    for banned in (
+        "background",
+        "border-left",
+        "border-radius",
+        "transform",
+        "transition",
+        "box-shadow",
+    ):
+        assert banned not in row
+
+    tag = _css_block(css, ".tag")
+    for banned in ("border", "background", "padding", "box-shadow"):
+        assert banned not in tag
+
+
+def test_escape2_about_mark_falls_back_to_a_bundled_theme_asset() -> None:
+    mark = "/templates/Escape2/static/images/author-mark.png"
+    rendered = _render_theme("Escape2")
+
+    assert (
+        _ROOT / "src/escaping/themes/Escape2/static/images/author-mark.png"
+    ).is_file()
+    assert f'<img src="{mark}"' in rendered["about/index.html"]
+    assert mark not in rendered["index.html"]
+
+    avatar = "https://example.com/ada.png"
+    configured = _render_theme("Escape2", avatar=avatar)["about/index.html"]
+    assert f'<img src="{avatar}"' in configured
+    assert mark not in configured
+
+
 def test_configured_site_identity_reaches_homepage_search_signals() -> None:
     home = _render_theme("geoqiao.me", title="Geo Qiao", author="Geo Qiao")[
         "index.html"

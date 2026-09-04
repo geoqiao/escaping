@@ -311,22 +311,13 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .postListItem {
-  padding: 1.25rem;
-  background-color: var(--bg-card);
-  margin-bottom: 1rem;
-  border-left: 3px solid transparent;
-  border-radius: 0 6px 6px 0;
-  transition: border-left-color 0.25s ease, transform 0.2s ease;
+  margin-bottom: 2rem;
+  padding-bottom: 2rem;
+  border-bottom: 1px solid var(--border);
 }
 
-.postListItem:hover {
-  border-left-color: var(--accent);
-  transform: translateX(4px);
-}
-
-.postListItem.compact {
-  padding: 0.875rem 1rem;
-  margin-bottom: 0.75rem;
+.postListItem:last-child {
+  border-bottom: none;
 }
 
 .postListLink:hover {
@@ -424,10 +415,6 @@ h1, h2, h3, h4, h5, h6 {
 
 .source-link {
   text-align: right;
-}
-
-.home-title {
-  margin: 0 0 1rem;
 }
 
 .recent-posts {

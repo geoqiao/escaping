@@ -12,9 +12,8 @@ site:
   author: Your Name
   description: Short description
   language: en
-  # Optional Theme presentation hint retained for local Theme compatibility.
-  # The bundled Themes currently do not render thesis; geoqiao.me intentionally
-  # has no slogan.
+  # Optional Theme presentation hint. Escape2 renders these lines above its
+  # recent posts; geoqiao.me intentionally has no slogan.
   # thesis:
   #   - A deliberate statement about your site's perspective.
   #   - A second line, when the thought needs one.

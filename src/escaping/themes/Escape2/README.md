@@ -7,6 +7,8 @@ dependency.
 
 The declarative templates consume the strict SiteModel and RouteRegistry for
 Home, Blog, Ideas, About, Projects, Tags, and Issue-bound Utterances comments.
+Home renders optional `site.thesis` lines and `branding.source_link_url`; About
+falls back to the bundled `author-mark.png` when no profile avatar is configured.
 The generator-owned shared `comments.js` preserves automatic theme
 synchronization and the Safari iframe workaround.
 

@@ -143,6 +143,8 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me'):
     theme.copy_assets(destination)
     vendor = destination / 'templates' / theme_name / '__MERMAID_DIRECTORY__'
     assert (destination / 'templates' / theme_name / 'static/js/mermaid.js').is_file()
+    if theme_name == 'Escape2':
+        assert (destination / 'templates/Escape2/static/images/author-mark.png').is_file()
     assert (vendor / 'mermaid.min.js').is_file()
     assert (vendor / 'LICENSE').is_file()
     assert (vendor / 'README.md').is_file()
