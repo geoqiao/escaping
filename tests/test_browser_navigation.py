@@ -798,7 +798,7 @@ def test_quiet_without_javascript_keeps_content_and_navigation(
         context.close()
 
 
-def test_quiet_has_one_banner_and_visible_skip_target_focus(
+def test_quiet_skip_focus_marks_heading_without_framing_the_page(
     browser: Browser, site_servers: dict[str, str]
 ) -> None:
     page = browser.new_page()
@@ -806,12 +806,16 @@ def test_quiet_has_one_banner_and_visible_skip_target_focus(
         page.goto(site_servers["Quiet"], wait_until="load")
         expect(page.get_by_role("banner")).to_have_count(1)
         skip_link = page.get_by_role("link", name="Skip to main content")
-        skip_link.focus()
+        page.keyboard.press("Tab")
+        expect(skip_link).to_be_focused()
+        expect(skip_link).to_have_css("outline-style", "solid")
         page.keyboard.press("Enter")
         main = page.locator("#main-content")
         expect(main).to_be_focused()
-        assert (
-            main.evaluate("element => getComputedStyle(element).outlineStyle") != "none"
-        )
+        expect(main).to_have_css("outline-style", "none")
+        expect(main.locator("h1")).to_have_css("text-decoration-line", "underline")
+        page.keyboard.press("Tab")
+        expect(main).not_to_be_focused()
+        expect(main.locator("h1")).to_have_css("text-decoration-line", "none")
     finally:
         page.close()

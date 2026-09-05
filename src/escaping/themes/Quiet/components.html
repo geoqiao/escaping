@@ -1,5 +1,5 @@
 {% macro tags(items, linked=true) -%}
-{% if items %}<ul class="tag-links" aria-label="{{ '标签' if zh else 'Tags' }}">{% for tag in items %}<li>{% if linked %}<a href="{{ tag.path }}">{{ tag.name }}</a>{% else %}<span>{{ tag.name }}</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
+{% if items %}<ul class="tag-links" aria-label="Tags">{% for tag in items %}<li>{% if linked %}<a href="{{ tag.path }}">{{ tag.name }}</a>{% else %}<span>{{ tag.name }}</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
 {%- endmacro %}
 
 {% macro entry_list(entries) -%}
@@ -9,13 +9,13 @@
     <time datetime="{{ entry.created_date }}">{{ entry.created_date }}</time>
     <div class="entry-copy"><h2><a href="{{ entry.detail_path }}">{{ entry.title }} <span class="entry-arrow" aria-hidden="true">↗</span></a></h2>{{ tags(entry.tags) }}</div>
   </article>
-  {% else %}<p class="empty-state">{{ '还没有文章。之后再来看看。' if zh else 'No writing yet. Check back soon.' }}</p>{% endfor %}
+  {% else %}<p class="empty-state">No writing yet. Check back soon.</p>{% endfor %}
 </div>
 {%- endmacro %}
 
 {% macro project_entry(project) -%}
 <article class="project-entry" id="{{ project.slug }}">
-  <div class="project-top"><span class="eyebrow">{{ project.language or 'Open source' }}</span>{% if project.featured %}<span class="project-featured">{{ '精选' if zh else 'Featured' }}</span>{% endif %}</div>
+  <div class="project-top"><span class="eyebrow">{{ project.language or 'Open source' }}</span>{% if project.featured %}<span class="project-featured">Featured</span>{% endif %}</div>
   <h2><a href="{{ project.url }}">{{ project.title }} <span aria-hidden="true">↗</span></a></h2>
   <p>{{ project.summary }}</p>
   <div class="project-meta"><span>{{ project.repository }}</span>{% if project.stars is not none %}<span aria-label="{{ project.stars }} stars">☆ {{ project.stars }}</span>{% endif %}{% if project.forks is not none %}<span>{{ project.forks }} forks</span>{% endif %}</div>
@@ -25,12 +25,12 @@
 
 {% macro comments_section(number) -%}
 <section class="comments-section" aria-labelledby="comments-title">
-  <div class="section-heading"><h2 id="comments-title">{{ '交流' if zh else 'Conversation' }}</h2><a href="https://github.com/{{ github_repo }}/issues/{{ number }}">GitHub ↗</a></div>
-  <p class="muted">{{ '想补充些什么？欢迎在这篇文章的 Issue 下留言。' if zh else 'Have something to add? Join the conversation on this Issue.' }}</p>
+  <div class="section-heading"><h2 id="comments-title">Conversation</h2><a href="https://github.com/{{ github_repo }}/issues/{{ number }}">GitHub ↗</a></div>
+  <p class="muted">Have something to add? Join the conversation on this Issue.</p>
   <div id="comments-container" data-issue-number="{{ number }}" data-comments-repo="{{ comments.repo }}" data-source-repo="{{ github_repo }}" data-comments-theme="{{ comments.theme }}" data-comments-theme-mode="{{ comments.theme_mode }}" data-blog-theme-default="light">
-    <p class="comments-loading" role="status">{{ '正在加载评论…' if zh else 'Loading comments…' }}</p>
+    <p class="comments-loading" role="status">Loading comments…</p>
   </div>
-  <noscript><p>{{ '评论需要 JavaScript，也可以直接在 GitHub 阅读和留言。' if zh else 'Comments require JavaScript. You can also read and reply on GitHub.' }}</p></noscript>
+  <noscript><p>Comments require JavaScript. You can also read and reply on GitHub.</p></noscript>
 </section>
 <script src="{{ theme_path }}/static/js/comments.js" defer></script>
 {%- endmacro %}

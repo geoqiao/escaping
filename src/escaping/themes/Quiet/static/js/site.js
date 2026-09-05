@@ -1,7 +1,6 @@
 (() => {
   "use strict";
   const root = document.documentElement;
-  const zh = root.lang.startsWith("zh");
   const mobile = matchMedia("(max-width: 760px)");
   const menu = document.querySelector(".menu-toggle");
   const nav = document.getElementById("site-navigation");
@@ -109,10 +108,10 @@
     element.tabIndex = 0;
     if (element.tagName === "PRE") element.setAttribute("role", "region");
     element.setAttribute("aria-label", element.tagName === "TABLE"
-      ? (zh ? "表格，可横向滚动" : "Table, scroll horizontally")
+      ? "Table, scroll horizontally"
       : element.querySelector(".language-mermaid") || element.classList.contains("mermaid")
-        ? (zh ? "图表，可横向滚动" : "Diagram, scroll horizontally")
-        : (zh ? "代码，可横向滚动" : "Code, scroll horizontally"));
+        ? "Diagram, scroll horizontally"
+        : "Code, scroll horizontally");
   });
   body.querySelectorAll("pre > code:not(.language-mermaid)").forEach((code) => {
     const bar = document.createElement("div");
@@ -120,14 +119,14 @@
     const button = document.createElement("button");
     button.type = "button";
     button.className = "copy-code";
-    button.textContent = zh ? "复制代码" : "Copy code";
+    button.textContent = "Copy code";
     button.setAttribute("aria-live", "polite");
     button.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(code.textContent);
-        button.textContent = zh ? "已复制" : "Copied";
+        button.textContent = "Copied";
       } catch {
-        button.textContent = zh ? "请选中代码手动复制" : "Select the code to copy manually";
+        button.textContent = "Select the code to copy manually";
       }
     });
     bar.appendChild(button);

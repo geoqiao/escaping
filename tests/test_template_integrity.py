@@ -27,6 +27,7 @@ _MERMAID_ASSET = f"static/vendor/mermaid-{_MERMAID_VERSION}/mermaid.min.js"
 def _settings(
     theme: str,
     *,
+    language: str = "en",
     title: str = "Site",
     author: str = "geoqiao",
     avatar: str = "",
@@ -39,6 +40,7 @@ def _settings(
         "title": title,
         "author": author,
         "url": "https://geoqiao.me/",
+        "language": language,
         "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
     }
     if thesis is not None:
@@ -75,6 +77,7 @@ def _snap(
 def _render_theme(
     theme: str,
     *,
+    language: str = "en",
     title: str = "Site",
     author: str = "geoqiao",
     avatar: str = "",
@@ -85,6 +88,7 @@ def _render_theme(
 ) -> dict[str, str]:
     settings = _settings(
         theme,
+        language=language,
         title=title,
         author=author,
         avatar=avatar,
@@ -155,6 +159,34 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
         assert f'data-issue-number="{issue_number}"' in rendered, page_name
         assert 'data-comments-repo="geoqiao/site"' in rendered, page_name
         assert 'data-comments-theme-mode="auto"' in rendered, page_name
+
+
+@pytest.mark.parametrize("language", ["en", "zh-CN"])
+def test_quiet_interface_is_english_without_translating_site_content(
+    language: str,
+) -> None:
+    rendered = _render_theme("Quiet", language=language, title="中文站点")
+    for path, html in rendered.items():
+        if path.endswith(".html"):
+            assert f'<html lang="{language}">' in html
+            assert "中文站点" in html
+            assert not re.search(r"[\u4e00-\u9fff]", html.replace("中文站点", ""))
+    assert "Site index" in rendered["index.html"]
+    assert "Writing, ideas, and things in the making." in rendered["index.html"]
+
+
+def test_quiet_uses_profile_avatar_for_identity_about_and_favicon() -> None:
+    avatar = "https://example.com/ada.webp"
+    rendered = _render_theme("Quiet", author="Ada Lovelace", avatar=avatar)
+    for path, html in rendered.items():
+        if path.endswith(".html"):
+            assert f'<link rel="icon" href="{avatar}">' in html
+            assert f'class="identity-avatar" src="{avatar}" alt=""' in html
+            assert "identity-mark" not in html
+    assert f'class="profile-avatar" src="{avatar}"' in rendered["about/index.html"]
+    fallback = _render_theme("Quiet", author="Ada Lovelace")["index.html"]
+    assert ">AL</span>" in fallback
+    assert 'href="/templates/Quiet/static/images/favicon.png"' in fallback
 
 
 def test_quiet_idea_tags_are_text_while_blog_tags_keep_their_archive() -> None:

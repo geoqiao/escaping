@@ -2,9 +2,9 @@
 {% set page_title = 'Ideas' %}
 {% set active_section = site_routes.ideas.canonical_path %}
 {% block content %}
-<div class="page-heading"><p class="eyebrow">{{ '短想法，留在这里' if zh else 'Room for a thought' }}</p><h1>Ideas<span class="heading-dot" aria-hidden="true">.</span></h1><p>{{ '不必是一篇长文。' if zh else 'Not everything needs to be an essay.' }}</p></div>
+<div class="page-heading"><p class="eyebrow">Room for a thought</p><h1>Ideas<span class="heading-dot" aria-hidden="true">.</span></h1><p>Not everything needs to be an essay.</p></div>
 <div class="idea-list">
 {% for idea in ideas %}<article class="idea-entry"><time datetime="{{ idea.created_date }}">{{ idea.created_date }}</time><h2><a href="{{ idea.route.canonical_path }}">{{ idea.title }} ↗</a></h2><p>{{ idea.description }}</p></article>
-{% else %}<section class="empty-state"><span class="empty-mark" aria-hidden="true">…</span><h2>{{ '这里，暂时留白。' if zh else 'A little room to think.' }}</h2><p>{{ '还没有已发布的短想法。先去文章里逛逛吧。' if zh else 'No published ideas yet. There is more to explore in the writing archive.' }}</p><a class="read-link" href="{{ site_routes.blog.canonical_path }}">{{ '阅读文章' if zh else 'Explore the writing' }} ↗</a></section>{% endfor %}
+{% else %}<section class="empty-state"><span class="empty-mark" aria-hidden="true">…</span><h2>A little room to think.</h2><p>No published ideas yet. There is more to explore in the writing archive.</p><a class="read-link" href="{{ site_routes.blog.canonical_path }}">Explore the writing ↗</a></section>{% endfor %}
 </div>
 {% endblock %}
