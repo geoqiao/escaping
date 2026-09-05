@@ -29,15 +29,15 @@ The `escaping` capability that converts Issue Content and repository-owned site 
 _Avoid_: Issue monitor, Issue Draft Uploader
 
 **Site Config**:
-Repository-owned configuration for one generated site. Relative filesystem paths are interpreted from the Site Config directory, never from the caller's working directory.
+Repository-owned choices for one generated site, overriding missing-value defaults field by field. Relative filesystem paths belong to the Site Config directory, never to the caller's working directory.
 _Avoid_: Generator Config, global settings
 
 **Built-in Theme**:
-A manifest-validated Theme distributed as a Site Compiler package resource. `geoqiao.me` is the default; Escape1, Escape2, and Quiet are alternatives. Quiet uses neutral surfaces with restrained avatar-magenta accents. Remote fetching and commit pinning are not ThemeLoader responsibilities.
+A Theme distributed with the Site Compiler. Quiet is the default; geoqiao.me, Escape1, and Escape2 are alternatives.
 _Avoid_: Downloaded theme, compiler cache
 
 **Site Orchestrator**:
-The site-repository automation layer that reacts to repository events, invokes a release/full-SHA-pinned Site Compiler with an explicit Site Config, and deploys its artifact.
+The site-repository automation that prepares publishing labels, reacts to repository events, and builds and deploys the site. It selects a stable release or an explicit fixed version and fixes the actual Site Compiler identity for each build.
 _Avoid_: escaping daemon, watcher, compiler workflow
 
 **Published Content**:
@@ -53,8 +53,12 @@ A repository-owned, curated description of a project displayed by the personal s
 _Avoid_: Project issue, repository mirror
 
 **Site Profile**:
-Repository-owned structured identity data made available to a Theme, currently an avatar, optional tagline, bio, and links; profile copy is not required Home content, and the detailed About narrative belongs to About Issue Content.
-_Avoid_: About page content, About Issue metadata
+The site's structured identity and presentation data, supplied by repository-owned choices with missing values drawn from public GitHub profile data. It is distinct from an author's About Issue narrative.
+_Avoid_: About Issue metadata
+
+**Profile About**:
+An About page presenting profile information when no About Issue is selected. It is not Issue Content and has no Issue identity or discussion thread.
+_Avoid_: Placeholder Issue, generated About Issue
 
 **Site Thesis**:
 A repository-owned statement arranged in one or more deliberate lines and made available as an optional Theme presentation hint; configuring it does not require a Theme to place slogan copy on Home.

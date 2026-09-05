@@ -55,23 +55,27 @@ front matter.
 
 ### 3.3 `slug`
 
-`slug` is required when `type` is `blog` and forbidden when `type` is `idea` or
-`about`. It MUST satisfy the syntax and length rules in
-[Issue Content Contract section 6.3](./issue-content-v1.md#63-slug). The uploader
-MUST copy it into the Issue body front matter, where the Site Compiler uses it
-to derive `/blog/{slug}/`.
+`slug` is optional when `type` is `blog` and forbidden when `type` is `idea` or
+`about`. An explicit value MUST satisfy the syntax and length rules in
+[Issue Content Contract section 6.3](./issue-content-v1.md#63-slug) and be copied
+into the Issue body front matter.
 
-Idea and About routes are derived from Issue identity and content type, not from
-a Local Draft slug.
+When omitted, the uploader MUST leave it omitted: no Issue number exists yet,
+so it MUST NOT guess a route from the title or filename. The Site Compiler later
+derives the Blog slug from the created Issue number. Idea and About routes
+continue to follow Issue identity and content type.
 
 ### 3.4 `description`
 
-`description` is required for Blog, Idea, and About. It MUST satisfy the
-plain-text validation rules in
-[Issue Content Contract section 6.4](./issue-content-v1.md#64-description). The
-uploader MUST copy it into the Issue body front matter.
+`description` is optional for Blog, Idea, and About. An explicit value MUST
+satisfy the authored plain-text validation rules in
+[Issue Content Contract section 6.4](./issue-content-v1.md#64-description) and be
+copied into the Issue body front matter.
 
-The uploader MUST NOT derive a missing description from the Markdown body.
+The uploader MUST leave a missing description omitted; the Site Compiler owns
+the sanitized-body default. Invalid, null, or explicitly blank values MUST NOT
+be treated as missing or silently replaced. Providing one metadata override
+MUST NOT require the other optional overrides.
 
 ### 3.5 `tags`
 
@@ -86,14 +90,14 @@ copy `tags` into the Issue body front matter.
 
 ### 3.6 `created_date`
 
-`created_date` is required. It records when the Local Draft was actually
-created, not when its GitHub Issue was created. It MUST be a quoted string in
-`YYYY-MM-DD` format. The uploader MUST copy it into the Issue body front matter.
+`created_date` is optional. An explicit original creation date MUST be a quoted,
+valid `YYYY-MM-DD` string and be copied into the Issue body front matter. When
+omitted, the uploader MUST NOT guess an Issue creation date from the local clock
+or file timestamp; the Site Compiler later uses the Issue's UTC creation date.
 
-The Site Compiler displays `created_date` for Blog and Idea, while sorting both
-by the GitHub Issue `created_at` publication timestamp. About retains the field
-but does not display a date. The `published` label only controls whether the
-content appears on the site.
+The Site Compiler displays the resolved date for Blog and Idea, while sorting
+both by the GitHub Issue `created_at` timestamp. About does not display a date.
+The `published` label remains the publication gate.
 
 ### 3.7 Markdown body
 
@@ -107,5 +111,14 @@ headings, links, images, code blocks, or formatting.
 ## 4. Upload result
 
 A successful upload MUST create a new Issue without the `published` label and
-report its immutable Issue number and URL. The uploader MUST NOT modify the
-Local Draft or create a sidecar file.
+report its immutable Issue number and URL. Only explicitly supplied Issue body
+metadata is emitted; when none is supplied, the Issue body MAY be plain Markdown
+without an envelope. The uploader MUST NOT modify the Local Draft or create a
+sidecar file.
+
+Optional lint or attachment assistance is not an upload, publication approval,
+or synchronization capability. It MUST NOT rewrite an existing published slug
+or authorize committing attachments, pushing, or editing an existing Issue.
+The Local Draft's `title` and `type` remain required because the new Issue needs
+these native fields; optional metadata does not make an arbitrary Markdown file
+an upload-ready Local Draft.
