@@ -857,6 +857,33 @@ def test_quiet_mobile_menu_overlays_content_and_dismisses_cleanly(
         page.close()
 
 
+def test_quiet_navigation_and_appearance_controls_are_unboxed(
+    browser: Browser, site_servers: dict[str, str]
+) -> None:
+    page = browser.new_page(
+        viewport={"width": 1440, "height": 900}, color_scheme="light"
+    )
+    try:
+        page.goto(site_servers["Quiet"], wait_until="load")
+        current = page.locator('#site-navigation [aria-current="page"]')
+        toggle = page.get_by_role("button", name="Dark mode")
+        for mode in ("light", "dark"):
+            expect(page.locator("html")).to_have_attribute("data-theme", mode)
+            expect(current).to_have_css("background-color", "rgba(0, 0, 0, 0)")
+            expect(current).to_have_css("font-weight", "600")
+            expect(toggle).to_have_css("border-top-width", "0px")
+            bounds = toggle.bounding_box()
+            assert bounds is not None and bounds["height"] >= 44
+            toggle.hover()
+            expect(toggle).to_have_css("background-color", "rgba(0, 0, 0, 0)")
+            page.keyboard.press("Tab")
+            toggle.focus()
+            expect(toggle).to_have_css("outline-style", "solid")
+            toggle.click()
+    finally:
+        page.close()
+
+
 def test_quiet_skip_focus_marks_heading_without_framing_the_page(
     browser: Browser, site_servers: dict[str, str]
 ) -> None:
