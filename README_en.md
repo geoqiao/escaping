@@ -45,6 +45,18 @@ The production workflow is owned by the site repository; see the
 [site Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml).
 Any consumer workflow must pin the compiler to a reviewed release or full 40-character SHA.
 
+## Custom Theme JSON-LD
+
+Use `{{ structured_data|tojson }}` for safe serialization. Each script must contain
+an object. Without `@graph`, its literal `url` identifies the page. With an
+`@graph` array of objects, exactly one node must have `@id` equal to
+`page_canonical_url`, not a fragment such as `#author`. Any `url` supplied on that
+node or the root object must be the same canonical string; other nodes and nested
+references such as `author.url` need not match. Top-level arrays are unsupported;
+the validator neither fetches contexts nor infers primary entities. Existing
+custom graphs without that identity need an explicit `@id`; the built-in
+`structured_data` already follows this contract.
+
 ## Canonical origin and URL migration boundaries
 
 The production site repository owns `config.yaml`; its current `site.url` is

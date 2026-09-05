@@ -136,6 +136,13 @@ Open Graph、Atom、sitemap 和 robots 都从调用时传入的 origin 派生，
 
 ## 🎨 Themes
 
+自定义 Theme 应使用 `{{ structured_data|tojson }}` 安全输出结构化数据。每段 JSON-LD
+必须是对象：没有 `@graph` 时，根对象的 `url` 表示当前页面；使用 `@graph` 对象数组时，
+必须恰有一个节点的 `@id` **精确等于** `page_canonical_url`（不含 `#author` 等片段）。
+根对象及该节点若提供 `url`，值必须为相同的 canonical 字符串；其他节点及嵌套
+`author.url` 等引用不必相同。不支持顶层数组，也不联网展开 context/推断主实体。
+旧自定义 graph 缺少该身份时需补 `@id`；内置 `structured_data` 已符合此约定。
+
 不写 Theme 配置时，默认使用中文优先的内置 `geoqiao.me`；`Escape1`、
 `Escape2` 和 [Quiet](docs/themes/quiet.md) 是可选内置 Theme；Quiet 使用中性黑白与少量头像洋红：
 
