@@ -15,7 +15,17 @@
   <div class="reading-layout">
     <div class="reading-main">
       <div class="post-content">{{ article.body_html|safe }}</div>
+      {% if section_label == 'Blog' %}
+      {% if prev_post or next_post %}
+      <nav class="article-end" aria-label="Article navigation">
+        <span aria-hidden="true">↳</span>
+        {% if prev_post %}<a href="{{ prev_post.route.canonical_path }}" aria-label="Previous: {{ prev_post.title }}">Previous</a>{% endif %}
+        {% if next_post %}<a href="{{ next_post.route.canonical_path }}" aria-label="Next: {{ next_post.title }}">Next</a>{% endif %}
+      </nav>
+      {% endif %}
+      {% else %}
       <div class="article-end"><span aria-hidden="true">↳</span><a href="{{ home_path if section_label == 'About' else active_section }}">Back to {{ 'Home' if section_label == 'About' else section_label }}</a><a href="#top">Back to top ↑</a></div>
+      {% endif %}
       {{ comments_section(article.issue_number) }}
     </div>
     {% if section_label != 'About' %}<aside class="reading-margin" hidden>

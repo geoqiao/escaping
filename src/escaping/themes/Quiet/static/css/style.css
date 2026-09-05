@@ -219,7 +219,7 @@ main { min-height: calc(100svh - 220px); }
 .post-content pre.mermaid .node :is(rect, circle, ellipse, polygon, path) { stroke: #777 !important; }
 .post-content input[type="checkbox"] { width: 1em; height: 1em; }
 .article-end { display: flex; flex-wrap: wrap; align-items: center; gap: 16px; margin: 56px 0; color: var(--muted); font-size: .8rem; }
-.article-end > :last-child { margin-left: auto; }
+.article-end > a + a:last-child { margin-left: auto; }
 .comments-section { border-top: 1px solid var(--line); padding-top: 28px; }
 .comments-section > p { font-size: .8rem; margin-top: 14px; }
 #comments-container { min-height: 140px; margin-top: 24px; max-width: 100%; }

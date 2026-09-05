@@ -17,6 +17,7 @@ theme:
 | 头像关联 | 洋红来自 Escape2 `author-mark.png` 的主体 `#D2428A`，调整明度满足 AA；不新增头像组件，不使用薄荷色 |
 | 体验 | 固定站内索引、首页双栏、长文目录、代码复制、移动菜单、键盘导航与评论降级 |
 | Idea 标签 | 显示为非交互文本，避免链接到不存在的 Blog tag archive；Blog 标签保持归档链接 |
+| Blog 文章页尾 | 只显示全量已发布 Blog 中的英文 Previous（较新）/ Next（较旧）；首末和单篇不造链接，Idea/About 保留原页尾 |
 | Mermaid | 既有本地 strict loader 使用 `neutral`；仅 SVG 在深色反相、打印还原，不重渲染；节点边框补足 3:1 |
 | 主题偏好 | `quiet-theme` 保存读者明确选择的浅色或深色模式 |
 | 打印 | Theme 表面白底、文字黑色；内容图片保留原色，SVG 使用中性浅色 |

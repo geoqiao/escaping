@@ -49,33 +49,138 @@ _THEMES = ("Escape1", "Escape2", "geoqiao.me", "Quiet")
 _MERMAID_RENDER_TIMEOUT_MS = 15_000
 
 
-def _browser_settings(theme: str) -> Settings:
-    return Settings.model_validate(
-        {
-            "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
-            "site": {
-                "title": "Browser Site",
-                "author": "geoqiao",
-                "url": "https://geoqiao.me/",
-                "language": "zh-CN" if theme == "Quiet" else "en",
-                "navigation": {
-                    "items": [
-                        {"name": "Blog", "url": "/blog/"},
-                        {"name": "Ideas", "url": "/ideas/"},
-                        {"name": "Projects", "url": "/projects/"},
-                        {"name": "Tags", "url": "/tags/"},
-                        {"name": "About", "url": "/about/"},
-                    ]
-                },
+def _browser_settings(theme: str, *, page_size: int | None = None) -> Settings:
+    data: dict[str, object] = {
+        "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
+        "site": {
+            "title": "Browser Site",
+            "author": "geoqiao",
+            "url": "https://geoqiao.me/",
+            "language": "zh-CN" if theme == "Quiet" else "en",
+            "navigation": {
+                "items": [
+                    {"name": "Blog", "url": "/blog/"},
+                    {"name": "Ideas", "url": "/ideas/"},
+                    {"name": "Projects", "url": "/projects/"},
+                    {"name": "Tags", "url": "/tags/"},
+                    {"name": "About", "url": "/about/"},
+                ]
             },
-            "profile": {"avatar": "/templates/Quiet/static/images/favicon.png"}
-            if theme == "Quiet"
-            else {},
-            "about": {"issue_number": 10},
-            "security": {"token_env": "TEST_TOKEN"},
-            "theme": {"source": "builtin", "name": theme},
-        }
+        },
+        "profile": {"avatar": "/templates/Quiet/static/images/favicon.png"}
+        if theme == "Quiet"
+        else {},
+        "about": {"issue_number": 10},
+        "security": {"token_env": "TEST_TOKEN"},
+        "theme": {"source": "builtin", "name": theme},
+    }
+    if page_size is not None:
+        data["paths"] = {"page_size": page_size}
+    return Settings.model_validate(data)
+
+
+def _adjacent_snapshot(
+    number: int,
+    title: str,
+    slug: str,
+    created_at: datetime,
+    tag_name: str,
+) -> IssueSnapshot:
+    created_date = created_at.date().isoformat()
+    return IssueSnapshot(
+        number=number,
+        title=title,
+        author="geoqiao",
+        body=(
+            "---\n"
+            f"slug: {slug}\n"
+            "description: Description.\n"
+            f'created_date: "{created_date}"\n'
+            "---\n\nBody."
+        ),
+        labels=("type:blog", "published", f"tag:{tag_name}"),
+        created_at=created_at,
+        updated_at=created_at,
+        is_pull_request=False,
     )
+
+
+def _write_quiet_adjacent_site(output_dir: Path) -> None:
+    settings = _browser_settings("Quiet", page_size=2)
+    routes = RouteRegistry(str(settings.site.url))
+    build_time = datetime(2026, 1, 20, tzinfo=UTC)
+    content = ContentCompiler(settings, route_registry=routes).compile(
+        [
+            _adjacent_snapshot(
+                4,
+                "Tie low",
+                "tie-low",
+                datetime(2026, 1, 2, tzinfo=UTC),
+                "focus",
+            ),
+            _adjacent_snapshot(
+                1,
+                "Oldest post",
+                "oldest",
+                datetime(2026, 1, 1, tzinfo=UTC),
+                "focus",
+            ),
+            _adjacent_snapshot(
+                11,
+                "Newest post",
+                "newest",
+                datetime(2026, 1, 3, tzinfo=UTC),
+                "focus",
+            ),
+            _adjacent_snapshot(
+                2,
+                "Older post",
+                "older",
+                datetime(2026, 1, 1, tzinfo=UTC),
+                "other",
+            ),
+            _adjacent_snapshot(
+                7,
+                "Tie <high> & safe",
+                "tie-high",
+                datetime(2026, 1, 2, tzinfo=UTC),
+                "other",
+            ),
+            IssueSnapshot(
+                number=2,
+                title="Idea",
+                author="geoqiao",
+                body='---\ndescription: Idea.\ncreated_date: "2026-01-02"\n---\n\nIdea.',
+                labels=("type:idea", "published"),
+                created_at=build_time,
+                updated_at=build_time,
+                is_pull_request=False,
+            ),
+            IssueSnapshot(
+                number=10,
+                title="About",
+                author="geoqiao",
+                body='---\ndescription: About.\ncreated_date: "2026-01-03"\n---\n\nAbout.',
+                labels=("type:about", "published"),
+                created_at=build_time,
+                updated_at=build_time,
+                is_pull_request=False,
+            ),
+        ]
+    )
+    assert not content.has_errors
+    site = SiteBuilder(settings, route_registry=routes).build(
+        content,
+        ProjectCompiler().compile(settings.projects, route=routes.projects()),
+        build_start_time=build_time,
+    )
+    assert not site.has_errors
+    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
+    renderer.copy_theme_assets(output_dir)
+    for output_path, html in renderer.render_site(site).items():
+        path = output_dir / output_path
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(html, encoding="utf-8")
 
 
 @pytest.fixture(scope="session")
@@ -190,6 +295,67 @@ def site_servers(built_site_dirs: dict[str, Path]) -> Iterator[dict[str, str]]:
 @pytest.fixture(scope="session")
 def site_server(site_servers: dict[str, str]) -> str:
     return site_servers["geoqiao.me"]
+
+
+def test_quiet_blog_adjacent_navigation_is_http_keyboard_and_narrow_safe(
+    browser: Browser, tmp_path: Path
+) -> None:
+    output_dir = tmp_path / "quiet-adjacent-site"
+    output_dir.mkdir()
+    _write_quiet_adjacent_site(output_dir)
+
+    handler = partial(SimpleHTTPRequestHandler, directory=str(output_dir))
+    server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
+    server_thread = Thread(target=server.serve_forever, daemon=True)
+    server_thread.start()
+    context = browser.new_context(
+        java_script_enabled=False, viewport={"width": 390, "height": 844}
+    )
+    page = context.new_page()
+    origin = f"http://127.0.0.1:{server.server_port}"
+    try:
+        page.goto(f"{origin}/blog/tie-low/", wait_until="load")
+        navigation = page.get_by_role("navigation", name="Article navigation")
+        expect(navigation).to_be_visible()
+        previous = navigation.get_by_role(
+            "link", name=re.compile(r"^Previous: Tie <high> & safe$")
+        )
+        next_link = navigation.get_by_role("link", name="Next: Older post")
+        expect(previous).to_be_visible()
+        expect(next_link).to_be_visible()
+        previous.focus()
+        expect(previous).to_be_focused()
+        page.keyboard.press("Enter")
+        expect(page).to_have_url(re.compile(r"/blog/tie-high/$"))
+
+        page.goto(f"{origin}/blog/tie-low/", wait_until="load")
+        navigation.get_by_role("link", name="Next: Older post").click()
+        expect(page).to_have_url(re.compile(r"/blog/older/$"))
+
+        page.goto(f"{origin}/blog/newest/", wait_until="load")
+        navigation = page.get_by_role("navigation", name="Article navigation")
+        expect(
+            navigation.get_by_role("link", name=re.compile(r"^Previous:"))
+        ).to_have_count(0)
+        only_next = navigation.get_by_role("link", name="Next: Tie <high> & safe")
+        expect(only_next).to_be_visible()
+        bounds = only_next.bounding_box()
+        navigation_bounds = navigation.bounding_box()
+        viewport = page.viewport_size
+        assert (
+            bounds is not None
+            and navigation_bounds is not None
+            and viewport is not None
+        )
+        assert bounds["x"] < navigation_bounds["x"] + navigation_bounds["width"] / 2
+        assert (
+            navigation_bounds["x"] + navigation_bounds["width"] <= viewport["width"] + 1
+        )
+    finally:
+        context.close()
+        server.shutdown()
+        server_thread.join()
+        server.server_close()
 
 
 @pytest.fixture(scope="session")

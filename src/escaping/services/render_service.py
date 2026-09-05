@@ -8,7 +8,7 @@ from typing import Any
 from jinja2 import Environment
 
 from ..atom_feed import render_atom_xml
-from ..models.blog_post import BlogPost
+from ..models.blog_post import BlogPost, blog_post_sort_key
 from ..models.content import AboutPage, Idea
 from ..models.home_page import HomePage
 from ..models.site import SiteMetadata, SiteModel
@@ -55,8 +55,20 @@ class RenderService:
                 page_canonical_url=page.route.canonical_url,
                 **self._common_context(site),
             )
-        for post in site.blogs:
-            artifacts[post.route.output_path] = self._render_blog(site, post)
+        sorted_blogs = sorted(
+            site.blogs,
+            key=blog_post_sort_key,
+            reverse=True,
+        )
+        for index, post in enumerate(sorted_blogs):
+            artifacts[post.route.output_path] = self._render_blog(
+                site,
+                post,
+                prev_post=sorted_blogs[index - 1] if index else None,
+                next_post=(
+                    sorted_blogs[index + 1] if index + 1 < len(sorted_blogs) else None
+                ),
+            )
         for idea in site.ideas:
             artifacts[idea.route.output_path] = self._render_idea(site, idea)
         for archive in site.tag_archives:
@@ -127,10 +139,19 @@ class RenderService:
         )
         return self.env.get_template("home.html").render(home_page=home, **context)
 
-    def _render_blog(self, site: SiteModel, post: BlogPost) -> str:
+    def _render_blog(
+        self,
+        site: SiteModel,
+        post: BlogPost,
+        *,
+        prev_post: BlogPost | None,
+        next_post: BlogPost | None,
+    ) -> str:
         context = self._common_context(site)
         context["page_canonical_url"] = post.route.canonical_url
         context["structured_data"] = self._blog_json_ld(site.metadata, post)
+        context["prev_post"] = prev_post
+        context["next_post"] = next_post
         return self.env.get_template("post.html").render(post=post, **context)
 
     def _render_tag_index(self, site: SiteModel) -> str:

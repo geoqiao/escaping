@@ -12,6 +12,8 @@ from jinja2 import ChoiceLoader, DictLoader
 
 from escaping.config import Settings
 from escaping.content_compiler import ContentCompiler
+from escaping.models.blog_post import BlogPost, BlogTag
+from escaping.models.content import ContentCompilationResult
 from escaping.models.issue_snapshot import IssueSnapshot
 from escaping.projects import ProjectCompiler
 from escaping.routes import RouteRegistry
@@ -35,6 +37,7 @@ def _settings(
     tagline: str = "",
     bio: str = "",
     projects: list[dict[str, object]] | None = None,
+    page_size: int | None = None,
 ) -> Settings:
     site: dict[str, object] = {
         "title": title,
@@ -55,6 +58,8 @@ def _settings(
     }
     if projects is not None:
         data["projects"] = projects
+    if page_size is not None:
+        data["paths"] = {"page_size": page_size}
     return Settings.model_validate(data)
 
 
@@ -123,6 +128,103 @@ def _render_theme(
     assert not site.has_errors
     loaded_theme = ThemeLoader(_ROOT).load(settings.theme)
     return RenderService(loaded_theme).render_site(site)
+
+
+def _local_blog(
+    routes: RouteRegistry,
+    issue_number: int,
+    slug: str,
+    title: str,
+    published_at: datetime,
+    tag_name: str,
+) -> BlogPost:
+    tag_route = routes.tag(tag_name)
+    return BlogPost(
+        issue_number=issue_number,
+        title=title,
+        slug=slug,
+        description=f"Description {issue_number}",
+        created_date=published_at.date().isoformat(),
+        published_at=published_at,
+        updated_at=published_at,
+        tags=(BlogTag(tag_name, tag_route.canonical_path),),
+        body_html="<p>Body.</p>",
+        route=routes.blog_detail(slug),
+    )
+
+
+def _render_quiet_adjacent_posts() -> dict[str, str]:
+    settings = _settings("Quiet", page_size=2)
+    routes = RouteRegistry(str(settings.site.url))
+    posts = (
+        _local_blog(
+            routes,
+            4,
+            "tie-low",
+            "Tie low",
+            datetime(2026, 1, 2, tzinfo=UTC),
+            "focus",
+        ),
+        _local_blog(
+            routes,
+            1,
+            "oldest",
+            "Oldest post",
+            datetime(2026, 1, 1, tzinfo=UTC),
+            "focus",
+        ),
+        _local_blog(
+            routes,
+            10,
+            "newest",
+            "Newest post",
+            datetime(2026, 1, 3, tzinfo=UTC),
+            "focus",
+        ),
+        _local_blog(
+            routes,
+            2,
+            "older",
+            "Older post",
+            datetime(2026, 1, 1, tzinfo=UTC),
+            "other",
+        ),
+        _local_blog(
+            routes,
+            7,
+            "tie-high",
+            "Tie <high> & safe",
+            datetime(2026, 1, 2, tzinfo=UTC),
+            "other",
+        ),
+    )
+    supporting_content = ContentCompiler(settings, route_registry=routes).compile(
+        [
+            _snap(
+                2,
+                "idea",
+                'description: Idea.\ncreated_date: "2026-01-02"',
+            ),
+            _snap(
+                10,
+                "about",
+                'description: About.\ncreated_date: "2026-01-03"',
+            ),
+        ]
+    )
+    content = ContentCompilationResult(
+        blogs=posts,
+        ideas=supporting_content.ideas,
+        about=supporting_content.about,
+        diagnostics=supporting_content.diagnostics,
+    )
+    site = SiteBuilder(settings, route_registry=routes).build(
+        content,
+        ProjectCompiler().compile(settings.projects, route=routes.projects()),
+        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
+    )
+    assert not site.has_errors
+    return RenderService(ThemeLoader(_ROOT).load(settings.theme)).render_site(site)
 
 
 @pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
@@ -199,6 +301,53 @@ def test_quiet_idea_tags_are_text_while_blog_tags_keep_their_archive() -> None:
     assert "tags/idea-only/index.html" not in rendered
     assert 'href="/tags/python/"' in rendered["blog/post/index.html"]
     assert "tags/python/index.html" in rendered
+
+
+def test_quiet_blog_adjacent_navigation_uses_global_sorted_routes() -> None:
+    rendered = _render_quiet_adjacent_posts()
+
+    newest = rendered["blog/newest/index.html"]
+    assert 'class="article-end"' in newest
+    assert "Previous" not in newest
+    assert '<a href="/blog/tie-high/"' in newest
+    assert ">Next</a>" in newest
+
+    middle = rendered["blog/tie-low/index.html"]
+    assert (
+        '<a href="/blog/tie-high/" aria-label="Previous: Tie &lt;high&gt; &amp; safe">'
+        "Previous</a>"
+    ) in middle
+    assert '<a href="/blog/older/" aria-label="Next: Older post">Next</a>' in middle
+
+    oldest = rendered["blog/oldest/index.html"]
+    assert (
+        '<a href="/blog/older/" aria-label="Previous: Older post">Previous</a>'
+        in oldest
+    )
+    assert "Next" not in oldest
+    focus_tag = rendered["tags/focus/index.html"]
+    assert (
+        "Tie low" in focus_tag
+        and "Newest post" in focus_tag
+        and "Oldest post" in focus_tag
+    )
+    assert "Tie &lt;high&gt;" not in focus_tag and "Older post" not in focus_tag
+
+
+def test_quiet_blog_footer_change_is_scoped_to_multi_post_blog_navigation() -> None:
+    quiet = _render_theme("Quiet")
+    blog = quiet["blog/post/index.html"]
+    assert 'class="article-end"' not in blog
+    assert "Back to Blog" not in blog
+    assert "Back to top" not in blog
+    assert 'class="breadcrumb"' in blog
+    assert '<body id="top">' in blog
+    assert "Back to Ideas" in quiet["ideas/2/index.html"]
+    assert "Back to Home" in quiet["about/index.html"]
+
+    for theme in ("Escape1", "Escape2", "geoqiao.me"):
+        assert "Previous" not in _render_theme(theme)["blog/post/index.html"]
+    assert "Back to Blog" in _render_theme("geoqiao.me")["blog/post/index.html"]
 
 
 def test_named_site_routes_are_consumable_without_blogs_or_ideas() -> None:
