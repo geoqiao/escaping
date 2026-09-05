@@ -72,12 +72,27 @@ def _codes(result: ContentCompilationResult) -> set[str]:
     return {d.code for d in result.diagnostics if d.severity == "error"}
 
 
-def test_compiles_blog_idea_and_configured_about_once() -> None:
-    result = _compiler().compile(
-        [_snapshot(1, "blog"), _snapshot(2, "idea"), _snapshot(10, "about")]
+@pytest.mark.parametrize("allowed_author", ["geoqiao", " \tGeoQiao\n"])
+def test_compiles_blog_idea_and_configured_about_once(allowed_author: str) -> None:
+    settings = Settings.model_validate(
+        {
+            **_settings().model_dump(),
+            "github": {"repo": "geoqiao/site", "allowed_authors": [allowed_author]},
+        }
+    )
+    result = ContentCompiler(
+        settings, route_registry=RouteRegistry(str(settings.site.url))
+    ).compile(
+        [
+            _snapshot(1, "blog"),
+            _snapshot(2, "idea"),
+            _snapshot(10, "about"),
+            _snapshot(21, "blog", author="other"),
+        ]
     )
 
     assert not result.has_errors
+    assert [post.issue_number for post in result.blogs] == [1]
     assert result.blogs[0].canonical_path == "/blog/test-post/"
     assert result.ideas[0].canonical_path == "/ideas/2/"
     assert result.about is not None and result.about.canonical_path == "/about/"

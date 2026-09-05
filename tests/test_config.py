@@ -111,8 +111,9 @@ def test_site_thesis_rejects_blank_or_non_string_lines(thesis: object) -> None:
 
 def test_https_origin_and_dynamic_token_name() -> None:
     assert GithubConfig(repo="o/r", allowed_authors=["A"]).username == "o"
-    with pytest.raises(ValidationError):
-        SecurityConfig(token_env="G-T")  # noqa: S106
+    for token_env in ("G-T", "TOKEN\n"):
+        with pytest.raises(ValidationError):
+            SecurityConfig(token_env=token_env)
     with pytest.raises(ValidationError):
         Settings.model_validate(
             {**_BASE, "site": {**_BASE["site"], "url": "http://x.test"}}

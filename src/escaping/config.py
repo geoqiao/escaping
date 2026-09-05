@@ -129,7 +129,7 @@ class GithubConfig(BaseModel):
             if key in seen:
                 raise ValueError(f"duplicate allowed_author: {author!r}")
             seen.add(key)
-        return v
+        return [author.strip() for author in v]
 
     @property
     def username(self) -> str:
@@ -344,7 +344,7 @@ class SecurityConfig(BaseModel):
     def validate_token_env(cls, v: str) -> str:
         if not v.strip():
             raise ValueError("token_env must not be empty or blank")
-        if not _ENV_VAR_PATTERN.match(v):
+        if not _ENV_VAR_PATTERN.fullmatch(v):
             raise ValueError(
                 "token_env must be a valid environment variable identifier "
                 "(start with a letter or underscore; contain only letters, "
