@@ -86,6 +86,7 @@ time { color: var(--muted); font: .75rem/1.6 var(--mono); }
 .identity-mark { font: 700 2.65rem/1 var(--display); letter-spacing: -.1em; padding-right: .1em; }
 .identity-avatar { width: 64px; height: 64px; object-fit: contain; }
 .identity-name { font: 700 .875rem/1.5 var(--display); }
+.navigation-panel { display: flex; flex-direction: column; flex: 1; }
 .rail-label { color: var(--muted); margin: 52px 12px 12px; }
 #site-navigation { margin-inline: -12px; }
 #site-navigation > a { display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 12px; min-height: 46px; text-decoration: none; font-size: .875rem; border-radius: 6px; }
@@ -255,7 +256,9 @@ main { min-height: calc(100svh - 220px); }
   .rail-label { margin: 20px 12px 10px; }
   .rail-bottom { grid-column: 1 / -1; margin: 0; padding-top: 16px; }
   .rail-note { display: none; }
-  .js #site-navigation:not(.is-open), .js .rail-bottom:not(.is-open) { display: none; }
+  .navigation-panel { grid-column: 1 / -1; }
+  .js .navigation-panel { position: absolute; top: calc(100% - 8px); inset-inline: 12px; z-index: 10; max-height: calc(100dvh - 100px); overflow-y: auto; overscroll-behavior: contain; padding: 12px; background: var(--rail); border-radius: 10px; box-shadow: 0 12px 32px #0003; }
+  .js .navigation-panel:not(.is-open) { display: none; }
   .site-surface { margin: 0; padding: 28px 24px 0; }
   .home-heading { margin-bottom: 28px; }
   .home-heading h1 { font-size: clamp(3rem, 12vw, 5.5rem); margin-top: 14px; }

@@ -3,8 +3,7 @@
   const root = document.documentElement;
   const mobile = matchMedia("(max-width: 760px)");
   const menu = document.querySelector(".menu-toggle");
-  const nav = document.getElementById("site-navigation");
-  const bottom = document.querySelector(".rail-bottom");
+  const panel = document.getElementById("navigation-panel");
   const themeToggle = document.querySelector(".theme-toggle");
   const system = matchMedia("(prefers-color-scheme: dark)");
   let choice;
@@ -28,14 +27,12 @@
 
   function closeMenu() {
     menu.setAttribute("aria-expanded", "false");
-    nav.classList.remove("is-open");
-    bottom.classList.remove("is-open");
+    panel.classList.remove("is-open");
   }
   menu.addEventListener("click", () => {
     const open = menu.getAttribute("aria-expanded") !== "true";
     menu.setAttribute("aria-expanded", String(open));
-    nav.classList.toggle("is-open", open);
-    bottom.classList.toggle("is-open", open);
+    panel.classList.toggle("is-open", open);
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && menu.getAttribute("aria-expanded") === "true") {
@@ -43,10 +40,18 @@
       menu.focus();
     }
   });
+  let lastFocused = document.activeElement;
+  function dismissOutside(event) {
+    if (event.type === "focusin") lastFocused = event.target;
+    if (!panel.contains(event.target) && !menu.contains(event.target)) closeMenu();
+  }
+  document.addEventListener("pointerdown", dismissOutside);
+  document.addEventListener("focusin", dismissOutside);
   mobile.addEventListener("change", () => {
-    const active = document.activeElement;
+    // CSS can hide the focused panel before the media-query event runs.
+    const active = document.activeElement === document.body ? lastFocused : document.activeElement;
     closeMenu();
-    if (mobile.matches && (nav.contains(active) || bottom.contains(active))) menu.focus();
+    if (mobile.matches && panel.contains(active)) menu.focus();
     if (!mobile.matches && active === menu) document.querySelector(".identity").focus();
   });
   menu.hidden = false;

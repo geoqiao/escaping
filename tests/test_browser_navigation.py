@@ -57,6 +57,7 @@ def _browser_settings(theme: str) -> Settings:
                 "title": "Browser Site",
                 "author": "geoqiao",
                 "url": "https://geoqiao.me/",
+                "language": "zh-CN" if theme == "Quiet" else "en",
                 "navigation": {
                     "items": [
                         {"name": "Blog", "url": "/blog/"},
@@ -67,6 +68,9 @@ def _browser_settings(theme: str) -> Settings:
                     ]
                 },
             },
+            "profile": {"avatar": "/templates/Quiet/static/images/favicon.png"}
+            if theme == "Quiet"
+            else {},
             "about": {"issue_number": 10},
             "security": {"token_env": "TEST_TOKEN"},
             "theme": {"source": "builtin", "name": theme},
@@ -796,6 +800,61 @@ def test_quiet_without_javascript_keeps_content_and_navigation(
         expect(page.get_by_role("button", name="Copy code")).to_have_count(0)
     finally:
         context.close()
+
+
+@pytest.mark.parametrize("viewport", [(390, 844), (320, 568)])
+def test_quiet_mobile_menu_overlays_content_and_dismisses_cleanly(
+    browser: Browser, site_servers: dict[str, str], viewport: tuple[int, int]
+) -> None:
+    page = browser.new_page(viewport={"width": viewport[0], "height": viewport[1]})
+    try:
+        page.goto(site_servers["Quiet"], wait_until="load")
+        menu = page.get_by_role("button", name="Toggle menu", include_hidden=True)
+        panel = page.locator("#" + str(menu.get_attribute("aria-controls")))
+        content_box = page.locator("main").bounding_box()
+        assert content_box is not None
+        content_top = content_box["y"]
+        menu.click()
+        expect(menu).to_have_attribute("aria-expanded", "true")
+        expect(panel).to_be_visible()
+        content_box = page.locator("main").bounding_box()
+        assert content_box is not None
+        assert content_box["y"] == pytest.approx(content_top)
+        bounds = panel.bounding_box()
+        assert bounds is not None
+        assert bounds["y"] + bounds["height"] <= viewport[1]
+        assert panel.evaluate(
+            "element => element.contains(document.elementFromPoint("
+            "element.getBoundingClientRect().x + 20, "
+            "element.getBoundingClientRect().y + 40))"
+        )
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+
+        page.mouse.click(2, 120)
+        expect(menu).to_have_attribute("aria-expanded", "false")
+        expect(panel).to_be_hidden()
+        menu.click()
+        page.get_by_role("link", name="About me").focus()
+        expect(panel).to_be_hidden()
+        menu.click()
+        page.keyboard.press("Escape")
+        expect(panel).to_be_hidden()
+        expect(menu).to_be_focused()
+
+        menu.click()
+        toggle = page.get_by_role("button", name="Dark mode")
+        toggle.scroll_into_view_if_needed()
+        expect(toggle).to_be_in_viewport()
+        toggle.click()
+        expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+        page.set_viewport_size({"width": 1440, "height": 900})
+        expect(menu).to_have_attribute("aria-expanded", "false")
+        expect(panel).to_be_visible()
+        page.set_viewport_size({"width": viewport[0], "height": viewport[1]})
+        expect(panel).to_be_hidden()
+        expect(menu).to_be_focused()
+    finally:
+        page.close()
 
 
 def test_quiet_skip_focus_marks_heading_without_framing_the_page(
