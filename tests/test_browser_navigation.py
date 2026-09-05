@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import re
 from collections.abc import Iterator
@@ -9,7 +10,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
 from typing import Any, Literal
-from urllib.parse import quote
+from urllib.parse import parse_qs, quote, urlsplit
 
 import pytest
 
@@ -31,6 +32,7 @@ from playwright.sync_api import (  # noqa: E402
     Error,
     Page,
     Playwright,
+    Route,
     expect,
     sync_playwright,
 )
@@ -529,6 +531,7 @@ def test_geoqiao_mobile_home_keeps_the_latest_story_readable_and_actionable(
     for width, height in ((390, 844), (430, 932), (600, 844)):
         context = browser.new_context(viewport={"width": width, "height": height})
         page = context.new_page()
+        page.route("https://utteranc.es/**", lambda route: route.abort())
         try:
             page.goto(f"{site_server}/", wait_until="load")
             expect(page.locator(".author-mark")).to_have_count(0)
@@ -1066,5 +1069,337 @@ def test_quiet_skip_focus_marks_heading_without_framing_the_page(
         page.keyboard.press("Tab")
         expect(main).not_to_be_focused()
         expect(main.locator("h1")).to_have_css("text-decoration-line", "none")
+    finally:
+        page.close()
+
+
+@pytest.fixture(scope="session", params=["chromium", "webkit"])
+def comments_browser(
+    request: pytest.FixtureRequest, browser: Browser, playwright_api: Playwright
+) -> Iterator[Browser]:
+    if request.param == "chromium":
+        yield browser
+        return
+    try:
+        engine = playwright_api.webkit.launch()
+    except Error as exc:
+        pytest.skip(f"Optional WebKit unavailable: {exc}")
+    try:
+        yield engine
+    finally:
+        engine.close()
+
+
+def _replay_comments(page: Page, origin: str, mode: str = "success") -> list[str]:
+    """Replay the investigation's official assets, never the public service.
+
+    Only the GitHub HTTP response is synthetic. A blank frame is used solely
+    as a postMessage peer, not as a replacement comments implementation.
+    """
+    assets = _ROOT / "tests/fixtures/utterances"
+    resources = {
+        "/client.js": ("utterances-client.js", "application/javascript"),
+        "/utterances.html": ("utterances.html", "text/html"),
+        "/utterances.6ec01640.js": ("utterances-app.js", "application/javascript"),
+        "/stylesheets/themes/github-light/utterances.css": (
+            "github-light.css",
+            "text/css",
+        ),
+        "/stylesheets/themes/photon-dark/utterances.css": (
+            "photon-dark.css",
+            "text/css",
+        ),
+    }
+    issue_requests: list[str] = []
+
+    def respond(route: Route) -> None:
+        request = route.request
+        url = urlsplit(request.url)
+        assert request.method == "GET", request.url
+        assert "authorization" not in request.headers
+        if request.url.startswith(origin + "/"):
+            route.continue_()
+            return
+        if url.netloc == "utteranc.es" and url.path in resources:
+            if mode == "blocked-client" and url.path == "/client.js":
+                route.abort()
+                return
+            if mode == "peer" and url.path == "/utterances.html":
+                route.fulfill(
+                    content_type="text/html",
+                    body="<!doctype html><title>Message peer</title>",
+                )
+                return
+            filename, content_type = resources[url.path]
+            route.fulfill(path=assets / filename, content_type=content_type)
+            return
+        if url.netloc == "api.github.com":
+            issue_requests.append(request.url)
+            assert re.fullmatch(r"/repos/geoqiao/site/issues/(1|2|10)", url.path), (
+                request.url
+            )
+            assert not url.query
+            number = int(url.path.rsplit("/", 1)[1])
+            headers = {"access-control-allow-origin": "*"}
+            if mode == "rate403":
+                headers.update(
+                    {
+                        "x-ratelimit-limit": "60",
+                        "x-ratelimit-remaining": "0",
+                        "x-ratelimit-reset": "0",
+                        "access-control-expose-headers": "X-RateLimit-Limit, X-RateLimit-Remaining, X-RateLimit-Reset",
+                    }
+                )
+                body = {"message": "API rate limit exceeded for controlled test client"}
+            else:
+                body = {
+                    "number": number,
+                    "comments": 0,
+                    "locked": False,
+                    "html_url": f"https://github.com/geoqiao/site/issues/{number}",
+                }
+            route.fulfill(
+                status=403 if mode == "rate403" else 200,
+                body=json.dumps(body),
+                content_type="application/json",
+                headers=headers,
+            )
+            return
+        # No unexpected dependency, OAuth, avatar, search or write may go live.
+        route.abort()
+        pytest.fail(f"Unexpected external request: {request.url}")
+
+    page.context.route("**/*", respond)
+    return issue_requests
+
+
+def _expect_comments_ready(page: Page, number: int) -> None:
+    iframe = page.locator("#comments-container iframe")
+    expect(iframe).to_have_count(1)
+    expect(iframe).to_be_visible()
+    bounds = iframe.bounding_box()
+    assert bounds is not None and bounds["height"] > 0
+    assert iframe.get_attribute("loading") is None
+    thread = page.frame_locator("#comments-container iframe")
+    login = thread.get_by_role("link", name="Sign in with GitHub")
+    expect(login).to_be_visible()
+    iframe.scroll_into_view_if_needed()
+    expect(login).to_be_in_viewport()
+    expect(login).to_have_attribute(
+        "href", re.compile(r"^https://api\.utteranc\.es/authorize\?")
+    )
+    expect(thread.get_by_role("textbox", name="comment", exact=True)).to_be_disabled()
+    expect(thread.get_by_role("link", name="0 Comments", exact=True)).to_have_attribute(
+        "href", f"https://github.com/geoqiao/site/issues/{number}"
+    )
+    expect(page.locator(".comments-loading")).to_be_hidden()
+    expect(page.locator("#comments-container .comments-error")).to_have_count(0)
+
+
+@pytest.mark.parametrize("theme", _THEMES)
+def test_comments_generated_theme_wiring_uses_issue_identity(
+    browser: Browser, site_servers: dict[str, str], theme: str
+) -> None:
+    page = browser.new_page(color_scheme="light")
+    origin = site_servers[theme]
+    requests = _replay_comments(page, origin)
+    try:
+        # Each real template caller is wired, without multiplying protocol cases.
+        for path, number in (("blog/a-blog/", 1), ("ideas/2/", 2), ("about/", 10)):
+            page.goto(f"{origin}/{path}", wait_until="load")
+            if number == 1:
+                _expect_comments_ready(page, number)
+            iframe = page.locator("#comments-container iframe")
+            expect(iframe).to_have_count(1)
+            query = parse_qs(urlsplit(iframe.get_attribute("src") or "").query)
+            assert query["issue-number"] == [str(number)]
+            assert query["repo"] == ["geoqiao/site"]
+            assert "issue-term" not in query and "session" not in query
+        assert requests == [
+            f"https://api.github.com/repos/geoqiao/site/issues/{n}" for n in (1, 2, 10)
+        ]
+    finally:
+        page.close()
+
+
+def test_comments_success_syncs_theme_and_removes_late_lazy_frames(
+    comments_browser: Browser, site_servers: dict[str, str]
+) -> None:
+    page = comments_browser.new_page(
+        color_scheme="light", viewport={"width": 390, "height": 844}
+    )
+    origin = site_servers["Quiet"]
+    _replay_comments(page, origin)
+    page.clock.install()
+    try:
+        page.goto(f"{origin}/blog/a-blog/", wait_until="load")
+        _expect_comments_ready(page, 1)
+        frame = page.frame_locator("#comments-container iframe")
+        for mode, stylesheet in (
+            ("light", "github-light"),
+            ("dark", "photon-dark"),
+            ("light", "github-light"),
+        ):
+            # MutationObserver must react to the real root attribute, without reload.
+            page.locator("html").evaluate(
+                "(e, mode) => e.setAttribute('data-theme', mode)", mode
+            )
+            expect(frame.locator('link[rel="stylesheet"]')).to_have_attribute(
+                "href", f"/stylesheets/themes/{stylesheet}/utterances.css"
+            )
+        page.clock.fast_forward(20_001)
+        _expect_comments_ready(page, 1)
+        # DOM insertion bypasses insertAdjacentHTML: exercise the observer too.
+        page.locator("#comments-container").evaluate("""container => {
+            const direct = document.createElement('iframe');
+            direct.loading = 'lazy';
+            direct.dataset.probe = 'direct';
+            container.append(direct);
+            const nested = document.createElement('div');
+            const child = document.createElement('iframe');
+            child.loading = 'lazy';
+            child.dataset.probe = 'nested';
+            nested.append(child);
+            container.append(nested);
+        }""")
+        for probe in ("direct", "nested"):
+            expect(page.locator(f'iframe[data-probe="{probe}"]')).not_to_have_attribute(
+                "loading", "lazy"
+            )
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("mode", ["rate403", "blocked-client"])
+def test_comments_failure_has_bounded_keyboard_usable_issue_fallback(
+    comments_browser: Browser, site_servers: dict[str, str], mode: str
+) -> None:
+    page = comments_browser.new_page()
+    origin = site_servers["Quiet"]
+    requests = _replay_comments(page, origin, mode)
+    # Advance browser time through the *unaltered* production 20s watchdog.
+    frozen = datetime(2026, 1, 1, tzinfo=UTC)
+    page.clock.install(time=frozen)
+    page.clock.pause_at(frozen)
+    try:
+        if mode == "rate403":
+            with page.expect_event("pageerror") as error:
+                page.goto(f"{origin}/blog/a-blog/", wait_until="load")
+            assert "Error fetching issue via issue number." in str(error.value)
+            iframe = page.locator("#comments-container iframe")
+            expect(iframe).to_have_count(1)
+            bounds = iframe.bounding_box()
+            assert bounds is not None and bounds["height"] == 0
+            expect(page.locator(".comments-loading")).to_be_visible()
+            assert requests == ["https://api.github.com/repos/geoqiao/site/issues/1"]
+        else:
+            page.goto(f"{origin}/blog/a-blog/", wait_until="load")
+            expect(page.locator("#comments-container iframe")).to_have_count(0)
+            expect(
+                page.locator("#comments-container .comments-error a")
+            ).to_be_visible()
+            assert not requests
+        page.clock.fast_forward(20_001)
+        fallback = page.locator("#comments-container .comments-error").get_by_role(
+            "link", name="View or add comment on GitHub"
+        )
+        expect(fallback).to_be_visible()
+        expect(fallback).to_have_attribute(
+            "href", "https://github.com/geoqiao/site/issues/1"
+        )
+        expect(fallback).to_have_attribute("rel", "noopener")
+        fallback.focus()
+        expect(fallback).to_be_focused()
+        # Follow the actual link without requesting GitHub or performing a write.
+        page.context.route(
+            "https://github.com/geoqiao/site/issues/1",
+            lambda route: route.fulfill(
+                content_type="text/html", body="<title>Original Issue</title>"
+            ),
+        )
+        with page.expect_popup() as popup:
+            page.keyboard.press("Enter")
+        expect(popup.value).to_have_url("https://github.com/geoqiao/site/issues/1")
+        popup.value.close()
+        heading = page.get_by_role("heading", name="Opening Section", exact=True)
+        heading.scroll_into_view_if_needed()
+        expect(heading).to_be_in_viewport()
+        expect(page.locator(".post-content")).to_contain_text("A blog post.")
+    finally:
+        page.close()
+
+
+def test_comments_feedback_rejects_wrong_origin_and_source(
+    comments_browser: Browser, site_servers: dict[str, str]
+) -> None:
+    page = comments_browser.new_page()
+    origin = site_servers["Quiet"]
+    _replay_comments(page, origin, "peer")
+    frozen = datetime(2026, 1, 1, tzinfo=UTC)
+    page.clock.install(time=frozen)
+    page.clock.pause_at(frozen)
+    try:
+        page.goto(f"{origin}/blog/a-blog/", wait_until="load")
+        iframe = page.locator("#comments-container iframe")
+        handle = iframe.element_handle()
+        assert handle is not None
+        peer = handle.content_frame()
+        assert peer is not None
+        peer_url = peer.url
+        # Real cross-window messages, not forged MessageEvent fields.
+        page.evaluate("""() => {
+            window.probeMessages = 0;
+            addEventListener('message', () => window.probeMessages++);
+        }""")
+        # Same WindowProxy as the expected frame, but an untrusted origin.
+        with page.expect_event(
+            "framenavigated", predicate=lambda f: f.url == f"{origin}/robots.txt"
+        ) as navigated:
+            iframe.evaluate("(e, url) => { e.src = url; }", f"{origin}/robots.txt")
+        peer = navigated.value
+        peer.wait_for_load_state()
+        for kind in ("resize", "error"):
+            peer.evaluate(
+                "(type) => parent.postMessage({type, height: 777}, '*')", kind
+            )
+        page.wait_for_function("window.probeMessages === 2")
+        expect(page.locator(".comments-loading")).to_be_visible()
+        expect(page.locator("#comments-container .comments-error")).to_have_count(0)
+        with page.expect_event(
+            "framenavigated", predicate=lambda f: f.url == peer_url
+        ) as navigated:
+            iframe.evaluate("(e, url) => { e.src = url; }", peer_url)
+        peer = navigated.value
+        peer.wait_for_load_state()
+        # Correct origin, different WindowProxy (a sibling frame).
+        page.evaluate(
+            """url => {
+            const sibling = document.createElement('iframe');
+            sibling.id = 'untrusted-peer'; sibling.src = url;
+            document.body.append(sibling);
+        }""",
+            peer_url,
+        )
+        sibling_handle = page.locator("#untrusted-peer").element_handle()
+        assert sibling_handle is not None
+        sibling = sibling_handle.content_frame()
+        assert sibling is not None
+        sibling.wait_for_url(peer_url)
+        sibling.wait_for_load_state()
+        for kind in ("resize", "error"):
+            sibling.evaluate(
+                "(type) => parent.postMessage({type, height: 777}, '*')", kind
+            )
+        page.wait_for_function("window.probeMessages === 4")
+        # Shared feedback is source-checked; upstream client layout is origin-only
+        # (see fixtures/utterances/README.md). Do not claim layout isolation here.
+        expect(page.locator(".comments-loading")).to_be_visible()
+        expect(page.locator("#comments-container .comments-error")).to_have_count(0)
+        # The same error message from the actual trusted peer must be accepted.
+        peer.evaluate("parent.postMessage({type: 'error'}, '*')")
+        expect(page.locator("#comments-container .comments-error a")).to_be_visible()
+        expect(page.locator("#comments-container .comments-error a")).to_have_attribute(
+            "href", "https://github.com/geoqiao/site/issues/1"
+        )
     finally:
         page.close()

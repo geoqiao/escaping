@@ -588,23 +588,6 @@ def test_geoqiao_about_body_is_the_only_owner_of_profile_copy() -> None:
     )
 
 
-def test_shared_comments_script_preserves_security_and_compatibility_contract() -> None:
-    script = (_ROOT / "src/escaping/static/comments.js").read_text(encoding="utf-8")
-
-    assert 'setAttribute("issue-number", issueNumber)' in script
-    assert "Element.prototype.insertAdjacentHTML" in script
-    assert "MutationObserver" in script
-    assert 'removeAttribute("loading")' in script
-    assert ".contentWindow.postMessage(" in script
-    assert 'event.origin !== "https://utteranc.es"' in script
-    assert "event.source !== iframe.contentWindow" in script
-    assert "utterancesScript.onerror = function ()" in script
-    assert 'event.data.type === "resize"' in script
-    assert 'event.data.type === "error"' in script
-    assert "if (!resizeReceived && loadingMsg) showError();" in script
-    assert "}, 20000);" in script
-
-
 def test_shared_mermaid_loader_preserves_lazy_and_security_contract() -> None:
     script = (_ROOT / "src/escaping/static/mermaid.js").read_text(encoding="utf-8")
 
