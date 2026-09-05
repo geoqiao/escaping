@@ -121,6 +121,20 @@ def test_https_origin_and_dynamic_token_name() -> None:
 
 
 @pytest.mark.parametrize(
+    "url",
+    [
+        "https://example.org\\nested",
+        "https://exa\nmple.org/",
+        123,
+        "https://example.org/nested/",
+    ],
+)
+def test_canonical_origin_rejects_unsafe_or_non_root_input(url: object) -> None:
+    with pytest.raises(ValidationError):
+        Settings.model_validate({**_BASE, "site": {**_BASE["site"], "url": url}})
+
+
+@pytest.mark.parametrize(
     ("section", "value"),
     [
         ("seo", {"enable_sitemap": False}),

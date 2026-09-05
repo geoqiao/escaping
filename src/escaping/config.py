@@ -203,6 +203,9 @@ class SiteConfig(BaseModel):
         """
         if isinstance(v, HttpUrl):
             v = str(v)
+        if not isinstance(v, str):
+            raise ValueError("canonical origin must be a URL string")
+        _validate_safe_href(v)
 
         parsed = urlparse(v)
         if parsed.scheme != "https":
