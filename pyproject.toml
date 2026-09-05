@@ -11,6 +11,7 @@ requires-python = ">=3.11"
 dependencies = [
     "jinja2>=3.1.4",
     "marko>=2.1.2",
+    "nh3==0.3.7",
     "pygithub>=2.4.0",
     "pydantic>=2.0.0",
     "pyyaml>=6.0.2",

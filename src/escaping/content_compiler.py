@@ -15,7 +15,7 @@ from .models.content import AboutPage, ContentCompilationResult, Idea
 from .models.issue_snapshot import IssueSnapshot
 from .routes import RouteCollisionError, RouteRegistry
 from .utils.frontmatter import FrontMatterError, ParsedFrontMatter, parse_front_matter
-from .utils.html_sanitizer import sanitize_html
+from .utils.html_sanitizer import HTMLSanitizationError, sanitize_html
 
 _SUPPORTED_TYPES = frozenset({"blog", "idea", "about"})
 _KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
@@ -433,11 +433,14 @@ class ContentCompiler:
             return None
         try:
             return sanitize_html(rendered)
-        except Exception:
+        except Exception as exc:
+            # Only our controlled tag/position messages are safe to expose;
+            # third-party exceptions may contain authored text or URL values.
+            message = "HTML sanitization failed"
+            if isinstance(exc, HTMLSanitizationError):
+                message += f": {exc}"
             diagnostics.append(
-                self._error(
-                    snapshot, "SANITIZER_FAILED", "HTML sanitization failed", "body"
-                )
+                self._error(snapshot, "SANITIZER_FAILED", message, "body")
             )
             return None
 

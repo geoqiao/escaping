@@ -1,7 +1,7 @@
 """Allowlist-based HTML sanitizer tests.
 
 Preserves safe Markdown-rendered HTML while removing dangerous elements,
-event-handler attributes, and dangerous URL schemes.  Uses only stdlib.
+event-handler attributes, and dangerous URL schemes.
 
 Key security regressions: entity-decoded injection, attribute-quote breakout,
 obfuscated URL schemes (assert href/src removed), and void dangerous tags
@@ -11,6 +11,8 @@ that must not suppress following siblings (GFM task-list).
 from __future__ import annotations
 
 import pytest
+from marko import Markdown
+from marko.ext.gfm import GFM
 
 from escaping.utils.html_sanitizer import sanitize_html
 
@@ -37,7 +39,7 @@ from escaping.utils.html_sanitizer import sanitize_html
         ),
         (
             '<pre><code class="language-python">print(1)\n</code></pre>',
-            ["<pre>", "print(1)"],
+            ["<pre>", 'class="language-python"', "print(1)"],
         ),
     ],
     ids=[
@@ -73,6 +75,14 @@ def test_images_receive_browser_loading_defaults() -> None:
 
     assert 'loading="lazy"' in result
     assert 'decoding="async"' in result
+    explicit = sanitize_html(
+        '<img src="/image.png" loading=" EAGER " decoding=" SYNC ">'
+    )
+    assert 'loading="eager"' in explicit and 'decoding="sync"' in explicit
+    invalid = sanitize_html(
+        '<img src="/image.png" loading="invalid" decoding="invalid">'
+    )
+    assert 'loading="lazy"' in invalid and 'decoding="async"' in invalid
 
 
 def test_bare_relative_href_is_removed() -> None:
@@ -286,6 +296,62 @@ def test_gfm_task_list_preserves_list_structure() -> None:
     assert "<input" not in result.lower()
     assert "<ul>" in result and "<li>" in result and "</ul>" in result
     assert "Task one" in result and "Task two" in result
+
+
+@pytest.mark.parametrize(
+    "fragment",
+    [
+        "Use the <button> element.\n\nSecond paragraph.\n\n<h2>Section</h2>\n\nMore text.",
+        "<button>hidden<button>two</button><p>Tail</p>",
+        "<button><form>hidden</button></form><p>Tail</p>",
+        "<script/>hidden<p>Tail</p>",
+        "<frameset>HIDDEN</frameset><p>Tail</p>",
+        "<frame><p>Tail</p>",
+        '<a href="https://example.org/a\x00b">NULL</a>',
+        '<a href="https://[bad">bad URL</a>',
+        "<p>Before</p><!-- unclosed comment",
+    ],
+)
+def test_lossy_or_ambiguous_fragments_fail_instead_of_returning_partial_success(
+    fragment: str,
+) -> None:
+    with pytest.raises(ValueError):
+        sanitize_html(fragment)
+
+
+@pytest.mark.parametrize(
+    "source",
+    [
+        "Use the <button>hidden</button> element.",
+        "Visible **body**.<script>bad()</script>",
+        "<div><ul><li>one<li>two</ul></div>",
+        "<iframe><button>raw text, not another opening tag</iframe>",
+        "<select><option>one<option>two</select>",
+        "Use the `<button>` and `<frameset>` elements.",
+        "```html\n<button>literal\n<frame>\n<frameset>\n```",
+    ],
+)
+def test_raw_html_and_code_literals_preserve_following_markdown(source: str) -> None:
+    rendered = Markdown(extensions=[GFM]).convert(
+        source + "\n\nSecond paragraph.\n\n## Section\n\nMore text."
+    )
+    result = sanitize_html(rendered)
+    assert "<p>Second paragraph.</p>" in result
+    assert "<h2>Section</h2>" in result
+    assert "<p>More text.</p>" in result
+    if "`" in source:
+        assert "&lt;button&gt;" in result
+        assert "&lt;frame" in result
+
+
+def test_policy_serialization_is_deterministic_without_extra_link_attributes() -> None:
+    source = '<div class="example"><img src="/image.png" alt="A &amp; B" width="800"><a href="/about/" title="About" target="_blank" rel="noopener">About</a></div>'
+    outputs = {sanitize_html(source) for _ in range(5)}
+    assert len(outputs) == 1
+    result = outputs.pop()
+    assert 'class="example"' in result and 'alt="A &amp; B"' in result
+    assert 'href="/about/"' in result and 'width="800"' in result
+    assert "target=" not in result and "rel=" not in result
 
 
 def test_mixed_safe_and_unsafe() -> None:

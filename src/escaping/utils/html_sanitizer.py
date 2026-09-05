@@ -1,14 +1,7 @@
-"""Allowlist-based HTML sanitizer using only the Python standard library.
+"""HTML5 fragment sanitization after Markdown rendering/front-matter removal.
 
-Runs **after** Markdown rendering and after front-matter removal. Preserves
-normal paragraphs, headings, lists, tables, images, links, blockquotes,
-emphasis, and code while removing scripts, styles, iframes, objects, embeds,
-forms, event-handler attributes, and dangerous URL schemes.
-
-Implementation uses ``html.parser.HTMLParser`` (stdlib) to walk the HTML token
-stream and rebuild only allowlisted elements with allowlisted attributes.
-
-No new dependencies are introduced.
+nh3 owns tree repair and allowlist cleaning. A narrow stdlib token gate rejects
+ambiguous dangerous boundaries; a serializer retains existing attribute policy.
 """
 
 from __future__ import annotations
@@ -16,12 +9,15 @@ from __future__ import annotations
 import html
 import re
 from html.parser import HTMLParser
+from secrets import token_hex
 from urllib.parse import urlparse
+
+import nh3
 
 #: Elements that are completely removed (tag, content, and children).
 #: These are dangerous embeds, scripting, or interactive elements that
-#: are **containers** - they have closing tags and their content must be
-#: suppressed along with the tag.
+#: are **containers** - their content is cleaned by nh3. Ambiguous source
+#: boundaries and frame/frameset markup are rejected before HTML5 tree repair.
 _DANGEROUS_CONTAINER_TAGS: frozenset[str] = frozenset(
     {
         "script",
@@ -46,7 +42,7 @@ _DANGEROUS_CONTAINER_TAGS: frozenset[str] = frozenset(
 #: there is no reliable end tag to match.  Entering suppress mode would
 #: swallow all subsequent safe siblings and body text.  This covers GFM
 #: task-list ``<input>`` as well as ``embed``, ``meta``, ``link``,
-#: ``base``, and ``frame``.
+#: ``base``. Unlike the other void tags, ``frame`` is explicitly rejected.
 _DANGEROUS_VOID_TAGS: frozenset[str] = frozenset(
     {
         "input",
@@ -243,98 +239,95 @@ def _clean_attr_value(attr: str, value: str) -> str | None:
     return value
 
 
-class _SanitizingParser(HTMLParser):
-    """HTMLParser that rebuilds HTML with only allowlisted elements/attrs.
+class HTMLSanitizationError(ValueError):
+    """A controlled diagnostic containing no authored text or attribute values."""
 
-    Dangerous elements (script, style, iframe, etc.) and their entire content
-    are dropped. Non-allowlisted but non-dangerous elements are unwrapped
-    (children kept, tag dropped). Event-handler attributes (``on*``) are always
-    removed.
-    """
+
+class _DangerousBoundaryGate(HTMLParser):
+    # Do not tokenize example tags inside raw-text/RCDATA elements. This is a
+    # lexical rejection gate, not an attempt to reconstruct an HTML5 tree.
+    _RAW_TEXT_TAGS = (
+        "script",
+        "style",
+        "iframe",
+        "textarea",
+        "title",
+        "noscript",
+        "xmp",
+        "noembed",
+        "noframes",
+    )
+
+    def __init__(self) -> None:
+        super().__init__()
+        self.opened: list[tuple[str, tuple[int, int]]] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in {"frame", "frameset"}:
+            raise HTMLSanitizationError(
+                f"Unsupported <{tag}> at HTML line {self.getpos()[0]}, column {self.getpos()[1]}"
+            )
+        if tag in self._RAW_TEXT_TAGS:
+            self.set_cdata_mode(tag)
+        if not self.opened and tag in _ALLOWED_TAGS:
+            for name, value in attrs:
+                if value is not None and name in _ALLOWED_ATTRS.get(tag, ()):
+                    # nh3 may discard a malformed URL before its callback; keep
+                    # the original policy's parse errors observable regardless.
+                    _clean_attr_value(name, value)
+        # option's end tag is optional; nh3 owns that HTML5 rule.
+        if tag in _DANGEROUS_CONTAINER_TAGS - {"option"}:
+            self.opened.append((tag, self.getpos()))
+
+    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in _DANGEROUS_CONTAINER_TAGS:
+            raise HTMLSanitizationError(
+                f"Non-void <{tag}/> at HTML line {self.getpos()[0]}, column {self.getpos()[1]}"
+            )
+        self.handle_starttag(tag, attrs)
+
+    def handle_endtag(self, tag: str) -> None:
+        # GFM can escape an opening script tag but leave its closing tag. With
+        # no dangerous container open, nh3 can safely drop that orphan close.
+        if tag in _DANGEROUS_CONTAINER_TAGS - {"option"} and self.opened:
+            if self.opened[-1][0] != tag:
+                raise HTMLSanitizationError(
+                    f"Unmatched </{tag}> at HTML line {self.getpos()[0]}, column {self.getpos()[1]}"
+                )
+            self.opened.pop()
+
+    def close(self) -> None:
+        super().close()
+        if self.opened:
+            tag, (line, column) = self.opened[-1]
+            raise HTMLSanitizationError(
+                f"Unclosed <{tag}> at HTML line {line}, column {column}"
+            )
+
+
+class _PolicySerializer(HTMLParser):
+    """Serialize only nh3-cleaned HTML, retaining escaping and image defaults."""
 
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self._output: list[str] = []
-        # Stack of (tag, is_allowed) for open elements.  When a dangerous
-        # element is open, we suppress all content until it closes.
-        self._suppress_depth: int = 0
 
     @property
     def output(self) -> str:
         return "".join(self._output)
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        tag_lower = tag.lower()
-
-        # Dangerous void elements (input, embed, meta, link, base, frame)
-        # have no reliable closing tag.  Drop the tag itself without entering
-        # suppress mode so that following safe siblings and body text survive.
-        if tag_lower in _DANGEROUS_VOID_TAGS:
-            return
-
-        # Dangerous container elements (script, style, iframe, …) suppress
-        # their content until the matching end tag.
-        if tag_lower in _DANGEROUS_CONTAINER_TAGS:
-            self._suppress_depth += 1
-            return
-
-        if self._suppress_depth > 0:
-            return
-
-        if tag_lower not in _ALLOWED_TAGS:
-            # Unwrap: don't emit the tag, children pass through.
-            return
-
-        clean_attrs = self._clean_attrs(tag_lower, attrs)
+        # nh3's attribute order varies; published artifacts must be deterministic.
         attr_str = "".join(
-            f' {k}="{html.escape(v, quote=True)}"' for k, v in clean_attrs
+            f' {k}="{html.escape(v, quote=True)}"'
+            for k, v in sorted(self._clean_attrs(tag, attrs))
         )
-        self._output.append(f"<{tag_lower}{attr_str}>")
-
-    def handle_startendtag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        """Handle self-closing tags like <img ... />."""
-        tag_lower = tag.lower()
-
-        if tag_lower in _DANGEROUS_TAGS:
-            return
-
-        if self._suppress_depth > 0:
-            return
-
-        if tag_lower not in _ALLOWED_TAGS:
-            return
-
-        clean_attrs = self._clean_attrs(tag_lower, attrs)
-        attr_str = "".join(
-            f' {k}="{html.escape(v, quote=True)}"' for k, v in clean_attrs
-        )
-        self._output.append(f"<{tag_lower}{attr_str} />")
+        self._output.append(f"<{tag}{attr_str}>")
 
     def handle_endtag(self, tag: str) -> None:
-        tag_lower = tag.lower()
-
-        # Only dangerous container tags can decrement suppress depth.
-        # Void tags never entered suppress mode.
-        if tag_lower in _DANGEROUS_CONTAINER_TAGS:
-            if self._suppress_depth > 0:
-                self._suppress_depth -= 1
-            return
-
-        if self._suppress_depth > 0:
-            return
-
-        if tag_lower not in _ALLOWED_TAGS:
-            return
-
-        self._output.append(f"</{tag_lower}>")
+        self._output.append(f"</{tag}>")
 
     def handle_data(self, data: str) -> None:
-        if self._suppress_depth > 0:
-            return
-        # HTML-escape decoded text nodes so that entity-decoded content
-        # (e.g. ``&lt;script&gt;`` decoded to ``<script>`` by
-        # ``convert_charrefs=True``) is re-escaped and cannot inject live
-        # tags into the output.
         self._output.append(html.escape(data, quote=False))
 
     def _clean_attrs(
@@ -385,7 +378,42 @@ def sanitize_html(html: str) -> str:
     """
     if not html:
         return ""
-    parser = _SanitizingParser()
-    parser.feed(html)
+    # HTML5 replaces NUL before callbacks; never turn a rejected URL into an
+    # accepted replacement-character URL. Code literals contain escaped markup.
+    if "\x00" in html:
+        raise HTMLSanitizationError("NUL in HTML fragment")
+    gate = _DangerousBoundaryGate()
+    gate.feed(html)
+    gate.close()
+    # ponytail: this bare random token detects only EOF swallowing, not general
+    # integrity. Middle-container diagnostics belong to the explicit gate;
+    # HTML5 tree safety belongs to nh3. No additional tree parser here.
+    marker = token_hex(16)
+    errors: list[Exception] = []
+
+    def filter_attribute(tag: str, name: str, value: str) -> str | None:
+        # nh3 callbacks cannot propagate exceptions; fail the whole fragment
+        # afterwards instead of silently accepting a failed policy check.
+        try:
+            return _clean_attr_value(name, value)
+        except Exception as exc:
+            errors.append(exc)
+            return None
+
+    cleaned = nh3.clean(
+        html + marker,
+        tags=_ALLOWED_TAGS,
+        clean_content_tags=_DANGEROUS_TAGS,
+        attributes=_ALLOWED_ATTRS,
+        url_schemes=_SAFE_SCHEMES,
+        link_rel=None,
+        attribute_filter=filter_attribute,
+    )
+    if errors:
+        raise HTMLSanitizationError("URL/attribute policy failed") from errors[0]
+    if marker not in cleaned:
+        raise HTMLSanitizationError("HTML parsing discarded or consumed end of body")
+    parser = _PolicySerializer()
+    parser.feed(cleaned.replace(marker, "", 1))
     parser.close()
     return parser.output

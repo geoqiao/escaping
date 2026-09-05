@@ -51,6 +51,9 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
             if name.endswith(".dist-info/entry_points.txt")
         )
     assert "Name: escpe\n" in metadata
+    assert "Requires-Dist: nh3==0.3.7\n" in metadata
+    assert any(name.endswith("/NOTICE.md") for name in names)
+    assert not any(name.endswith((".so", ".dylib", ".pyd")) for name in names)
     assert "Name: escaping\n" not in metadata
     assert "Name: github-blog\n" not in metadata
     assert not any(name.startswith("github_blog/") for name in names)
@@ -127,6 +130,7 @@ result = SiteCompiler(
 ).generate()
 assert result.success, result.diagnostics
 assert (root / 'output/index.html').is_file()
+assert not any(path.suffix in {'.so', '.dylib', '.pyd'} for path in (root / 'output').rglob('*'))
 assert (root / 'output/blog/post/index.html').is_file()
 assert (root / 'output/templates/geoqiao.me/static/css/style.css').is_file()
 assert (root / 'output/templates/geoqiao.me/static/js/comments.js').is_file()
@@ -196,7 +200,7 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
         [
             str(venv_python),
             "-c",
-            "import importlib.util; assert importlib.util.find_spec('github_blog') is None",
+            "import importlib.util, nh3; assert nh3.__version__ == '0.3.7'; assert importlib.util.find_spec('github_blog') is None",
         ],
         cwd=tmp_path,
         check=True,

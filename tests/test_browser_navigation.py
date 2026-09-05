@@ -45,6 +45,7 @@ from escaping.routes import RouteRegistry  # noqa: E402
 from escaping.services.render_service import RenderService  # noqa: E402
 from escaping.site_builder import SiteBuilder  # noqa: E402
 from escaping.theme import ThemeLoader  # noqa: E402
+from escaping.utils.html_sanitizer import sanitize_html  # noqa: E402
 
 _ROOT = Path(__file__).parent.parent.absolute()
 _THEMES = ("Escape1", "Escape2", "geoqiao.me", "Quiet")
@@ -416,6 +417,39 @@ def theme_page(
         yield theme, page, site_server
     finally:
         context.close()
+
+
+def test_sanitized_fragments_stay_inside_the_theme_body(browser: Browser) -> None:
+    page = browser.new_page()
+    page.route("**/*", lambda route: route.abort())
+    try:
+        for fragment in (
+            "<div><li><div><li>x</li></div></li></div>",
+            "</div></article>KEEP",
+            "<p><div>nested block</div></p>",
+            "<table><div>foster</div><tr><td>cell</td></tr></table>",
+            '<img src=x onerror="window.__injected=1"><script>window.__injected=1</script>',
+        ):
+            page.set_content(
+                '<main id="theme"><div id="body">'
+                + sanitize_html(fragment)
+                + '<span id="tail">TAIL</span></div><footer id="footer">FOOTER</footer></main>'
+            )
+            assert page.evaluate("""() => ({
+                tailInBody: document.getElementById('body').contains(document.getElementById('tail')),
+                footerParent: document.getElementById('footer').parentElement.id,
+                liveScripts: document.querySelectorAll('script').length,
+                eventAttributes: [...document.querySelectorAll('*')].flatMap(el => [...el.attributes]).filter(a => /^on/i.test(a.name)).length,
+                injected: !!window.__injected,
+            })""") == {
+                "tailInBody": True,
+                "footerParent": "theme",
+                "liveScripts": 0,
+                "eventAttributes": 0,
+                "injected": False,
+            }, fragment
+    finally:
+        page.close()
 
 
 def test_mobile_navigation_is_keyboard_operable_for_every_theme(

@@ -322,6 +322,51 @@ def test_wrong_case_body_link_fails_validation_without_replacing_output(
     assert not list(tmp_path.glob(".output.staging.*"))
 
 
+@pytest.mark.parametrize("kind", ["blog", "idea", "about"])
+def test_sanitizer_failure_preserves_the_complete_previous_site(
+    kind: str, tmp_path: Path
+) -> None:
+    metadata = 'description: Description.\ncreated_date: "2026-01-01"\n'
+    about = _snapshot(1, f"---\n{metadata}---\n\nAbout.", kind="about")
+    slug = "slug: post\n" if kind == "blog" else ""
+    target = _snapshot(
+        1 if kind == "about" else 2, f"---\n{slug}{metadata}---\n\nSafe.", kind=kind
+    )
+    source = _FakeGitHub([target] if kind == "about" else [about, target])
+    compiler = SiteCompiler(
+        "unused",
+        "geoqiao/site",
+        _settings(),
+        config_root=tmp_path,
+        github_service=source,
+    )
+    assert compiler.generate().success
+    output = tmp_path / "output"
+    before = {
+        str(p.relative_to(output)): p.read_bytes()
+        for p in output.rglob("*")
+        if p.is_file()
+    }
+    source.snapshots[-1] = replace(
+        target,
+        body=target.body
+        + "\n\nUse the <button> element. SECRET-SENTINEL\n\nSecond paragraph.\n\n## Section\n\nMore text.",
+    )
+    result = compiler.generate()
+    assert not result.success
+    diagnostic = next(d for d in result.diagnostics if d.code == "SANITIZER_FAILED")
+    assert diagnostic.issue_number == target.number and diagnostic.field == "body"
+    assert "<button> at HTML line" in diagnostic.message
+    assert "column" in diagnostic.message
+    assert "SECRET-SENTINEL" not in diagnostic.message
+    assert before == {
+        str(p.relative_to(output)): p.read_bytes()
+        for p in output.rglob("*")
+        if p.is_file()
+    }
+    assert not list(tmp_path.glob(".output.staging.*"))
+
+
 def test_template_error_preserves_existing_output_and_cleans_staging(
     tmp_path: Path,
 ) -> None:
