@@ -47,36 +47,42 @@ from escaping.theme import ThemeLoader  # noqa: E402
 _ROOT = Path(__file__).parent.parent.absolute()
 _THEMES = ("Escape1", "Escape2", "geoqiao.me", "Quiet")
 _MERMAID_RENDER_TIMEOUT_MS = 15_000
+_ADJACENT_POSTS: tuple[tuple[int, str, str, datetime, str], ...] = (
+    (4, "Tie low", "tie-low", datetime(2026, 1, 2, tzinfo=UTC), "focus"),
+    (1, "Oldest post", "oldest", datetime(2026, 1, 1, tzinfo=UTC), "focus"),
+    (11, "Newest post", "newest", datetime(2026, 1, 3, tzinfo=UTC), "focus"),
+    (12, "Older post", "older", datetime(2026, 1, 1, tzinfo=UTC), "other"),
+    (7, "Tie <high> & safe", "tie-high", datetime(2026, 1, 2, tzinfo=UTC), "other"),
+)
 
 
-def _browser_settings(theme: str, *, page_size: int | None = None) -> Settings:
-    data: dict[str, object] = {
-        "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
-        "site": {
-            "title": "Browser Site",
-            "author": "geoqiao",
-            "url": "https://geoqiao.me/",
-            "language": "zh-CN" if theme == "Quiet" else "en",
-            "navigation": {
-                "items": [
-                    {"name": "Blog", "url": "/blog/"},
-                    {"name": "Ideas", "url": "/ideas/"},
-                    {"name": "Projects", "url": "/projects/"},
-                    {"name": "Tags", "url": "/tags/"},
-                    {"name": "About", "url": "/about/"},
-                ]
+def _browser_settings(theme: str) -> Settings:
+    return Settings.model_validate(
+        {
+            "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
+            "site": {
+                "title": "Browser Site",
+                "author": "geoqiao",
+                "url": "https://geoqiao.me/",
+                "language": "zh-CN" if theme == "Quiet" else "en",
+                "navigation": {
+                    "items": [
+                        {"name": "Blog", "url": "/blog/"},
+                        {"name": "Ideas", "url": "/ideas/"},
+                        {"name": "Projects", "url": "/projects/"},
+                        {"name": "Tags", "url": "/tags/"},
+                        {"name": "About", "url": "/about/"},
+                    ]
+                },
             },
-        },
-        "profile": {"avatar": "/templates/Quiet/static/images/favicon.png"}
-        if theme == "Quiet"
-        else {},
-        "about": {"issue_number": 10},
-        "security": {"token_env": "TEST_TOKEN"},
-        "theme": {"source": "builtin", "name": theme},
-    }
-    if page_size is not None:
-        data["paths"] = {"page_size": page_size}
-    return Settings.model_validate(data)
+            "profile": {"avatar": "/templates/Quiet/static/images/favicon.png"}
+            if theme == "Quiet"
+            else {},
+            "about": {"issue_number": 10},
+            "security": {"token_env": "TEST_TOKEN"},
+            "theme": {"source": "builtin", "name": theme},
+        }
+    )
 
 
 def _adjacent_snapshot(
@@ -106,46 +112,12 @@ def _adjacent_snapshot(
 
 
 def _write_quiet_adjacent_site(output_dir: Path) -> None:
-    settings = _browser_settings("Quiet", page_size=2)
+    settings = _browser_settings("Quiet")
     routes = RouteRegistry(str(settings.site.url))
     build_time = datetime(2026, 1, 20, tzinfo=UTC)
     content = ContentCompiler(settings, route_registry=routes).compile(
         [
-            _adjacent_snapshot(
-                4,
-                "Tie low",
-                "tie-low",
-                datetime(2026, 1, 2, tzinfo=UTC),
-                "focus",
-            ),
-            _adjacent_snapshot(
-                1,
-                "Oldest post",
-                "oldest",
-                datetime(2026, 1, 1, tzinfo=UTC),
-                "focus",
-            ),
-            _adjacent_snapshot(
-                11,
-                "Newest post",
-                "newest",
-                datetime(2026, 1, 3, tzinfo=UTC),
-                "focus",
-            ),
-            _adjacent_snapshot(
-                2,
-                "Older post",
-                "older",
-                datetime(2026, 1, 1, tzinfo=UTC),
-                "other",
-            ),
-            _adjacent_snapshot(
-                7,
-                "Tie <high> & safe",
-                "tie-high",
-                datetime(2026, 1, 2, tzinfo=UTC),
-                "other",
-            ),
+            *(_adjacent_snapshot(*definition) for definition in _ADJACENT_POSTS),
             IssueSnapshot(
                 number=2,
                 title="Idea",
@@ -325,12 +297,22 @@ def test_quiet_blog_adjacent_navigation_is_http_keyboard_and_narrow_safe(
         expect(next_link).to_be_visible()
         previous.focus()
         expect(previous).to_be_focused()
+        page.keyboard.press("Tab")
+        expect(next_link).to_be_focused()
+        page.keyboard.press("Shift+Tab")
+        expect(previous).to_be_focused()
         page.keyboard.press("Enter")
         expect(page).to_have_url(re.compile(r"/blog/tie-high/$"))
+        expect(
+            page.get_by_role("heading", name="Tie <high> & safe", exact=True)
+        ).to_be_visible()
 
         page.goto(f"{origin}/blog/tie-low/", wait_until="load")
         navigation.get_by_role("link", name="Next: Older post").click()
         expect(page).to_have_url(re.compile(r"/blog/older/$"))
+        expect(
+            page.get_by_role("heading", name="Older post", exact=True)
+        ).to_be_visible()
 
         page.goto(f"{origin}/blog/newest/", wait_until="load")
         navigation = page.get_by_role("navigation", name="Article navigation")
@@ -347,9 +329,24 @@ def test_quiet_blog_adjacent_navigation_is_http_keyboard_and_narrow_safe(
             and navigation_bounds is not None
             and viewport is not None
         )
-        assert bounds["x"] < navigation_bounds["x"] + navigation_bounds["width"] / 2
+        assert bounds["x"] > navigation_bounds["x"] + navigation_bounds["width"] / 2
         assert (
             navigation_bounds["x"] + navigation_bounds["width"] <= viewport["width"] + 1
+        )
+
+        page.goto(f"{origin}/blog/oldest/", wait_until="load")
+        navigation = page.get_by_role("navigation", name="Article navigation")
+        only_previous = navigation.get_by_role("link", name="Previous: Older post")
+        expect(only_previous).to_be_visible()
+        expect(
+            navigation.get_by_role("link", name=re.compile(r"^Next:"))
+        ).to_have_count(0)
+        previous_bounds = only_previous.bounding_box()
+        navigation_bounds = navigation.bounding_box()
+        assert previous_bounds is not None and navigation_bounds is not None
+        assert (
+            previous_bounds["x"]
+            < navigation_bounds["x"] + navigation_bounds["width"] / 2
         )
     finally:
         context.close()

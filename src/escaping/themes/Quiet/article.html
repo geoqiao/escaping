@@ -19,8 +19,8 @@
       {% if prev_post or next_post %}
       <nav class="article-end" aria-label="Article navigation">
         <span aria-hidden="true">↳</span>
-        {% if prev_post %}<a href="{{ prev_post.route.canonical_path }}" aria-label="Previous: {{ prev_post.title }}">Previous</a>{% endif %}
-        {% if next_post %}<a href="{{ next_post.route.canonical_path }}" aria-label="Next: {{ next_post.title }}">Next</a>{% endif %}
+        {% if prev_post %}<a rel="prev" href="{{ prev_post.route.canonical_path }}" aria-label="Previous: {{ prev_post.title }}">Previous</a>{% endif %}
+        {% if next_post %}<a rel="next" href="{{ next_post.route.canonical_path }}" aria-label="Next: {{ next_post.title }}">Next</a>{% endif %}
       </nav>
       {% endif %}
       {% else %}

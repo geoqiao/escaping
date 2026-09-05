@@ -24,6 +24,13 @@ from escaping.theme import ThemeLoader
 _ROOT = Path(__file__).parent.parent.absolute()
 _MERMAID_VERSION = "11.16.1"
 _MERMAID_ASSET = f"static/vendor/mermaid-{_MERMAID_VERSION}/mermaid.min.js"
+_ADJACENT_POSTS: tuple[tuple[int, str, str, datetime, str], ...] = (
+    (4, "Tie low", "tie-low", datetime(2026, 1, 2, tzinfo=UTC), "focus"),
+    (1, "Oldest post", "oldest", datetime(2026, 1, 1, tzinfo=UTC), "focus"),
+    (11, "Newest post", "newest", datetime(2026, 1, 3, tzinfo=UTC), "focus"),
+    (12, "Older post", "older", datetime(2026, 1, 1, tzinfo=UTC), "other"),
+    (7, "Tie <high> & safe", "tie-high", datetime(2026, 1, 2, tzinfo=UTC), "other"),
+)
 
 
 def _settings(
@@ -133,8 +140,8 @@ def _render_theme(
 def _local_blog(
     routes: RouteRegistry,
     issue_number: int,
-    slug: str,
     title: str,
+    slug: str,
     published_at: datetime,
     tag_name: str,
 ) -> BlogPost:
@@ -156,48 +163,7 @@ def _local_blog(
 def _render_quiet_adjacent_posts() -> dict[str, str]:
     settings = _settings("Quiet", page_size=2)
     routes = RouteRegistry(str(settings.site.url))
-    posts = (
-        _local_blog(
-            routes,
-            4,
-            "tie-low",
-            "Tie low",
-            datetime(2026, 1, 2, tzinfo=UTC),
-            "focus",
-        ),
-        _local_blog(
-            routes,
-            1,
-            "oldest",
-            "Oldest post",
-            datetime(2026, 1, 1, tzinfo=UTC),
-            "focus",
-        ),
-        _local_blog(
-            routes,
-            10,
-            "newest",
-            "Newest post",
-            datetime(2026, 1, 3, tzinfo=UTC),
-            "focus",
-        ),
-        _local_blog(
-            routes,
-            2,
-            "older",
-            "Older post",
-            datetime(2026, 1, 1, tzinfo=UTC),
-            "other",
-        ),
-        _local_blog(
-            routes,
-            7,
-            "tie-high",
-            "Tie <high> & safe",
-            datetime(2026, 1, 2, tzinfo=UTC),
-            "other",
-        ),
-    )
+    posts = tuple(_local_blog(routes, *definition) for definition in _ADJACENT_POSTS)
     supporting_content = ContentCompiler(settings, route_registry=routes).compile(
         [
             _snap(
@@ -309,19 +275,22 @@ def test_quiet_blog_adjacent_navigation_uses_global_sorted_routes() -> None:
     newest = rendered["blog/newest/index.html"]
     assert 'class="article-end"' in newest
     assert "Previous" not in newest
-    assert '<a href="/blog/tie-high/"' in newest
+    assert '<a rel="next" href="/blog/tie-high/"' in newest
     assert ">Next</a>" in newest
 
     middle = rendered["blog/tie-low/index.html"]
     assert (
-        '<a href="/blog/tie-high/" aria-label="Previous: Tie &lt;high&gt; &amp; safe">'
+        '<a rel="prev" href="/blog/tie-high/" aria-label="Previous: Tie &lt;high&gt; &amp; safe">'
         "Previous</a>"
     ) in middle
-    assert '<a href="/blog/older/" aria-label="Next: Older post">Next</a>' in middle
+    assert (
+        '<a rel="next" href="/blog/older/" aria-label="Next: Older post">Next</a>'
+        in middle
+    )
 
     oldest = rendered["blog/oldest/index.html"]
     assert (
-        '<a href="/blog/older/" aria-label="Previous: Older post">Previous</a>'
+        '<a rel="prev" href="/blog/older/" aria-label="Previous: Older post">Previous</a>'
         in oldest
     )
     assert "Next" not in oldest
