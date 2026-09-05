@@ -4,7 +4,6 @@ import json
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
-from typing import cast
 from urllib.parse import urljoin, urlsplit
 
 from .build_result import Diagnostic
@@ -135,7 +134,7 @@ class SiteArtifactValidator:
                 diagnostics,
             )
             self._validate_json_ld(
-                output_path, probe.json_ld, route.canonical_url, route.name, diagnostics
+                output_path, probe.json_ld, route.canonical_url, diagnostics
             )
 
         self._validate_atom(candidate_dir, diagnostics)
@@ -275,7 +274,6 @@ class SiteArtifactValidator:
         output_path: str,
         scripts: list[str],
         canonical_url: str,
-        route_name: str,
         diagnostics: list[Diagnostic],
     ) -> None:
         for script in scripts:
@@ -286,12 +284,47 @@ class SiteArtifactValidator:
                     self._error("INVALID_JSON_LD", f"{output_path}: invalid JSON-LD")
                 )
                 continue
-            urls = self._page_entity_urls(value, route_name)
-            if any(url != canonical_url for url in urls):
+            # Theme contract, not general JSON-LD interpretation: a legacy
+            # document's literal url, or one exact canonical @id in @graph.
+            if not isinstance(value, dict) or (
+                "@graph" in value
+                and (
+                    not isinstance(value["@graph"], list)
+                    or not all(isinstance(node, dict) for node in value["@graph"])
+                )
+            ):
+                diagnostics.append(
+                    self._error(
+                        "INVALID_JSON_LD",
+                        f"{output_path}: JSON-LD requires an object with optional @graph array of objects",
+                    )
+                )
+                continue
+            entities = [value]
+            if "@graph" in value:
+                primary = [
+                    node for node in value["@graph"] if node.get("@id") == canonical_url
+                ]
+                if len(primary) != 1:
+                    diagnostics.append(
+                        self._error(
+                            "JSON_LD_PAGE_IDENTITY",
+                            f"{output_path}: @graph requires exactly one node with @id equal to canonical",
+                        )
+                    )
+                    continue
+                entities.extend(primary)
+            if any(
+                "url" in entity
+                and (
+                    not isinstance(entity["url"], str) or entity["url"] != canonical_url
+                )
+                for entity in entities
+            ):
                 diagnostics.append(
                     self._error(
                         "JSON_LD_URL_MISMATCH",
-                        f"{output_path}: JSON-LD URL differs from canonical",
+                        f"{output_path}: provided JSON-LD page url must be a canonical string",
                     )
                 )
 
@@ -371,132 +404,6 @@ class SiteArtifactValidator:
                     "robots.txt does not reference registered sitemap",
                 )
             )
-
-    @staticmethod
-    def _page_entity_urls(value: object, route_name: str) -> list[str]:
-        """Check page identities, not author/publisher/isPartOf references.
-
-        Direct document URLs and unreferenced graph roots identify the page.
-        Person/Organization/WebSite are supporting graph entities, except for
-        About's Person and Home's WebSite. Explicit mainEntity takes precedence
-        over references. No remote contexts or schema.org ontology are loaded.
-        """
-        document = cast(dict[str, object], value) if isinstance(value, dict) else {}
-        url = document.get("url")
-        urls = [url] if isinstance(url, str) else []
-        if "mainEntity" in document:
-            entities = document["mainEntity"]
-            for entity in entities if isinstance(entities, list) else [entities]:
-                urls.extend(SiteArtifactValidator._page_entity_urls(entity, route_name))
-        nodes = document.get("@graph", []) if isinstance(value, dict) else value
-        if isinstance(nodes, dict):
-            nodes = [nodes]
-        if not isinstance(nodes, list):
-            return urls
-        context = document.get("@context")
-        contexts = context if isinstance(context, list) else [context]
-        # An explicitly referenced graph entity (e.g. citation) is not another
-        # page identity just because it is also an Article. mainEntity is the
-        # exception: it designates a primary entity rather than a reference.
-        referenced: set[str] = set()
-        primary: set[str] = set()
-        for node in [document, *nodes]:
-            if isinstance(node, dict):
-                for key, item in node.items():
-                    if key == "mainEntity":
-                        entities = item if isinstance(item, list) else [item]
-                        primary.update(
-                            identity
-                            for entity in entities
-                            if isinstance(entity, dict)
-                            for field, identity in entity.items()
-                            if field == "@id" and isinstance(identity, str)
-                        )
-                    elif key not in {"mainEntityOfPage", "@context", "@graph"}:
-                        referenced.update(SiteArtifactValidator._reference_ids(item))
-        supporting_types = {"Person", "Organization", "WebSite"}
-        if route_name == "home":
-            supporting_types.remove("WebSite")
-        elif route_name == "about":
-            supporting_types.remove("Person")
-        candidates: list[tuple[str, bool]] = []
-        for item in nodes:
-            if not isinstance(item, dict):
-                continue
-            node = cast(dict[str, object], item)
-            if "mainEntity" in node:
-                entities = node["mainEntity"]
-                for entity in entities if isinstance(entities, list) else [entities]:
-                    urls.extend(
-                        SiteArtifactValidator._page_entity_urls(entity, route_name)
-                    )
-            identity = node.get("@id")
-            explicit_primary = (
-                isinstance(identity, str) and identity in primary
-            ) or "mainEntityOfPage" in node
-            types = node.get("@type", [])
-            if isinstance(types, str):
-                types = [types]
-            if not isinstance(types, list):
-                continue
-            local_context = node.get("@context")
-            local_contexts = (
-                local_context if isinstance(local_context, list) else [local_context]
-            )
-            prefixes = {}
-            for context_item in [*contexts, *local_contexts]:
-                if isinstance(context_item, dict):
-                    for key, definition in context_item.items():
-                        if isinstance(definition, dict):
-                            definition = cast(dict[str, object], definition).get("@id")
-                        if isinstance(key, str):
-                            prefixes[key] = definition
-            names = set()
-            for name in types:
-                if not isinstance(name, str):
-                    continue
-                prefix, separator, local = name.partition(":")
-                if separator and prefixes.get(prefix) in (
-                    "https://schema.org/",
-                    "http://schema.org/",
-                ):
-                    name = str(prefixes[prefix]) + local
-                names.add(
-                    name.removeprefix("https://schema.org/").removeprefix(
-                        "http://schema.org/"
-                    )
-                )
-            if names and names <= supporting_types and not explicit_primary:
-                continue
-            url = node.get("url")
-            if isinstance(url, str):
-                is_reference = (
-                    isinstance(identity, str)
-                    and identity in referenced
-                    and not explicit_primary
-                )
-                candidates.append((url, is_reference))
-        # Cyclic/self references must not make every page identity disappear.
-        roots = [url for url, is_reference in candidates if not is_reference]
-        return urls + (roots or [url for url, _ in candidates])
-
-    @staticmethod
-    def _reference_ids(value: object) -> set[str]:
-        if isinstance(value, dict):
-            result = set()
-            for key, item in value.items():
-                if key == "@id" and isinstance(item, str):
-                    result.add(item)
-                elif key not in {"@context", "@graph"}:
-                    result.update(SiteArtifactValidator._reference_ids(item))
-            return result
-        if isinstance(value, list):
-            return {
-                identity
-                for item in value
-                for identity in SiteArtifactValidator._reference_ids(item)
-            }
-        return set()
 
     @staticmethod
     def _error(code: str, message: str) -> Diagnostic:

@@ -217,17 +217,8 @@ def _replace_json_ld(path: Path, value: object) -> None:
 
 
 @pytest.mark.parametrize("graph", [False, True])
-@pytest.mark.parametrize(
-    "article_type",
-    [
-        "BlogPosting",
-        ["Article", "BlogPosting"],
-        "https://schema.org/BlogPosting",
-        "http://schema.org/TechArticle",
-    ],
-)
 def test_json_ld_page_url_is_distinct_from_referenced_entity_urls(
-    graph: bool, article_type: str | list[str], tmp_path: Path
+    graph: bool, tmp_path: Path
 ) -> None:
     site = _render_representative_site(_settings(), tmp_path)
     post = site.blogs[0]
@@ -238,9 +229,11 @@ def test_json_ld_page_url_is_distinct_from_referenced_entity_urls(
         "@type": "BlogPosting",
         "@id": "#related",
         "url": "https://other.example/post/",
+        "mainEntityOfPage": "https://other.example/post/",
     }
     article = {
-        "@type": article_type,
+        "@id": post.route.canonical_url,
+        "@type": "BlogPosting",
         "url": post.route.canonical_url,
         "author": author,
         "isPartOf": website,
@@ -257,85 +250,57 @@ def test_json_ld_page_url_is_distinct_from_referenced_entity_urls(
     )
 
 
-def test_json_ld_graph_root_and_prefixed_page_identity_are_checked(
-    tmp_path: Path,
-) -> None:
+def test_json_ld_checks_provided_root_and_explicit_page_urls(tmp_path: Path) -> None:
     site = _render_representative_site(_settings(), tmp_path)
     path = tmp_path / site.blogs[0].route.output_path
     canonical = site.blogs[0].route.canonical_url
-    article = {"@type": "s:BlogPosting", "url": canonical}
-    document: dict[str, object] = {
-        "@context": {"s": "https://schema.org/"},
-        "url": canonical,
-        "@graph": [article, {"@type": "s:Person", "url": "https://geoqiao.me/about/"}],
-    }
+    page: dict[str, object] = {"@id": canonical}
+    document: dict[str, object] = {"@graph": [page]}
+    # URL is optional, but any supplied URL must be a canonical string.
     _replace_json_ld(path, document)
     assert SiteArtifactValidator(site).validate(tmp_path) == []
-    for target in (document, article):
-        target["url"] = "https://wrong.example/"
-        _replace_json_ld(path, document)
-        assert any(
-            d.code == "JSON_LD_URL_MISMATCH"
-            for d in SiteArtifactValidator(site).validate(tmp_path)
-        )
+    for target in (document, page):
+        for url in ("https://wrong.example/", None, {"@id": canonical}, [canonical]):
+            target["url"] = url
+            _replace_json_ld(path, document)
+            assert any(
+                d.code == "JSON_LD_URL_MISMATCH"
+                for d in SiteArtifactValidator(site).validate(tmp_path)
+            ), (target, url)
         target["url"] = canonical
-    # An inline primary's author reference must not promote the author to primary.
-    document["mainEntity"] = {
-        "@type": "BlogPosting",
-        "url": canonical,
-        "author": {"@id": "#author"},
-    }
-    document["@graph"] = [
-        {
-            "@id": "#author",
-            "@context": {"s": {"@id": "https://schema.org/", "@prefix": True}},
-            "@type": "s:Person",
-            "url": "https://geoqiao.me/about/",
-        }
-    ]
-    _replace_json_ld(path, document)
-    assert SiteArtifactValidator(site).validate(tmp_path) == []
-    # Both a top-level array and a single-node @graph are legal JSON-LD shapes.
-    wrong = {"@type": "https://schema.org/Article", "url": "https://wrong.example/"}
-    for value in ([wrong], {"@graph": wrong}):
-        _replace_json_ld(path, value)
-        assert any(
-            d.code == "JSON_LD_URL_MISMATCH"
-            for d in SiteArtifactValidator(site).validate(tmp_path)
-        )
 
 
-@pytest.mark.parametrize(
-    "reference_kind", ["self", "mainEntity", "mainEntityOfPage", "inline"]
-)
-def test_json_ld_references_cannot_hide_explicit_or_only_page_identity(
-    reference_kind: str, tmp_path: Path
+@pytest.mark.parametrize("identity", ["missing", "wrong", "author", "duplicate"])
+def test_json_ld_graph_requires_one_exact_page_id(
+    identity: str, tmp_path: Path
 ) -> None:
     site = _render_representative_site(_settings(), tmp_path)
-    article: dict[str, object] = {
-        "@id": "#post",
-        "@type": "NewsArticle",
-        "url": "https://wrong.example/",
-    }
-    page: dict[str, object] = {
-        "@type": "WebPage",
-        "url": site.blogs[0].route.canonical_url,
-    }
-    if reference_kind == "self":
-        article["citation"] = {"@id": "#post"}
-        document = {"@graph": [article]}
+    canonical = site.blogs[0].route.canonical_url
+    page = {"@id": canonical, "url": canonical}
+    nodes = [page]
+    if identity == "missing":
+        del page["@id"]
+    elif identity == "wrong":
+        page.update({"@id": "https://wrong.example/", "url": "https://wrong.example/"})
+    elif identity == "author":
+        page["@id"] += "#author"
     else:
-        page["citation"] = {"@id": "#post"}
-        if reference_kind == "mainEntity":
-            page["mainEntity"] = {"@id": "#post"}
-        elif reference_kind == "inline":
-            page["mainEntity"] = article
-        else:
-            article["mainEntityOfPage"] = {"@id": "#page"}
-        document = {"@graph": [article, page]}
-    _replace_json_ld(tmp_path / site.blogs[0].route.output_path, document)
+        nodes.append(dict(page))
+    _replace_json_ld(tmp_path / site.blogs[0].route.output_path, {"@graph": nodes})
     assert any(
-        d.code == "JSON_LD_URL_MISMATCH"
+        d.code == "JSON_LD_PAGE_IDENTITY"
+        for d in SiteArtifactValidator(site).validate(tmp_path)
+    )
+
+
+@pytest.mark.parametrize("value", [[], {"@graph": {}}, {"@graph": [None]}])
+def test_json_ld_unsupported_shapes_fail_explicitly(
+    value: object, tmp_path: Path
+) -> None:
+    site = _render_representative_site(_settings(), tmp_path)
+    _replace_json_ld(tmp_path / site.blogs[0].route.output_path, value)
+    assert any(
+        d.code == "INVALID_JSON_LD"
         for d in SiteArtifactValidator(site).validate(tmp_path)
     )
 
@@ -386,10 +351,27 @@ def test_json_ld_home_and_about_identity_and_json_parsing_remain_checked(
 ) -> None:
     site = _render_representative_site(_settings(), tmp_path)
     home_path = tmp_path / "index.html"
+    script = re.search(
+        r'<script type="application/ld\+json">(.*?)</script>',
+        home_path.read_text(),
+        re.DOTALL,
+    )
+    assert script is not None
+    assert (
+        sum(
+            node.get("@id") == site.home.route.canonical_url
+            for node in json.loads(script[1])["@graph"]
+        )
+        == 1
+    )
     home = {
         "@graph": [
             {"@type": "Person", "url": "https://geoqiao.me/about/"},
-            {"@type": "WebSite", "url": "https://geoqiao.me/"},
+            {
+                "@id": "https://geoqiao.me/",
+                "@type": "WebSite",
+                "url": "https://geoqiao.me/",
+            },
         ]
     }
     _replace_json_ld(home_path, home)

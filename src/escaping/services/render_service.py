@@ -221,6 +221,7 @@ class RenderService:
                 },
                 {
                     "@type": "WebSite",
+                    "@id": home.route.canonical_url,
                     "name": metadata.title,
                     "url": home.route.canonical_url,
                     "description": metadata.description,
