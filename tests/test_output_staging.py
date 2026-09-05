@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -283,6 +284,41 @@ def test_strict_compiler_failure_preserves_existing_output(tmp_path: Path) -> No
 
     assert not result.success
     assert sentinel.read_text(encoding="utf-8") == "old"
+    assert not list(tmp_path.glob(".output.staging.*"))
+
+
+def test_wrong_case_body_link_fails_validation_without_replacing_output(
+    tmp_path: Path,
+) -> None:
+    about = _snapshot(
+        1,
+        '---\ndescription: About.\ncreated_date: "2026-01-01"\n---\n\n[Blog](/blog/)',
+        kind="about",
+    )
+    source = _FakeGitHub([about])
+    compiler = SiteCompiler(
+        "unused",
+        "geoqiao/site",
+        _settings(),
+        config_root=tmp_path,
+        github_service=source,
+    )
+    assert compiler.generate().success
+    output = tmp_path / "output"
+    before = {
+        str(p.relative_to(output)): p.read_bytes()
+        for p in output.rglob("*")
+        if p.is_file()
+    }
+    source.snapshots = [replace(about, body=about.body.replace("/blog/", "/Blog/"))]
+    result = compiler.generate()
+    assert not result.success
+    assert any(d.code == "BROKEN_INTERNAL_LINK" for d in result.diagnostics)
+    assert {
+        str(p.relative_to(output)): p.read_bytes()
+        for p in output.rglob("*")
+        if p.is_file()
+    } == before
     assert not list(tmp_path.glob(".output.staging.*"))
 
 

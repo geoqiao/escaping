@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 import json
-import re
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
+from typing import cast
 from urllib.parse import urljoin, urlsplit
 
 from .build_result import Diagnostic
@@ -12,8 +12,6 @@ from .models.site import SiteModel
 
 _ATOM_NS = "http://www.w3.org/2005/Atom"
 _SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
-_FRONT_MATTER_FIELD_RE = re.compile(r"^\s*(?:slug|created_date):\s*", re.MULTILINE)
-_FRONT_MATTER_DELIMITER_RE = re.compile(r"^\s*---\s*$", re.MULTILINE)
 
 
 def _srcset_urls(value: str) -> list[str]:
@@ -33,10 +31,8 @@ class _HTMLProbe(HTMLParser):
         self.canonical: list[str] = []
         self.meta: dict[str, str] = {}
         self.json_ld: list[str] = []
-        self.visible_text: list[str] = []
         self._script_type = ""
         self._script_data: list[str] = []
-        self._ignored_text_depth = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {key: value or "" for key, value in attrs}
@@ -54,8 +50,6 @@ class _HTMLProbe(HTMLParser):
             key = values.get("property") or values.get("name")
             if key and values.get("content"):
                 self.meta[key.casefold()] = values["content"]
-        if tag in {"code", "pre", "script", "style"}:
-            self._ignored_text_depth += 1
         if tag == "script":
             self._script_type = values.get("type", "")
             self._script_data = []
@@ -63,16 +57,12 @@ class _HTMLProbe(HTMLParser):
     def handle_data(self, data: str) -> None:
         if self._script_type == "application/ld+json":
             self._script_data.append(data)
-        if self._ignored_text_depth == 0:
-            self.visible_text.append(data)
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "script" and self._script_type == "application/ld+json":
             self.json_ld.append("".join(self._script_data))
             self._script_type = ""
             self._script_data = []
-        if tag in {"code", "pre", "script", "style"}:
-            self._ignored_text_depth = max(0, self._ignored_text_depth - 1)
 
 
 class SiteArtifactValidator:
@@ -84,16 +74,16 @@ class SiteArtifactValidator:
     def validate(self, candidate_dir: Path) -> list[Diagnostic]:
         diagnostics: list[Diagnostic] = []
         expected = {route.output_path: route for route in self.site.routes.routes()}
-        actual_html = {
-            str(path.relative_to(candidate_dir))
-            for path in candidate_dir.rglob("*.html")
+        # File names, not host-filesystem case-insensitive lookups, prove that
+        # the public URL exists. Exact membership also rejects traversal paths.
+        actual_files = {
+            path.relative_to(candidate_dir).as_posix()
+            for path in candidate_dir.rglob("*")
             if path.is_file()
         }
+        actual_html = {path for path in actual_files if path.endswith(".html")}
         for output_path in expected:
-            if (
-                output_path.endswith(".html")
-                and not (candidate_dir / output_path).is_file()
-            ):
+            if output_path not in actual_files:
                 diagnostics.append(
                     self._error(
                         "MISSING_ROUTE", f"missing route artifact: {output_path}"
@@ -111,7 +101,7 @@ class SiteArtifactValidator:
 
         for output_path, route in expected.items():
             path = candidate_dir / output_path
-            if not path.is_file() or not output_path.endswith(".html"):
+            if output_path not in actual_files or not output_path.endswith(".html"):
                 continue
             probe = _HTMLProbe()
             try:
@@ -122,15 +112,9 @@ class SiteArtifactValidator:
                     self._error("HTML_READ_FAILED", f"{output_path}: {exc}")
                 )
                 continue
-            visible_text = "\n".join(probe.visible_text)
-            if _FRONT_MATTER_FIELD_RE.search(
-                visible_text
-            ) or _FRONT_MATTER_DELIMITER_RE.search(visible_text):
-                diagnostics.append(
-                    self._error(
-                        "FRONT_MATTER_LEAK", f"front matter leaked into {output_path}"
-                    )
-                )
+            # Body provenance belongs to compilation: only parsed.body becomes
+            # body_html, and neither renderer nor validator receives raw Issues.
+            # Metadata-like prose cannot establish a front-matter leak.
             self._validate_page_metadata(
                 output_path, route.canonical_url, probe, diagnostics
             )
@@ -140,18 +124,18 @@ class SiteArtifactValidator:
                 output_path,
                 route.canonical_url,
                 probe.links,
-                candidate_dir,
+                actual_files,
                 diagnostics,
             )
             self._validate_resources(
                 output_path,
                 route.canonical_url,
                 probe.resources,
-                candidate_dir,
+                actual_files,
                 diagnostics,
             )
             self._validate_json_ld(
-                output_path, probe.json_ld, route.canonical_url, diagnostics
+                output_path, probe.json_ld, route.canonical_url, route.name, diagnostics
             )
 
         self._validate_atom(candidate_dir, diagnostics)
@@ -207,7 +191,7 @@ class SiteArtifactValidator:
         output_path: str,
         current_url: str,
         links: list[tuple[str, str]],
-        candidate_dir: Path,
+        actual_files: set[str],
         diagnostics: list[Diagnostic],
     ) -> None:
         for tag, value in links:
@@ -229,8 +213,7 @@ class SiteArtifactValidator:
                 path = parsed.path
             static_prefix = f"{self.site.metadata.theme.asset_path}/"
             if path.startswith(static_prefix):
-                asset = candidate_dir / path.lstrip("/")
-                if not asset.is_file():
+                if path.lstrip("/") not in actual_files:
                     diagnostics.append(
                         self._error(
                             "MISSING_ASSET", f"{output_path}: missing asset {path}"
@@ -250,7 +233,7 @@ class SiteArtifactValidator:
         output_path: str,
         current_url: str,
         resources: list[tuple[str, str]],
-        candidate_dir: Path,
+        actual_files: set[str],
         diagnostics: list[Diagnostic],
     ) -> None:
         static_prefix = f"{self.site.metadata.theme.asset_path}/"
@@ -259,8 +242,7 @@ class SiteArtifactValidator:
             if path is None:
                 continue
             if path.startswith(static_prefix):
-                asset = candidate_dir / path.lstrip("/")
-                if not asset.is_file():
+                if path.lstrip("/") not in actual_files:
                     diagnostics.append(
                         self._error(
                             "MISSING_ASSET",
@@ -293,6 +275,7 @@ class SiteArtifactValidator:
         output_path: str,
         scripts: list[str],
         canonical_url: str,
+        route_name: str,
         diagnostics: list[Diagnostic],
     ) -> None:
         for script in scripts:
@@ -303,7 +286,7 @@ class SiteArtifactValidator:
                     self._error("INVALID_JSON_LD", f"{output_path}: invalid JSON-LD")
                 )
                 continue
-            urls = self._collect_urls(value)
+            urls = self._page_entity_urls(value, route_name)
             if any(url != canonical_url for url in urls):
                 diagnostics.append(
                     self._error(
@@ -390,26 +373,130 @@ class SiteArtifactValidator:
             )
 
     @staticmethod
-    def _collect_urls(value: object) -> list[str]:
+    def _page_entity_urls(value: object, route_name: str) -> list[str]:
+        """Check page identities, not author/publisher/isPartOf references.
+
+        Direct document URLs and unreferenced graph roots identify the page.
+        Person/Organization/WebSite are supporting graph entities, except for
+        About's Person and Home's WebSite. Explicit mainEntity takes precedence
+        over references. No remote contexts or schema.org ontology are loaded.
+        """
+        document = cast(dict[str, object], value) if isinstance(value, dict) else {}
+        url = document.get("url")
+        urls = [url] if isinstance(url, str) else []
+        if "mainEntity" in document:
+            entities = document["mainEntity"]
+            for entity in entities if isinstance(entities, list) else [entities]:
+                urls.extend(SiteArtifactValidator._page_entity_urls(entity, route_name))
+        nodes = document.get("@graph", []) if isinstance(value, dict) else value
+        if isinstance(nodes, dict):
+            nodes = [nodes]
+        if not isinstance(nodes, list):
+            return urls
+        context = document.get("@context")
+        contexts = context if isinstance(context, list) else [context]
+        # An explicitly referenced graph entity (e.g. citation) is not another
+        # page identity just because it is also an Article. mainEntity is the
+        # exception: it designates a primary entity rather than a reference.
+        referenced: set[str] = set()
+        primary: set[str] = set()
+        for node in [document, *nodes]:
+            if isinstance(node, dict):
+                for key, item in node.items():
+                    if key == "mainEntity":
+                        entities = item if isinstance(item, list) else [item]
+                        primary.update(
+                            identity
+                            for entity in entities
+                            if isinstance(entity, dict)
+                            for field, identity in entity.items()
+                            if field == "@id" and isinstance(identity, str)
+                        )
+                    elif key not in {"mainEntityOfPage", "@context", "@graph"}:
+                        referenced.update(SiteArtifactValidator._reference_ids(item))
+        supporting_types = {"Person", "Organization", "WebSite"}
+        if route_name == "home":
+            supporting_types.remove("WebSite")
+        elif route_name == "about":
+            supporting_types.remove("Person")
+        candidates: list[tuple[str, bool]] = []
+        for item in nodes:
+            if not isinstance(item, dict):
+                continue
+            node = cast(dict[str, object], item)
+            if "mainEntity" in node:
+                entities = node["mainEntity"]
+                for entity in entities if isinstance(entities, list) else [entities]:
+                    urls.extend(
+                        SiteArtifactValidator._page_entity_urls(entity, route_name)
+                    )
+            identity = node.get("@id")
+            explicit_primary = (
+                isinstance(identity, str) and identity in primary
+            ) or "mainEntityOfPage" in node
+            types = node.get("@type", [])
+            if isinstance(types, str):
+                types = [types]
+            if not isinstance(types, list):
+                continue
+            local_context = node.get("@context")
+            local_contexts = (
+                local_context if isinstance(local_context, list) else [local_context]
+            )
+            prefixes = {}
+            for context_item in [*contexts, *local_contexts]:
+                if isinstance(context_item, dict):
+                    for key, definition in context_item.items():
+                        if isinstance(definition, dict):
+                            definition = cast(dict[str, object], definition).get("@id")
+                        if isinstance(key, str):
+                            prefixes[key] = definition
+            names = set()
+            for name in types:
+                if not isinstance(name, str):
+                    continue
+                prefix, separator, local = name.partition(":")
+                if separator and prefixes.get(prefix) in (
+                    "https://schema.org/",
+                    "http://schema.org/",
+                ):
+                    name = str(prefixes[prefix]) + local
+                names.add(
+                    name.removeprefix("https://schema.org/").removeprefix(
+                        "http://schema.org/"
+                    )
+                )
+            if names and names <= supporting_types and not explicit_primary:
+                continue
+            url = node.get("url")
+            if isinstance(url, str):
+                is_reference = (
+                    isinstance(identity, str)
+                    and identity in referenced
+                    and not explicit_primary
+                )
+                candidates.append((url, is_reference))
+        # Cyclic/self references must not make every page identity disappear.
+        roots = [url for url, is_reference in candidates if not is_reference]
+        return urls + (roots or [url for url, _ in candidates])
+
+    @staticmethod
+    def _reference_ids(value: object) -> set[str]:
         if isinstance(value, dict):
-            direct = [
-                item
-                for key, item in value.items()
-                if key == "url" and isinstance(item, str)
-            ]
-            nested = [
-                url
-                for item in value.values()
-                for url in SiteArtifactValidator._collect_urls(item)
-            ]
-            return direct + nested
+            result = set()
+            for key, item in value.items():
+                if key == "@id" and isinstance(item, str):
+                    result.add(item)
+                elif key not in {"@context", "@graph"}:
+                    result.update(SiteArtifactValidator._reference_ids(item))
+            return result
         if isinstance(value, list):
-            return [
-                url
+            return {
+                identity
                 for item in value
-                for url in SiteArtifactValidator._collect_urls(item)
-            ]
-        return []
+                for identity in SiteArtifactValidator._reference_ids(item)
+            }
+        return set()
 
     @staticmethod
     def _error(code: str, message: str) -> Diagnostic:

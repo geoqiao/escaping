@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from escaping.config import Settings
 from escaping.models.blog_post import BlogPost, BlogTag
 from escaping.models.content import AboutPage, ContentCompilationResult, Idea
@@ -156,8 +158,11 @@ def test_site_builder_has_intentional_empty_blog_models() -> None:
     assert site.feed.entries == () and site.feed.updated == _BUILD_START
 
 
-def test_site_builder_reports_navigation_and_atom_safety_errors() -> None:
-    settings = _settings(navigation_url="/missing/", title="Bad\x01Title")
+@pytest.mark.parametrize("navigation_url", ["/missing/", "/Blog/"])
+def test_site_builder_reports_navigation_and_atom_safety_errors(
+    navigation_url: str,
+) -> None:
+    settings = _settings(navigation_url=navigation_url, title="Bad\x01Title")
     routes = RouteRegistry(str(settings.site.url))
     naive = _blog(routes, 1, naive=True)
 

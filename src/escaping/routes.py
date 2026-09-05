@@ -58,7 +58,7 @@ class RouteRegistry:
         canonical_key = path.casefold()
         existing = self._canonical_keys.get(canonical_key)
         if existing is not None:
-            if existing.output_path == output_path:
+            if existing.canonical_path == path and existing.output_path == output_path:
                 self._routes[name] = existing
                 return existing
             raise RouteCollisionError(
@@ -144,7 +144,10 @@ class RouteRegistry:
         return self._routes[name]
 
     def route_for_path(self, path: str) -> Route | None:
-        return self._canonical_keys.get(self._normalize_path(path).casefold())
+        """Look up an emitted URL, not merely a case-insensitive collision key."""
+        self._normalize_path(path)  # Retain path validation without rewriting the URL.
+        route = self._canonical_keys.get(path.casefold())
+        return route if route is not None and route.canonical_path == path else None
 
     def route_for_url(self, url: str) -> Route | None:
         parsed = urlsplit(url)
