@@ -943,6 +943,84 @@ def test_quiet_reading_enhancements_and_appearance(
         context.close()
 
 
+@pytest.mark.parametrize(
+    "initialization", ["delayed-site", "blocked-site", "blocked-appearance"]
+)
+def test_quiet_navigation_is_stable_and_usable_when_initialization_is_unavailable(
+    browser: Browser, site_servers: dict[str, str], initialization: str
+) -> None:
+    context = browser.new_context(viewport={"width": 390, "height": 844})
+    page = context.new_page()
+    pending: list[Route] = []
+    failures: list[str] = []
+    errors: list[str] = []
+    page.on("requestfailed", lambda request: failures.append(request.url))
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    script = "appearance.js" if initialization == "blocked-appearance" else "site.js"
+    page.route(
+        f"**/Quiet/static/js/{script}",
+        lambda route: (
+            pending.append(route) if initialization == "delayed-site" else route.abort()
+        ),
+    )
+    try:
+        page.goto(site_servers["Quiet"], wait_until="commit")
+        surface = page.locator(".site-surface")
+        expect(surface).to_be_visible()
+        # WebKit's fonts.ready can wait for DOMContentLoaded, which is deliberately
+        # held here. Observe rendered frames without waiting for initialization.
+        page.evaluate(
+            "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+        )
+        before = surface.bounding_box()
+        assert before is not None
+        menu = page.get_by_role("button", name="Toggle menu")
+        navigation = page.get_by_role("navigation", name="Main navigation")
+        blog = navigation.get_by_role("link", name="Blog", exact=False)
+        if initialization == "blocked-appearance":
+            expect(menu).to_be_hidden()
+        else:
+            # The control must work *before* the deferred script is available.
+            expect(menu).to_be_visible()
+            menu.focus()
+            page.keyboard.press("Enter")
+            expect(menu).to_have_attribute("aria-expanded", "true")
+        expect(blog).to_be_visible()
+        expect(navigation.locator('[aria-current="page"]')).to_have_attribute(
+            "href", "/"
+        )
+        blog.focus()
+        if initialization == "delayed-site":
+            assert len(pending) == 1
+            pending.pop().continue_()
+            page.unroute(f"**/Quiet/static/js/{script}")
+        page.wait_for_load_state("load")
+        # Two rendered frames, not load-as-paint or a timing-dependent sleep.
+        page.evaluate(
+            "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+        )
+        after = surface.bounding_box()
+        assert after is not None
+        assert after["y"] == pytest.approx(before["y"], abs=1)
+        expect(blog).to_be_focused()
+        if initialization != "blocked-appearance":
+            expect(menu).to_have_attribute("aria-expanded", "true")
+            page.keyboard.press("Escape")
+            expect(menu).to_have_attribute("aria-expanded", "false")
+            expect(menu).to_be_focused()
+            page.keyboard.press("Space")
+            expect(blog).to_be_visible()
+            blog.focus()
+        page.keyboard.press("Enter")
+        expect(page).to_have_url(re.compile(r"/blog/$"))
+        expect(page.get_by_role("heading", name="Blog", exact=True)).to_be_visible()
+        assert not errors
+        if initialization.startswith("blocked"):
+            assert any(url.endswith(script) for url in failures)
+    finally:
+        context.close()
+
+
 def test_quiet_without_javascript_keeps_content_and_navigation(
     browser: Browser, site_servers: dict[str, str]
 ) -> None:
@@ -1011,7 +1089,9 @@ def test_quiet_mobile_menu_overlays_content_and_dismisses_cleanly(
         toggle = page.get_by_role("button", name="Dark mode")
         toggle.scroll_into_view_if_needed()
         expect(toggle).to_be_in_viewport()
-        toggle.click()
+        # Safari pointer clicks do not focus buttons; test keyboard focus migration.
+        toggle.focus()
+        page.keyboard.press("Enter")
         expect(page.locator("html")).to_have_attribute("data-theme", "dark")
         page.set_viewport_size({"width": 1440, "height": 900})
         expect(menu).to_have_attribute("aria-expanded", "false")
