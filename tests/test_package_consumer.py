@@ -137,7 +137,7 @@ assert 'Geo Qiao' not in home_html
 assert '>GQ<' not in home_html
 assert (root / 'output/templates/geoqiao.me/__MERMAID_DIRECTORY__/mermaid.min.js').is_file()
 assert (root / 'output/templates/geoqiao.me/__MERMAID_DIRECTORY__/LICENSE').is_file()
-for theme_name in ('Escape1', 'Escape2', 'geoqiao.me'):
+for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
     theme = ThemeLoader(root).load(BuiltinThemeConfig(name=theme_name))
     destination = root / ('assets-' + theme_name)
     theme.copy_assets(destination)
@@ -148,6 +148,21 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me'):
     assert (vendor / 'mermaid.min.js').is_file()
     assert (vendor / 'LICENSE').is_file()
     assert (vendor / 'README.md').is_file()
+    if theme_name == 'Quiet':
+        consumer_settings = settings.model_copy(update={
+            'theme': BuiltinThemeConfig(name=theme_name),
+            'paths': settings.paths.model_copy(update={'output': 'public'}),
+        })
+        result = SiteCompiler(
+            'unused', 'owner/site', consumer_settings,
+            config_root=root, github_service=FakeGitHub(),
+        ).generate()
+        assert result.success, result.diagnostics
+        output = root / 'public'
+        assert '<h1>Consumer</h1>' in (output / 'index.html').read_text()
+        assert 'data-issue-number="1"' in (output / 'blog/post/index.html').read_text()
+        for font in ('manrope-bold.ttf', 'source-serif-4.ttf', 'Manrope-OFL.txt', 'SourceSerif4-OFL.txt'):
+            assert (output / 'templates' / theme_name / 'static/fonts' / font).is_file()
 """.replace("__WHEEL__", repr(str(wheel)))
     script = script.replace("__MERMAID_DIRECTORY__", _MERMAID_DIRECTORY)
     subprocess.run(  # noqa: S603

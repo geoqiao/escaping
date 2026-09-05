@@ -1,0 +1,63 @@
+{% set zh = language.startswith('zh') %}
+{% set page_title = page_title|default(blog_title) %}
+{% set page_description = page_description|default(meta_description) %}
+{% set active_section = active_section|default(home_path) %}
+<!DOCTYPE html>
+<html lang="{{ language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }}{% if page_title != blog_title %} · {{ blog_title }}{% endif %}</title>
+  <meta name="description" content="{{ page_description }}">
+  <link rel="canonical" href="{{ page_canonical_url }}">
+  <meta property="og:site_name" content="{{ blog_title }}">
+  <meta property="og:title" content="{{ page_title }}">
+  <meta property="og:description" content="{{ page_description }}">
+  <meta property="og:url" content="{{ page_canonical_url }}">
+  <meta property="og:type" content="{{ 'article' if article is defined and section_label != 'About' else 'website' }}">
+  <meta name="twitter:card" content="summary">
+  <meta name="twitter:title" content="{{ page_title }}">
+  <meta name="twitter:description" content="{{ page_description }}">
+  <meta name="twitter:url" content="{{ page_canonical_url }}">
+  {% if google_search_verification %}<meta name="google-site-verification" content="{{ google_search_verification }}">{% endif %}
+  <link rel="icon" type="image/png" href="{{ theme_path }}/static/images/favicon.png">
+  <link rel="alternate" type="application/atom+xml" title="{{ blog_title }}" href="{{ site_routes.atom.canonical_path }}">
+  <script src="{{ theme_path }}/static/js/appearance.js"></script>
+  <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
+  <script src="{{ theme_path }}/static/js/site.js" defer></script>
+  {% if structured_data is defined %}<script type="application/ld+json">{{ structured_data|tojson }}</script>{% endif %}
+</head>
+<body id="top">
+  <a class="skip-link" href="#main-content">{{ '跳至正文' if zh else skip_link_text }}</a>
+  <header class="site-rail">
+    <a class="identity" href="{{ home_path }}" aria-label="{{ blog_title }} — Home">
+      <span class="identity-mark" aria-hidden="true">{{ author_initials }}</span>
+      <span class="identity-name">{{ author_name }}</span>
+    </a>
+    <button class="menu-toggle" type="button" aria-label="Toggle menu" aria-controls="site-navigation" aria-expanded="false" hidden>{{ '目录' if zh else 'Menu' }} <span aria-hidden="true">＋</span></button>
+    <nav id="site-navigation" aria-label="{{ '主导航' if zh else 'Main navigation' }}">
+      <p class="eyebrow rail-label">{{ '站内索引' if zh else 'Site index' }}</p>
+      <a href="{{ home_path }}"{% if active_section == home_path %} aria-current="page"{% endif %}>Home <span aria-hidden="true">↗</span></a>
+      {% for item in navigation_items if item.url != home_path %}
+      <a href="{{ item.url }}"{% if item.url == active_section %} aria-current="page"{% endif %}>{{ item.name }} <span aria-hidden="true">{{ '↗' if item.url.startswith('https:') or item.url in (active_section, site_routes.atom.canonical_path) else '·' }}</span></a>
+      {% endfor %}
+    </nav>
+    <div class="rail-bottom">
+      <button class="theme-toggle" type="button" aria-pressed="false" hidden><span aria-hidden="true">◐</span> {{ '深色模式' if zh else 'Dark mode' }}</button>
+      <p class="rail-note">{{ '文章、想法与项目。' if zh else 'Writing, ideas & projects.' }}</p>
+    </div>
+  </header>
+  <div class="site-surface">
+    <main id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>
+    <footer class="site-footer">
+      <div><strong>{{ author_name }}</strong><span>{{ '感谢阅读。' if zh else 'Thanks for reading.' }}</span></div>
+      <nav aria-label="{{ '页脚链接' if zh else 'Footer links' }}">
+        {% for link in metadata.profile.links %}<a href="{{ link.url }}">{{ link.name }} ↗</a>{% endfor %}
+        <a href="{{ site_routes.atom.canonical_path }}">RSS ↗</a>
+        {% if branding.show_powered_by %}<a href="{{ branding.powered_by_url }}">{{ branding.powered_by_text }}</a>{% endif %}
+        {% if branding.source_link_url and branding.source_link_url != branding.powered_by_url %}<a href="{{ branding.source_link_url }}">{{ '源码' if zh else 'Source' }}</a>{% endif %}
+      </nav>
+    </footer>
+  </div>
+</body>
+</html>

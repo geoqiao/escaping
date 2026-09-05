@@ -1,0 +1,7 @@
+{% extends 'base.html' %}
+{% set page_title = 'Tags' %}
+{% set active_section = site_routes.tags.canonical_path %}
+{% block content %}
+<div class="page-heading"><p class="eyebrow">{{ '沿着兴趣，继续探索' if zh else 'Follow a thread' }}</p><h1>Tags<span class="heading-dot" aria-hidden="true">.</span></h1><p>{{ '同一个主题，不同时间的记录。' if zh else 'One topic, different moments in time.' }}</p></div>
+<ul class="topic-index">{% for tag in tags_index.tags %}<li><a href="{{ tag.route.canonical_path }}"><span>{{ tag.name }}</span><span class="topic-count">{{ tag.count }} <span aria-hidden="true">↗</span></span></a></li>{% else %}<li class="empty-state">{{ '还没有标签。' if zh else 'No topics yet.' }}</li>{% endfor %}</ul>
+{% endblock %}

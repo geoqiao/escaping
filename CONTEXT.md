@@ -33,7 +33,7 @@ Repository-owned configuration for one generated site. Relative filesystem paths
 _Avoid_: Generator Config, global settings
 
 **Built-in Theme**:
-A manifest-validated Theme distributed as a Site Compiler package resource. `geoqiao.me` is the default; Escape1 and Escape2 are alternatives. Remote fetching and commit pinning are not ThemeLoader responsibilities.
+A manifest-validated Theme distributed as a Site Compiler package resource. `geoqiao.me` is the default; Escape1, Escape2, and Quiet are alternatives. Quiet uses neutral surfaces with restrained avatar-magenta accents. Remote fetching and commit pinning are not ThemeLoader responsibilities.
 _Avoid_: Downloaded theme, compiler cache
 
 **Site Orchestrator**:

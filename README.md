@@ -29,7 +29,7 @@
 | --- | --- | --- |
 | ✍️ | **Issues as content** | Blog、Ideas 与 About 来自带标签和 front matter 的 GitHub Issues |
 | 🧭 | **完整站点模型** | 统一生成 Home、归档、详情、Projects、Tags、Atom、sitemap 与 robots |
-| 🎨 | **可替换 Theme** | 内置 `geoqiao.me`、`Escape1`、`Escape2`，也支持 Config-relative 本地 Theme |
+| 🎨 | **可替换 Theme** | 内置 `geoqiao.me`、`Escape1`、`Escape2`、`Quiet`，也支持 Config-relative 本地 Theme |
 | 🔒 | **默认安全** | Markdown HTML allowlist、严格 URL 校验、输出目录 containment、Jinja autoescape |
 | 🔗 | **单一路由来源** | `RouteRegistry` 统一生成 canonical URL 与文件输出路径，避免手工拼接 |
 | 🚀 | **分阶段发布** | 新产物在 staging 中渲染和验证，再通过目录 rename 与 rollback 替换本地输出 |
@@ -136,13 +136,13 @@ Open Graph、Atom、sitemap 和 robots 都从调用时传入的 origin 派生，
 
 ## 🎨 Themes
 
-不写 Theme 配置时，默认使用中文优先的内置 `geoqiao.me`；`Escape1` 和
-`Escape2` 仍作为可选内置 Theme：
+不写 Theme 配置时，默认使用中文优先的内置 `geoqiao.me`；`Escape1`、
+`Escape2` 和 [Quiet](docs/themes/quiet.md) 是可选内置 Theme；Quiet 使用中性黑白与少量头像洋红：
 
 ```yaml
 theme:
   source: builtin
-  name: geoqiao.me # 也可以是 Escape1 或 Escape2
+  name: geoqiao.me # 也可以是 Escape1、Escape2 或 Quiet
 ```
 
 也可以加载站点仓库中的本地 Theme：
@@ -154,7 +154,7 @@ theme:
   path: theme
 ```
 
-`ThemeLoader` 只加载 package resources 或本地目录，不隐式执行 Git/HTTP fetch、cache 或 update。三个内置 Theme 共用生成器维护的 `comments.js`，包含 Utterances 自动主题同步、消息来源校验与 Safari lazy iframe 兼容处理。
+`ThemeLoader` 只加载 package resources 或本地目录，不隐式执行 Git/HTTP fetch、cache 或 update。所有内置 Theme 共用生成器维护的 `comments.js`，包含 Utterances 自动主题同步、消息来源校验与 Safari lazy iframe 兼容处理。
 
 ## 🏗️ 生成器与站点分离
 

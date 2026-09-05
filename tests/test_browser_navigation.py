@@ -8,7 +8,7 @@ from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
-from typing import Any
+from typing import Any, Literal
 from urllib.parse import quote
 
 import pytest
@@ -45,7 +45,7 @@ from escaping.site_builder import SiteBuilder  # noqa: E402
 from escaping.theme import ThemeLoader  # noqa: E402
 
 _ROOT = Path(__file__).parent.parent.absolute()
-_THEMES = ("Escape1", "Escape2", "geoqiao.me")
+_THEMES = ("Escape1", "Escape2", "geoqiao.me", "Quiet")
 _MERMAID_RENDER_TIMEOUT_MS = 15_000
 
 
@@ -104,7 +104,20 @@ def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
                 f"```text\n{wide_token}\n```\n\n"
                 "```mermaid\nflowchart LR\n  A[Local] --> B[Diagram]\n```"
             ),
-            labels=("type:blog", "published"),
+            labels=("type:blog", "published", "tag:pi"),
+            created_at=build_time,
+            updated_at=build_time,
+            is_pull_request=False,
+        ),
+        IssueSnapshot(
+            number=2,
+            title="An unfinished thought",
+            author="geoqiao",
+            body=(
+                '---\ndescription: A short idea.\ncreated_date: "2026-01-01"\n---\n\n'
+                "## A small observation\n\nIdeas can have a conversation too."
+            ),
+            labels=("type:idea", "published"),
             created_at=build_time,
             updated_at=build_time,
             is_pull_request=False,
@@ -635,3 +648,170 @@ def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
         "document.documentElement.scrollWidth <= "
         "document.documentElement.clientWidth + 1"
     )
+
+
+@pytest.mark.parametrize("initial_mode", ["light", "dark"])
+def test_quiet_mermaid_stays_readable_across_live_theme_changes(
+    browser: Browser,
+    site_servers: dict[str, str],
+    initial_mode: Literal["light", "dark"],
+) -> None:
+    context = browser.new_context(color_scheme=initial_mode)
+    page = context.new_page()
+    page.route("https://utteranc.es/**", lambda route: route.abort())
+    try:
+        page.goto(f"{site_servers['Quiet']}/blog/a-blog/", wait_until="load")
+        svg = page.locator("pre.mermaid svg")
+        expect(svg).to_have_count(1, timeout=_MERMAID_RENDER_TIMEOUT_MS)
+        original_id = svg.get_attribute("id")
+        for _ in range(3):
+            ratios = svg.evaluate(
+                r"""svg => {
+                    const inverted = getComputedStyle(svg).filter === 'invert(1)';
+                    const rgb = (value, invert = inverted) => value.match(/\d+/g)
+                        .slice(0, 3).map(Number).map(x => invert ? 255 - x : x);
+                    const luminance = color => rgb(color).map(x => {
+                        x /= 255;
+                        return x <= .04045 ? x / 12.92 : ((x + .055) / 1.055) ** 2.4;
+                    }).reduce((sum, x, i) => sum + x * [.2126, .7152, .0722][i], 0);
+                    const contrast = (a, b) => {
+                        const [hi, lo] = [luminance(a), luminance(b)].sort((a,b) => b-a);
+                        return (hi + .05) / (lo + .05);
+                    };
+                    const node = getComputedStyle(svg.querySelector('.node rect'));
+                    const label = getComputedStyle(svg.querySelector('.nodeLabel'));
+                    return {text: contrast(label.color, node.fill),
+                        boundary: contrast(node.stroke, node.fill)};
+                }"""
+            )
+            assert ratios["text"] >= 4.5 and ratios["boundary"] >= 3, ratios
+            expected_filter = (
+                "invert(1)"
+                if page.locator("html").get_attribute("data-theme") == "dark"
+                else "none"
+            )
+            assert svg.evaluate("x => getComputedStyle(x).filter") == expected_filter
+            assert svg.get_attribute("id") == original_id
+            page.get_by_role("button", name="Dark mode").click()
+        page.emulate_media(media="print")
+        assert svg.evaluate("x => getComputedStyle(x).filter") == "none"
+        assert (
+            page.locator("body").evaluate("x => getComputedStyle(x).backgroundColor")
+            == "rgb(255, 255, 255)"
+        )
+    finally:
+        context.close()
+
+
+def test_quiet_reading_enhancements_and_appearance(
+    browser: Browser, site_servers: dict[str, str]
+) -> None:
+    context = browser.new_context(
+        viewport={"width": 1440, "height": 900},
+        permissions=["clipboard-read", "clipboard-write"],
+    )
+    page = context.new_page()
+    page.route("https://utteranc.es/**", lambda route: route.abort())
+    origin = site_servers["Quiet"]
+    try:
+        page.emulate_media(color_scheme="dark", reduced_motion="reduce")
+        page.goto(f"{origin}/blog/a-blog/", wait_until="load")
+        tag_box = page.locator(".article-heading .tag-links a").bounding_box()
+        assert (
+            tag_box is not None and tag_box["width"] >= 24 and tag_box["height"] >= 24
+        )
+        expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+        page.emulate_media(color_scheme="light")
+        expect(page.locator("html")).to_have_attribute("data-theme", "light")
+        page.get_by_role("button", name="Dark mode").click()
+        page.reload(wait_until="load")
+        expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+        expect(page.get_by_role("button", name="Dark mode")).to_have_attribute(
+            "aria-pressed", "true"
+        )
+
+        toc = page.get_by_role("navigation", name="On this page")
+        closing = toc.get_by_role("link", name="Closing Section", exact=True)
+        closing.click()
+        expect(page).to_have_url(re.compile(r"#closing-section$"))
+        expect(page.get_by_role("heading", name="Closing Section")).to_be_in_viewport()
+        expect(closing).to_have_attribute("aria-current", "location")
+        expect(toc.locator('[aria-current="location"]')).to_have_count(1)
+        page.reload(wait_until="load")
+        expect(page.get_by_role("heading", name="Closing Section")).to_be_in_viewport()
+
+        copy = page.locator(".copy-code")
+        copy.click()
+        expect(copy).to_have_text("Copied")
+        assert "unbroken-column-" in page.evaluate("navigator.clipboard.readText()")
+        page.evaluate(
+            "Object.defineProperty(navigator, 'clipboard', {value: {"
+            "writeText: () => Promise.reject(new Error('Denied'))}})"
+        )
+        copy.click()
+        expect(copy).to_have_text("Select the code to copy manually")
+        expect(page.locator(".comments-error")).to_contain_text(
+            "View or add comment on GitHub"
+        )
+
+        page.set_viewport_size({"width": 390, "height": 844})
+        table = page.get_by_role("table")
+        table.focus()
+        page.keyboard.press("ArrowRight")
+        page.wait_for_function("document.querySelector('table').scrollLeft > 0")
+        page.goto(f"{origin}/ideas/2/", wait_until="load")
+        expect(
+            page.get_by_role("heading", name="An unfinished thought")
+        ).to_be_visible()
+        expect(page.locator("#comments-container")).to_have_attribute(
+            "data-issue-number", "2"
+        )
+        expect(page.locator(".toc")).not_to_have_attribute("open", "")
+        page.locator(".toc summary").click()
+        expect(page.get_by_role("link", name="A small observation")).to_be_visible()
+    finally:
+        context.close()
+
+
+def test_quiet_without_javascript_keeps_content_and_navigation(
+    browser: Browser, site_servers: dict[str, str]
+) -> None:
+    context = browser.new_context(
+        java_script_enabled=False, viewport={"width": 320, "height": 700}
+    )
+    page = context.new_page()
+    try:
+        page.goto(site_servers["Quiet"], wait_until="load")
+        expect(page.get_by_role("button", name="Toggle menu")).to_be_hidden()
+        page.get_by_role("navigation", name="Main navigation").get_by_role(
+            "link", name="Blog", exact=False
+        ).click()
+        page.get_by_role("heading", level=2).first.get_by_role("link").click()
+        expect(page.get_by_role("heading", name="Opening Section")).to_be_visible()
+        expect(
+            page.locator(".comments-section").get_by_role("link", name="GitHub")
+        ).to_have_attribute("href", "https://github.com/geoqiao/site/issues/1")
+        expect(page.locator(".comments-loading")).to_be_hidden()
+        expect(page.locator(".post-content table")).to_be_visible()
+        expect(page.get_by_role("button", name="Copy code")).to_have_count(0)
+    finally:
+        context.close()
+
+
+def test_quiet_has_one_banner_and_visible_skip_target_focus(
+    browser: Browser, site_servers: dict[str, str]
+) -> None:
+    page = browser.new_page()
+    try:
+        page.goto(site_servers["Quiet"], wait_until="load")
+        expect(page.get_by_role("banner")).to_have_count(1)
+        skip_link = page.get_by_role("link", name="Skip to main content")
+        skip_link.focus()
+        page.keyboard.press("Enter")
+        main = page.locator("#main-content")
+        expect(main).to_be_focused()
+        assert (
+            main.evaluate("element => getComputedStyle(element).outlineStyle") != "none"
+        )
+    finally:
+        page.close()

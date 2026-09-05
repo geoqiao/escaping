@@ -1,0 +1,27 @@
+{% extends 'base.html' %}
+{% set page_title = article.title %}
+{% set page_description = article.description %}
+{% block content %}
+{% from 'components.html' import tags, comments_section with context %}
+<article class="article-page">
+  <header class="article-heading">
+    <a class="breadcrumb" href="{{ home_path if section_label == 'About' else active_section }}">← {{ 'Home' if section_label == 'About' else section_label }}</a>
+    <h1>{{ article.title }}</h1>
+    {% if section_label != 'About' %}
+    <div class="article-meta"><span>{{ author_name }}</span><time datetime="{{ article.created_date }}">{{ article.created_date }}</time><a href="#comments-title">{{ '参与讨论' if zh else 'Discuss' }} ↓</a></div>
+    {{ tags(article.tags, linked=section_label != 'Ideas') }}
+    {% elif metadata.profile.avatar %}<img class="profile-avatar" src="{{ metadata.profile.avatar }}" alt="{{ author_name }}" width="80" height="80">{% endif %}
+  </header>
+  <div class="reading-layout">
+    <div class="reading-main">
+      <div class="post-content">{{ article.body_html|safe }}</div>
+      <div class="article-end"><span aria-hidden="true">↳</span><a href="{{ home_path if section_label == 'About' else active_section }}">{{ '返回' if zh else 'Back to' }} {{ 'Home' if section_label == 'About' else section_label }}</a><a href="#top">{{ '回到顶部' if zh else 'Back to top' }} ↑</a></div>
+      {{ comments_section(article.issue_number) }}
+    </div>
+    {% if section_label != 'About' %}<aside class="reading-margin" hidden>
+      <details class="toc" open><summary>{{ '本文目录' if zh else 'On this page' }}</summary><nav data-toc aria-label="{{ '本文目录' if zh else 'On this page' }}"></nav></details>
+    </aside>{% endif %}
+  </div>
+</article>
+<script src="{{ theme_path }}/static/js/mermaid.js" data-runtime-src="{{ theme_path }}/static/vendor/mermaid-11.16.1/mermaid.min.js" data-mermaid-theme="neutral" defer></script>
+{% endblock %}
