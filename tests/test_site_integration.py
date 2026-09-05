@@ -5,7 +5,12 @@ import re
 import shutil
 from dataclasses import replace
 from datetime import UTC, datetime
+from functools import partial
+from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
+from threading import Thread
+from urllib.error import HTTPError
+from urllib.request import urlopen
 
 import pytest
 from jinja2 import ChoiceLoader, DictLoader, UndefinedError
@@ -397,13 +402,14 @@ def test_json_ld_home_and_about_identity_and_json_parsing_remain_checked(
     "reference",
     [
         '<a href="/Blog/">wrong case</a>',
+        '<a href="/%62log/">encoded page alias</a>',
         '<a href="https://geoqiao.me/Blog/">wrong case</a>',
         '<img src="/Blog/">',
         '<link href="/templates/geoqiao.me/static/css/Style.css" rel="stylesheet">',
         '<img src="/templates/geoqiao.me/static/images/Favicon.png">',
     ],
 )
-def test_wrong_case_internal_links_and_resources_fail(
+def test_noncanonical_internal_links_and_resources_fail(
     reference: str, tmp_path: Path
 ) -> None:
     site = _render_representative_site(_settings(), tmp_path)
@@ -413,6 +419,105 @@ def test_wrong_case_internal_links_and_resources_fail(
         d.code in {"BROKEN_INTERNAL_LINK", "MISSING_ASSET"}
         for d in SiteArtifactValidator(site).validate(tmp_path)
     )
+
+
+@pytest.mark.parametrize(
+    "filename,url_name,status,valid",
+    [
+        ("encoded%20name.txt", "encoded%20name.txt", 404, False),
+        ("encoded%20name.txt", "encoded%2520name.txt?download=1#file", 200, True),
+        ("space name.txt", "space%20name.txt", 200, True),
+        ("雪.txt", "%E9%9B%AA.txt", 200, True),
+    ],
+)
+def test_static_file_urls_decode_once_like_local_http(
+    filename: str, url_name: str, status: int, valid: bool, tmp_path: Path
+) -> None:
+    site = _render_representative_site(_settings(), tmp_path)
+    prefix = f"{site.metadata.theme.asset_path}/static/"
+    asset = tmp_path / prefix.lstrip("/") / filename
+    asset.write_text("Asset sentinel.", encoding="utf-8")
+    path = tmp_path / site.blogs[0].route.output_path
+    original = path.read_text()
+    url = prefix + url_name
+    server = ThreadingHTTPServer(
+        ("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=str(tmp_path))
+    )
+    thread = Thread(target=server.serve_forever, daemon=True)
+    thread.start()
+    try:
+        try:
+            with urlopen(
+                f"http://127.0.0.1:{server.server_port}{url}", timeout=5
+            ) as response:
+                actual_status = response.status
+                assert response.read() == asset.read_bytes()
+        except HTTPError as exc:
+            actual_status = exc.code
+        assert actual_status == status
+        for tag, attr in (("a", "href"), ("img", "src")):
+            reference = f'<{tag} {attr}="{url}"></{tag}>'
+            path.write_text(original.replace("</body>", reference + "</body>"))
+            diagnostics = SiteArtifactValidator(site).validate(tmp_path)
+            if valid:
+                assert diagnostics == []
+            else:
+                assert any(d.code == "MISSING_ASSET" for d in diagnostics)
+    finally:
+        server.shutdown()
+        server.server_close()
+        thread.join()
+
+
+@pytest.mark.parametrize(
+    "filename,url_name",
+    [
+        ("bad%name.txt", "bad%name.txt"),
+        ("bad%FFname.txt", "bad%FFname.txt"),
+        ("bad%00name.txt", "bad%00name.txt"),
+        ("nested%2fsecret.txt", "nested%2fsecret.txt"),
+        ("nested%5csecret.txt", "nested%5csecret.txt"),
+        ("%2e%2e/safe.txt", "%2e%2e/safe.txt"),
+        ("safe.txt", "nested/../safe.txt"),
+        ("ab.txt", "a\tb.txt"),
+    ],
+)
+def test_unsafe_static_url_paths_fail_before_normalization(
+    filename: str, url_name: str, tmp_path: Path
+) -> None:
+    site = _render_representative_site(_settings(), tmp_path)
+    prefix = f"{site.metadata.theme.asset_path}/static/"
+    asset = tmp_path / prefix.lstrip("/") / filename
+    asset.parent.mkdir(parents=True, exist_ok=True)
+    asset.write_text("Must not authorize an unsafe URL.", encoding="utf-8")
+    path = tmp_path / site.blogs[0].route.output_path
+    original = path.read_text()
+    for tag, attr in (("a", "href"), ("img", "src")):
+        reference = f'<{tag} {attr}="{prefix}{url_name}"></{tag}>'
+        path.write_text(original.replace("</body>", reference + "</body>"))
+        assert any(
+            d.code == "INVALID_INTERNAL_PATH"
+            for d in SiteArtifactValidator(site).validate(tmp_path)
+        )
+
+
+def test_static_asset_symlink_is_not_a_contained_emitted_file(tmp_path: Path) -> None:
+    output = tmp_path / "candidate"
+    site = _render_representative_site(_settings(), output)
+    outside = tmp_path / "outside.txt"
+    outside.write_text("Outside candidate.")
+    url = f"{site.metadata.theme.asset_path}/static/escape.txt"
+    (output / url.lstrip("/")).symlink_to(outside)
+    path = output / site.blogs[0].route.output_path
+    original = path.read_text()
+    for tag, attr in (("a", "href"), ("img", "src")):
+        path.write_text(
+            original.replace("</body>", f'<{tag} {attr}="{url}"></{tag}></body>')
+        )
+        assert any(
+            d.code == "MISSING_ASSET"
+            for d in SiteArtifactValidator(site).validate(output)
+        )
 
 
 @pytest.mark.parametrize("artifact", ["blog/a-blog/index.html", "atom.xml"])

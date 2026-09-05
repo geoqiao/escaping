@@ -1,16 +1,21 @@
 from __future__ import annotations
 
 import json
+import re
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import unquote, urljoin, urlsplit
 
 from .build_result import Diagnostic
 from .models.site import SiteModel
 
 _ATOM_NS = "http://www.w3.org/2005/Atom"
 _SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
+_BAD_ESCAPE = re.compile(r"%(?![0-9a-fA-F]{2})")
+_UNSAFE_PATH_CHARS = re.compile(
+    r"[\x00-\x1f\x7f-\x9f\\\u2028\u2029\u200b\u200c\u200d\ufeff]"
+)
 
 
 def _srcset_urls(value: str) -> list[str]:
@@ -78,7 +83,7 @@ class SiteArtifactValidator:
         actual_files = {
             path.relative_to(candidate_dir).as_posix()
             for path in candidate_dir.rglob("*")
-            if path.is_file()
+            if not path.is_symlink() and path.is_file()
         }
         actual_html = {path for path in actual_files if path.endswith(".html")}
         for output_path in expected:
@@ -194,30 +199,30 @@ class SiteArtifactValidator:
         diagnostics: list[Diagnostic],
     ) -> None:
         for tag, value in links:
-            parsed = urlsplit(value)
             if value.startswith("#"):
                 continue
-            if parsed.scheme or parsed.netloc:
+            try:
+                parsed = urlsplit(value)
                 path = self._internal_resource_path(value, current_url)
-                if path is None:
-                    continue
-            elif not value.startswith("/"):
+            except ValueError:
+                diagnostics.append(
+                    self._error(
+                        "INVALID_INTERNAL_PATH", f"{output_path}: unsafe {tag} URL path"
+                    )
+                )
+                continue
+            if not parsed.scheme and not parsed.netloc and not value.startswith("/"):
                 diagnostics.append(
                     self._error(
                         "RELATIVE_LINK", f"{output_path}: relative {tag} link {value!r}"
                     )
                 )
                 continue
-            else:
-                path = parsed.path
+            if path is None:
+                continue
             static_prefix = f"{self.site.metadata.theme.asset_path}/"
             if path.startswith(static_prefix):
-                if path.lstrip("/") not in actual_files:
-                    diagnostics.append(
-                        self._error(
-                            "MISSING_ASSET", f"{output_path}: missing asset {path}"
-                        )
-                    )
+                self._validate_asset(output_path, path, actual_files, diagnostics)
                 continue
             if self.site.routes.route_for_path(path) is None:
                 diagnostics.append(
@@ -237,17 +242,19 @@ class SiteArtifactValidator:
     ) -> None:
         static_prefix = f"{self.site.metadata.theme.asset_path}/"
         for tag, value in resources:
-            path = self._internal_resource_path(value, current_url)
+            try:
+                path = self._internal_resource_path(value, current_url)
+            except ValueError:
+                diagnostics.append(
+                    self._error(
+                        "INVALID_INTERNAL_PATH", f"{output_path}: unsafe {tag} URL path"
+                    )
+                )
+                continue
             if path is None:
                 continue
             if path.startswith(static_prefix):
-                if path.lstrip("/") not in actual_files:
-                    diagnostics.append(
-                        self._error(
-                            "MISSING_ASSET",
-                            f"{output_path}: missing {tag} resource {path}",
-                        )
-                    )
+                self._validate_asset(output_path, path, actual_files, diagnostics)
                 continue
             if self.site.routes.route_for_path(path) is None:
                 diagnostics.append(
@@ -257,9 +264,50 @@ class SiteArtifactValidator:
                     )
                 )
 
+    def _validate_asset(
+        self,
+        output_path: str,
+        path: str,
+        actual_files: set[str],
+        diagnostics: list[Diagnostic],
+    ) -> None:
+        # Files use one strict UTF-8 URL decode. Never feed decoded names back
+        # into URL parsing or RouteRegistry: literal percent names stay literal.
+        try:
+            if _BAD_ESCAPE.search(path):
+                raise ValueError("invalid percent escape")
+            parts = [
+                unquote(part, errors="strict")
+                for part in path.removeprefix("/").split("/")
+            ]
+            if any(
+                part in ("", ".", "..")
+                or "/" in part
+                or _UNSAFE_PATH_CHARS.search(part)
+                for part in parts
+            ):
+                raise ValueError("unsafe file path component")
+        except ValueError:
+            diagnostics.append(
+                self._error(
+                    "INVALID_INTERNAL_PATH",
+                    f"{output_path}: unsafe static asset URL path",
+                )
+            )
+            return
+        if "/".join(parts) not in actual_files:
+            diagnostics.append(
+                self._error("MISSING_ASSET", f"{output_path}: missing asset {path}")
+            )
+
     def _internal_resource_path(self, value: str, current_url: str) -> str | None:
         if not value or value.startswith("#"):
             return None
+        # urlsplit can erase controls; preserve the raw path for the checks
+        # below because urljoin can also erase dot segments.
+        if _UNSAFE_PATH_CHARS.search(value):
+            raise ValueError("unsafe URL characters")
+        raw_path = urlsplit(value).path
         resolved = urlsplit(urljoin(current_url, value))
         origin = urlsplit(self.site.routes.origin)
         if (
@@ -267,6 +315,14 @@ class SiteArtifactValidator:
             or resolved.netloc.casefold() != origin.netloc.casefold()
         ):
             return None
+        # Internal file/route references use this explicit safe subset; do not
+        # impose local filesystem path rules on unrelated external links.
+        if (
+            " " in value
+            or "//" in raw_path
+            or any(part in (".", "..") for part in raw_path.split("/"))
+        ):
+            raise ValueError("unsafe URL path segments")
         return resolved.path or "/"
 
     def _validate_json_ld(
