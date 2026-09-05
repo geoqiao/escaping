@@ -51,6 +51,31 @@ Config, workflow, `CNAME`, local Theme, and migration tooling changes should tri
 Issue events may also trigger it because Issues are the content source. Branch/PR validation may
 build and upload an artifact, but the deploy job must be guarded to `refs/heads/main`.
 
+## Site-owned attachments with immutable GitHub links
+
+A site may keep attachment originals in its own repository and reference them in Issue
+Content with full-commit GitHub URLs. Commit and push the files before updating Issue
+Content; check that the public URLs serve the expected bytes. Image URLs use
+`https://raw.githubusercontent.com/<owner>/<repo>/<full-sha>/<path>`. Downloads may use
+the same raw URL; GitHub file-view links use `/blob/<full-sha>/<path>`.
+
+This policy does not add an attachment downloader, URL rewriter, or asset-copy step to the
+Site Compiler. Attachments remain external HTTPS resources in HTML and Atom. The compiler
+checks URL safety but does not prove external resource availability. The site owns byte
+verification, backups, migration maps, and keeping referenced commits reachable. Do not
+squash away or delete the only retained reference to a published attachment commit.
+
+An attachment-only commit does not need a Pages rebuild: the later Issue edit or Config
+change triggers it. Updating a file at a new commit does not update existing pinned links.
+Keep prior files and update references deliberately. Do not copy arbitrary `assets/` into
+`output/` or weaken the artifact validator to accommodate this policy.
+
+Historical migrations must back up Issue bodies, native metadata, labels, and comments;
+preserve Issue numbers, slugs, authored dates and original files; preview exact URL-only
+changes; and re-read the Issue before applying a patch to avoid overwriting intervening
+edits. GitHub updates `updated_at` on a body edit, so Atom modification dates will change.
+Issue edits can trigger production deployment and require the same production approval.
+
 ## Site-owned slug migration post-processing
 
 The compiler owns the current canonical routes. A site repository may maintain an explicit,

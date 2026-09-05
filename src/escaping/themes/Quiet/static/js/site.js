@@ -1,11 +1,9 @@
 (() => {
   "use strict";
   const root = document.documentElement;
-  const zh = root.lang.startsWith("zh");
   const mobile = matchMedia("(max-width: 760px)");
   const menu = document.querySelector(".menu-toggle");
-  const nav = document.getElementById("site-navigation");
-  const bottom = document.querySelector(".rail-bottom");
+  const panel = document.getElementById("navigation-panel");
   const themeToggle = document.querySelector(".theme-toggle");
   const system = matchMedia("(prefers-color-scheme: dark)");
   let choice;
@@ -29,14 +27,12 @@
 
   function closeMenu() {
     menu.setAttribute("aria-expanded", "false");
-    nav.classList.remove("is-open");
-    bottom.classList.remove("is-open");
+    panel.classList.remove("is-open");
   }
   menu.addEventListener("click", () => {
     const open = menu.getAttribute("aria-expanded") !== "true";
     menu.setAttribute("aria-expanded", String(open));
-    nav.classList.toggle("is-open", open);
-    bottom.classList.toggle("is-open", open);
+    panel.classList.toggle("is-open", open);
   });
   document.addEventListener("keydown", (event) => {
     if (event.key === "Escape" && menu.getAttribute("aria-expanded") === "true") {
@@ -44,10 +40,18 @@
       menu.focus();
     }
   });
+  let lastFocused = document.activeElement;
+  function dismissOutside(event) {
+    if (event.type === "focusin") lastFocused = event.target;
+    if (!panel.contains(event.target) && !menu.contains(event.target)) closeMenu();
+  }
+  document.addEventListener("pointerdown", dismissOutside);
+  document.addEventListener("focusin", dismissOutside);
   mobile.addEventListener("change", () => {
-    const active = document.activeElement;
+    // CSS can hide the focused panel before the media-query event runs.
+    const active = document.activeElement === document.body ? lastFocused : document.activeElement;
     closeMenu();
-    if (mobile.matches && (nav.contains(active) || bottom.contains(active))) menu.focus();
+    if (mobile.matches && panel.contains(active)) menu.focus();
     if (!mobile.matches && active === menu) document.querySelector(".identity").focus();
   });
   menu.hidden = false;
@@ -109,10 +113,10 @@
     element.tabIndex = 0;
     if (element.tagName === "PRE") element.setAttribute("role", "region");
     element.setAttribute("aria-label", element.tagName === "TABLE"
-      ? (zh ? "表格，可横向滚动" : "Table, scroll horizontally")
+      ? "Table, scroll horizontally"
       : element.querySelector(".language-mermaid") || element.classList.contains("mermaid")
-        ? (zh ? "图表，可横向滚动" : "Diagram, scroll horizontally")
-        : (zh ? "代码，可横向滚动" : "Code, scroll horizontally"));
+        ? "Diagram, scroll horizontally"
+        : "Code, scroll horizontally");
   });
   body.querySelectorAll("pre > code:not(.language-mermaid)").forEach((code) => {
     const bar = document.createElement("div");
@@ -120,14 +124,14 @@
     const button = document.createElement("button");
     button.type = "button";
     button.className = "copy-code";
-    button.textContent = zh ? "复制代码" : "Copy code";
+    button.textContent = "Copy code";
     button.setAttribute("aria-live", "polite");
     button.addEventListener("click", async () => {
       try {
         await navigator.clipboard.writeText(code.textContent);
-        button.textContent = zh ? "已复制" : "Copied";
+        button.textContent = "Copied";
       } catch {
-        button.textContent = zh ? "请选中代码手动复制" : "Select the code to copy manually";
+        button.textContent = "Select the code to copy manually";
       }
     });
     bar.appendChild(button);
