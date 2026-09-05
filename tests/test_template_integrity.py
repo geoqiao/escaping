@@ -8,6 +8,7 @@ from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
+from jinja2 import ChoiceLoader, DictLoader
 
 from escaping.config import Settings
 from escaping.content_compiler import ContentCompiler
@@ -101,7 +102,12 @@ def _render_theme(
                 'slug: post\ndescription: Post.\ncreated_date: "2026-01-01"',
                 labels=("tag:python",),
             ),
-            _snap(2, "idea", 'description: Idea.\ncreated_date: "2026-01-02"'),
+            _snap(
+                2,
+                "idea",
+                'description: Idea.\ncreated_date: "2026-01-02"',
+                labels=("tag:idea-only", "tag:python"),
+            ),
             _snap(10, "about", 'description: About.\ncreated_date: "2026-01-03"'),
         ]
     )
@@ -115,7 +121,7 @@ def _render_theme(
     return RenderService(loaded_theme).render_site(site)
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
 def test_theme_contract_renders_every_strict_page(theme: str) -> None:
     html = _render_theme(theme)
     assert set(html) >= {
@@ -151,6 +157,62 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
         assert 'data-comments-theme-mode="auto"' in rendered, page_name
 
 
+def test_quiet_idea_tags_are_text_while_blog_tags_keep_their_archive() -> None:
+    rendered = _render_theme("Quiet")
+    tags = re.search(r'<ul class="tag-links".*?</ul>', rendered["ideas/2/index.html"])
+    assert tags is not None
+    assert "<span>idea-only</span>" in tags.group()
+    assert "<span>python</span>" in tags.group()
+    assert "href=" not in tags.group()
+    assert "tags/idea-only/index.html" not in rendered
+    assert 'href="/tags/python/"' in rendered["blog/post/index.html"]
+    assert "tags/python/index.html" in rendered
+
+
+def test_named_site_routes_are_consumable_without_blogs_or_ideas() -> None:
+    settings = _settings("Quiet")
+    routes = RouteRegistry(str(settings.site.url))
+    content = ContentCompiler(settings, route_registry=routes).compile(
+        [_snap(10, "about", 'description: About.\ncreated_date: "2026-01-03"')]
+    )
+    site = SiteBuilder(settings, route_registry=routes).build(
+        content,
+        ProjectCompiler().compile(settings.projects, route=routes.projects()),
+        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
+    )
+    assert not site.has_errors and not site.blogs and not site.ideas
+    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
+    rendered = renderer.render_site(site)
+    names = ("home", "blog", "ideas", "about", "projects", "tags", "atom")
+    for name in names:
+        assert routes.route(name).output_path in rendered
+
+    # A consumer template exercises the public context, not a private helper.
+    assert renderer.env.loader is not None
+    renderer.env.loader = ChoiceLoader(
+        [
+            DictLoader(
+                {
+                    "home.html": (
+                        "{% for name in " + repr(names) + " %}"
+                        "{% set route = site_routes[name] %}"
+                        "{{ route.canonical_path }}|{{ route.output_path }}|"
+                        "{{ route.canonical_url }}\n{% endfor %}"
+                    )
+                }
+            ),
+            renderer.env.loader,
+        ]
+    )
+    renderer.env.cache.clear()
+    probe = renderer.render_site(site)["index.html"]
+    assert probe.splitlines() == [
+        f"{route.canonical_path}|{route.output_path}|{route.canonical_url}"
+        for name in names
+        for route in [routes.route(name)]
+    ]
+
+
 class _RuntimeResourceProbe(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
@@ -171,7 +233,7 @@ class _RuntimeResourceProbe(HTMLParser):
             self.resources.append(attributes.get("href", ""))
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
 def test_theme_runtime_dependencies_are_local_and_reproducible(theme: str) -> None:
     rendered = _render_theme(theme)
     probe = _RuntimeResourceProbe()
@@ -204,7 +266,7 @@ def test_theme_runtime_dependencies_are_local_and_reproducible(theme: str) -> No
     )
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
 def test_theme_favicon_is_a_valid_search_eligible_png(theme: str) -> None:
     favicon = (
         _ROOT / "src/escaping/themes" / theme / "static/images/favicon.png"

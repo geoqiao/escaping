@@ -42,7 +42,7 @@ def _theme(root: Path, name: str = "local") -> Path:
     return theme
 
 
-@pytest.mark.parametrize("name", ["geoqiao.me", "Escape1", "Escape2"])
+@pytest.mark.parametrize("name", ["geoqiao.me", "Escape1", "Escape2", "Quiet"])
 def test_builtin_theme_loads_and_copies_assets_outside_checkout(
     name: str, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

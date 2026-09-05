@@ -37,8 +37,10 @@ uv run python -m http.server 8000 --directory /path/to/site/output
 `security.token_env` selects the token environment variable dynamically. The
 generator ships `config.example.yaml`, and the default Theme is `geoqiao.me`.
 The canonical origin is owned by `site.url` in the site repository's Site Config,
-not by a Theme or by the generator. Escape1, Escape2, and geoqiao.me share the
-same template contract, comments behavior, and RouteRegistry rules.
+not by a Theme or by the generator. Escape1, Escape2, geoqiao.me, and
+[Quiet](docs/themes/quiet.md) share the same template contract, comments behavior,
+and RouteRegistry rules. Quiet uses neutral black/white surfaces with restrained
+avatar-magenta accents.
 The production workflow is owned by the site repository; see the
 [site Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml).
 Any consumer workflow must pin the compiler to a reviewed release or full 40-character SHA.

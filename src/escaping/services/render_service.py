@@ -92,6 +92,18 @@ class RenderService:
             "branding": metadata.branding,
             "comments": metadata.comments,
             "metadata": metadata,
+            "site_routes": {
+                name: site.routes.route(name)
+                for name in (
+                    "home",
+                    "blog",
+                    "ideas",
+                    "about",
+                    "projects",
+                    "tags",
+                    "atom",
+                )
+            },
         }
 
     @staticmethod

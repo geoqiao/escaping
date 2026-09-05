@@ -1,0 +1,13 @@
+{% extends 'base.html' %}
+{% set page_title = 'Blog' if archive_page.page_number == 1 else 'Blog · ' ~ archive_page.page_number %}
+{% set active_section = site_routes.blog.canonical_path %}
+{% block content %}
+{% from 'components.html' import entry_list with context %}
+<div class="page-heading"><p class="eyebrow">{{ '长文与记录' if zh else 'Notes in long form' }}</p><h1>Blog<span class="heading-dot" aria-hidden="true">.</span></h1><div class="page-caption"><p>{{ '按时间，慢慢翻。' if zh else 'A collection, in chronological order.' }}</p><a href="{{ site_routes.tags.canonical_path }}">{{ '按主题探索' if zh else 'Explore by topic' }} ↗</a></div></div>
+{{ entry_list(archive_page.entries) }}
+<nav class="pagination" aria-label="{{ '文章分页' if zh else 'Blog pagination' }}">
+  {% if archive_page.prev_route %}<a rel="prev" href="{{ archive_page.prev_route.canonical_path }}">← {{ '较新文章' if zh else 'Newer' }}</a>{% else %}<span></span>{% endif %}
+  <span>{{ archive_page.page_number }} / {{ archive_page.total_pages }}</span>
+  {% if archive_page.next_route %}<a rel="next" href="{{ archive_page.next_route.canonical_path }}">{{ '更早文章' if zh else 'Older' }} →</a>{% else %}<span></span>{% endif %}
+</nav>
+{% endblock %}

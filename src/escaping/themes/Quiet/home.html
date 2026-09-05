@@ -1,0 +1,35 @@
+{% extends 'base.html' %}
+{% block content %}
+{% from 'components.html' import tags, project_entry with context %}
+<div class="home-heading">
+  <p class="eyebrow">{{ '个人网站' if zh else 'A personal website' }} <span aria-hidden="true">/</span> Personal index</p>
+  <h1>{{ blog_title }}</h1>
+  <div class="home-caption"><p>{{ metadata.profile.tagline or ('文章、想法与正在做的事。' if zh else 'Writing, ideas, and things in the making.') }}</p><a href="{{ site_routes.about.canonical_path }}">{{ '关于我' if zh else 'About me' }} <span aria-hidden="true">↗</span></a></div>
+</div>
+{% if home_page.recent_posts %}
+<div class="home-grid">
+  {% set latest = home_page.recent_posts[0] %}
+  <section class="latest" aria-labelledby="latest-title">
+    <div class="latest-meta"><span class="eyebrow">{{ '最新文章' if zh else 'Latest writing' }}</span><time datetime="{{ latest.created_date }}">{{ latest.created_date }}</time></div>
+    <h2 id="latest-title"><a href="{{ latest.detail_path }}">{{ latest.title }}</a></h2>
+    <p class="latest-description">{{ latest.description }}</p>
+    {{ tags(latest.tags) }}
+    <a class="read-link" href="{{ latest.detail_path }}">{{ '开始阅读' if zh else 'Start reading' }} <span aria-hidden="true">↗</span></a>
+  </section>
+  <section class="recent" aria-labelledby="recent-title">
+    <div class="section-heading"><h2 id="recent-title">{{ '继续翻阅' if zh else 'More writing' }}</h2><a href="{{ site_routes.blog.canonical_path }}">{{ '全部' if zh else 'All' }} ↗</a></div>
+    {% for entry in home_page.recent_posts[1:] %}
+    <article class="recent-entry"><time datetime="{{ entry.created_date }}">{{ entry.created_date }}</time><h3><a href="{{ entry.detail_path }}">{{ entry.title }}</a></h3></article>
+    {% else %}<p>{{ '更多文章，慢慢写。' if zh else 'More writing to come.' }}</p>{% endfor %}
+  </section>
+</div>
+{% else %}
+<section class="empty-state"><h2>{{ '故事从这里开始。' if zh else 'The story starts here.' }}</h2><p>{{ '还没有已发布的文章。' if zh else 'No published writing yet.' }}</p><a href="{{ site_routes.about.canonical_path }}">{{ '先认识一下' if zh else 'Meet the author' }} ↗</a></section>
+{% endif %}
+{% if top_projects %}
+<section class="home-projects" aria-labelledby="projects-title">
+  <div class="section-heading"><h2 id="projects-title">{{ '也在做这些' if zh else 'Also building' }}</h2><a href="{{ projects_path }}">{{ '所有项目' if zh else 'All projects' }} ↗</a></div>
+  <div class="project-grid">{% for project in top_projects[:2] %}{{ project_entry(project) }}{% endfor %}</div>
+</section>
+{% endif %}
+{% endblock %}
