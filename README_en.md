@@ -1,7 +1,5 @@
 # escaping
 
-Requires Python 3.14.x, [`uv`](https://docs.astral.sh/uv/), and a GitHub token that can read the target repository's Issues.
-
 `escaping` is a strict static Site Compiler whose content source is GitHub
 Issues. It compiles conforming Issue snapshots from
 `docs/contracts/issue-content-v1.md` into one `SiteModel`. A single
@@ -27,7 +25,24 @@ explicit immutable Issue number, otherwise the sole valid published About Issue,
 otherwise Profile About without a fabricated Issue or discussion. Front matter
 is stripped before Markdown rendering; HTML goes through the allowlist sanitizer.
 
+## Start a site
+
+Use **Use this template** at [escaping-template](https://github.com/geoqiao/escaping-template).
+No local Python, PAT, or manually created publishing labels are required.
+
+> **Public preview:** an existing production site's build and deployment have been verified;
+> first-time template creation and the complete new-user initialization flow have not.
+
+1. Create `username.github.io` (public for GitHub Free), keep Issues/Actions enabled, and select **GitHub Actions** in **Settings → Pages**.
+2. Save an Issue with a title and Markdown body; wait for label preparation, then refresh the label selector.
+3. Add one of `type:blog`, `type:idea`, or `type:about`, plus `published` when ready, and check the Actions deployment.
+
+Project-site subpaths are unsupported; an existing custom domain must serve an HTTPS root URL.
+See the [starter instructions](starter/README.md).
+
 ## Local development
+
+Requires Python 3.14.x, [`uv`](https://docs.astral.sh/uv/), and a GitHub token that can read the target repository's Issues.
 
 ```bash
 uv sync

@@ -50,6 +50,18 @@ Renderer 和 artifact validator 只读取同一份 `SiteModel`。Theme 作为已
 
 ## 🚀 快速开始
 
+使用 [escaping-template](https://github.com/geoqiao/escaping-template) 的 **Use this template** 创建站点，无需本机 Python、PAT 或手动创建发布标签。
+
+> **公开预览：** 已验证现有生产站点的构建与部署；模板首次建仓、自动标签等新用户初始化尚未完整实跑。
+
+1. 创建 `username.github.io`（免费账户使用公开仓库），保持 Issues/Actions 开启，在 **Settings → Pages** 选择 **GitHub Actions**。
+2. 保存带标题和 Markdown 正文的 Issue，等待标签准备成功，再刷新标签选择器。
+3. 添加一个 `type:blog`、`type:idea` 或 `type:about`，准备好后添加 `published`，查看 Actions 部署结果。
+
+普通 project Pages 子路径不受支持；已有自定义域名须提供 HTTPS 根 URL。详细步骤见[模板说明](starter/README.md)。
+
+### 本地开发与显式配置
+
 需要 Python 3.14.x、[`uv`](https://docs.astral.sh/uv/) 和一个可读取目标仓库 Issues 的 GitHub Token。
 
 ```bash
