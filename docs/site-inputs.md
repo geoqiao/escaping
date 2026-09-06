@@ -4,11 +4,9 @@ The CLI resolves missing Config fields once, before compilation. The renderer,
 artifact validator, and `Settings` constructors never fetch public profiles.
 Direct `Settings` injection remains supported without new Profile requests.
 
-This N3 slice implements site identity, About discovery/Profile About, and
-selected Projects. The current UI defaults remain `geoqiao.me`, the existing
-Theme menus, and enabled Issue comments. Quiet as default, fully replaceable
-menus, and opt-in comments are pending N4; `comments.enabled` is **not yet a
-supported field**. Profile About never loads comments, regardless of Theme.
+The default Theme is `geoqiao.me`. Navigation is Theme-specific: Themes render
+configured entries and may add their own Home or RSS links. Built-in Issue pages
+load comments; Profile About never loads comments, regardless of Theme.
 
 ## CLI inputs
 
@@ -79,7 +77,9 @@ empty lists survive. Nested objects resolve field by field; lists replace as a
 whole. Null, unknown fields, unsafe URLs, duplicate YAML keys, and other invalid
 explicit values fail, not fall back. The existing `comments.repo: ""` content
 repository fallback is unchanged. Author entries are trimmed; this does not
-expand the authorization set.
+expand the authorization set. Only missing repository/site identity fields can
+be deferred to context/Profile resolution. Selected project `repository`, link
+`name`/`url`, and local Theme `name`/`path` must be supplied before any API request.
 
 Only public `login/name/avatar_url/bio` are fetched for Profile defaults. Optional
 Profile failure emits `PROFILE_ENRICHMENT_FAILED`, then uses the verified owner
@@ -109,8 +109,7 @@ construct Issue #0/None to keep an old template working. Use
 `{{ structured_data|tojson }}`: Profile About emits `AboutPage` with the resolved
 display name, without assuming an Organization owner is a Person. Its primary
 JSON-LD identity must be `AboutPage` or `ProfilePage`, never
-Article/BlogPosting or Issue dates. This is an additive API-1 context with a new
-About variant, not a claim that every old local About template supports it.
+Article/BlogPosting or Issue dates.
 
 ## Selected Projects
 
@@ -135,13 +134,14 @@ last segment, empty summary, and existing `fallback_metadata`. API rename data
 cannot change configured identity, key, or link. Repeated repo requests may be
 reused within one batch; there is no persistent project ledger.
 
-## Config roots and orchestration security seam
+## Config roots and Site Orchestrator interface
 
 Output and local Theme paths always belong to the **original Config directory**,
 not the context directory or process CWD. Never copy Config to a temporary
 platform directory just to resolve defaults.
 
-N6 can reuse the same safe parser and security validation before final Settings:
+The Site Orchestrator can use the same safe parser and security validation
+before final Settings:
 
 ```python
 from pathlib import Path
@@ -151,10 +151,10 @@ overrides = read_config_overrides(Path("site/config.yaml"))
 token_env = security_from_config(overrides).token_env
 ```
 
-This returns a validated name only. CLI reads its value from process environment;
-no secret belongs in JSON, argv, logs, or artifacts. N6's parent-process mapping,
-reserved environment-name checks and collision checks are separate work, not
-implemented by this seam. No `eval`, alternative YAML loader, or implicit secret
-renaming is needed. Preserve absent-field provenance when serializing advanced
-in-memory input (`model_dump(exclude_unset=True)`); serializing model defaults as
-explicit overrides intentionally freezes them.
+This returns a validated name only and does not mutate the process environment.
+CLI reads the value from that environment variable; no secret belongs in JSON,
+argv, logs, or artifacts. An Orchestrator that maps secrets into a child process
+owns reserved environment-name and collision checks. Reuse this parser rather
+than `eval` or an alternative YAML loader. Preserve absent-field provenance when
+serializing advanced in-memory input (`model_dump(exclude_unset=True)`);
+serializing model defaults as explicit overrides intentionally freezes them.

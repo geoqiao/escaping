@@ -451,8 +451,13 @@ class ProjectCatalogEntry(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     repository: str
-    slug: str = Field(default_factory=lambda data: data["repository"].casefold())
-    title: str = Field(default_factory=lambda data: data["repository"].split("/")[1])
+    # Factories may run while the required repository error is being collected.
+    slug: str = Field(
+        default_factory=lambda data: data.get("repository", "").casefold()
+    )
+    title: str = Field(
+        default_factory=lambda data: data.get("repository", "").rsplit("/", 1)[-1]
+    )
     summary: str = ""
     featured: bool = False
     order: int = 0
@@ -513,7 +518,7 @@ def read_config_overrides(path: Path) -> dict:
 
 
 def validate_config_overrides(data: object) -> None:
-    """Validate supplied fields against Settings, deferring only missing fields.
+    """Validate supplied fields, deferring only resolvable missing identity fields.
 
     There is deliberately no parallel tree of optional configuration models.
     """
@@ -532,7 +537,22 @@ def validate_config_overrides(data: object) -> None:
     try:
         Settings.model_validate(data)
     except ValidationError as exc:
-        errors = [error for error in exc.errors() if error["type"] != "missing"]
+        # Only these identities can be supplied later by resolve_settings.
+        # Required fields inside selected projects, links, and local Themes cannot.
+        resolvable = {
+            ("github",),
+            ("github", "repo"),
+            ("github", "allowed_authors"),
+            ("site",),
+            ("site", "title"),
+            ("site", "author"),
+            ("site", "url"),
+        }
+        errors = [
+            error
+            for error in exc.errors()
+            if error["type"] != "missing" or error["loc"] not in resolvable
+        ]
         if errors:
             # Do not echo arbitrary Config values (or secrets) into CLI logs.
             fields = ", ".join(".".join(map(str, e["loc"])) or "Config" for e in errors)
@@ -559,7 +579,7 @@ def read_platform_context(path: Path) -> PlatformContext:
 
 
 def security_from_config(overrides: dict) -> SecurityConfig:
-    """N6 seam: validate the same Config and read only the token variable name.
+    """Orchestrator interface: validate Config and read only the token variable name.
 
     The caller owns any child-process secret mapping; no env mutation or shell
     evaluation is performed here.

@@ -291,7 +291,21 @@ def test_cli_resolves_context_from_original_config_directory_and_preserves_outpu
     assert before == {
         p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
     }
+    # A missing selected-project identity is a controlled input failure, not
+    # an uncaught factory exception or a successful empty project fallback.
+    config.write_text(
+        "security:\n  token_env: READ_TOKEN\nprojects: [{}]\n",
+        encoding="utf-8",
+    )
+    context.write_text(json.dumps(context_data), encoding="utf-8")
+    with pytest.raises(SystemExit) as error:
+        run_cli()
+    assert error.value.code == 1
+    assert before == {
+        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
+    }
     logs = capsys.readouterr().out
+    assert "projects.0.repository" in logs
     assert "PROFILE_ENRICHMENT_FAILED" in logs and "FETCH_FAILED" in logs
     assert "not-for-output" not in logs
     assert all(b"not-for-output" not in value for value in before.values())

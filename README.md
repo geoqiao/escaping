@@ -96,11 +96,11 @@ security:
   token_env: GITHUB_TOKEN
 ```
 
-字段可省略，由同一个 resolver 补齐；无 context 时至少提供真实 `github.repo` 和 HTTPS 根 `site.url`，组织还须显式指定作者。平台可提供严格的 `--context context.json`，此时 Config 可为 `{}`；不从 actor 授权、不猜 Pages URL。字段来源、安全边界和 N6 接口见[站点输入说明](docs/site-inputs.md)。
+字段可省略，由同一个 resolver 补齐；无 context 时至少提供真实 `github.repo` 和 HTTPS 根 `site.url`，组织还须显式指定作者。平台可提供严格的 `--context context.json`，此时 Config 可为 `{}`；不从 actor 授权、不猜 Pages URL。字段来源、安全边界和 Site Orchestrator 接口见[站点输入说明](docs/site-inputs.md)。
 
 Blog slug 缺省为 Issue 编号，也可逐字段覆盖；About 优先使用显式编号，否则发现唯一合法 published About，没有时展示无 Issue／日期／评论身份的 Profile About。Projects 只选 `repository` 即可补公开名称／摘要，手填值优先。完整字段见 [`config.example.yaml`](config.example.yaml)，内容格式见 [`Issue Content v1`](docs/contracts/issue-content-v1.md)。
 
-本切片仍保留旧 Theme／菜单／Issue 评论默认；Quiet 默认、完整菜单覆盖和可选评论开关待 N4，尚不接受 `comments.enabled`。
+导航由 Theme 结合配置渲染；内置 Theme 的 Issue 页面加载评论，Profile About 不加载评论。
 
 默认 `geoqiao.me` 会优先使用 `profile.avatar`，未配置时回退到内置 mark；
 它不会把 Site Thesis、tagline 或 profile bio 放到首页。为兼容本地 Theme，这些字段

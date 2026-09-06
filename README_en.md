@@ -44,10 +44,10 @@ and Pages identity so Config can be `{}`. Missing identity fields use the public
 owner profile, never the workflow actor. Projects need only a selected
 `repository`; explicit title/summary override public enrichment.
 
-See [site input sources and boundaries](docs/site-inputs.md), including the N6
-safe security-reading seam. This N3 slice retains the old `geoqiao.me`, menu, and
-Issue-comment defaults. Quiet as default, complete menu replacement, and the
-`comments.enabled` switch remain pending N4; the switch is not supported yet.
+See [site input sources and boundaries](docs/site-inputs.md), including the
+Site Orchestrator interface for safely reading the token variable name. The
+default Theme is `geoqiao.me`; navigation is rendered by the Theme using Config
+entries. Built-in Issue pages load comments; Profile About does not.
 The canonical origin is owned by `site.url` in the site repository's Site Config,
 not by a Theme or by the generator. Escape1, Escape2, geoqiao.me, and
 [Quiet](docs/themes/quiet.md) share the same template contract, comments behavior,

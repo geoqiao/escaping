@@ -50,11 +50,12 @@ Directory routes write `index.html`:
 - `source: builtin`: a package resource from `src/escaping/themes/`;
 - `source: local`: a directory relative to the Config file.
 
-This N3 slice retains `geoqiao.me` as the default; Escape1, Escape2 and Quiet are
-alternatives. Quiet default, fully replaceable menus and opt-in Issue comments
-remain pending N4; do not configure `comments.enabled` yet. Templates and static assets come from the same
-validated manifest and use Jinja `StrictUndefined` with autoescape. Theme
-fetching and commit pinning are orchestration concerns, not compiler behavior.
+`geoqiao.me` is the default; Escape1, Escape2 and Quiet are alternatives.
+Navigation is Theme-specific, using configured entries alongside any links the
+Theme supplies. Built-in Issue pages load comments; Profile About does not.
+Templates and static assets come from the same validated manifest and use Jinja
+`StrictUndefined` with autoescape. Theme fetching and commit pinning are
+orchestration concerns, not compiler behavior.
 
 Site Thesis and Site Profile copy remain in `SiteMetadata` for compatible local
 Themes, but presentation is Theme-specific. Escape2 renders configured thesis

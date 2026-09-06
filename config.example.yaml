@@ -3,7 +3,7 @@
 # Missing fields resolve from trusted context + public owner profile.
 # Without --context, github.repo and a real root site.url must be explicit;
 # Organization owners must also provide allowed_authors. See docs/site-inputs.md.
-# Current UI defaults remain unchanged pending N4 (no comments.enabled yet).
+# Built-in Issue pages load comments; Profile About has no discussion thread.
 # Core overrides
 # ============================================
 github:

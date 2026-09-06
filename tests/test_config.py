@@ -1,6 +1,8 @@
 from __future__ import annotations
 
+import re
 from pathlib import Path
+from typing import Never
 
 import pytest
 from pydantic import ValidationError
@@ -150,6 +152,12 @@ def test_removed_noop_config_fields_are_rejected(
 
 
 def test_repository_references_use_owner_repo_format() -> None:
+    with pytest.raises(ValidationError) as missing:
+        ProjectCatalogEntry.model_validate({})
+    assert any(
+        error["type"] == "missing" and error["loc"] == ("repository",)
+        for error in missing.value.errors()
+    )
     with pytest.raises(ValidationError):
         Settings.model_validate({**_BASE, "comments": {"repo": "javascript:bad"}})
     with pytest.raises(ValidationError):
@@ -211,6 +219,13 @@ def test_resolver_sources_preserve_overrides_and_require_trusted_authors() -> No
     assert settings.site.title == settings.site.author == "Alice Example"
     assert str(settings.site.url) == "https://notes.example/"
     assert settings.profile.bio == settings.site.description == "Hello"
+    partial, _ = resolve_settings(
+        {"github": {}, "site": {}, "projects": [{"repository": "Alice/Tool"}]},
+        context=context,
+        github_service=source,
+    )
+    assert partial.github == settings.github and partial.site == settings.site
+    assert partial.projects[0].slug == "alice/tool"
     overrides = {
         "site": {"description": "", "navigation": {"items": []}},
         "profile": {"avatar": "", "bio": ""},
@@ -280,6 +295,52 @@ def test_resolver_rejects_invalid_explicit_values_before_enrichment(data: dict) 
 
     with pytest.raises(ValueError, match=r"Invalid Config fields|explicit null"):
         resolve_settings(data)
+
+
+@pytest.mark.parametrize(
+    ("data", "field"),
+    [
+        ({"projects": [{}]}, "projects.0.repository"),
+        ({"site": {"navigation": {"items": [{}]}}}, "site.navigation.items.0.name"),
+        (
+            {"site": {"navigation": {"items": [{"name": "Blog"}]}}},
+            "site.navigation.items.0.url",
+        ),
+        (
+            {"profile": {"links": [{"url": "https://example.org/"}]}},
+            "profile.links.0.name",
+        ),
+        ({"profile": {"links": [{"name": "Profile"}]}}, "profile.links.0.url"),
+        ({"theme": {"source": "local", "path": "theme"}}, "theme.local.name"),
+        ({"theme": {"source": "local", "name": "custom"}}, "theme.local.path"),
+    ],
+)
+def test_non_defaultable_missing_fields_fail_before_profile_source(
+    data: dict, field: str
+) -> None:
+    from escaping.config import PlatformContext, validate_config_overrides
+    from escaping.site_inputs import resolve_settings
+
+    class NoNetwork:
+        def fetch_repository_identity(self, repository: str) -> Never:
+            pytest.fail("Invalid Config must fail before repository access")
+
+        def fetch_public_profile(self, login: str) -> Never:
+            pytest.fail("Invalid Config must fail before Profile access")
+
+    context = PlatformContext.model_validate(
+        {
+            "repository": "alice/site",
+            "owner_login": "alice",
+            "owner_type": "User",
+            "pages_base_url": "https://notes.example/",
+            "pages_base_path": "/",
+        }
+    )
+    with pytest.raises(ValueError, match=re.escape(field)):
+        validate_config_overrides(data)
+    with pytest.raises(ValueError, match=re.escape(field)):
+        resolve_settings(data, context=context, github_service=NoNetwork())
 
 
 def test_context_and_missing_information_are_not_guessed(tmp_path: Path) -> None:
