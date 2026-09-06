@@ -164,6 +164,8 @@ This returns a validated name only and does not mutate the process environment.
 CLI reads the value from that environment variable; no secret belongs in JSON,
 argv, logs, or artifacts. An Orchestrator that maps secrets into a child process
 owns reserved environment-name and collision checks. Reuse this parser rather
-than `eval` or an alternative YAML loader. Preserve absent-field provenance when
-serializing advanced in-memory input (`model_dump(exclude_unset=True)`);
-serializing model defaults as explicit overrides intentionally freezes them.
+than `eval` or an alternative YAML loader. Keep the original overrides mapping
+when absence matters. `model_dump(exclude_unset=True)` preserves omitted model
+defaults only for a model constructed directly from that input; it cannot recover
+original YAML provenance from resolved `Settings`, where context/Profile values
+have already been supplied. Serializing resolved values as overrides freezes them.
