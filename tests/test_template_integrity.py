@@ -319,10 +319,10 @@ def test_quiet_interface_is_english_without_translating_site_content(
             assert "中文站点" in html
             assert not re.search(r"[\u4e00-\u9fff]", html.replace("中文站点", ""))
     assert "Site index" in rendered["index.html"]
-    assert "Writing, ideas, and things in the making." in rendered["index.html"]
+    assert "Writing and things in the making." in rendered["index.html"]
 
 
-def test_quiet_uses_profile_avatar_for_identity_about_and_favicon() -> None:
+def test_quiet_uses_profile_avatar_only_for_identity_and_favicon() -> None:
     avatar = "https://example.com/ada.webp"
     rendered = _render_theme("Quiet", author="Ada Lovelace", avatar=avatar)
     for path, html in rendered.items():
@@ -330,7 +330,8 @@ def test_quiet_uses_profile_avatar_for_identity_about_and_favicon() -> None:
             assert f'<link rel="icon" href="{avatar}">' in html
             assert f'class="identity-avatar" src="{avatar}" alt=""' in html
             assert "identity-mark" not in html
-    assert f'class="profile-avatar" src="{avatar}"' in rendered["about/index.html"]
+    assert rendered["about/index.html"].count(f'src="{avatar}"') == 1
+    assert 'class="about-page"' in rendered["about/index.html"]
     fallback = _render_theme("Quiet", author="Ada Lovelace")["index.html"]
     assert ">AL</span>" in fallback
     assert 'href="/templates/Quiet/static/images/favicon.png"' in fallback

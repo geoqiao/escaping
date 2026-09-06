@@ -769,7 +769,6 @@ def test_starter_installs_then_runs_real_console_with_original_config_and_safe_t
     assert [(url, name.strip()) for url, name in links] == [
         ("/", "Home"),
         ("/blog/", "Blog"),
-        ("/ideas/", "Ideas"),
         ("/projects/", "Projects"),
         ("/tags/", "Tags"),
         ("/about/", "About"),

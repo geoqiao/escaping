@@ -23,6 +23,7 @@
   <link rel="alternate" type="application/atom+xml" title="{{ blog_title }}" href="{{ site_routes.atom.canonical_path }}">
   <script src="{{ theme_path }}/static/js/appearance.js"></script>
   <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
+  <link rel="stylesheet" href="{{ theme_path }}/static/css/syntax.css">
   <script src="{{ theme_path }}/static/js/site.js" defer></script>
   {% if structured_data is defined %}<script type="application/ld+json">{{ structured_data|tojson }}</script>{% endif %}
 </head>
@@ -38,12 +39,12 @@
     {% if navigation_items %}<nav id="site-navigation" aria-label="Main navigation">
       <p class="eyebrow rail-label">Site index</p>
       {% for item in navigation_items %}
-      <a href="{{ item.url }}"{% if item.url == active_section %} aria-current="page"{% endif %}>{{ item.name }} <span aria-hidden="true">{{ '↗' if item.url.startswith('https:') or item.url in (home_path, active_section, site_routes.atom.canonical_path) else '·' }}</span></a>
+      <a href="{{ item.url }}"{% if item.url == active_section %} aria-current="page"{% endif %}>{{ item.name }}{% if item.url == active_section %}<span class="nav-arrow" aria-hidden="true">↗</span>{% endif %}</a>
       {% endfor %}
     </nav>{% endif %}
     <div class="rail-bottom">
       <button class="theme-toggle" type="button" aria-pressed="false" hidden><span aria-hidden="true">◐</span> Dark mode</button>
-      <p class="rail-note">Writing, ideas &amp; projects.</p>
+      <p class="rail-note">Writing &amp; projects.</p>
     </div>
     </div>
   </header>

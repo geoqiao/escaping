@@ -7,6 +7,12 @@ from ..routes import Route
 
 
 @dataclass(frozen=True)
+class ProjectLink:
+    name: str
+    url: str
+
+
+@dataclass(frozen=True)
 class Project:
     slug: str
     title: str
@@ -19,6 +25,8 @@ class Project:
     forks: int | None = None
     language: str | None = None
     topics: tuple[str, ...] = field(default_factory=tuple)
+    image: str = ""
+    links: tuple[ProjectLink, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)

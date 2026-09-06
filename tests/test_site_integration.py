@@ -256,15 +256,15 @@ def test_front_matter_source_is_separate_from_rendered_body(
 ) -> None:
     body = "Body sentinel.\n\n```yaml\n---\nslug: literal\n---\n```"
     site = _render_representative_site(_settings(theme), tmp_path, body=body)
-    expected = (
-        '<p>Body sentinel.</p>\n<pre><code class="language-yaml">'
-        "---\nslug: literal\n---\n</code></pre>\n"
-    )
     assert isinstance(site.about, AboutPage)
     for page in (*site.blogs, *site.ideas, site.about):
-        assert page.body_html == expected
+        body_tree = ET.fromstring(f"<div>{page.body_html}</div>")  # noqa: S314
+        assert body_tree.findtext("p") == "Body sentinel."
+        code = body_tree.find("pre/code")
+        assert code is not None
+        assert "".join(code.itertext()) == "---\nslug: literal\n---\n"
         rendered = (tmp_path / page.route.output_path).read_text(encoding="utf-8")
-        assert expected in rendered
+        assert page.body_html in rendered
         assert "created_date:" not in rendered
         assert "description:" not in rendered
     assert SiteArtifactValidator(site).validate(tmp_path) == []

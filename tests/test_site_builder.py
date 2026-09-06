@@ -155,7 +155,6 @@ def test_default_navigation_uses_registered_routes_and_explicit_lists_replace_it
     expected = [
         ("Home", "/"),
         ("Blog", "/blog/"),
-        ("Ideas", "/ideas/"),
         ("Projects", "/projects/"),
         ("Tags", "/tags/"),
         ("About", "/about/"),

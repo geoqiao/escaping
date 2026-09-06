@@ -3,7 +3,8 @@ from __future__ import annotations
 import pytest
 from pydantic import ValidationError
 
-from escaping.config import ProjectCatalogEntry, ProjectFallbackMetadata
+from escaping.config import Link, ProjectCatalogEntry, ProjectFallbackMetadata
+from escaping.models.projects import ProjectLink
 from escaping.projects import ProjectCompiler, ProjectEnrichment
 from escaping.routes import Route, RouteRegistry
 
@@ -50,7 +51,7 @@ def test_project_catalog_strict_validation() -> None:
 def test_projects_sort_feature_and_use_github_links() -> None:
     result = ProjectCompiler().compile(
         [
-            _entry("z", order=1),
+            _entry("z", order=1, featured=True),
             _entry("a", order=1, featured=True),
             _entry("first", order=0),
         ],
@@ -58,9 +59,30 @@ def test_projects_sort_feature_and_use_github_links() -> None:
     )
     page = result.page
     assert [project.slug for project in page.projects] == ["first", "a", "z"]
-    assert [project.slug for project in page.featured] == ["a"]
+    assert [project.slug for project in page.featured] == ["a", "z"]
     assert page.projects[0].url == "https://github.com/geoqiao/first"
     assert page.canonical_path == "/projects/"
+
+
+def test_compiler_preserves_project_visual_fields_as_immutable_data() -> None:
+    result = ProjectCompiler().compile(
+        [
+            ProjectCatalogEntry(
+                repository="geoqiao/visual",
+                image="/templates/my-theme/static/images/visual.webp",
+                links=[Link(name="Demo", url="https://example.org/")],
+            )
+        ],
+        route=_projects_route(),
+    )
+    project = result.page.projects[0]
+    assert project.image == "/templates/my-theme/static/images/visual.webp"
+    assert isinstance(project.links, tuple)
+    assert isinstance(project.links[0], ProjectLink)
+    assert (project.links[0].name, project.links[0].url) == (
+        "Demo",
+        "https://example.org/",
+    )
 
 
 def test_projects_rank_top_five_by_stars_with_catalog_order_tiebreaker() -> None:

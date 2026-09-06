@@ -73,7 +73,6 @@ def _browser_settings(theme: str) -> Settings:
                     "items": [
                         {"name": "Home", "url": "/"},
                         {"name": "Blog", "url": "/blog/"},
-                        {"name": "Ideas", "url": "/ideas/"},
                         {"name": "Projects", "url": "/projects/"},
                         {"name": "Tags", "url": "/tags/"},
                         {"name": "About", "url": "/about/"},
@@ -85,6 +84,28 @@ def _browser_settings(theme: str) -> Settings:
             if theme == "Quiet"
             else {},
             "about": {"issue_number": 10},
+            "projects": [
+                {
+                    "repository": f"example/tool{i}",
+                    "title": f"Tool {i}",
+                    "summary": "A useful, independently maintained tool.",
+                    "featured": i != 0,
+                    "order": 6 - i,
+                    "image": "/templates/Quiet/static/images/favicon.png"
+                    if i == 6
+                    else "",
+                    "links": [
+                        {"name": "Docs & examples", "url": "https://example.com/docs"}
+                    ]
+                    if i == 6
+                    else [],
+                    "fallback_metadata": {"stars": 100 - i, "language": "Python"},
+                }
+                for i in range(7)
+            ]
+            if theme == "Quiet"
+            else [],
+            "paths": {"page_size": 2},
             "security": {"token_env": "TEST_TOKEN"},
             "comments": {"enabled": True},
             "theme": {
@@ -236,6 +257,19 @@ def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
             21,
             "toc-headings",
             "Introduction.\n\n## Repeat\n\nText.\n\n## Repeat\n\n### 嵌套细节",
+        ),
+        (
+            24,
+            "toc-long",
+            "\n\n".join(f"## Section {i}\n\n{long_paragraph}" for i in range(30)),
+        ),
+        (
+            25,
+            "syntax",
+            '```python\n# Keep source intact\nimport os\nprint("hello")\n'
+            + "# "
+            + "x" * 180
+            + "\n```\n\n```unknown-language\n<plain> & text\n```\n\n```\nunmarked text\n```",
         ),
         (22, "toc-none", "No section headings here."),
         (23, "toc-escaped", "Only code.\n\n```html\n<h2>Not a heading</h2>\n```"),
@@ -858,8 +892,8 @@ def test_quiet_navigation_is_stable_and_usable_when_initialization_is_unavailabl
     [
         ("toc-headings", 320, False),
         ("toc-headings", 390, False),
-        ("toc-headings", 1180, False),
-        ("toc-headings", 1181, False),
+        ("toc-headings", 1160, False),
+        ("toc-headings", 1161, False),
         ("toc-headings", 320, True),
         ("toc-none", 390, False),
         ("toc-escaped", 390, False),
@@ -892,7 +926,7 @@ def test_quiet_toc_reserves_its_natural_compact_size_before_initialization(
         before = main.evaluate(offset)
         height = aside.evaluate("e => e.getBoundingClientRect().height")
         has_headings = slug == "toc-headings"
-        if has_headings and width <= 1180:
+        if has_headings and width <= 1160:
             assert height > 0
             gap = main.evaluate(
                 "e => parseFloat(getComputedStyle(e.parentElement).rowGap)"
@@ -910,7 +944,7 @@ def test_quiet_toc_reserves_its_natural_compact_size_before_initialization(
         assert main.evaluate(offset) == pytest.approx(before, abs=1)
         if has_headings:
             expect(summary).to_be_visible()
-            if width <= 1180:
+            if width <= 1160:
                 assert aside.evaluate("e => e.getBoundingClientRect().height") == height
                 summary.press("Enter")
             else:
@@ -947,7 +981,7 @@ def test_quiet_toc_unavailable_script_leaves_no_fake_control(
         height = aside.evaluate("e => e.getBoundingClientRect().height")
         if javascript:
             # Natural closed summary + padding, not the height of an empty open nav.
-            assert height == 68
+            assert height == 60
         else:
             assert height == 0
         summary = aside.locator("summary")
@@ -1495,5 +1529,246 @@ def test_comments_feedback_rejects_wrong_origin_and_source(
         expect(page.locator("#comments-container .comments-error a")).to_have_attribute(
             "href", "https://github.com/geoqiao/site/issues/1"
         )
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("width", [1495, 1161, 1160, 390, 320])
+def test_quiet_v3_centered_pages_and_compact_navigation(
+    comments_browser: Browser, site_servers: dict[str, str], width: int
+) -> None:
+    page = comments_browser.new_page(viewport={"width": width, "height": 960})
+    page.route("https://**/*", lambda route: route.abort())
+    try:
+        for path in (
+            "",
+            "blog/",
+            "blog/page/2/",
+            "tags/",
+            "tags/pi/",
+            "projects/",
+            "about/",
+            "blog/a-blog/",
+            "ideas/2/",
+        ):
+            page.goto(f"{site_servers['Quiet']}/{path}", wait_until="load")
+            page.evaluate("document.fonts.ready")
+            geometry = page.locator("main").evaluate("""e => {
+                const r = e.getBoundingClientRect();
+                const rail = document.querySelector('.site-rail').getBoundingClientRect();
+                const margin = document.querySelector('.reading-margin:not([hidden])')?.getBoundingClientRect();
+                return {width: r.width, center: r.x + r.width / 2 - document.documentElement.clientWidth / 2,
+                    rail: rail.width, gap: r.x - rail.right, toc: margin?.width,
+                    rightGap: margin ? margin.left - r.right : null};
+            }""")
+            assert abs(geometry["center"]) < 1, (path, geometry)
+            assert page.evaluate(
+                "document.documentElement.scrollWidth <= innerWidth"
+            ), path
+            expect(
+                page.locator("#site-navigation a:not([aria-current]) .nav-arrow")
+            ).to_have_count(0)
+            expect(
+                page.locator("#site-navigation [aria-current] .nav-arrow")
+            ).to_have_count(0 if path == "ideas/2/" else 1)
+            if width > 1160:
+                assert geometry["width"] == 704 and geometry["rail"] == 160
+                assert geometry["gap"] == 40
+                if geometry["toc"] is not None:
+                    assert 160 <= geometry["toc"] <= 320 and geometry["rightGap"] == 40
+            else:
+                menu = page.get_by_role("button", name="Toggle menu")
+                expect(menu).to_be_visible()
+                menu.click()
+                page.keyboard.press("Escape")
+                expect(menu).to_be_focused()
+                expect(menu).to_have_attribute("aria-expanded", "false")
+            if page.locator(".post-content").count():
+                expect(page.locator(".post-content")).to_have_css("font-size", "16px")
+                expect(page.locator(".post-content")).to_have_css("line-height", "28px")
+            if path == "blog/a-blog/":
+                title = page.locator(".article-heading h1")
+                expect(title).to_have_css("font-size", "24px")
+                expect(title).to_have_css("line-height", "42px")
+                expect(title).to_have_css("letter-spacing", "normal")
+                expect(title).to_have_css("text-wrap", "wrap")
+    finally:
+        page.close()
+
+
+def test_quiet_v3_toc_follows_page_when_taller_than_viewport(
+    comments_browser: Browser, site_servers: dict[str, str]
+) -> None:
+    page = comments_browser.new_page(viewport={"width": 1495, "height": 520})
+    page.route("https://**/*", lambda route: route.abort())
+    try:
+        page.goto(f"{site_servers['Quiet']}/blog/toc-long/", wait_until="load")
+        margin, toc = page.locator(".reading-margin"), page.locator(".toc")
+        expect(margin).to_have_css("position", "static")
+        expect(toc.locator("nav")).to_have_css("overflow-y", "visible")
+        assert toc.locator("nav").evaluate("e => e.scrollHeight <= e.clientHeight + 1")
+        last = toc.locator("a").last
+        last.focus()
+        expect(last).to_be_in_viewport()
+        page.keyboard.press("Enter")
+        expect(
+            page.get_by_role("heading", name="Section 29", exact=True)
+        ).to_be_in_viewport()
+        page.evaluate("scrollTo(0, 0)")
+        toc.locator("summary").click()
+        expect(margin).to_have_css("position", "sticky")
+        toc.locator("summary").click()
+        expect(margin).to_have_css("position", "static")
+        page.set_viewport_size({"width": 1495, "height": 1800})
+        expect(margin).to_have_css("position", "sticky")
+        page.set_viewport_size({"width": 1495, "height": 520})
+        expect(margin).to_have_css("position", "static")
+    finally:
+        page.close()
+
+
+def test_quiet_v3_ordered_featured_cards_and_generic_about(
+    comments_browser: Browser, site_servers: dict[str, str]
+) -> None:
+    page = comments_browser.new_page(viewport={"width": 1495, "height": 960})
+    page.route("https://**/*", lambda route: route.abort())
+    try:
+        for path, count in (("", 4), ("about/", 4), ("projects/", 7)):
+            page.goto(f"{site_servers['Quiet']}/{path}", wait_until="load")
+            cards = page.locator(".work-card")
+            expect(cards).to_have_count(count)
+            assert cards.locator("h2").all_text_contents() == [
+                f"Tool {i}" for i in range(6, 6 - count, -1)
+            ]
+            if path == "about/":
+                expect(page.locator(".about-header img")).to_have_count(0)
+                expect(page.locator("main img")).to_have_count(1)
+                expect(page.locator(".more-projects")).to_have_css(
+                    "border-width", "0px"
+                )
+                narrative_box = page.locator(".post-content").bounding_box()
+                cards_box = cards.first.bounding_box()
+                assert narrative_box is not None and cards_box is not None
+                assert narrative_box["y"] < cards_box["y"]
+                expect(page.locator(".post-content")).to_contain_text("Things I Do")
+                assert page.locator(".about-story h2").evaluate(
+                    "e => parseFloat(getComputedStyle(e).fontSize)"
+                ) == pytest.approx(18.72, abs=0.01)
+                expect(page.locator(".about-story > p").first).to_have_css(
+                    "font-size", "20px"
+                )
+                expect(page.locator(".about-story > p").first).to_have_css(
+                    "line-height", "35px"
+                )
+                expect(page.locator("#comments-container")).to_have_attribute(
+                    "data-issue-number", "10"
+                )
+            else:
+                box = cards.first.bounding_box()
+                assert box is not None and box["width"] / box[
+                    "height"
+                ] == pytest.approx(1.618, abs=0.01)
+            expect(cards.locator("img")).to_have_count(1)
+            cards.first.locator("img").scroll_into_view_if_needed()
+            expect(cards.first.locator("img")).to_have_js_property("complete", True)
+            assert cards.first.locator("img").evaluate("e => e.naturalWidth > 0")
+            expect(
+                cards.first.get_by_role(
+                    "link", name="Docs & examples", include_hidden=True
+                )
+            ).to_have_attribute("href", "https://example.com/docs")
+            cards.locator(".work-summary").first.evaluate(
+                "e => e.textContent = 'LongConfigurableText'.repeat(80)"
+            )
+            cards.locator(".work-footer a").first.evaluate(
+                "e => e.textContent = 'https://example.com/' + 'DocumentationLink'.repeat(20)"
+            )
+            for width in (1495, 320):
+                page.set_viewport_size({"width": width, "height": 960})
+                assert page.evaluate(
+                    "document.documentElement.scrollWidth <= innerWidth"
+                )
+                assert cards.evaluate_all(
+                    "els => els.every(e => e.scrollHeight <= e.clientHeight + 1)"
+                )
+            page.set_viewport_size({"width": 1495, "height": 960})
+    finally:
+        page.close()
+
+
+def test_quiet_v3_code_surface_preserves_text_colors_and_native_scroll(
+    comments_browser: Browser, site_servers: dict[str, str]
+) -> None:
+    page = comments_browser.new_page(
+        viewport={"width": 1495, "height": 960}, color_scheme="light"
+    )
+    page.route("https://**/*", lambda route: route.abort())
+    try:
+        page.emulate_media(reduced_motion="reduce")
+        page.goto(f"{site_servers['Quiet']}/blog/syntax/", wait_until="load")
+        blocks = page.locator(".code-block")
+        expect(blocks).to_have_count(3)
+        assert blocks.locator(".code-language").all_text_contents() == [
+            "python",
+            "unknown-language",
+            "text",
+        ]
+        code = blocks.first.locator("code")
+        expected = (
+            '# Keep source intact\nimport os\nprint("hello")\n# ' + "x" * 180 + "\n"
+        )
+        assert code.text_content() == expected
+        assert code.locator("span").count() > 3
+        assert blocks.nth(1).locator("code").text_content() == "<plain> & text\n"
+        for width in (1495, 390, 320):
+            page.set_viewport_size({"width": width, "height": 960})
+            pre = blocks.first.locator("pre")
+            expect(pre).to_have_css("white-space", "pre")
+            expect(pre).to_have_css("scrollbar-width", "thin")
+            assert "rgba(0, 0, 0, 0)" in pre.evaluate(
+                "e => getComputedStyle(e).scrollbarColor"
+            )
+            assert pre.evaluate("e => e.scrollWidth > e.clientWidth")
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            pre.focus()
+            expect(pre).to_be_focused()
+            if comments_browser.browser_type.name == "chromium":
+                page.keyboard.press("ArrowRight")
+                expect(pre).not_to_have_js_property("scrollLeft", 0)
+            else:
+                pre.hover()
+                page.mouse.wheel(200, 0)
+                expect(pre).not_to_have_js_property("scrollLeft", 0)
+        for mode, background, top in (
+            ("light", "rgb(246, 247, 249)", "rgb(238, 240, 243)"),
+            ("dark", "rgb(27, 29, 34)", "rgb(32, 35, 41)"),
+        ):
+            page.locator("html").evaluate("(e, mode) => e.dataset.theme = mode", mode)
+            expect(blocks.first).to_have_css("background-color", background)
+            expect(blocks.first.locator(".code-tools")).to_have_css(
+                "background-color", top
+            )
+            assert code.evaluate(
+                "e => getComputedStyle(e).color === getComputedStyle(document.body).color"
+            )
+        page.evaluate(
+            "Object.defineProperty(navigator, 'clipboard', {value: {writeText: text => {window.copied = text; return Promise.resolve();}}})"
+        )
+        blocks.first.locator(".copy-code").click()
+        assert page.evaluate("window.copied") == expected
+        expect(blocks.first.locator(".copy-code")).to_have_text("Copied")
+        page.emulate_media(media="print")
+        expect(blocks.first).to_have_css("background-color", "rgb(255, 255, 255)")
+        assert code.locator("span").evaluate_all(
+            "els => els.every(e => getComputedStyle(e).color === 'rgb(0, 0, 0)' && getComputedStyle(e).backgroundColor === 'rgba(0, 0, 0, 0)')"
+        )
+        page.emulate_media(media="screen")
+        page.goto(f"{site_servers['Quiet']}/blog/a-blog/", wait_until="load")
+        expect(page.locator("pre.mermaid svg")).to_have_count(
+            1, timeout=_MERMAID_RENDER_TIMEOUT_MS
+        )
+        expect(
+            page.locator(".code-block .mermaid, .code-block .language-mermaid")
+        ).to_have_count(0)
     finally:
         page.close()

@@ -176,7 +176,6 @@ class NavigationConfig(BaseModel):
             for name, url in (
                 ("Home", "/"),
                 ("Blog", "/blog/"),
-                ("Ideas", "/ideas/"),
                 ("Projects", "/projects/"),
                 ("Tags", "/tags/"),
                 ("About", "/about/"),
@@ -460,7 +459,8 @@ class ProjectCatalogEntry(BaseModel):
     Only ``repository`` is required. Missing keys use its complete casefolded
     identity; title/summary are optionally enriched by ProjectCompiler. Pydantic
     model_fields_set preserves explicit title/summary (including empty values).
-    Entries sort deterministically by ``order`` then ``slug``.
+    Entries sort deterministically by ``order`` then ``slug``. ``image`` is an
+    optional safe resource URL; ``links`` are optional named safe links.
     """
 
     model_config = ConfigDict(extra="forbid")
@@ -477,11 +477,18 @@ class ProjectCatalogEntry(BaseModel):
     featured: bool = False
     order: int = 0
     fallback_metadata: ProjectFallbackMetadata | None = None
+    image: str = ""
+    links: list[Link] = Field(default_factory=list)
 
     @field_validator("repository")
     @classmethod
     def validate_repository(cls, v: str) -> str:
         return _validate_repository(v)
+
+    @field_validator("image")
+    @classmethod
+    def validate_image(cls, v: str) -> str:
+        return _validate_safe_resource_url(v)
 
 
 class Settings(BaseModel):
