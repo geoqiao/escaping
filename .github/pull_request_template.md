@@ -1,47 +1,18 @@
-## TDD 检查清单（测试驱动开发）
+## 问题与改动
 
-### 第一步：先写测试
-- [ ] **我已先写测试**：改动前先编写了描述期望行为的测试
-- [ ] **测试失败**：运行测试，确认测试因功能未实现而失败
-- [ ] **测试通过**：编写实现代码后，测试通过
+<!-- 为什么需要改动？本次改变了什么，哪些不在范围内？关联 Issue（如有）。 -->
 
-### 测试覆盖检查
-- [ ] 新增功能：已编写单元测试 (`tests/test_*.py`)
-- [ ] 修改模板：已检查模板完整性 (`tests/test_template_integrity.py`)
-- [ ] 修复 Bug：已编写回归测试（先失败，修复后通过）
-- [ ] 重构代码：集成测试确保流程完整 (`tests/test_cli.py`)
+## 验证结果
 
----
+<!-- 按 docs/agents/testing.md 记录命令、输入/版本、结果及跳过或未验证项。
+行为改动应有失败→通过证据；重构测试记录通过基线；纯文档检查链接、路径与示例。
+UI 改动附必要截图，并检查键盘导航、窄屏溢出和评论降级。 -->
 
-## 基本信息
-- [ ] 我已阅读 `AGENTS.md` 中的 TDD 开发流程
-- [ ] 我已查看本次改动的文件 git 历史 (`git log --oneline -- 文件`)
+## 风险与兼容性
 
-### 模板/CSS 改动
-- [ ] 已检查 `templates/PaperMint/static/css/papermint.css` 现有样式
-- [ ] 已对比原始设计 (`git diff HEAD~n -- 文件`)
-- [ ] 已在本地验证效果 (`uv run python -m http.server`)
+<!-- Config、Theme API、路由或安装行为是否变化？需要怎样迁移与回滚？不适用时写明。
+合并生成器不等于发布 release、迁移站点或部署生产。 -->
 
-### 代码质量
-- [ ] 所有测试通过 (`uv run pytest -v`)
-- [ ] 代码检查通过 (`uv run ruff check .`)
-- [ ] 类型检查通过 (`uv run ty`)
-
-### Git 规范
-- [ ] 提交信息清晰明确
-- [ ] 避免 force push 到 main 分支
-- [ ] 小步提交，方便回滚
-
-## 改动描述
-
-### 解决了什么问题？
-<!-- 描述改动的背景和目的 -->
-
-### 如何解决的？
-<!-- 描述具体改动内容 -->
-
-### 测试方法？
-<!-- 如何验证改动有效 -->
-
-## 截图（如适用）
-<!-- UI 改动必须附截图 -->
+- [ ] 已遵循[维护指南](https://github.com/geoqiao/escaping/blob/main/docs/dual-repo-architecture.md)与[测试策略](https://github.com/geoqiao/escaping/blob/main/docs/agents/testing.md)，说明适用检查的实际结果
+- [ ] 未弱化内容授权、sanitizer、路径 containment、artifact validation 或失败保旧产物
+- [ ] 公共行为变化已同步契约与迁移说明；远程发布或站点变更有单独授权（如适用）

@@ -350,8 +350,9 @@ Transitions:
 
 - Blog and Idea collections MUST sort by Issue `created_at` descending.
 - Ties MUST sort by Issue number descending.
-- Display MAY use the configured site timezone.
-- Blog and Idea pages display `created_date`; About MUST NOT display it.
+- Blog and Idea pages display the normalized `created_date`; About MUST NOT
+  display it. The omitted value uses the Issue's UTC creation date (section 6.5);
+  there is no site-timezone Config field.
 - An Atom entry `published` value uses the Issue `created_at` timestamp.
 - An Atom entry `updated` value uses the GitHub Issue `updated_at` value.
 - The Atom feed `updated` value uses the maximum `updated_at` among its entries.
@@ -396,7 +397,9 @@ reject:
 - reserved-route collisions.
 
 Blog tags use `/tags/` for the index and `/tags/{tag}/` for tag archives.
-Canonical routes MUST use lower-case ASCII route keys and a trailing `/`.
+HTML page routes MUST use lower-case ASCII route keys and a trailing `/`.
+The machine-readable endpoints are `/atom.xml`, `/sitemap.xml`, and `/robots.txt`,
+without a trailing slash; they belong to the same route registry.
 Canonical paths MUST be converted to Unicode NFC before validation. Collision
 checks MUST additionally compare case-folded paths so local case-insensitive
 filesystems and GitHub Pages cannot produce divergent output.

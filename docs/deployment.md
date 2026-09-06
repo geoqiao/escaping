@@ -1,6 +1,8 @@
 # Site deployment contract
 
 Production orchestration belongs to the site repository, not `escaping`.
+For setup and recovery steps, use the [starter instructions](../starter/README.md);
+this document defines the maintainer-facing delivery and safety contract.
 
 ## Ownership
 
@@ -151,26 +153,21 @@ Issue edits can trigger production deployment and require the same production ap
 
 ## Site-owned slug migration post-processing
 
-The compiler owns the current canonical routes. A site repository may maintain an explicit,
-temporary mapping for a published Blog slug migration and render and validate the final Pages
-artifact after the compiler has produced the new canonical page:
+The compiler owns the current canonical routes. A site may keep an explicit, temporary
+mapping such as `/blog/old-slug/` → `/blog/new-slug/` and post-process the final Pages artifact
+after the compiler produces the new canonical page. The implementation, mapping filenames,
+migration history and retirement timing belong to that site; neither the compiler nor the
+generic starter ships a redirect script or a personal site's migration map.
 
-```text
-python3 scripts/render_slug_redirects.py --map content-migrations/blog-slugs-2026-08.json --output output --repository-root "$GITHUB_WORKSPACE"
-```
+Such post-processing must accept only non-`.html` slash-form Blog routes, verify that targets
+exist, skip a source that is still canonical, and fail on ambiguous or missing source/target
+state. Validate the redirect HTML, required smoke artifacts and complete artifact tree delta
+before upload. Do not infer slugs from titles, copy another site's operational command as a
+general setup step, or weaken the compiler's artifact validator.
 
-This post-processing belongs to the site repository because the site owns the migration history,
-retirement timing, and Pages artifact. It must not infer slugs from titles or turn migration
-entries into a general compiler feature. The current script accepts only slash-form Blog routes,
-checks that the target exists, skips a source that is still the current canonical page, and
-fails on ambiguous or missing source/target state.
-The production step also validates the required smoke artifacts, redirect HTML, and the complete
-artifact tree delta before the Pages artifact is uploaded; it is not only a renderer.
-
-This is separate from historical `.html` Blog URLs. ADR-0003 still rejects `.html` aliases and
-compatibility redirects; the site-owned mapping only covers explicit non-`.html` slug migrations.
-The boundary is recorded in
-[ADR-0005](adr/0005-site-owned-blog-slug-migration-redirects.md).
+[ADR-0003](adr/0003-drop-legacy-html-urls.md) still rejects historical `.html` aliases and
+compatibility redirects; [ADR-0005](adr/0005-site-owned-blog-slug-migration-redirects.md)
+records this separate site-owned boundary.
 
 ## Publication safety boundaries
 

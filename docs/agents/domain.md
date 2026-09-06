@@ -5,8 +5,8 @@
 
 ## Before exploring, read these
 
-- 根目录的 `CONTEXT.md`
-- `docs/adr/` 中与当前工作范围相关的 ADR
+- 根目录的 [CONTEXT.md](../../CONTEXT.md)
+- [docs/adr/](../adr/) 中与当前工作范围相关的 ADR
 
 如果这些文件尚不存在，继续工作即可。
 不要把缺失本身报告为问题，也不要提前创建空文档。

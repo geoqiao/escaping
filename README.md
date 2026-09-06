@@ -4,213 +4,86 @@
 
 # escaping
 
-**把 GitHub Issues 编译成一个完整、可靠、可部署的个人网站。**
+**在 GitHub Issues 写作，拥有自己的个人网站。**
 
-一个 opinionated personal-site generator：以 Issues 为内容源，经由不可变模型、严格校验与分阶段发布，生成 Blog、Ideas、Projects、About、Tags、Atom 和完整 SEO artifacts。
+Blog、Ideas、Projects、About、Tags 和 RSS，无需另建一套内容管理系统。
 
 [![Python 3.14.x](https://img.shields.io/badge/Python-3.14.x-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![GitHub Issues](https://img.shields.io/badge/Content-GitHub_Issues-181717?logo=github)](https://docs.github.com/issues)
 [![Static Site](https://img.shields.io/badge/Output-Static_Site-315EFB)](https://geoqiao.me/)
 [![MIT License](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
 
-**[线上站点](https://geoqiao.me/)** · **[快速开始](#-快速开始)** · **[配置示例](config.example.yaml)** · **[内容契约](docs/contracts/issue-content-v1.md)** · **[部署契约](docs/deployment.md)**
+**[English](README_en.md)** · **[线上站点](https://geoqiao.me/)** · **[快速开始](#-快速开始)** · **[维护者入口](docs/dual-repo-architecture.md)**
 
 </div>
 
----
+## 为什么用 escaping？
 
-## ✨ 为什么是 escaping？
-
-`escaping` 不把 GitHub Issues 当作一组需要即时渲染的数据，而是把它们当作一次确定性编译的输入。每次构建都会先完成内容解析、路由分配、HTML sanitization 和产物校验；只有整站通过后，才会通过可回滚的目录 rename 发布当前输出。
-
-这让一个轻量的个人站同时拥有清晰的内容工作流和可靠的发布边界：
-
-| | 能力 | 行为 |
-| --- | --- | --- |
-| ✍️ | **Issues as content** | Blog、Ideas 与 About Issue 由发布标签选择，front matter 可选；无 About Issue 时展示 Profile |
-| 🧭 | **完整站点模型** | 统一生成 Home、归档、详情、Projects、Tags、Atom、sitemap 与 robots |
-| 🎨 | **可替换 Theme** | 唯一内置 Theme Quiet，也支持 Config-relative 本地 Theme |
-| 🔒 | **默认安全** | Markdown HTML allowlist、严格 URL 校验、输出目录 containment、Jinja autoescape |
-| 🔗 | **单一路由来源** | `RouteRegistry` 统一生成 canonical URL 与文件输出路径，避免手工拼接 |
-| 🚀 | **分阶段发布** | 新产物在 staging 中渲染和验证，再通过目录 rename 与 rollback 替换本地输出 |
-
-## 🧭 编译流水线
-
-```mermaid
-flowchart LR
-    A["GitHub Issues"] --> B["ContentCompiler"]
-    B --> C["SiteBuilder + RouteRegistry"]
-    C --> D["Immutable SiteModel"]
-    D --> E["Theme Renderer"]
-    E --> F["Artifact Validator"]
-    F --> G["Staged Output Publication"]
-```
-
-Renderer 和 artifact validator 只读取同一份 `SiteModel`。Theme 作为已经加载的依赖注入渲染层，因此内容、路由和发布安全不会散落到模板里。
+| 你需要的 | escaping 提供的 |
+| --- | --- |
+| 专心写作 | 在 Issue 中写标题和 Markdown 正文，用标签决定是否发布；front matter 可选 |
+| 一个完整的个人站 | 首页、文章归档、短想法、自选项目、关于页、标签、RSS 与搜索引擎发现文件 |
+| 简单的默认外观 | 默认使用 Quiet，也支持站点自管的本地 Theme |
+| 可控的发布 | 校验内容与链接；站点 workflow 只部署成功构建的产物 |
 
 ## 🚀 快速开始
 
 使用 [escaping-template](https://github.com/geoqiao/escaping-template) 的 **Use this template** 创建站点，无需本机 Python、PAT 或手动创建发布标签。
 
-> **公开预览：** 已验证现有生产站点的构建与部署；模板首次建仓、自动标签等新用户初始化尚未完整实跑。
+> **公开预览：** 已验证现有生产站点的构建与部署；模板首次建仓、自动标签等完整新用户初始化尚未验证完成。
 
 1. 创建 `username.github.io`（免费账户使用公开仓库），保持 Issues/Actions 开启，在 **Settings → Pages** 选择 **GitHub Actions**。
-2. 保存带标题和 Markdown 正文的 Issue，等待标签准备成功，再刷新标签选择器。
+2. 保存带标题和 Markdown 正文的 Issue，等待 **Prepare missing labels only** 成功，再刷新标签选择器。
 3. 添加一个 `type:blog`、`type:idea` 或 `type:about`，准备好后添加 `published`，查看 Actions 部署结果。
 
-普通 project Pages 子路径不受支持；已有自定义域名须提供 HTTPS 根 URL。详细步骤见[模板说明](starter/README.md)。
+普通 project Pages 子路径不受支持；已有自定义域名须提供 HTTPS 根 URL。
+详细操作、版本选择和失败恢复以[模板说明](starter/README.md)为准。
 
-### 本地开发与显式配置
+## 日常写作
 
-需要 Python 3.14.x、[`uv`](https://docs.astral.sh/uv/) 和一个可读取目标仓库 Issues 的 GitHub Token。
-
-```bash
-git clone https://github.com/geoqiao/escaping.git
-cd escaping
-uv sync
-
-mkdir -p ../my-site
-cp config.example.yaml ../my-site/config.yaml
-# 编辑 ../my-site/config.yaml
-
-export GITHUB_TOKEN=...
-uv run escpe --config ../my-site/config.yaml
-uv run python -m http.server 8000 --directory ../my-site/output
-```
-
-打开 <http://localhost:8000>。`output/` 是 HTTP document root，不是 URL 中的 `/output/` 前缀。
-
-完整显式配置示例（无需平台 context）：
-
-```yaml
-github:
-  repo: username/username.github.io
-  allowed_authors:
-    - username
-
-site:
-  title: Blog Title
-  url: https://username.github.io/
-  author: Your Name
-  description: Short description
-  language: zh-CN
-
-profile:
-  avatar: https://github.com/username.png
-  links:
-    - name: GitHub
-      url: https://github.com/username
-
-about:
-  issue_number: 1
-
-security:
-  token_env: GITHUB_TOKEN
-```
-
-字段可省略，由同一个 resolver 补齐；无 context 时至少提供真实 `github.repo` 和 HTTPS 根 `site.url`，组织还须显式指定作者。平台可提供严格的 `--context context.json`，此时 Config 可为 `{}`；不从 actor 授权、不猜 Pages URL。字段来源、安全边界和 Site Orchestrator 接口见[站点输入说明](docs/site-inputs.md)。
-
-Blog slug 缺省为 Issue 编号，也可逐字段覆盖；About 优先使用显式编号，否则发现唯一合法 published About，没有时展示无 Issue／日期／评论身份的 Profile About。Projects 只选 `repository` 即可补公开名称／摘要，手填值优先。完整字段见 [`config.example.yaml`](config.example.yaml)，内容格式见 [`Issue Content v1`](docs/contracts/issue-content-v1.md)。
-
-默认 Theme 为 Quiet；默认菜单是 Home、Blog、Ideas、Projects、Tags、About、RSS。
-显式 `site.navigation.items` 整体替换菜单，可排序、改名、去掉 Home 或设为 `[]`；品牌主页链接独立保留。
-评论默认关闭，需 `comments.enabled: true` 并单独完成 [Utterances App 授权](https://github.com/apps/utterances)；Profile About 永远没有评论。
-旧站保留评论／菜单的配置迁移见 [Theme 指南](docs/themes/authoring.md#migrating-from-api-1)。
-
-Quiet 使用 `profile.avatar`，未配置时显示作者首字母；首页可显示 tagline。
-`site.thesis` 仍作为本地 Theme 的可选展示提示保留，Quiet 不展示它。
-
-> [!NOTE]
-> Config 中的 output 和本地 Theme 等相对路径，始终以 **Config 文件所在目录** 为根，因此命令可以从任意工作目录执行。
-
-## 🗺️ 页面与路由
-
-| 页面 | Canonical route |
+| 操作 | 结果 |
 | --- | --- |
-| Home | `/` |
-| Blog archive / detail | `/blog/` · `/blog/{slug}/` |
-| Ideas archive / detail | `/ideas/` · `/ideas/{issue_number}/` |
-| Projects | `/projects/` |
-| Tags | `/tags/` · `/tags/{tag}/` |
-| About | `/about/` |
-| Feed / discovery | `/atom.xml` · `/sitemap.xml` · `/robots.txt` |
+| `type:blog` + `published` | 发布文章，进入 Blog、RSS 和适用的标签归档 |
+| `type:idea` + `published` | 发布一条独立短想法；不进入 Blog 或 RSS，标签仅作展示 |
+| `type:about` + `published` | 提供关于页；没有 About Issue 时可使用公开个人资料 |
+| 编辑已发布 Issue | 下一次成功构建更新站点；后续编辑以 GitHub Issue 为准 |
+| 移除 `published` | 下一次成功构建撤稿；仅关闭 Issue 不会撤稿 |
 
-## 🔗 Config-owned origin 与历史 URL
+只发布允许作者的内容；workflow 执行者不会自动获得作者权限。
+Blog 可使用 `tag:python` 这样的标签，缺省地址为 `/blog/{issue_number}/`。
+若需要自定义 slug、摘要或原始创作日期，可逐字段添加 front matter；已发布 slug 应保持稳定。
+完整规则与示例见 [Issue Content v1](docs/contracts/issue-content-v1.md)。
 
-canonical origin 由站点输入所有：显式 `site.url` 优先，缺失时可从可信 Pages context 补齐；生产站点当前配置为
-`https://geoqiao.me/`。生成器仓库不持有生产 `config.yaml`；RouteRegistry、canonical、
-Open Graph、Atom、sitemap 和 robots 都从调用时传入的 origin 派生，所以同一个 compiler
-也可以服务其它站点。
+## 按需配置
 
-以下两种 URL 迁移不要混为一谈：
-
-- **旧 `.html` Blog URL：** compiler 不生成 `/blog/{slug}.html`，也不生成 alias 或
-  redirect。这是 [`ADR-0003`](docs/adr/0003-drop-legacy-html-urls.md) 的既有决定。
-- **拼音 slug migration：** 站点仓库可以维护显式的、一次性的
-  `/blog/old-pinyin-slug/` → `/blog/new-english-slug/` mapping，在 compiler 生成新
-  canonical 页面后，由 site-owned `render_slug_redirects.py` 写入兼容页。这不是
-  标题推导 slug，也不是 compiler 对旧 `.html` URL 的例外；边界见
-  [`ADR-0005`](docs/adr/0005-site-owned-blog-slug-migration-redirects.md)。
-
-## 🎨 Themes
-
-公开接口为 **Theme API 2**；完整文件、manifest、逐页 context、资源和键盘要求见
-[独立 Theme 作者指南](docs/themes/authoring.md)。API 1 不再运行兼容：需迁移 IdeaTag、
-About 变体、评论条件与 manifest，不能只改版本号。
-
-结构化数据、安全输出、Profile About 分支和资源规则统一以作者指南为准。
-[Quiet](docs/themes/quiet.md) 是唯一内置及默认 Theme，使用中性黑白与少量头像洋红：
+模板的 `config.yaml` 从 `{}` 开始。只填写需要覆盖的字段，例如：
 
 ```yaml
-theme:
-  source: builtin
-  name: Quiet
+site:
+  title: 我的笔记
 ```
 
-`geoqiao.me`、`Escape1`、`Escape2` 已移除；旧配置会明确失败，不会静默切换外观。
-升级前切换 Quiet，或按[迁移说明](docs/themes/authoring.md#migrating-removed-built-in-themes)
-保留为站点自管的本地 Theme：
+| 想调整的内容 | 入口 |
+| --- | --- |
+| 标题、个人资料、自选项目 | [配置示例](config.example.yaml)与[字段来源](docs/site-inputs.md)；示例不是必填清单 |
+| 导航 | 默认 Home、Blog、Ideas、Projects、Tags、About、RSS；`site.navigation.items` 整体替换菜单，可设为 `[]`，品牌主页链接独立保留 |
+| 外观 | [Quiet](docs/themes/quiet.md) 是唯一内置及默认 Theme；[本地 Theme](docs/themes/authoring.md) 使用 API 2，无远程自动下载 |
+| 评论 | 默认关闭；设置 `comments.enabled: true`，并另行完成 [Utterances App 授权](https://github.com/apps/utterances)；Profile About 永远无评论 |
+| 本地构建 | 需要 Python 3.14.x、uv 和可读取目标 Issues 的 Token，见[本地构建步骤](docs/site-inputs.md#local-build) |
 
-```yaml
-theme:
-  source: local
-  name: my-theme
-  path: theme
-```
+组织所有的内容仓库须显式配置 `github.allowed_authors`。省略字段使用默认值，非法显式值会报错而非被忽略。
+输出目录和本地 Theme 路径以 Config 所在目录为根；预览时将输出目录作为 HTTP document root，不使用 `/output/` URL 前缀。
 
-`ThemeLoader` 只加载 package resources 或本地目录，不隐式执行 Git/HTTP fetch、cache 或 update。Quiet 与本地 Theme 使用生成器维护的共享 `comments.js`，包含 Utterances 自动主题同步、消息来源校验与 Safari lazy iframe 兼容处理。
+以上描述当前源码；站点实际行为取决于选定的生成器版本。旧内置 `geoqiao.me`、`Escape1`、`Escape2` 已移除，显式选择会失败而不是静默换外观。
+升级前按[移除主题迁移说明](docs/themes/authoring.md#migrating-removed-built-in-themes)切换 Quiet 或保留本地副本；旧 API、评论和菜单迁移见[迁移清单](docs/themes/authoring.md#migrating-from-api-1)。
+配置评论不等于验证评论写入；真实 App/OAuth 发帖仍需单独验收。
 
-## 🏗️ 生成器与站点分离
+## 开发与维护
 
-`escaping` 只拥有 compiler、models、validators、示例 Config、内置 Themes 和可复制的
-workflow 模板。真实站点仓库拥有自己的 `config.yaml`、Pages workflow、`CNAME`，以及
-可选的本地 Theme。
+[维护者入口](docs/dual-repo-architecture.md)汇总架构、契约、测试和 ADR；Agent 使用 [AGENTS.md](AGENTS.md)。
+通用部署代码以 [starter workflow](starter/.github/workflows/pages.yml) 为准，复制后由站点仓库维护。
+生成器升级、本地 Theme 迁移与生产部署是分开的操作。
 
-生产 workflow 应 pin `escaping` 的 reviewed release 或完整 40 字符 commit SHA，并使用短期
-`GITHUB_TOKEN` 构建 Pages artifact。实际站点 workflow 由
-[站点仓库 Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml)
-作为 source of truth；这样生成器与站点即使无法原子变更，也能通过固定版本验证、升级和回滚。
-完整要求见
-[`docs/deployment.md`](docs/deployment.md) 与
-[`通用 starter`](starter/)。
-
-## 🧪 开发与验证
-
-```bash
-uv sync
-uv run pytest -q
-uv run ruff check src/escaping tests
-uv run ruff format --check src/escaping tests
-uv run ty check
-git diff --check
-```
-
-wheel consumer 测试会在源码目录之外构建代表性站点，验证 package resources、默认 Theme 与 Config-root 路径。
-旧 `.html` Blog URL 不生成 alias 或 redirect；站点仓库若有拼音 slug migration，则在编译后独立执行
-site-owned redirect 后处理。决策分别记录于
-[`ADR-0003`](docs/adr/0003-drop-legacy-html-urls.md) 和
-[`ADR-0005`](docs/adr/0005-site-owned-blog-slug-migration-redirects.md)。
-
-## 📄 License
+## License
 
 [MIT](LICENSE) © geoqiao
