@@ -53,6 +53,7 @@ def _settings(theme: str = "geoqiao.me", *, profile_avatar: str = "") -> Setting
         },
         "about": {"issue_number": 10},
         "security": {"token_env": "TEST_TOKEN"},
+        "comments": {"enabled": True},
         "theme": {"source": "builtin", "name": theme},
         "projects": [
             {

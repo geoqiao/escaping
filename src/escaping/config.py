@@ -12,7 +12,7 @@ Configuration contract (per accepted spec):
 - ``about``: optional immutable About Issue selection by ``issue_number``.
 - ``paths``: output and page-size configuration (positive, default 10).
 - ``theme``: explicit built-in package resource or Config-relative local source.
-- ``comments``: Utterances repository fallback, theme, and ``theme_mode``.
+- ``comments``: explicit opt-in, Utterances repository fallback, and theme mode.
 - ``security``: dynamic token environment-variable name (default GITHUB_TOKEN).
 - ``projects``: repository-owned project catalog entries with strict fields.
 - ``seo`` / ``branding``: active verification and attribution fields only.
@@ -35,6 +35,7 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    StrictBool,
     ValidationError,
     field_validator,
     model_validator,
@@ -358,6 +359,7 @@ class CommentsConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
+    enabled: StrictBool = False
     repo: str = ""
     theme: str = "github-light"
     theme_mode: Literal["auto", "fixed"] = "auto"

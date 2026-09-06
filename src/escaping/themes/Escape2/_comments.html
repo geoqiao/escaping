@@ -1,3 +1,4 @@
+{% if comments.enabled %}
 <div class="comments" id="comments-container"
      data-comments-repo="{{ comments.repo }}"
      data-issue-number="{{ comments_issue_number }}"
@@ -9,3 +10,4 @@
     <noscript><p class="comments-error">Please enable JavaScript to view comments.</p></noscript>
 </div>
 <script src="{{ theme_path }}/static/js/comments.js" defer></script>
+{% endif %}

@@ -40,6 +40,7 @@ class CommentsMetadata:
     repo: str
     theme: str
     theme_mode: str
+    enabled: bool = False
 
 
 @dataclass(frozen=True)

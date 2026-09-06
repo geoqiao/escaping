@@ -151,6 +151,18 @@ def test_removed_noop_config_fields_are_rejected(
         Settings.model_validate({**_BASE, section: value})
 
 
+def test_comments_require_an_explicit_boolean_opt_in() -> None:
+    assert not Settings.model_validate(_BASE).comments.enabled
+    for enabled in (True, False):
+        settings = Settings.model_validate(
+            {**_BASE, "comments": {"enabled": enabled, "repo": ""}}
+        )
+        assert settings.comments.enabled is enabled
+    for invalid in (None, "true", "false", 1, 0, [], {}):
+        with pytest.raises(ValidationError):
+            Settings.model_validate({**_BASE, "comments": {"enabled": invalid}})
+
+
 def test_repository_references_use_owner_repo_format() -> None:
     with pytest.raises(ValidationError) as missing:
         ProjectCatalogEntry.model_validate({})

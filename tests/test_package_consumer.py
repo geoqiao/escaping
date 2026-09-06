@@ -32,7 +32,7 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
     uv_env.pop("PYTHONHOME", None)
     dist = tmp_path / "dist"
     subprocess.run(  # noqa: S603
-        [uv, "build", "--wheel", "--out-dir", str(dist)],
+        [uv, "build", "--python", sys.executable, "--wheel", "--out-dir", str(dist)],
         cwd=_PROJECT_ROOT,
         check=True,
         capture_output=True,
@@ -93,6 +93,7 @@ settings = Settings.model_validate({
     'site': {'title': 'Consumer', 'author': 'Owner', 'url': 'https://example.com/'},
     'about': {'issue_number': 2},
     'security': {'token_env': 'TOKEN'},
+    'comments': {'enabled': True},
 })
 assert settings.theme.name == 'geoqiao.me'
 now = datetime(2026, 1, 1, tzinfo=UTC)

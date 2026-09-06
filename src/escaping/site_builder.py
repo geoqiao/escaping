@@ -141,6 +141,7 @@ class SiteBuilder:
                 source_link_url=settings.branding.source_link_url,
             ),
             comments=CommentsMetadata(
+                enabled=settings.comments.enabled,
                 repo=settings.comments.repo or settings.github.repo,
                 theme=settings.comments.theme,
                 theme_mode=settings.comments.theme_mode,

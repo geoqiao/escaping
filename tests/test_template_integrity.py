@@ -45,6 +45,7 @@ def _settings(
     bio: str = "",
     projects: list[dict[str, object]] | None = None,
     page_size: int | None = None,
+    comments_enabled: bool = True,
 ) -> Settings:
     site: dict[str, object] = {
         "title": title,
@@ -62,6 +63,7 @@ def _settings(
         "about": {"issue_number": 10},
         "theme": {"source": "builtin", "name": theme},
         "security": {"token_env": "TOKEN"},
+        "comments": {"enabled": comments_enabled},
     }
     if projects is not None:
         data["projects"] = projects
@@ -97,6 +99,7 @@ def _render_theme(
     tagline: str = "",
     bio: str = "",
     projects: list[dict[str, object]] | None = None,
+    comments_enabled: bool = True,
 ) -> dict[str, str]:
     settings = _settings(
         theme,
@@ -108,6 +111,7 @@ def _render_theme(
         tagline=tagline,
         bio=bio,
         projects=projects,
+        comments_enabled=comments_enabled,
     )
     routes = RouteRegistry(str(settings.site.url))
     content = ContentCompiler(settings, route_registry=routes).compile(
@@ -231,6 +235,28 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
         assert f'data-issue-number="{issue_number}"' in rendered, page_name
         assert 'data-comments-repo="geoqiao/site"' in rendered, page_name
         assert 'data-comments-theme-mode="auto"' in rendered, page_name
+
+
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
+def test_disabled_comments_leave_no_widget_or_dead_discussion_anchor(
+    theme: str,
+) -> None:
+    rendered = _render_theme(theme, comments_enabled=False)
+    for path, html in rendered.items():
+        if not path.endswith(".html"):
+            continue
+        for absent in (
+            "comments-container",
+            "comments.js",
+            "comments-loading",
+            "comments-title",
+            "utteranc.es",
+            "<iframe",
+            "Discuss",
+        ):
+            assert absent not in html, (path, absent)
+    for path in ("blog/post/index.html", "ideas/2/index.html", "about/index.html"):
+        assert "Body <strong>content</strong>." in rendered[path]
 
 
 @pytest.mark.parametrize("language", ["en", "zh-CN"])

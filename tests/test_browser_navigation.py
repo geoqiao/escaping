@@ -84,6 +84,7 @@ def _browser_settings(theme: str) -> Settings:
             else {},
             "about": {"issue_number": 10},
             "security": {"token_env": "TEST_TOKEN"},
+            "comments": {"enabled": True},
             "theme": {"source": "builtin", "name": theme},
         }
     )
@@ -251,14 +252,30 @@ def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
         )
         assert not site.has_errors
 
-        output_dir = tmp_path_factory.mktemp(f"browser-site-{theme}")
         renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
-        renderer.copy_theme_assets(output_dir)
-        for output_path, html in renderer.render_site(site).items():
-            path = output_dir / output_path
-            path.parent.mkdir(parents=True, exist_ok=True)
-            path.write_text(html, encoding="utf-8")
-        output_dirs[theme] = output_dir
+        for variant in (theme, f"{theme}-disabled"):
+            if variant.endswith("-disabled"):
+                disabled = settings.model_copy(
+                    update={
+                        "comments": settings.comments.model_copy(
+                            update={"enabled": False}
+                        )
+                    }
+                )
+                site = SiteBuilder(disabled, routes).build(
+                    content,
+                    ProjectCompiler().compile(
+                        settings.projects, route=routes.projects()
+                    ),
+                    build_start_time=build_time,
+                )
+            output_dir = tmp_path_factory.mktemp(f"browser-site-{variant}")
+            renderer.copy_theme_assets(output_dir)
+            for output_path, html in renderer.render_site(site).items():
+                path = output_dir / output_path
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_text(html, encoding="utf-8")
+            output_dirs[variant] = output_dir
     return output_dirs
 
 
@@ -1461,6 +1478,35 @@ def test_comments_generated_theme_wiring_uses_issue_identity(
         assert requests == [
             f"https://api.github.com/repos/geoqiao/site/issues/{n}" for n in (1, 2, 10)
         ]
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("theme", _THEMES)
+def test_disabled_comments_make_no_third_party_requests(
+    comments_browser: Browser, site_servers: dict[str, str], theme: str
+) -> None:
+    page = comments_browser.new_page(viewport={"width": 390, "height": 844})
+    origin = site_servers[f"{theme}-disabled"]
+    external: list[str] = []
+    page.on(
+        "request",
+        lambda request: (
+            external.append(request.url)
+            if not request.url.startswith(origin + "/")
+            else None
+        ),
+    )
+    page.route("https://**/*", lambda route: route.abort())
+    try:
+        for path in ("blog/a-blog/", "ideas/2/", "about/"):
+            page.goto(f"{origin}/{path}", wait_until="networkidle")
+            expect(
+                page.locator("iframe, #comments-container, .comments-loading")
+            ).to_have_count(0)
+            expect(page.locator('a[href="#comments-title"]')).to_have_count(0)
+            expect(page.locator(".post-content")).to_be_visible()
+        assert not external
     finally:
         page.close()
 
