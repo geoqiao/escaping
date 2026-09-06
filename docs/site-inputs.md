@@ -106,8 +106,9 @@ normal autoescape, never `|safe`. Issue About retains its existing fields.
 A local Theme that only supports Issue About must keep an explicit valid About
 selection or add this branch before using discovery/Profile fallback. Do not
 construct Issue #0/None to keep an old template working. Use
-`{{ structured_data|tojson }}`: Profile About emits `AboutPage` with a nested
-Person. Its primary JSON-LD identity must be `AboutPage` or `ProfilePage`, never
+`{{ structured_data|tojson }}`: Profile About emits `AboutPage` with the resolved
+display name, without assuming an Organization owner is a Person. Its primary
+JSON-LD identity must be `AboutPage` or `ProfilePage`, never
 Article/BlogPosting or Issue dates. This is an additive API-1 context with a new
 About variant, not a claim that every old local About template supports it.
 

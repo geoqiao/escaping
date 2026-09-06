@@ -736,6 +736,11 @@ def test_profile_about_is_readable_safe_and_not_issue_content(
     assert "Alice &lt;Builder&gt;" in about
     assert "Public &lt;script&gt;alert(1)&lt;/script&gt; &amp; bio" in about
     assert "<script>alert(1)" not in about
+    schema = re.search(r'<script type="application/ld\+json">(.*?)</script>', about)
+    assert schema is not None
+    identity = json.loads(schema.group(1))
+    assert identity["@type"] == "AboutPage" and identity["name"] == "Alice <Builder>"
+    assert "mainEntity" not in identity  # A public owner may be an Organization.
     for absent in (
         "data-issue-number",
         "comments.js",

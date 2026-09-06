@@ -240,7 +240,7 @@ class RenderService:
                 "@type": "AboutPage",
                 "url": about.route.canonical_url,
                 "description": about.description,
-                "mainEntity": {"@type": "Person", "name": metadata.author},
+                "name": about.title,
             }
         return {
             "@context": "https://schema.org",
