@@ -1592,7 +1592,7 @@ def _expect_comments_ready(page: Page, number: int) -> None:
     expect(page.locator("#comments-container .comments-error")).to_have_count(0)
 
 
-@pytest.mark.parametrize("theme", _THEMES)
+@pytest.mark.parametrize("theme", (*_THEMES, "independent"))
 def test_comments_generated_theme_wiring_uses_issue_identity(
     browser: Browser, site_servers: dict[str, str], theme: str
 ) -> None:

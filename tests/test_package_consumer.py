@@ -192,7 +192,7 @@ raw['theme'] = {'source': 'local', 'name': 'consumer-theme', 'path': 'theme'}
 raw['paths']['page_size'] = 1
 for scenario, destination in (('issue', 'build'), ('profile', 'dist'), ('empty', '_site')):
     snapshots = authored if scenario == 'issue' else [s for s in authored if s.number != 2]
-    raw['comments']['enabled'] = scenario == 'issue'
+    raw['comments']['enabled'] = scenario != 'empty'
     raw['paths']['output'] = destination
     if scenario != 'issue':
         raw.pop('about', None)
@@ -211,14 +211,15 @@ for scenario, destination in (('issue', 'build'), ('profile', 'dist'), ('empty',
         assert 'data-issue-number="1"' in (output / 'blog/post/index.html').read_text()
     else:
         assert '<h1>Owner</h1>' in about and 'data-issue-number' not in about
-        assert all('comments.js' not in p.read_text() for p in output.rglob('*.html'))
+        assert 'comments.js' not in about  # Profile has no widget even when globally on.
     if scenario != 'empty':
         for route in ('blog/page/2', 'tags/shared', 'ideas/4'):
             assert (output / route / 'index.html').is_file(), route
         idea = (output / 'ideas/4/index.html').read_text()
         assert '<span>idea-only</span>' in idea and '/tags/idea-only/' not in idea
-        assert ('data-issue-number="4"' in idea) == (scenario == 'issue')
+        assert 'data-issue-number="4"' in idea
     else:
+        assert all('comments.js' not in p.read_text() for p in output.rglob('*.html'))
         assert 'No posts yet.' in (output / 'blog/index.html').read_text()
         assert 'No ideas yet.' in (output / 'ideas/index.html').read_text()
         assert 'No tags yet.' in (output / 'tags/index.html').read_text()
@@ -349,7 +350,7 @@ for scenario, destination in (('issue', 'build'), ('profile', 'dist'), ('empty',
     about = (output / "about/index.html").read_text()
     assert "Alice Example" in about and "Public profile." in about
     assert "comments.js" not in about and "data-issue-number" not in about
-    assert (output / "blog/128/index.html").is_file()
+    assert "comments.js" not in (output / "blog/128/index.html").read_text()
     assert not (output / "blog/129/index.html").exists()
     assert (output / "templates/consumer-theme/static/js/comments.js").is_file()
     projects = (output / "projects/index.html").read_text()
