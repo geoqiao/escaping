@@ -229,6 +229,30 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
     )
     assert "usage:" in help_result.stdout.lower()
 
+    # Reuse the installed wheel: draft lint needs neither source nor credentials.
+    draft = consumer / "local-draft.md"
+    original = b"---\r\ntitle: Draft\r\ntype: blog\r\n---\r\n\r\nBody.\r\n"
+    draft.write_bytes(original)
+    before_lint = set(consumer.iterdir())
+    checked = subprocess.run(  # noqa: S603
+        [str(venv_python), "-I", "-m", "escaping.local_draft", str(draft)],
+        cwd=consumer,
+        env=uv_env,
+        capture_output=True,
+        text=True,
+        check=True,
+    )
+    assert json.loads(checked.stdout) == {
+        "issue": {
+            "title": "Draft",
+            "labels": ["type:blog"],
+            "body": "---\n{}\n---\n\r\nBody.\r\n",
+        },
+        "diagnostics": [],
+    }
+    assert draft.read_bytes() == original
+    assert set(consumer.iterdir()) == before_lint
+
     # L2: actual installed console, with only HTTP transport replaced. Keep the
     # existing L1 full build above inside the clean wheel-installed interpreter.
     site = consumer / "nested"
