@@ -1544,6 +1544,9 @@ def test_empty_menu_preserves_keyboard_entry_brand_and_appearance(
         expect(page).to_have_url(origin + "/")
         if not javascript:
             expect(page.locator(".theme-toggle:visible")).to_have_count(0)
+            # A nonempty menu must not expose an inoperable appearance button either.
+            page.goto(site_servers[theme] + "/", wait_until="load")
+            expect(page.locator(".theme-toggle:visible")).to_have_count(0)
         elif theme != "Escape2":
             toggle = page.locator(".theme-toggle")
             toggle.focus()

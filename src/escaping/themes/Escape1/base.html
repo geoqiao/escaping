@@ -42,7 +42,7 @@
                     {% for item in navigation_items %}
                     <li><a href="{{ item.url }}">{{ item.name }}</a></li>
                     {% endfor %}
-                    <li>{% endif %}<button class="theme-toggle" aria-label="Toggle theme"{% if not navigation_items %} hidden{% endif %}>🌙</button>{% if navigation_items %}</li>
+                    <li>{% endif %}<button class="theme-toggle" aria-label="Toggle theme" hidden>🌙</button>{% if navigation_items %}</li>
                 </ul>{% endif %}
             </nav>
         </div>
