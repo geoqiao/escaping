@@ -101,6 +101,26 @@ def test_compiles_blog_idea_and_configured_about_once(allowed_author: str) -> No
     assert "<script" not in result.ideas[0].body_html
 
 
+@pytest.mark.parametrize("kind", ["blog", "idea"])
+@pytest.mark.parametrize(
+    ("authored", "canonical"),
+    [("٢٠٢٦-01-01", "2026-01-01"), ("0001-01-01", "0001-01-01")],
+)
+def test_authored_calendar_dates_compile_to_ascii_without_changing_issue_time(
+    kind: str, authored: str, canonical: str
+) -> None:
+    result = _compiler().compile(
+        [
+            _snapshot(1, kind, metadata=f'created_date: "{authored}"'),
+            _snapshot(10, "about"),
+        ]
+    )
+    assert not result.has_errors
+    item = result.blogs[0] if kind == "blog" else result.ideas[0]
+    assert item.created_date == canonical
+    assert item.published_at == item.updated_at == _NOW
+
+
 def test_ideas_forbid_slug_sort_and_keep_tags_outside_blog_taxonomy() -> None:
     older = _NOW.replace(day=8)
     result = _compiler().compile(

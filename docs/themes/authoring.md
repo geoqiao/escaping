@@ -189,8 +189,9 @@ Dates below are ISO date strings; timestamps are timezone-aware Python datetimes
 Only sanitized `body_html` is trusted HTML: `{{ post.body_html|safe }}` (similarly
 Idea and Issue About). Never apply `safe` to title, description, Profile or tags.
 Descriptions derived from visible code may contain `<` or `>`; autoescape them.
-Display `created_date` for Blog/Idea, not About. Do not substitute it for native
-publication/update timestamps in structured data.
+`created_date` is a normalized ASCII `YYYY-MM-DD` calendar date, suitable for
+both display and `<time datetime="…">`. Display it for Blog/Idea, not About.
+Do not substitute it for native publication/update timestamps in structured data.
 
 ## Head and structured data
 

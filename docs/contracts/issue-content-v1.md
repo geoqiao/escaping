@@ -254,7 +254,10 @@ and applicable feed entry summaries.
 An omitted `created_date` defaults to the UTC calendar date of the GitHub Issue
 `created_at` timestamp. An authored value records the original content creation
 date, which may be earlier, and MUST be a quoted string in `YYYY-MM-DD` format.
-It MUST be a valid calendar date.
+It MUST be a valid calendar date. Compilation normalizes accepted date spellings
+to ASCII `YYYY-MM-DD` in SiteModel, including display and HTML `datetime` values;
+for example, `"٢٠٢٦-01-01"` becomes `"2026-01-01"`. This does not rewrite Issue
+content or narrow the accepted input rules.
 
 This default or override changes neither collection order nor publication/feed
 timestamps, which continue to use GitHub's native timestamps.

@@ -95,6 +95,8 @@ valid `YYYY-MM-DD` string and be copied into the Issue body front matter. When
 omitted, the uploader MUST NOT guess an Issue creation date from the local clock
 or file timestamp; the Site Compiler later uses the Issue's UTC creation date.
 
+The payload preserves the accepted date spelling; compilation normalizes the
+calendar value to ASCII `YYYY-MM-DD` without rewriting the draft or Issue.
 The Site Compiler displays the resolved date for Blog and Idea, while sorting
 both by the GitHub Issue `created_at` timestamp. About does not display a date.
 The `published` label remains the publication gate.

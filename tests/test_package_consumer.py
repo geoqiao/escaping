@@ -181,7 +181,8 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
 # One docs-only local Theme crosses the same installed compiler, using real YAML.
 snapshots[0] = replace(snapshots[0], labels=(*snapshots[0].labels, 'tag:shared'))
 snapshots.extend([
-    replace(snapshots[0], number=3, title='Another post', body='Another body.'),
+    replace(snapshots[0], number=3, title='Another post',
+            body='---\\ncreated_date: "٢٠٢٦-01-01"\\n---\\nAnother body.'),
     replace(snapshots[0], number=4, title='Idea', body='Idea body.',
             labels=('type:idea', 'published', 'tag:idea-only')),
 ])
@@ -215,6 +216,8 @@ for scenario, destination in (('issue', 'build'), ('profile', 'dist'), ('empty',
     if scenario != 'empty':
         for route in ('blog/page/2', 'tags/shared', 'ideas/4'):
             assert (output / route / 'index.html').is_file(), route
+        dated = (output / 'blog/3/index.html').read_text()
+        assert '<time>2026-01-01</time>' in dated and '٢٠٢٦' not in dated
         idea = (output / 'ideas/4/index.html').read_text()
         assert '<span>idea-only</span>' in idea and '/tags/idea-only/' not in idea
         assert 'data-issue-number="4"' in idea

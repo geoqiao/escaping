@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import unicodedata
 from collections.abc import Sequence
-from datetime import UTC
+from datetime import UTC, datetime
 from html.parser import HTMLParser
 
 from .build_result import Diagnostic
@@ -217,7 +217,9 @@ class ContentCompiler:
                 else _body_description(body_html)
             )
             created_date = (
-                str(parsed.fields["created_date"])
+                datetime.strptime(str(parsed.fields["created_date"]), "%Y-%m-%d")
+                .date()
+                .isoformat()
                 if "created_date" in parsed.fields
                 else snapshot.created_at.astimezone(UTC).date().isoformat()
             )
