@@ -1,27 +1,24 @@
 from __future__ import annotations
 
-import re
 import unicodedata
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from datetime import UTC
 from html.parser import HTMLParser
-
-from marko import Markdown
-from marko.ext.gfm import GFM
 
 from .build_result import Diagnostic
 from .config import Settings
+from .content_validation import (
+    CONTENT_TYPES,
+    render_body,
+    reserved_blog_slug,
+    valid_slug,
+    validate_authored_content,
+)
 from .models.blog_post import BlogPost, BlogTag, blog_post_sort_key
 from .models.content import AboutPage, ContentCompilationResult, Idea, IdeaTag
 from .models.issue_snapshot import IssueSnapshot
 from .routes import RouteCollisionError, RouteRegistry
 from .utils.frontmatter import FrontMatterError, ParsedFrontMatter, parse_front_matter
-from .utils.html_sanitizer import HTMLSanitizationError, sanitize_html
-
-_SUPPORTED_TYPES = frozenset({"blog", "idea", "about"})
-_KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
-_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_MARKDOWN = Markdown(extensions=[GFM])
 
 
 def _normalize(value: str) -> str:
@@ -34,10 +31,6 @@ def _label_values(labels: tuple[str, ...], prefix: str) -> list[str]:
         for label in labels
         if (normalized := _normalize(label)).startswith(prefix)
     ]
-
-
-def _render_markdown(text: str) -> str:
-    return _MARKDOWN.convert(text)
 
 
 class _VisibleBodyText(HTMLParser):
@@ -196,21 +189,26 @@ class ContentCompiler:
             parsed = self._parse(snapshot, diagnostics)
             if parsed is None:
                 continue
-            local_errors = self._validate_common(snapshot, parsed)
-            local_errors.extend(self._validate_type(snapshot, parsed, content_type))
-            diagnostics.extend(local_errors)
+            local_errors = validate_authored_content(
+                snapshot.title,
+                content_type,
+                _label_values(snapshot.labels, "tag:"),
+                parsed,
+            )
+            diagnostics.extend(
+                self._error(snapshot, d.code, d.message, d.field) for d in local_errors
+            )
 
             slug = parsed.fields.get("slug", str(snapshot.number))
-            if (
-                content_type == "blog"
-                and isinstance(slug, str)
-                and self._valid_slug(slug)
-            ):
+            if content_type == "blog" and isinstance(slug, str) and valid_slug(slug):
                 slug_candidates.append((slug, snapshot.number))
             if local_errors:
                 continue
 
-            body_html = self._compile_body(snapshot, parsed.body, diagnostics)
+            body_html, body_errors = render_body(parsed.body)
+            diagnostics.extend(
+                self._error(snapshot, d.code, d.message, d.field) for d in body_errors
+            )
             if body_html is None:
                 continue
             description = (
@@ -339,7 +337,7 @@ class ContentCompiler:
         self, snapshot: IssueSnapshot, diagnostics: list[Diagnostic]
     ) -> str | None:
         values = _label_values(snapshot.labels, "type:")
-        unknown = [value for value in values if value not in _SUPPORTED_TYPES]
+        unknown = [value for value in values if value not in CONTENT_TYPES]
         if not values:
             diagnostics.append(
                 self._error(snapshot, "TYPE_LABEL_MISSING", "Issue has no type:* label")
@@ -389,136 +387,19 @@ class ContentCompiler:
             )
         return parsed
 
-    def _validate_common(
-        self, snapshot: IssueSnapshot, parsed: ParsedFrontMatter
-    ) -> list[Diagnostic]:
-        errors: list[Diagnostic] = []
-        fields = parsed.fields
-        if not snapshot.title.strip():
-            errors.append(
-                self._error(snapshot, "TITLE_EMPTY", "Title must be non-empty", "title")
-            )
-        if not parsed.body.strip():
-            errors.append(
-                self._error(snapshot, "BODY_EMPTY", "Body must be non-empty", "body")
-            )
-
-        description = fields.get("description")
-        if "description" in fields and (
-            not isinstance(description, str) or not self._valid_description(description)
-        ):
-            code = (
-                "DESCRIPTION_TOO_LONG"
-                if isinstance(description, str) and len(description) > 300
-                else "DESCRIPTION_INVALID"
-            )
-            errors.append(
-                self._error(
-                    snapshot,
-                    code,
-                    "description must be plain text of at most 300 characters",
-                    "description",
-                )
-            )
-
-        created_date = fields.get("created_date")
-        if "created_date" in fields and not self._valid_date(
-            created_date, parsed.scalar_styles.get("created_date")
-        ):
-            errors.append(
-                self._error(
-                    snapshot,
-                    "CREATED_DATE_INVALID",
-                    "created_date must be a quoted YYYY-MM-DD string",
-                    "created_date",
-                )
-            )
-        return errors
-
-    def _validate_type(
-        self, snapshot: IssueSnapshot, parsed: ParsedFrontMatter, content_type: str
-    ) -> list[Diagnostic]:
-        errors: list[Diagnostic] = []
-        slug = parsed.fields.get("slug")
-        if content_type == "blog":
-            if "slug" in parsed.fields and (
-                not isinstance(slug, str) or not self._valid_slug(slug)
-            ):
-                errors.append(
-                    self._error(
-                        snapshot,
-                        "SLUG_INVALID",
-                        "slug must be lower-case kebab-case and at most 80 characters",
-                        "slug",
-                    )
-                )
-        elif "slug" in parsed.fields:
-            errors.append(
-                self._error(
-                    snapshot,
-                    "SLUG_FORBIDDEN",
-                    f"slug is forbidden for {content_type.title()}",
-                    "slug",
-                )
-            )
-
-        tag_values = _label_values(snapshot.labels, "tag:")
-        for tag in tag_values:
-            if not _KEBAB_RE.fullmatch(tag) or len(tag) > 50:
-                errors.append(
-                    self._error(
-                        snapshot, "TAG_INVALID", f"Invalid tag: {tag!r}", "tags"
-                    )
-                )
-        if content_type == "about" and tag_values:
-            errors.append(
-                self._error(
-                    snapshot, "ABOUT_TAG_FORBIDDEN", "About must not have tags", "tags"
-                )
-            )
-        return errors
-
-    def _compile_body(
-        self, snapshot: IssueSnapshot, body: str, diagnostics: list[Diagnostic]
-    ) -> str | None:
-        try:
-            rendered = _render_markdown(body)
-        except Exception:
-            diagnostics.append(
-                self._error(
-                    snapshot,
-                    "MARKDOWN_RENDER_FAILED",
-                    "Markdown rendering failed",
-                    "body",
-                )
-            )
-            return None
-        try:
-            return sanitize_html(rendered)
-        except Exception as exc:
-            # Only our controlled tag/position messages are safe to expose;
-            # third-party exceptions may contain authored text or URL values.
-            message = "HTML sanitization failed"
-            if isinstance(exc, HTMLSanitizationError):
-                message += f": {exc}"
-            diagnostics.append(
-                self._error(snapshot, "SANITIZER_FAILED", message, "body")
-            )
-            return None
-
     def _validate_blog_slugs(
         self, candidates: list[tuple[str, int]], diagnostics: list[Diagnostic]
     ) -> None:
         seen: dict[str, int] = {}
         for slug, number in candidates:
-            if slug == "page":
+            if reserved := reserved_blog_slug(slug):
                 diagnostics.append(
                     Diagnostic(
-                        "error",
-                        "SLUG_RESERVED",
-                        f"Issue #{number}: slug 'page' is reserved",
+                        reserved.severity,
+                        reserved.code,
+                        f"Issue #{number}: {reserved.message}",
                         number,
-                        "slug",
+                        reserved.field,
                     )
                 )
             if slug in seen:
@@ -543,33 +424,6 @@ class ContentCompiler:
     @staticmethod
     def _published(labels: tuple[str, ...]) -> bool:
         return any(_normalize(label) == "published" for label in labels)
-
-    @staticmethod
-    def _valid_slug(value: str) -> bool:
-        return bool(_KEBAB_RE.fullmatch(value)) and len(value) <= 80
-
-    @staticmethod
-    def _valid_description(value: str) -> bool:
-        if not value.strip() or len(value) > 300 or "<" in value or ">" in value:
-            return False
-        return not any(
-            ord(char) < 32 or 0x7F <= ord(char) <= 0x9F or char in "\u2028\u2029"
-            for char in value
-        )
-
-    @staticmethod
-    def _valid_date(value: object, style: str | None) -> bool:
-        if (
-            not isinstance(value, str)
-            or style not in ("'", '"')
-            or not _DATE_RE.fullmatch(value)
-        ):
-            return False
-        try:
-            datetime.strptime(value, "%Y-%m-%d")
-        except ValueError:
-            return False
-        return True
 
     @staticmethod
     def _error(
