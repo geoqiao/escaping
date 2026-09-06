@@ -23,6 +23,32 @@
     <meta name="twitter:description" content="{% block twitter_description %}{{ meta_description }}{% endblock %}">
     <meta name="twitter:image" content="{% block twitter_image %}{{ theme_favicon_url }}{% endblock %}">
 
+    <script>
+    (function() {
+        // Delegate before first paint; failed binding leaves navigation expanded.
+        document.addEventListener('change', function(event) {
+            if (event.target.id === 'side-menu') {
+                document.querySelector('.hamb').setAttribute('aria-expanded', event.target.checked ? 'true' : 'false');
+            }
+        });
+        document.addEventListener('keydown', function(event) {
+            var checkbox = document.getElementById('side-menu');
+            var label = document.querySelector('.hamb');
+            if (!checkbox || !label) return;
+            if (event.target === label && (event.key === 'Enter' || event.key === ' ')) {
+                event.preventDefault();
+                checkbox.checked = !checkbox.checked;
+                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+            } else if (event.key === 'Escape' && checkbox.checked) {
+                event.preventDefault();
+                checkbox.checked = false;
+                checkbox.dispatchEvent(new Event('change', { bubbles: true }));
+                label.focus();
+            }
+        });
+        document.documentElement.classList.add('navigation-ready');
+    })();
+    </script>
     <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
     <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-nord.css">
     <link rel="alternate" type="application/atom+xml" title="RSS" href="{{ atom_url }}">
@@ -66,31 +92,5 @@
     </div>
 
     <script src="{{ theme_path }}/static/js/prism.js"></script>
-    <script>
-    (function() {
-        var checkbox = document.getElementById('side-menu');
-        var label = document.querySelector('.hamb');
-        if (checkbox && label) {
-            checkbox.addEventListener('change', function() {
-                label.setAttribute('aria-expanded', checkbox.checked ? 'true' : 'false');
-            });
-            label.addEventListener('keydown', function(event) {
-                if (event.key === 'Enter' || event.key === ' ') {
-                    event.preventDefault();
-                    checkbox.checked = !checkbox.checked;
-                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-                }
-            });
-            document.addEventListener('keydown', function(event) {
-                if (event.key === 'Escape' && checkbox.checked) {
-                    event.preventDefault();
-                    checkbox.checked = false;
-                    checkbox.dispatchEvent(new Event('change', { bubbles: true }));
-                    label.focus();
-                }
-            });
-        }
-    })();
-    </script>
 </body>
 </html>

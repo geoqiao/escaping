@@ -243,7 +243,19 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 @media screen and (max-width: 768px) {
+  html:not(.navigation-ready) .header {
+    height: auto;
+    min-height: 60px;
+    flex-wrap: wrap;
+  }
+
   .headerLinks {
+    width: 100%;
+    padding: 20px 0;
+  }
+
+  .navigation-ready .headerLinks {
+    padding: 0;
     position: fixed;
     top: 60px;
     left: 0;
@@ -269,7 +281,11 @@ h1, h2, h3, h4, h5, h6 {
     font-size: 1.25rem;
   }
 
-  .hamb {
+  .navigation-ready .side-menu:not(:checked) ~ .headerLinks {
+    visibility: hidden;
+  }
+
+  .navigation-ready .hamb {
     display: block;
   }
 }

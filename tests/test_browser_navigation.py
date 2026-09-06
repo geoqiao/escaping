@@ -500,7 +500,7 @@ def test_sanitized_fragments_stay_inside_the_theme_body(browser: Browser) -> Non
 def test_mobile_navigation_is_keyboard_operable_for_every_theme(
     theme_page: tuple[str, Page, str],
 ) -> None:
-    _, page, _ = theme_page
+    _, page, origin = theme_page
     menu_control = page.get_by_role("button", name="Toggle menu")
     controlled_id = menu_control.get_attribute("aria-controls")
     assert controlled_id
@@ -523,6 +523,66 @@ def test_mobile_navigation_is_keyboard_operable_for_every_theme(
     expect(menu_control).to_have_attribute("aria-expanded", "false")
     expect(blog_link).not_to_be_in_viewport()
     expect(menu_control).to_be_focused()
+    page.keyboard.press("Space")
+    expect(menu_control).to_have_attribute("aria-expanded", "true")
+    page.keyboard.press("Tab")
+    expect(menu.locator("a").first).to_be_focused()
+    page.keyboard.press("Tab")
+    expect(blog_link).to_be_focused()
+    page.keyboard.press("Enter")
+    expect(page).to_have_url(origin + "/blog/")
+
+
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2"])
+@pytest.mark.parametrize("initialization", ["no-js", "inline-csp", "binding-fails"])
+def test_escape_navigation_remains_keyboard_reachable_without_handlers(
+    browser: Browser, site_servers: dict[str, str], theme: str, initialization: str
+) -> None:
+    page = browser.new_page(
+        java_script_enabled=initialization != "no-js",
+        viewport={"width": 320, "height": 844},
+    )
+    if initialization == "inline-csp":
+
+        def restrict_inline(route: Route) -> None:
+            response = route.fetch()
+            route.fulfill(
+                response=response,
+                headers={
+                    **response.headers,
+                    "content-security-policy": "script-src 'self'",
+                },
+            )
+
+        page.route("**/", restrict_inline)
+    elif initialization == "binding-fails":
+        page.add_init_script("""(() => {
+            const add = document.addEventListener;
+            document.addEventListener = function(type, ...args) {
+                if (type === 'keydown') throw new Error('Navigation binding unavailable');
+                return add.call(this, type, ...args);
+            };
+        })();""")
+    page.route("https://**/*", lambda route: route.abort())
+    origin = site_servers[theme]
+    try:
+        page.goto(origin + "/", wait_until="load")
+        page.locator(".logo, .terminal").focus()
+        menu = page.locator("#header-nav")
+        for link in menu.locator("a").all():
+            page.keyboard.press("Tab")
+            expect(link).to_be_focused()
+            expect(link).to_be_in_viewport()
+        expect(page.get_by_role("button", name="Toggle menu")).to_be_hidden()
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        page.locator(".logo, .terminal").focus()
+        page.keyboard.press("Tab")
+        page.keyboard.press("Tab")
+        page.keyboard.press("Enter")
+        expect(page).to_have_url(origin + "/blog/")
+        expect(page.locator('main a[href="/blog/a-blog/"]').first).to_be_visible()
+    finally:
+        page.close()
 
 
 def test_geoqiao_mobile_navigation_contains_focus_and_resets_cleanly(

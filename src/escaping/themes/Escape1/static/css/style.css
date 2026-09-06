@@ -618,13 +618,16 @@ footer a:hover {
   }
 
   .nav-links {
-    position: absolute;
-    top: 100%;
-    left: 0;
     width: 100%;
     flex-direction: column;
     align-items: flex-start;
     gap: 1rem;
+  }
+
+  .navigation-ready .nav-links {
+    position: absolute;
+    top: 100%;
+    left: 0;
     max-height: 0;
     overflow: hidden;
     opacity: 0;
@@ -633,7 +636,11 @@ footer a:hover {
     transition: max-height 0.4s ease-out, opacity 0.3s ease-out;
   }
 
-  .hamb {
+  .navigation-ready .side-menu:not(:checked) ~ .nav-links {
+    visibility: hidden;
+  }
+
+  .navigation-ready .hamb {
     display: block;
   }
 
