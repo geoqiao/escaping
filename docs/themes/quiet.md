@@ -20,6 +20,7 @@ theme:
 | Blog 文章页尾 | 只显示全量已发布 Blog 中的英文 Previous（较新）/ Next（较旧）；首末和单篇不造链接，Idea/About 保留原页尾 |
 | Mermaid | 既有本地 strict loader 使用 `neutral`；仅 SVG 在深色反相、打印还原，不重渲染；节点边框补足 3:1 |
 | 移动导航初始化 | head 中的 `appearance.js` 先注册委托事件，再设置 `navigation-ready`；菜单不等待 `site.js`，不在首屏后移出文档流。禁 JS 或 head 脚本失败时保持展开导航；`site.js` 失败时菜单仍可打开、Escape 关闭并回归焦点 |
+| 紧凑目录初始化 | 屏幕宽度 ≤1180px、启用 JS 且正文含 h1–h3 时，CSS 为隐藏的闭合目录预留自然尺寸；初始化后显示原目录，换行不依赖固定占位高度。无 heading、禁 JS 和打印不预留；脚本失败会留下空白（默认约 96px，含间距），但无伪可用控件。分段 HTML 尚未解析到目录时仍可能跳动；不支持 `:has()` / `scripting` 的浏览器保留原延迟显示行为 |
 | 主题偏好 | `quiet-theme` 保存读者明确选择的浅色或深色模式 |
 | 打印 | Theme 表面白底、文字黑色；内容图片保留原色，SVG 使用中性浅色 |
 

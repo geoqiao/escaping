@@ -4,6 +4,7 @@ import json
 import os
 import re
 from collections.abc import Iterator
+from dataclasses import replace
 from datetime import UTC, datetime
 from functools import partial
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
@@ -220,11 +221,29 @@ def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
             is_pull_request=False,
         ),
     ]
+    quiet_toc_snapshots = []
+    for number, slug, body in (
+        (
+            21,
+            "toc-headings",
+            "Introduction.\n\n## Repeat\n\nText.\n\n## Repeat\n\n### 嵌套细节",
+        ),
+        (22, "toc-none", "No section headings here."),
+        (23, "toc-escaped", "Only code.\n\n```html\n<h2>Not a heading</h2>\n```"),
+    ):
+        snapshot = _adjacent_snapshot(
+            number, "TOC sample", slug, datetime(2025, 1, 1, tzinfo=UTC), "toc"
+        )
+        quiet_toc_snapshots.append(
+            replace(snapshot, body=snapshot.body.replace("Body.", body))
+        )
     output_dirs: dict[str, Path] = {}
     for theme in _THEMES:
         settings = _browser_settings(theme)
         routes = RouteRegistry(str(settings.site.url))
-        content = ContentCompiler(settings, route_registry=routes).compile(snapshots)
+        content = ContentCompiler(settings, route_registry=routes).compile(
+            snapshots + (quiet_toc_snapshots if theme == "Quiet" else [])
+        )
         site = SiteBuilder(settings, route_registry=routes).build(
             content,
             ProjectCompiler().compile(settings.projects, route=routes.projects()),
@@ -1051,6 +1070,116 @@ def test_quiet_navigation_is_stable_and_usable_when_initialization_is_unavailabl
         assert not errors
         if initialization.startswith("blocked"):
             assert any(url.endswith(script) for url in failures)
+    finally:
+        context.close()
+
+
+@pytest.mark.parametrize(
+    ("slug", "width", "wrap"),
+    [
+        ("toc-headings", 320, False),
+        ("toc-headings", 390, False),
+        ("toc-headings", 1180, False),
+        ("toc-headings", 1181, False),
+        ("toc-headings", 320, True),
+        ("toc-none", 390, False),
+        ("toc-escaped", 390, False),
+    ],
+)
+def test_quiet_toc_reserves_its_natural_compact_size_before_initialization(
+    browser: Browser, site_servers: dict[str, str], slug: str, width: int, wrap: bool
+) -> None:
+    context = browser.new_context(viewport={"width": width, "height": 900})
+    page = context.new_page()
+    pending: list[Route] = []
+    page.route("**/Quiet/static/js/site.js", lambda route: pending.append(route))
+    page.route("https://utteranc.es/**", lambda route: route.abort())
+    try:
+        page.goto(f"{site_servers['Quiet']}/blog/{slug}/", wait_until="commit")
+        aside = page.locator(".reading-margin")
+        summary = aside.locator("summary")
+        # The whole article shell has arrived, but the deferred script has not.
+        expect(aside).to_have_count(1)
+        expect(page.locator(".post-content")).to_be_visible()
+        if wrap:
+            summary.evaluate(
+                "e => { e.textContent = 'On this page — sections and subsections in this article'; }"
+            )
+        page.evaluate(
+            "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+        )
+        main = page.locator(".reading-main")
+        offset = "e => e.getBoundingClientRect().y - e.parentElement.getBoundingClientRect().y"
+        before = main.evaluate(offset)
+        height = aside.evaluate("e => e.getBoundingClientRect().height")
+        has_headings = slug == "toc-headings"
+        if has_headings and width <= 1180:
+            assert height > 0
+            gap = main.evaluate(
+                "e => parseFloat(getComputedStyle(e.parentElement).rowGap)"
+            )
+            assert before == pytest.approx(height + gap)
+        else:
+            assert before == height == 0
+        expect(summary).to_be_hidden()
+        assert len(pending) == 1
+        pending.pop().continue_()
+        page.wait_for_load_state("load")
+        page.evaluate(
+            "new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)))"
+        )
+        assert main.evaluate(offset) == pytest.approx(before, abs=1)
+        if has_headings:
+            expect(summary).to_be_visible()
+            if width <= 1180:
+                assert aside.evaluate("e => e.getBoundingClientRect().height") == height
+                summary.press("Enter")
+            else:
+                expect(aside.locator("details")).to_have_attribute("open", "")
+            assert aside.locator("a").evaluate_all(
+                "links => links.map(a => a.getAttribute('href'))"
+            ) == ["#repeat", "#repeat-section", "#%E5%B5%8C%E5%A5%97%E7%BB%86%E8%8A%82"]
+            if width == 390:
+                aside.get_by_role("link", name="嵌套细节").click()
+                expect(page.get_by_role("heading", name="嵌套细节")).to_be_in_viewport()
+                expect(page).to_have_url(
+                    re.compile(r"#%E5%B5%8C%E5%A5%97%E7%BB%86%E8%8A%82$")
+                )
+        else:
+            expect(summary).to_be_hidden()
+            expect(aside.locator("a")).to_have_count(0)
+    finally:
+        context.close()
+
+
+@pytest.mark.parametrize("javascript", [True, False], ids=["blocked-site", "js-off"])
+def test_quiet_toc_unavailable_script_leaves_no_fake_control(
+    browser: Browser, site_servers: dict[str, str], javascript: bool
+) -> None:
+    context = browser.new_context(
+        java_script_enabled=javascript, viewport={"width": 320, "height": 700}
+    )
+    page = context.new_page()
+    page.route("**/Quiet/static/js/site.js", lambda route: route.abort())
+    page.route("https://utteranc.es/**", lambda route: route.abort())
+    try:
+        page.goto(f"{site_servers['Quiet']}/blog/toc-headings/", wait_until="load")
+        aside = page.locator(".reading-margin")
+        height = aside.evaluate("e => e.getBoundingClientRect().height")
+        if javascript:
+            # Natural closed summary + padding, not the height of an empty open nav.
+            assert height == 68
+        else:
+            assert height == 0
+        summary = aside.locator("summary")
+        expect(summary).to_be_hidden()
+        summary.focus()
+        expect(summary).not_to_be_focused()
+        expect(aside.locator("a")).to_have_count(0)
+        expect(page.get_by_role("heading", name="Repeat").first).to_be_visible()
+        expect(page.locator(".post-content")).to_contain_text("Introduction.")
+        page.emulate_media(media="print")
+        assert aside.evaluate("e => e.getBoundingClientRect().height") == 0
     finally:
         context.close()
 

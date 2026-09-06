@@ -247,6 +247,10 @@ main { min-height: calc(100svh - 220px); }
   .toc nav { max-height: 260px; }
   .topic-index { grid-template-columns: repeat(2, minmax(0, 1fr)); }
 }
+@media screen and (scripting: enabled) and (max-width: 1180px) {
+  /* Reserve the closed disclosure's natural size, without exposing an empty control. */
+  .reading-layout:has(> .reading-main > .post-content :is(h1, h2, h3)) > .reading-margin[hidden] { display: block !important; visibility: hidden; }
+}
 @media (max-width: 760px) {
   .site-rail { position: relative; width: auto; padding: 20px 24px; display: grid; grid-template-columns: 1fr auto; gap: 0 24px; overflow: visible; }
   .identity { flex-direction: row; align-items: center; gap: 16px; }
