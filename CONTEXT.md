@@ -13,7 +13,7 @@ The single current agreement that defines how Issue Content represents identity,
 _Avoid_: Front matter format, Local Draft Contract
 
 **Local Draft Contract**:
-The single current input agreement accepted by the Issue Draft Uploader; it describes one-time upload input rather than authoritative Issue Content.
+The single current input agreement shared by Local Draft Lint and the Issue Draft Uploader; it describes one-time creation input rather than authoritative Issue Content.
 _Avoid_: Issue Content Contract, sync format, sidecar format
 
 **Issue Draft Uploader**:
@@ -24,6 +24,10 @@ _Avoid_: Issue Publisher, sync command, build command
 A local Markdown document used only as input when creating Issue Content; after creation it has no synchronization or authority role.
 _Avoid_: Source post, local canonical, working copy
 
+**Local Draft Lint**:
+Optional, read-only authoring assistance for a Local Draft; it is neither publication approval nor proof of future author eligibility or collection-wide route uniqueness.
+_Avoid_: Publishing gate, Issue validator, upload command
+
 **Site Compiler**:
 The `escaping` capability that converts Issue Content and repository-owned site content into a validated static site.
 _Avoid_: Issue monitor, Issue Draft Uploader
@@ -31,6 +35,14 @@ _Avoid_: Issue monitor, Issue Draft Uploader
 **Site Config**:
 Repository-owned choices for one generated site, overriding missing-value defaults field by field. Relative filesystem paths belong to the Site Config directory, never to the caller's working directory.
 _Avoid_: Generator Config, global settings
+
+**Theme**:
+A trusted presentation of the site's pages and content, selected independently from authoring and publication decisions.
+_Avoid_: Publishing plugin, content source
+
+**Theme API**:
+The versioned compatibility agreement defining the page information, assets and presentation behavior a Theme can rely on. Its version is distinct from the Site Compiler's release identity.
+_Avoid_: Visual style version, automatic compatibility adapter
 
 **Built-in Theme**:
 A Theme distributed with the Site Compiler. Quiet is the default; geoqiao.me, Escape1, and Escape2 are alternatives.
