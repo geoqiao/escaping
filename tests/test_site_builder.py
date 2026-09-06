@@ -110,8 +110,8 @@ def test_site_builder_composes_metadata_routes_and_internal_page_models() -> Non
     assert site.metadata.profile.tagline == "Analyst / tool builder"
     assert site.metadata.profile.bio == "Bio"
     assert site.metadata.comments.repo == "owner/site"
-    assert site.metadata.theme.name == "geoqiao.me"
-    assert site.metadata.theme.asset_path == "/templates/geoqiao.me"
+    assert site.metadata.theme.name == "Quiet"
+    assert site.metadata.theme.asset_path == "/templates/Quiet"
 
     assert site.home.route is routes.route("home")
     assert [post.issue_number for post in site.home.recent_posts] == [6, 5, 4, 3, 2]
@@ -143,6 +143,36 @@ def test_site_builder_composes_metadata_routes_and_internal_page_models() -> Non
         "Post 2",
         "Post 1",
     ]
+
+
+def test_default_navigation_uses_registered_routes_and_explicit_lists_replace_it() -> (
+    None
+):
+    data = _settings().model_dump()
+    del data["site"]["navigation"]
+    defaults = Settings.model_validate(data)
+    expected = [
+        ("Home", "/"),
+        ("Blog", "/blog/"),
+        ("Ideas", "/ideas/"),
+        ("Projects", "/projects/"),
+        ("Tags", "/tags/"),
+        ("About", "/about/"),
+        ("RSS", "/atom.xml"),
+    ]
+    routes = RouteRegistry(str(defaults.site.url))
+    site = _build(defaults, routes, _content(routes))
+    assert [(link.name, link.url) for link in site.metadata.navigation] == expected
+    assert all(routes.route_for_path(link.url) for link in site.metadata.navigation)
+    for items in ([{"name": "Notes", "url": "/ideas/"}], []):
+        data["site"]["navigation"] = {"items": items}
+        settings = Settings.model_validate(data)
+        routes = RouteRegistry(str(settings.site.url))
+        site = _build(settings, routes, _content(routes))
+        assert [(link.name, link.url) for link in site.metadata.navigation] == [
+            (item["name"], item["url"]) for item in items
+        ]
+        assert all(routes.route_for_path(url) for _, url in expected)
 
 
 def test_site_builder_has_intentional_empty_blog_models() -> None:

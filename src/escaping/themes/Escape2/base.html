@@ -38,7 +38,7 @@
                 <a href="{{ home_path }}" class="terminal">
                     <span>{{ github_name }}@escaping ~ $</span><span class="cursor">_</span>
                 </a>
-                <input class="side-menu" type="checkbox" id="side-menu">
+                {% if navigation_items %}<input class="side-menu" type="checkbox" id="side-menu">
                 <label class="hamb" for="side-menu" role="button" tabindex="0" aria-label="Toggle menu" aria-expanded="false" aria-controls="header-nav"><span class="hamb-line"></span></label>
                 <nav class="headerLinks" id="header-nav">
                     <ul>
@@ -46,12 +46,12 @@
                         <li><a href="{{ item.url }}">~/{{ item.name }}</a></li>
                         {% endfor %}
                     </ul>
-                </nav>
+                </nav>{% endif %}
             </div>
         </header>
 
         <div class="content">
-            <main class="main" id="main-content">
+            <main class="main" id="main-content" tabindex="-1">
                 {% block content %}{% endblock %}
             </main>
         </div>

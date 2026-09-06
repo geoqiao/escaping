@@ -43,6 +43,21 @@ body {
   transition: background-color 0.3s ease, color 0.3s ease;
 }
 
+.skip-link {
+  position: fixed;
+  top: 12px;
+  left: 12px;
+  padding: 12px 20px;
+  background: var(--bg);
+  color: var(--link);
+  z-index: 20;
+  transform: translateY(-180%);
+}
+
+.skip-link:focus {
+  transform: translateY(0);
+}
+
 /* Layout */
 .container {
   max-width: 680px;

@@ -31,23 +31,24 @@
     {% block extra_head %}{% endblock %}
 </head>
 <body>
+    <a href="#main-content" class="skip-link">{{ skip_link_text }}</a>
     <header>
         <div class="container">
             <nav>
                 <a href="{{ home_path }}" class="logo">{{ blog_title }}</a>
-                <input class="side-menu" type="checkbox" id="side-menu">
+                {% if navigation_items %}<input class="side-menu" type="checkbox" id="side-menu">
                 <label class="hamb" for="side-menu" role="button" tabindex="0" aria-label="Toggle menu" aria-expanded="false" aria-controls="header-nav"><span class="hamb-line"></span></label>
                 <ul class="nav-links" id="header-nav">
                     {% for item in navigation_items %}
                     <li><a href="{{ item.url }}">{{ item.name }}</a></li>
                     {% endfor %}
-                    <li><button class="theme-toggle" aria-label="Toggle theme">🌙</button></li>
-                </ul>
+                    <li>{% endif %}<button class="theme-toggle" aria-label="Toggle theme">🌙</button>{% if navigation_items %}</li>
+                </ul>{% endif %}
             </nav>
         </div>
     </header>
 
-    <main>
+    <main id="main-content" tabindex="-1">
         <div class="container">
             {% block content %}{% endblock %}
         </div>

@@ -170,7 +170,20 @@ class NavigationConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    items: list[Link] = Field(default_factory=list)
+    items: list[Link] = Field(
+        default_factory=lambda: [
+            Link(name=name, url=url)
+            for name, url in (
+                ("Home", "/"),
+                ("Blog", "/blog/"),
+                ("Ideas", "/ideas/"),
+                ("Projects", "/projects/"),
+                ("Tags", "/tags/"),
+                ("About", "/about/"),
+                ("RSS", "/atom.xml"),
+            )
+        ]
+    )
 
 
 class SiteConfig(BaseModel):
@@ -315,7 +328,7 @@ class BuiltinThemeConfig(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     source: Literal["builtin"] = "builtin"
-    name: str = "geoqiao.me"
+    name: str = "Quiet"
 
     @field_validator("name")
     @classmethod

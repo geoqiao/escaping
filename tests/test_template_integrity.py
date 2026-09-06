@@ -46,6 +46,7 @@ def _settings(
     projects: list[dict[str, object]] | None = None,
     page_size: int | None = None,
     comments_enabled: bool = True,
+    navigation_items: list[dict[str, str]] | None = None,
 ) -> Settings:
     site: dict[str, object] = {
         "title": title,
@@ -54,6 +55,8 @@ def _settings(
         "language": language,
         "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
     }
+    if navigation_items is not None:
+        site["navigation"] = {"items": navigation_items}
     if thesis is not None:
         site["thesis"] = thesis
     data: dict[str, object] = {
@@ -100,6 +103,7 @@ def _render_theme(
     bio: str = "",
     projects: list[dict[str, object]] | None = None,
     comments_enabled: bool = True,
+    navigation_items: list[dict[str, str]] | None = None,
 ) -> dict[str, str]:
     settings = _settings(
         theme,
@@ -112,6 +116,7 @@ def _render_theme(
         bio=bio,
         projects=projects,
         comments_enabled=comments_enabled,
+        navigation_items=navigation_items,
     )
     routes = RouteRegistry(str(settings.site.url))
     content = ContentCompiler(settings, route_registry=routes).compile(
@@ -257,6 +262,61 @@ def test_disabled_comments_leave_no_widget_or_dead_discussion_anchor(
             assert absent not in html, (path, absent)
     for path in ("blog/post/index.html", "ideas/2/index.html", "about/index.html"):
         assert "Body <strong>content</strong>." in rendered[path]
+
+
+class _MenuProbe(HTMLParser):
+    def __init__(self) -> None:
+        super().__init__()
+        self.end_tag = ""
+        self.links: list[tuple[str, str]] = []
+        self.href: str | None = None
+        self.label = ""
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        values = dict(attrs)
+        if values.get("id") in ("header-nav", "site-navigation"):
+            self.end_tag = tag
+        if self.end_tag and tag == "a":
+            self.href = values.get("href")
+            self.label = ""
+
+    def handle_data(self, data: str) -> None:
+        if self.href is not None:
+            self.label += data
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag == "a" and self.href is not None:
+            self.links.append(
+                (self.label.strip().removeprefix("~/").rstrip(" ↗·"), self.href)
+            )
+            self.href = None
+        if tag == self.end_tag:
+            self.end_tag = ""
+
+
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
+def test_theme_menu_is_a_complete_override_independent_of_brand(theme: str) -> None:
+    for items in (
+        [
+            {"name": "Feed", "url": "/atom.xml"},
+            {"name": "Start", "url": "/"},
+            {"name": "Notes", "url": "/ideas/"},
+        ],
+        [{"name": "Notes", "url": "/ideas/"}],
+        [],
+    ):
+        html = _render_theme(theme, navigation_items=items)["index.html"]
+        probe = _MenuProbe()
+        probe.feed(html)
+        assert probe.links == [(item["name"], item["url"]) for item in items]
+        assert re.search(
+            r'<a href="/" class="(?:logo|terminal|ledger-brand)"|class="identity" href="/"',
+            html,
+        )
+        assert ('aria-label="Toggle menu"' in html) is bool(items)
+        assert 'href="#main-content"' in html
+        if not items:
+            assert 'id="header-nav"' not in html and 'id="site-navigation"' not in html
 
 
 @pytest.mark.parametrize("language", ["en", "zh-CN"])

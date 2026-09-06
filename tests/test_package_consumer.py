@@ -94,6 +94,7 @@ settings = Settings.model_validate({
     'about': {'issue_number': 2},
     'security': {'token_env': 'TOKEN'},
     'comments': {'enabled': True},
+    'theme': {'source': 'builtin', 'name': 'geoqiao.me'},
 })
 assert settings.theme.name == 'geoqiao.me'
 now = datetime(2026, 1, 1, tzinfo=UTC)
@@ -333,5 +334,10 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
     )
     assert minimal.returncode == 0, minimal.stdout + minimal.stderr
     assert (site / "output/blog/128/index.html").is_file()
+    assert (site / "output/templates/Quiet/static/css/style.css").is_file()
+    minimal_post = (site / "output/blog/128/index.html").read_text()
+    assert "comments.js" not in minimal_post and "Discuss" not in minimal_post
+    minimal_home = (site / "output/index.html").read_text()
+    assert 'id="site-navigation"' in minimal_home and 'href="/atom.xml"' in minimal_home
     minimal_about = (site / "output/about/index.html").read_text()
     assert "Alice Example" in minimal_about and "comments.js" not in minimal_about

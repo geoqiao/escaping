@@ -71,11 +71,13 @@ def _browser_settings(theme: str) -> Settings:
                 "language": "zh-CN" if theme == "Quiet" else "en",
                 "navigation": {
                     "items": [
+                        {"name": "Home", "url": "/"},
                         {"name": "Blog", "url": "/blog/"},
                         {"name": "Ideas", "url": "/ideas/"},
                         {"name": "Projects", "url": "/projects/"},
                         {"name": "Tags", "url": "/tags/"},
                         {"name": "About", "url": "/about/"},
+                        {"name": "RSS", "url": "/atom.xml"},
                     ]
                 },
             },
@@ -259,7 +261,14 @@ def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
                     update={
                         "comments": settings.comments.model_copy(
                             update={"enabled": False}
-                        )
+                        ),
+                        "site": settings.site.model_copy(
+                            update={
+                                "navigation": settings.site.navigation.model_copy(
+                                    update={"items": []}
+                                )
+                            }
+                        ),
                     }
                 )
                 site = SiteBuilder(disabled, routes).build(
@@ -1507,6 +1516,39 @@ def test_disabled_comments_make_no_third_party_requests(
             expect(page.locator('a[href="#comments-title"]')).to_have_count(0)
             expect(page.locator(".post-content")).to_be_visible()
         assert not external
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("theme", _THEMES)
+def test_empty_menu_preserves_keyboard_entry_brand_and_appearance(
+    browser: Browser, site_servers: dict[str, str], theme: str
+) -> None:
+    page = browser.new_page(viewport={"width": 320, "height": 700})
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    origin = site_servers[f"{theme}-disabled"]
+    try:
+        page.goto(f"{origin}/blog/a-blog/", wait_until="load")
+        expect(page.get_by_role("button", name="Toggle menu")).to_have_count(0)
+        page.keyboard.press("Tab")
+        expect(page.get_by_role("link", name="Skip to main content")).to_be_focused()
+        page.keyboard.press("Enter")
+        expect(page.locator("#main-content")).to_be_focused()
+        brand = page.locator(".identity, .logo, .terminal, .ledger-brand")
+        brand.focus()
+        page.keyboard.press("Enter")
+        expect(page).to_have_url(origin + "/")
+        if theme != "Escape2":
+            toggle = page.locator(".theme-toggle")
+            toggle.focus()
+            expect(toggle).to_be_focused()
+            page.keyboard.press("Enter")
+            expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+        page.set_viewport_size({"width": 1440, "height": 900})
+        page.set_viewport_size({"width": 390, "height": 844})
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        assert not errors
     finally:
         page.close()
 

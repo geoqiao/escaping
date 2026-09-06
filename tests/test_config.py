@@ -44,7 +44,7 @@ def test_strict_paths_have_only_output_and_page_size() -> None:
 
 def test_theme_source_is_explicit_and_separate_from_output_paths() -> None:
     defaults = Settings.model_validate(_BASE)
-    assert defaults.theme == BuiltinThemeConfig(name="geoqiao.me")
+    assert defaults.theme == BuiltinThemeConfig(name="Quiet")
 
     builtin = Settings.model_validate(
         {**_BASE, "theme": {"source": "builtin", "name": "Escape1"}}
