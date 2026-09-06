@@ -8,6 +8,7 @@ from pathlib import Path
 
 import pytest
 
+from escaping.content_validation import validate_authored_content
 from escaping.local_draft import prepare_local_draft
 from escaping.utils.frontmatter import parse_front_matter, parse_yaml_envelope
 
@@ -24,6 +25,7 @@ from escaping.utils.frontmatter import parse_front_matter, parse_yaml_envelope
             ["type:about"],
         ),
         ("blog", "slug: chosen\n", ["type:blog"]),
+        ("blog", 'created_date: "٢٠٢٦-01-01"\n', ["type:blog"]),
     ],
 )
 def test_draft_payload_preserves_body_and_only_authored_metadata(
@@ -45,6 +47,12 @@ def test_draft_payload_preserves_body_and_only_authored_metadata(
     )
     assert not {"title", "type", "tags"} & envelope.fields.keys()
     assert "published" not in payload["labels"]
+    assert not validate_authored_content(
+        payload["title"],
+        kind,
+        [label.removeprefix("tag:") for label in labels[1:]],
+        parse_front_matter(payload["body"]),
+    )
 
 
 @pytest.mark.parametrize(

@@ -49,8 +49,11 @@ attachment preparation never grants commit, push, Issue editing or deploy author
    revalidate/review rather than combining old permission with new content.
 5. Run `gh auth status`. If unavailable, ask the user to run `gh auth login`;
    never request, print or persist credentials. Confirm the explicit repository
-   with `gh repo view <owner/repo> --json nameWithOwner`. A failure is not evidence
-   that it is safe to create a replacement repository or switch targets.
+   with `gh repo view <owner/repo> --json nameWithOwner`. Compare the returned
+   `nameWithOwner` with the requested `owner/repo` case-insensitively. If a
+   redirect, rename or transfer returns a different identity, stop before any
+   label/Issue write and obtain fresh user confirmation of the target. A failure
+   does not authorize creating a replacement repository or switching targets.
 6. List existing labels in that repository (paginate when necessary). Create only
    absent labels from the validated payload: type labels color `D4C5F9`, tag labels
    color `C2E0C6`. Never add `published`, use `--force`, alter/delete an existing

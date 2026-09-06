@@ -139,7 +139,10 @@ def prepare_local_draft(
 
     # Always frame metadata, including {}: a body beginning with --- must not
     # accidentally declare a second envelope. Never dump before date validation.
-    envelope = yaml.safe_dump(metadata, allow_unicode=True, sort_keys=False)
+    # Preserve required date quoting even when YAML does not infer a timestamp.
+    envelope = yaml.safe_dump(
+        metadata, allow_unicode=True, sort_keys=False, default_style='"'
+    )
     return {
         "title": title,
         "body": f"---\n{envelope}---\n" + parsed.body,

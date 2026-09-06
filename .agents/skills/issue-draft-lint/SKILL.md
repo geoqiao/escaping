@@ -78,8 +78,7 @@ input → distinct output path and proposed URL/diff. Keep the original and its
 hash; report the new bytes/MIME/dimensions and show the exact reference changes
 for review. This does not authorize commit/push, editing an Issue or publication.
 Never overwrite an existing attachment or change a published slug as cleanup.
-Existing site charts, fonts, body text and `assets/issues/62/` are not implicit
-optimization targets.
+Existing attachments, body text and fonts are not implicit optimization targets.
 
 ## Completion
 
