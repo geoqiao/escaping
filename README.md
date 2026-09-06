@@ -27,7 +27,7 @@
 
 | | 能力 | 行为 |
 | --- | --- | --- |
-| ✍️ | **Issues as content** | Blog、Ideas 与 About 来自带标签和 front matter 的 GitHub Issues |
+| ✍️ | **Issues as content** | Blog、Ideas 与 About Issue 由发布标签选择，front matter 可选；无 About Issue 时展示 Profile |
 | 🧭 | **完整站点模型** | 统一生成 Home、归档、详情、Projects、Tags、Atom、sitemap 与 robots |
 | 🎨 | **可替换 Theme** | 内置 `geoqiao.me`、`Escape1`、`Escape2`、`Quiet`，也支持 Config-relative 本地 Theme |
 | 🔒 | **默认安全** | Markdown HTML allowlist、严格 URL 校验、输出目录 containment、Jinja autoescape |
@@ -68,7 +68,7 @@ uv run python -m http.server 8000 --directory ../my-site/output
 
 打开 <http://localhost:8000>。`output/` 是 HTTP document root，不是 URL 中的 `/output/` 前缀。
 
-最小配置的关键部分：
+完整显式配置示例（无需平台 context）：
 
 ```yaml
 github:
@@ -96,7 +96,11 @@ security:
   token_env: GITHUB_TOKEN
 ```
 
-Blog slug 由 Issue front matter 显式提供，不从标题推导；About 由不可变 Issue number 选择。完整字段见 [`config.example.yaml`](config.example.yaml)，内容格式见 [`Issue Content v1`](docs/contracts/issue-content-v1.md)。
+字段可省略，由同一个 resolver 补齐；无 context 时至少提供真实 `github.repo` 和 HTTPS 根 `site.url`，组织还须显式指定作者。平台可提供严格的 `--context context.json`，此时 Config 可为 `{}`；不从 actor 授权、不猜 Pages URL。字段来源、安全边界和 N6 接口见[站点输入说明](docs/site-inputs.md)。
+
+Blog slug 缺省为 Issue 编号，也可逐字段覆盖；About 优先使用显式编号，否则发现唯一合法 published About，没有时展示无 Issue／日期／评论身份的 Profile About。Projects 只选 `repository` 即可补公开名称／摘要，手填值优先。完整字段见 [`config.example.yaml`](config.example.yaml)，内容格式见 [`Issue Content v1`](docs/contracts/issue-content-v1.md)。
+
+本切片仍保留旧 Theme／菜单／Issue 评论默认；Quiet 默认、完整菜单覆盖和可选评论开关待 N4，尚不接受 `comments.enabled`。
 
 默认 `geoqiao.me` 会优先使用 `profile.avatar`，未配置时回退到内置 mark；
 它不会把 Site Thesis、tagline 或 profile bio 放到首页。为兼容本地 Theme，这些字段
@@ -119,7 +123,7 @@ Blog slug 由 Issue front matter 显式提供，不从标题推导；About 由�
 
 ## 🔗 Config-owned origin 与历史 URL
 
-canonical origin 由站点仓库的 Site Config 所有：`site.url` 是输入值，生产站点当前配置为
+canonical origin 由站点输入所有：显式 `site.url` 优先，缺失时可从可信 Pages context 补齐；生产站点当前配置为
 `https://geoqiao.me/`。生成器仓库不持有生产 `config.yaml`；RouteRegistry、canonical、
 Open Graph、Atom、sitemap 和 robots 都从调用时传入的 origin 派生，所以同一个 compiler
 也可以服务其它站点。
@@ -141,7 +145,7 @@ Open Graph、Atom、sitemap 和 robots 都从调用时传入的 origin 派生，
 必须恰有一个节点的 `@id` **精确等于** `page_canonical_url`（不含 `#author` 等片段）。
 根对象及该节点若提供 `url`，值必须为相同的 canonical 字符串；其他节点及嵌套
 `author.url` 等引用不必相同。不支持顶层数组，也不联网展开 context/推断主实体。
-旧自定义 graph 缺少该身份时需补 `@id`；内置 `structured_data` 已符合此约定。
+旧自定义 graph 缺少该身份时需补 `@id`；内置 `structured_data` 已符合此约定。无 About Issue 的本地 Theme 还需支持 `about_is_profile` 分支；Profile About 没有 `body_html` 或 Issue 号，迁移见[站点输入说明](docs/site-inputs.md#about-and-local-themes)。
 
 不写 Theme 配置时，默认使用中文优先的内置 `geoqiao.me`；`Escape1`、
 `Escape2` 和 [Quiet](docs/themes/quiet.md) 是可选内置 Theme；Quiet 使用中性黑白与少量头像洋红：

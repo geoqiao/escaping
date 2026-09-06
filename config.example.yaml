@@ -1,5 +1,10 @@
 # ============================================
-# Core (required)
+# Expanded explicit reference, not a mandatory-field checklist.
+# Missing fields resolve from trusted context + public owner profile.
+# Without --context, github.repo and a real root site.url must be explicit;
+# Organization owners must also provide allowed_authors. See docs/site-inputs.md.
+# Current UI defaults remain unchanged pending N4 (no comments.enabled yet).
+# Core overrides
 # ============================================
 github:
   repo: username/username.github.io
@@ -33,16 +38,19 @@ site:
 profile:
   avatar: https://github.com/username.png
   # Optional Theme-specific profile copy. geoqiao.me intentionally keeps it
-  # out of Home and About; local Themes may consume either field.
+  # out of Home and Issue About; Profile About displays bio in every Theme.
   # tagline: Researcher / tool builder
   # bio: A short bio about yourself.
   links:
     - name: GitHub
       url: https://github.com/username
 
+# Omit about to discover the sole valid published About Issue, or use Profile
+# About when none exists. An explicit invalid selection fails, never falls back.
 about:
   issue_number: 1
 
+# This is the process environment variable NAME, never the token value.
 security:
   token_env: GITHUB_TOKEN
 
@@ -96,6 +104,13 @@ theme:
 # ============================================
 # Projects (optional)
 # ============================================
+# Only selected repositories are read. A minimal entry is:
+# projects:
+#   - repository: username/project
+# Missing slug = full repository.casefold(); title/summary use public repo data.
+# Explicit title/summary (including summary: "") win; API rename cannot change
+# the configured identity/key/link. Duplicate final catalog keys fail.
+# Expanded entry:
 # projects:
 #   - slug: my-project
 #     title: My Project

@@ -19,23 +19,35 @@ staged publication using directory renames with rollback.
 | Tags | `/tags/`, `/tags/{tag}/` |
 | Atom / sitemap / robots | `/atom.xml`, `/sitemap.xml`, `/robots.txt` |
 
-Blog slugs come from Issue front matter and are never derived from titles. Idea
-tags are display-only; About is selected by its immutable configured Issue
-number. Front matter is stripped before Markdown rendering, and the resulting
-HTML goes through the allowlist sanitizer.
+Blog slugs default to the Issue number, with optional front matter overrides;
+they are never derived from titles. Idea tags are display-only. About uses an
+explicit immutable Issue number, otherwise the sole valid published About Issue,
+otherwise Profile About without a fabricated Issue or discussion. Front matter
+is stripped before Markdown rendering; HTML goes through the allowlist sanitizer.
 
 ## Local development
 
 ```bash
 uv sync
-export GITHUB_TOKEN=ghp_xxx
+export GITHUB_TOKEN=...
 uv run escpe --config /path/to/site/config.yaml
 # Serve the site Config-relative output as the document root.
 uv run python -m http.server 8000 --directory /path/to/site/output
 ```
 
-`security.token_env` selects the token environment variable dynamically. The
-generator ships `config.example.yaml`, and the default Theme is `geoqiao.me`.
+`security.token_env` selects the token environment variable dynamically (default
+name: `GITHUB_TOKEN`). The generator ships `config.example.yaml` as an expanded
+reference. Without context, provide an actual `github.repo` and HTTPS root
+`site.url`; Organization owners also require explicit `allowed_authors`.
+Alternatively, a verified non-secret `--context context.json` supplies repository
+and Pages identity so Config can be `{}`. Missing identity fields use the public
+owner profile, never the workflow actor. Projects need only a selected
+`repository`; explicit title/summary override public enrichment.
+
+See [site input sources and boundaries](docs/site-inputs.md), including the N6
+safe security-reading seam. This N3 slice retains the old `geoqiao.me`, menu, and
+Issue-comment defaults. Quiet as default, complete menu replacement, and the
+`comments.enabled` switch remain pending N4; the switch is not supported yet.
 The canonical origin is owned by `site.url` in the site repository's Site Config,
 not by a Theme or by the generator. Escape1, Escape2, geoqiao.me, and
 [Quiet](docs/themes/quiet.md) share the same template contract, comments behavior,
@@ -55,7 +67,10 @@ node or the root object must be the same canonical string; other nodes and neste
 references such as `author.url` need not match. Top-level arrays are unsupported;
 the validator neither fetches contexts nor infers primary entities. Existing
 custom graphs without that identity need an explicit `@id`; the built-in
-`structured_data` already follows this contract.
+`structured_data` already follows this contract. Local About templates also need
+an `about_is_profile` branch before using Profile About: it has no Issue number,
+body HTML, dates, or comments. Render Profile text with autoescape and use
+AboutPage/ProfilePage JSON-LD, not Article; see the [migration notes](docs/site-inputs.md#about-and-local-themes).
 
 ## Canonical origin and URL migration boundaries
 

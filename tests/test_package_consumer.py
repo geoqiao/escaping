@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import os
 import shutil
 import subprocess
@@ -225,3 +226,111 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
         env=uv_env,
     )
     assert "usage:" in help_result.stdout.lower()
+
+    # L2: actual installed console, with only HTTP transport replaced. Keep the
+    # existing L1 full build above inside the clean wheel-installed interpreter.
+    site = consumer / "nested"
+    site.mkdir()
+    subprocess.run(  # noqa: S603
+        [
+            str(venv_python),
+            "-I",
+            "-c",
+            "import shutil; from importlib.resources import files; "
+            "shutil.copytree(str(files('escaping').joinpath('themes/Quiet')), 'nested/theme')",
+        ],
+        cwd=consumer,
+        env=uv_env,
+        check=True,
+        capture_output=True,
+        text=True,
+    )
+    config = site / "config.yaml"
+    config.write_text(
+        "security:\n  token_env: READ_TOKEN\npaths:\n  output: public\n"
+        "theme:\n  source: local\n  name: consumer-theme\n  path: theme\n"
+        "projects:\n  - repository: alice/tool\n",
+        encoding="utf-8",
+    )
+    context = consumer / "context.json"
+    context.write_text(
+        json.dumps(
+            {
+                "repository": "alice/site",
+                "owner_login": "alice",
+                "owner_type": "User",
+                "pages_base_url": "https://notes.example/",
+                "pages_base_path": "/",
+            }
+        ),
+        encoding="utf-8",
+    )
+    boundary = consumer / "http-boundary"
+    shutil.copytree(_PROJECT_ROOT / "tests/fixtures/cli_api", boundary)
+    request_log = consumer / "requests.log"
+    console_env = {
+        **uv_env,
+        "PYTHONPATH": str(boundary),
+        "READ_TOKEN": "consumer-fixture",
+        "GITHUB_ACTOR": "mallory",
+        "CONSUMER_REQUEST_LOG": str(request_log),
+    }
+    command = [str(escpe), "--config", str(config), "--context", str(context)]
+    console = subprocess.run(  # noqa: S603
+        command,
+        cwd=consumer,
+        env=console_env,
+        capture_output=True,
+        text=True,
+    )
+    assert console.returncode == 0, console.stdout + console.stderr
+    output = site / "public"
+    about = (output / "about/index.html").read_text()
+    assert "Alice Example" in about and "Public profile." in about
+    assert "comments.js" not in about and "data-issue-number" not in about
+    assert (output / "blog/128/index.html").is_file()
+    assert not (output / "blog/129/index.html").exists()
+    assert (output / "templates/consumer-theme/static/js/comments.js").is_file()
+    projects = (output / "projects/index.html").read_text()
+    assert "Renamed Tool" in projects and "Selected public project." in projects
+    assert "https://github.com/alice/tool" in projects
+    assert set(request_log.read_text().splitlines()) == {
+        "/users/alice",
+        "/repos/alice/site",
+        "/repos/alice/site/issues",
+        "/repos/alice/tool",
+        "/repos/alice/tool/topics",
+    }
+    before = {
+        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
+    }
+    failed = subprocess.run(  # noqa: S603
+        command,
+        cwd=consumer,
+        env={**console_env, "CONSUMER_FAIL_ISSUES": "1"},
+        capture_output=True,
+        text=True,
+    )
+    assert failed.returncode == 1 and "FETCH_FAILED" in failed.stdout
+    assert before == {
+        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
+    }
+    assert (
+        "consumer-fixture"
+        not in console.stdout + console.stderr + failed.stdout + failed.stderr
+    )
+    assert all(b"consumer-fixture" not in content for content in before.values())
+
+    # Empty Config uses the same installed console and fixed platform/API input.
+    config.write_text("{}", encoding="utf-8")
+    minimal = subprocess.run(  # noqa: S603
+        command,
+        cwd=consumer,
+        env={**console_env, "GITHUB_TOKEN": "consumer-fixture"},
+        capture_output=True,
+        text=True,
+    )
+    assert minimal.returncode == 0, minimal.stdout + minimal.stderr
+    assert (site / "output/blog/128/index.html").is_file()
+    minimal_about = (site / "output/about/index.html").read_text()
+    assert "Alice Example" in minimal_about and "comments.js" not in minimal_about

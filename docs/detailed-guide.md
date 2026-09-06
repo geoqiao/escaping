@@ -17,14 +17,19 @@ IssueSnapshot[] + Settings + Project Catalog
 `Settings` is explicitly injected into compilation and `SiteBuilder`. Rendering and artifact
 validation consume `SiteModel`; they do not read Config again. `SiteMetadata` is the sole source
 for site identity, profile, navigation, comments, branding, SEO verification, and Theme asset
-metadata.
+metadata. The CLI first resolves strict Config overrides with optional trusted
+repository/Pages context and public Profile inputs; see [site inputs](site-inputs.md).
+Model construction and rendering never fetch Profile data.
 
 ## Content and routes
 
 Published Issues follow [`issue-content-v1.md`](contracts/issue-content-v1.md). Blog content
-requires a lower-case kebab-case `slug`; Idea and About reject slugs. The configured About Issue
-is a singleton. YAML is safely parsed and removed before Markdown rendering; generated HTML is
-sanitized before entering the model.
+defaults `slug` to the Issue number; an explicit lower-case kebab-case override
+is preserved. Idea and About reject slugs. An explicit About selection must be
+valid; otherwise the sole valid published About is discovered, with Profile About
+when none exists. Multiple candidates fail. Optional YAML is safely parsed and
+removed before Markdown rendering; generated HTML is sanitized before entering
+the model.
 
 `RouteRegistry` constructs the only `Route` model. Every page stores its complete registered
 Route, including canonical path, output path, and canonical URL. It also rejects path/output
@@ -45,14 +50,18 @@ Directory routes write `index.html`:
 - `source: builtin`: a package resource from `src/escaping/themes/`;
 - `source: local`: a directory relative to the Config file.
 
-`geoqiao.me` is the Chinese-first default built-in Theme; Escape1 and Escape2 are
-alternative reference Themes. Templates and static assets come from the same
+This N3 slice retains `geoqiao.me` as the default; Escape1, Escape2 and Quiet are
+alternatives. Quiet default, fully replaceable menus and opt-in Issue comments
+remain pending N4; do not configure `comments.enabled` yet. Templates and static assets come from the same
 validated manifest and use Jinja `StrictUndefined` with autoescape. Theme
 fetching and commit pinning are orchestration concerns, not compiler behavior.
 
 Site Thesis and Site Profile copy remain in `SiteMetadata` for compatible local
-Themes, but presentation is Theme-specific. The bundled Themes do not render
-thesis or tagline; `geoqiao.me` also keeps profile bio out of Home and About.
+Themes, but presentation is Theme-specific. Escape2 renders configured thesis
+lines; `geoqiao.me` keeps profile bio out of Home and Issue About. All four Themes
+render Profile About without a source Issue, date, or comments. Local templates
+must branch on `about_is_profile` before accessing Issue-only fields; see the
+[About migration](site-inputs.md#about-and-local-themes).
 
 The generator-owned `src/escaping/static/comments.js` is copied into the selected Theme's
 output asset directory. Theme `_comments.html` files declare only the container, safe data
