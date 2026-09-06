@@ -48,6 +48,14 @@ _Avoid_: Open issue, closed issue
 The single semantic role assigned to Issue Content, currently Blog, Idea, or About.
 _Avoid_: Category, tag
 
+**Blog Tag**:
+A classification of Blog content whose published members are collected in a tag archive.
+_Avoid_: Idea Tag
+
+**Idea Tag**:
+A display-only classification of Idea content; it neither creates nor joins a Blog tag archive.
+_Avoid_: Blog Tag, Idea tag archive
+
 **Project Catalog Entry**:
 A repository-owned, curated description of a project displayed by the personal site.
 _Avoid_: Project issue, repository mirror
