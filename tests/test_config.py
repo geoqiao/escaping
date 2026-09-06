@@ -47,9 +47,9 @@ def test_theme_source_is_explicit_and_separate_from_output_paths() -> None:
     assert defaults.theme == BuiltinThemeConfig(name="Quiet")
 
     builtin = Settings.model_validate(
-        {**_BASE, "theme": {"source": "builtin", "name": "Escape1"}}
+        {**_BASE, "theme": {"source": "builtin", "name": "Quiet"}}
     )
-    assert builtin.theme == BuiltinThemeConfig(name="Escape1")
+    assert builtin.theme == BuiltinThemeConfig(name="Quiet")
 
     local = Settings.model_validate(
         {
@@ -64,7 +64,7 @@ def test_theme_source_is_explicit_and_separate_from_output_paths() -> None:
     assert local.theme == LocalThemeConfig(name="site-theme", path=Path("theme"))
 
     with pytest.raises(ValidationError):
-        PathsConfig.model_validate({"theme": "Escape1"})
+        PathsConfig.model_validate({"theme": "Quiet"})
 
 
 @pytest.mark.parametrize(

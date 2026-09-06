@@ -33,7 +33,7 @@ from escaping.theme import ThemeLoader
 _ROOT = Path(__file__).parent.parent.absolute()
 
 
-def _settings(theme: str = "geoqiao.me", *, profile_avatar: str = "") -> Settings:
+def _settings(theme: str = "Quiet", *, profile_avatar: str = "") -> Settings:
     data: dict[str, object] = {
         "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
         "site": {
@@ -54,7 +54,13 @@ def _settings(theme: str = "geoqiao.me", *, profile_avatar: str = "") -> Setting
         "about": {"issue_number": 10},
         "security": {"token_env": "TEST_TOKEN"},
         "comments": {"enabled": True},
-        "theme": {"source": "builtin", "name": theme},
+        "theme": {
+            "source": "local",
+            "name": theme,
+            "path": "tests/fixtures/independent_theme",
+        }
+        if theme == "independent"
+        else {"source": "builtin", "name": theme},
         "projects": [
             {
                 "slug": "escaping",
@@ -240,11 +246,11 @@ def test_representative_content_compiles_to_valid_complete_artifact(
     assert not (tmp_path / "blog" / "a-blog.html").exists()
     for output_path in ("index.html", "blog/index.html"):
         rendered = (tmp_path / output_path).read_text(encoding="utf-8")
-        assert '<a href="/"' in rendered
-        assert '<a href="https://geoqiao.me/"' not in rendered
+        assert re.search(r'<a\b[^>]*\bhref="/"', rendered)
+        assert not re.search(r'<a\b[^>]*\bhref="https://geoqiao.me/"', rendered)
 
 
-@pytest.mark.parametrize("theme", ["geoqiao.me", "Escape1", "Escape2", "Quiet"])
+@pytest.mark.parametrize("theme", ["Quiet", "independent"])
 def test_front_matter_source_is_separate_from_rendered_body(
     theme: str, tmp_path: Path
 ) -> None:
@@ -398,13 +404,13 @@ def test_local_theme_json_ld_extension_uses_tojson_without_script_breakout(
     settings = _settings()
     site = _render_representative_site(settings, tmp_path / "builtin")
     theme_path = tmp_path / "theme"
-    shutil.copytree(_ROOT / "src/escaping/themes/geoqiao.me", theme_path)
+    shutil.copytree(_ROOT / "src/escaping/themes/Quiet", theme_path)
     template = theme_path / "base.html"
     original = template.read_text(encoding="utf-8")
     template.write_text(
         original.replace(
-            "{{ structured_data | tojson }}",
-            "{% if post is defined %}{% set _ = structured_data.update(author={'@type': 'Person', 'name': post.title, 'url': 'https://geoqiao.me/about/'}) %}{% endif %}{{ structured_data | tojson }}",
+            "{{ structured_data|tojson }}",
+            "{% if post is defined %}{% set _ = structured_data.update(author={'@type': 'Person', 'name': post.title, 'url': 'https://geoqiao.me/about/'}) %}{% endif %}{{ structured_data|tojson }}",
         ),
         encoding="utf-8",
     )
@@ -412,7 +418,7 @@ def test_local_theme_json_ld_extension_uses_tojson_without_script_breakout(
     malicious = '</script><script>alert("title")</script>&'
     site = replace(site, blogs=(replace(site.blogs[0], title=malicious),))
     theme = ThemeLoader(tmp_path).load(
-        LocalThemeConfig(name="geoqiao.me", path=Path("theme"))
+        LocalThemeConfig(name="Quiet", path=Path("theme"))
     )
     renderer = RenderService(theme)
     output = tmp_path / "local-output"
@@ -487,8 +493,8 @@ def test_json_ld_home_and_about_identity_and_json_parsing_remain_checked(
         '<a href="/%62log/">encoded page alias</a>',
         '<a href="https://geoqiao.me/Blog/">wrong case</a>',
         '<img src="/Blog/">',
-        '<link href="/templates/geoqiao.me/static/css/Style.css" rel="stylesheet">',
-        '<img src="/templates/geoqiao.me/static/images/Favicon.png">',
+        '<link href="/templates/Quiet/static/css/Style.css" rel="stylesheet">',
+        '<img src="/templates/Quiet/static/images/Favicon.png">',
     ],
 )
 def test_noncanonical_internal_links_and_resources_fail(
@@ -669,13 +675,13 @@ def test_missing_referenced_script_fails_artifact_validation(
     settings = _settings()
     site = _render_representative_site(settings, tmp_path)
     script_path = (
-        tmp_path / "templates" / settings.theme.name / "static" / "js" / "prism.js"
+        tmp_path / "templates" / settings.theme.name / "static" / "js" / "site.js"
     )
     script_path.unlink()
 
     diagnostics = SiteArtifactValidator(site).validate(tmp_path)
     assert any(
-        diagnostic.code == "MISSING_ASSET" and "prism.js" in diagnostic.message
+        diagnostic.code == "MISSING_ASSET" and "site.js" in diagnostic.message
         for diagnostic in diagnostics
     )
 
@@ -730,7 +736,7 @@ def test_missing_same_origin_absolute_asset_fails_artifact_validation(
 def test_missing_referenced_image_fails_artifact_validation(
     tmp_path: Path,
 ) -> None:
-    theme = "geoqiao.me"
+    theme = "Quiet"
     profile_avatar = (
         f"https://geoqiao.me/templates/{theme}/static/images/profile.png?cache=1#avatar"
     )

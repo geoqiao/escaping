@@ -45,7 +45,7 @@ The versioned compatibility agreement defining the page information, assets and 
 _Avoid_: Visual style version, automatic compatibility adapter
 
 **Built-in Theme**:
-A Theme distributed with the Site Compiler. Quiet is the default; geoqiao.me, Escape1, and Escape2 are alternatives.
+A Theme distributed with the Site Compiler. Quiet is the sole built-in and default Theme; other presentations are independently maintained local Themes.
 _Avoid_: Downloaded theme, compiler cache
 
 **Site Orchestrator**:

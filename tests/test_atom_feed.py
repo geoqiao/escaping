@@ -35,9 +35,9 @@ def _metadata(*, title: str = "Test & Notes") -> SiteMetadata:
         comments=CommentsMetadata("owner/site", "github-light", "auto"),
         google_search_verification="",
         theme=ThemeMetadata(
-            "geoqiao.me",
-            "/templates/geoqiao.me",
-            "https://example.com/templates/geoqiao.me/static/images/favicon.png",
+            "Quiet",
+            "/templates/Quiet",
+            "https://example.com/templates/Quiet/static/images/favicon.png",
         ),
     )
 

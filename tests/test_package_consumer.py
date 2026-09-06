@@ -35,8 +35,9 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
     uv_env.pop("PYTHONPATH", None)
     uv_env.pop("PYTHONHOME", None)
     dist = tmp_path / "dist"
+    # Build the wheel from a fresh sdist, not stale setuptools build/lib assets.
     subprocess.run(  # noqa: S603
-        [uv, "build", "--python", sys.executable, "--wheel", "--out-dir", str(dist)],
+        [uv, "build", "--python", sys.executable, "--out-dir", str(dist)],
         cwd=_PROJECT_ROOT,
         check=True,
         capture_output=True,
@@ -57,6 +58,9 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
             for name in names
             if name.endswith(".dist-info/entry_points.txt")
         )
+    assert {
+        name.split("/")[2] for name in names if name.startswith("escaping/themes/")
+    } == {"Quiet"}
     assert "Name: escpe\n" in metadata
     assert "Requires-Python: <3.15,>=3.14\n" in metadata
     assert "Requires-Dist: nh3==0.3.7\n" in metadata
@@ -90,10 +94,8 @@ from datetime import UTC, datetime
 from pathlib import Path
 import escaping
 from escaping.config import Settings
-from escaping.config import BuiltinThemeConfig
 from escaping.models.issue_snapshot import IssueSnapshot
 from escaping.site_compiler import SiteCompiler
-from escaping.theme import ThemeLoader
 assert sys.prefix != sys.base_prefix
 assert Path(escaping.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
 
@@ -104,9 +106,9 @@ settings = Settings.model_validate({
     'about': {'issue_number': 2},
     'security': {'token_env': 'TOKEN'},
     'comments': {'enabled': True},
-    'theme': {'source': 'builtin', 'name': 'geoqiao.me'},
+    'theme': {'source': 'builtin', 'name': 'Quiet'},
 })
-assert settings.theme.name == 'geoqiao.me'
+assert settings.theme.name == 'Quiet'
 now = datetime(2026, 1, 1, tzinfo=UTC)
 snapshots = [
     IssueSnapshot(
@@ -147,41 +149,20 @@ assert result.success, result.diagnostics
 assert (root / 'output/index.html').is_file()
 assert not any(path.suffix in {'.so', '.dylib', '.pyd'} for path in (root / 'output').rglob('*'))
 assert (root / 'output/blog/post/index.html').is_file()
-assert (root / 'output/templates/geoqiao.me/static/css/style.css').is_file()
-assert (root / 'output/templates/geoqiao.me/static/js/comments.js').is_file()
+assert (root / 'output/templates/Quiet/static/css/style.css').is_file()
+assert (root / 'output/templates/Quiet/static/js/comments.js').is_file()
 home_html = (root / 'output/index.html').read_text(encoding='utf-8')
-assert '<h1 id="home-title">Consumer</h1>' in home_html
+assert '<h1>Consumer</h1>' in home_html
 assert 'class="author-mark"' not in home_html
 assert 'Geo Qiao' not in home_html
 assert '>GQ<' not in home_html
-assert (root / 'output/templates/geoqiao.me/__MERMAID_DIRECTORY__/mermaid.min.js').is_file()
-assert (root / 'output/templates/geoqiao.me/__MERMAID_DIRECTORY__/LICENSE').is_file()
-for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
-    theme = ThemeLoader(root).load(BuiltinThemeConfig(name=theme_name))
-    destination = root / ('assets-' + theme_name)
-    theme.copy_assets(destination)
-    vendor = destination / 'templates' / theme_name / '__MERMAID_DIRECTORY__'
-    assert (destination / 'templates' / theme_name / 'static/js/mermaid.js').is_file()
-    if theme_name == 'Escape2':
-        assert (destination / 'templates/Escape2/static/images/author-mark.png').is_file()
-    assert (vendor / 'mermaid.min.js').is_file()
-    assert (vendor / 'LICENSE').is_file()
-    assert (vendor / 'README.md').is_file()
-    if theme_name == 'Quiet':
-        consumer_settings = settings.model_copy(update={
-            'theme': BuiltinThemeConfig(name=theme_name),
-            'paths': settings.paths.model_copy(update={'output': 'public'}),
-        })
-        result = SiteCompiler(
-            'unused', 'owner/site', consumer_settings,
-            config_root=root, github_service=FakeGitHub(),
-        ).generate()
-        assert result.success, result.diagnostics
-        output = root / 'public'
-        assert '<h1>Consumer</h1>' in (output / 'index.html').read_text()
-        assert 'data-issue-number="1"' in (output / 'blog/post/index.html').read_text()
-        for font in ('manrope-bold.ttf', 'source-serif-4.ttf', 'Manrope-OFL.txt', 'SourceSerif4-OFL.txt'):
-            assert (output / 'templates' / theme_name / 'static/fonts' / font).is_file()
+assert 'data-issue-number="1"' in (root / 'output/blog/post/index.html').read_text()
+static = root / 'output/templates/Quiet/static'
+assert (static / 'js/mermaid.js').is_file()
+for asset in ('mermaid.min.js', 'LICENSE', 'README.md'):
+    assert (root / 'output/templates/Quiet/__MERMAID_DIRECTORY__' / asset).is_file()
+for font in ('manrope-bold.ttf', 'source-serif-4.ttf', 'Manrope-OFL.txt', 'SourceSerif4-OFL.txt'):
+    assert (static / 'fonts' / font).is_file()
 
 # One docs-only local Theme crosses the same installed compiler, using real YAML.
 snapshots[0] = replace(snapshots[0], labels=(*snapshots[0].labels, 'tag:shared'))

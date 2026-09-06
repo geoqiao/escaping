@@ -40,10 +40,7 @@ def _settings(
     title: str = "Site",
     author: str = "geoqiao",
     avatar: str = "",
-    thesis: list[str] | None = None,
-    tagline: str = "",
     bio: str = "",
-    projects: list[dict[str, object]] | None = None,
     page_size: int | None = None,
     comments_enabled: bool = True,
     navigation_items: list[dict[str, str]] | None = None,
@@ -57,19 +54,21 @@ def _settings(
     }
     if navigation_items is not None:
         site["navigation"] = {"items": navigation_items}
-    if thesis is not None:
-        site["thesis"] = thesis
     data: dict[str, object] = {
         "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
         "site": site,
-        "profile": {"avatar": avatar, "tagline": tagline, "bio": bio},
+        "profile": {"avatar": avatar, "bio": bio},
         "about": {"issue_number": 10},
-        "theme": {"source": "builtin", "name": theme},
+        "theme": {
+            "source": "local",
+            "name": theme,
+            "path": "tests/fixtures/independent_theme",
+        }
+        if theme == "independent"
+        else {"source": "builtin", "name": theme},
         "security": {"token_env": "TOKEN"},
         "comments": {"enabled": comments_enabled},
     }
-    if projects is not None:
-        data["projects"] = projects
     if page_size is not None:
         data["paths"] = {"page_size": page_size}
     return Settings.model_validate(data)
@@ -98,10 +97,7 @@ def _render_theme(
     title: str = "Site",
     author: str = "geoqiao",
     avatar: str = "",
-    thesis: list[str] | None = None,
-    tagline: str = "",
     bio: str = "",
-    projects: list[dict[str, object]] | None = None,
     comments_enabled: bool = True,
     navigation_items: list[dict[str, str]] | None = None,
 ) -> dict[str, str]:
@@ -111,10 +107,7 @@ def _render_theme(
         title=title,
         author=author,
         avatar=avatar,
-        thesis=thesis,
-        tagline=tagline,
         bio=bio,
-        projects=projects,
         comments_enabled=comments_enabled,
         navigation_items=navigation_items,
     )
@@ -202,7 +195,7 @@ def _render_quiet_adjacent_posts() -> dict[str, str]:
     return RenderService(ThemeLoader(_ROOT).load(settings.theme)).render_site(site)
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
+@pytest.mark.parametrize("theme", ["Quiet", "independent"])
 def test_theme_contract_renders_every_strict_page(theme: str) -> None:
     html = _render_theme(theme)
     assert set(html) >= {
@@ -242,7 +235,7 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
         assert 'data-comments-theme-mode="auto"' in rendered, page_name
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
+@pytest.mark.parametrize("theme", ["Quiet", "independent"])
 def test_disabled_comments_leave_no_widget_or_dead_discussion_anchor(
     theme: str,
 ) -> None:
@@ -274,7 +267,7 @@ class _MenuProbe(HTMLParser):
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = dict(attrs)
-        if values.get("id") in ("header-nav", "site-navigation"):
+        if values.get("id") == "site-navigation":
             self.end_tag = tag
         if self.end_tag and tag == "a":
             self.href = values.get("href")
@@ -294,8 +287,7 @@ class _MenuProbe(HTMLParser):
             self.end_tag = ""
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
-def test_theme_menu_is_a_complete_override_independent_of_brand(theme: str) -> None:
+def test_quiet_menu_is_a_complete_override_independent_of_brand() -> None:
     for items in (
         [
             {"name": "Feed", "url": "/atom.xml"},
@@ -305,18 +297,15 @@ def test_theme_menu_is_a_complete_override_independent_of_brand(theme: str) -> N
         [{"name": "Notes", "url": "/ideas/"}],
         [],
     ):
-        html = _render_theme(theme, navigation_items=items)["index.html"]
+        html = _render_theme("Quiet", navigation_items=items)["index.html"]
         probe = _MenuProbe()
         probe.feed(html)
         assert probe.links == [(item["name"], item["url"]) for item in items]
-        assert re.search(
-            r'<a href="/" class="(?:logo|terminal|ledger-brand)"|class="identity" href="/"',
-            html,
-        )
+        assert 'class="identity" href="/"' in html
         assert ('aria-label="Toggle menu"' in html) is bool(items)
         assert 'href="#main-content"' in html
         if not items:
-            assert 'id="header-nav"' not in html and 'id="site-navigation"' not in html
+            assert 'id="site-navigation"' not in html
 
 
 @pytest.mark.parametrize("language", ["en", "zh-CN"])
@@ -348,7 +337,7 @@ def test_quiet_uses_profile_avatar_for_identity_about_and_favicon() -> None:
 
 
 def test_idea_tag_public_context_is_display_only_not_a_blog_route() -> None:
-    settings = _settings("geoqiao.me")
+    settings = _settings("Quiet")
     routes = RouteRegistry(str(settings.site.url))
     content = ContentCompiler(settings, route_registry=routes).compile(
         [
@@ -441,10 +430,6 @@ def test_quiet_blog_footer_change_is_scoped_to_multi_post_blog_navigation() -> N
     assert "Back to Ideas" in quiet["ideas/2/index.html"]
     assert "Back to Home" in quiet["about/index.html"]
 
-    for theme in ("Escape1", "Escape2", "geoqiao.me"):
-        assert "Previous" not in _render_theme(theme)["blog/post/index.html"]
-    assert "Back to Blog" in _render_theme("geoqiao.me")["blog/post/index.html"]
-
 
 def test_named_site_routes_are_consumable_without_blogs_or_ideas() -> None:
     settings = _settings("Quiet")
@@ -510,8 +495,8 @@ class _RuntimeResourceProbe(HTMLParser):
             self.resources.append(attributes.get("href", ""))
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
-def test_theme_runtime_dependencies_are_local_and_reproducible(theme: str) -> None:
+def test_quiet_runtime_dependencies_are_local_and_reproducible() -> None:
+    theme = "Quiet"
     rendered = _render_theme(theme)
     probe = _RuntimeResourceProbe()
     for output_path, html in rendered.items():
@@ -543,10 +528,9 @@ def test_theme_runtime_dependencies_are_local_and_reproducible(theme: str) -> No
     )
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
-def test_theme_favicon_is_a_valid_search_eligible_png(theme: str) -> None:
+def test_quiet_favicon_is_a_valid_search_eligible_png() -> None:
     favicon = (
-        _ROOT / "src/escaping/themes" / theme / "static/images/favicon.png"
+        _ROOT / "src/escaping/themes/Quiet/static/images/favicon.png"
     ).read_bytes()
 
     assert favicon.startswith(b"\x89PNG\r\n\x1a\n")
@@ -555,75 +539,8 @@ def test_theme_favicon_is_a_valid_search_eligible_png(theme: str) -> None:
     assert width >= 48
 
 
-def _css_block(css: str, selector: str) -> str:
-    match = re.search(
-        rf"(?m)^{re.escape(selector)} \{{\n(.*?)\n^\}}", css, flags=re.DOTALL
-    )
-    assert match is not None, f"missing CSS rule: {selector}"
-    return match.group(1)
-
-
-def test_escape2_home_intro_is_the_thesis_without_identity_or_navigation() -> None:
-    home = _render_theme(
-        "Escape2",
-        title="Site",
-        bio="Profile copy",
-        thesis=["Escaping is a static blog system based on GitHub Issues."],
-    )["index.html"]
-
-    assert (
-        '<p class="intro-line">Escaping is a static blog system '
-        "based on GitHub Issues.</p>" in home
-    )
-    assert "<h1" not in home
-    assert "Profile copy" not in home
-    assert 'class="nav-actions"' not in home
-    assert 'class="authorImageWrapper"' not in home
-
-
-def test_escape2_archive_rows_and_tags_are_unboxed() -> None:
-    css = (_ROOT / "src/escaping/themes/Escape2/static/css/style.css").read_text(
-        encoding="utf-8"
-    )
-
-    assert ".postListItem:hover" not in css
-    row = _css_block(css, ".postListItem")
-    assert "border-bottom: 1px solid var(--border);" in row
-    for banned in (
-        "background",
-        "border-left",
-        "border-radius",
-        "transform",
-        "transition",
-        "box-shadow",
-    ):
-        assert banned not in row
-
-    tag = _css_block(css, ".tag")
-    for banned in ("border", "background", "padding", "box-shadow"):
-        assert banned not in tag
-
-
-def test_escape2_about_mark_falls_back_to_a_bundled_theme_asset() -> None:
-    mark = "/templates/Escape2/static/images/author-mark.png"
-    rendered = _render_theme("Escape2")
-
-    assert (
-        _ROOT / "src/escaping/themes/Escape2/static/images/author-mark.png"
-    ).is_file()
-    assert f'<img src="{mark}"' in rendered["about/index.html"]
-    assert mark not in rendered["index.html"]
-
-    avatar = "https://example.com/ada.png"
-    configured = _render_theme("Escape2", avatar=avatar)["about/index.html"]
-    assert f'<img src="{avatar}"' in configured
-    assert mark not in configured
-
-
 def test_configured_site_identity_reaches_homepage_search_signals() -> None:
-    home = _render_theme("geoqiao.me", title="Geo Qiao", author="Geo Qiao")[
-        "index.html"
-    ]
+    home = _render_theme("Quiet", title="Geo Qiao", author="Geo Qiao")["index.html"]
 
     assert "<title>Geo Qiao</title>" in home
     assert '<meta property="og:site_name" content="Geo Qiao">' in home
@@ -636,85 +553,6 @@ def test_configured_site_identity_reaches_homepage_search_signals() -> None:
     assert website["name"] == "Geo Qiao"
 
 
-def test_geoqiao_home_promotes_latest_post_without_profile_copy() -> None:
-    home = _render_theme(
-        "geoqiao.me",
-        thesis=["Question assumptions.", "Build useful tools."],
-        tagline="Analyst / tool builder",
-    )["index.html"]
-
-    assert '<section class="home-hero" aria-labelledby="home-title">' in home
-    assert '<header class="home-intro">' in home
-    assert '<h1 id="home-title">Site</h1>' in home
-    assert '<article class="latest-story" aria-labelledby="latest-title">' in home
-    assert '<h2 id="latest-title"><a href="/blog/post/">Blog</a></h2>' in home
-    assert '<p class="latest-description">Post.</p>' in home
-    assert '<a class="latest-read" href="/blog/post/">Read this issue' in home
-    assert 'class="author-mark"' not in home
-    assert "/static/images/author-mark.png" not in home
-    assert "Question assumptions." not in home
-    assert "Build useful tools." not in home
-    assert "Analyst / tool builder" not in home
-
-
-def test_geoqiao_home_has_one_visible_editorial_heading() -> None:
-    home = _render_theme("geoqiao.me", thesis=[], tagline="")["index.html"]
-
-    assert home.count("<h1") == 1
-    assert 'id="home-title"' in home
-    assert '<h2 id="latest-title">' in home
-    assert 'class="profile-rail"' not in home
-
-
-def test_geoqiao_author_images_prefer_the_configured_profile_avatar() -> None:
-    avatar = "https://example.com/ada.png"
-    rendered = _render_theme("geoqiao.me", author="Ada Lovelace", avatar=avatar)
-    home = rendered["index.html"]
-    post = rendered["blog/post/index.html"]
-    about = rendered["about/index.html"]
-
-    assert avatar not in home
-    assert 'class="author-mark"' not in home
-    for page in (post, about):
-        assert f'src="{avatar}"' in page
-        assert f'<img src="{avatar}" alt=""' in page
-        assert "/static/images/author-mark.png" not in page
-    for page in (home, post, about):
-        assert "Geo Qiao" not in page
-        assert ">GQ<" not in page
-    assert 'aria-label="Ada Lovelace author mark"' in about
-
-
-def test_geoqiao_theme_mark_fallback_has_no_identity_leaks() -> None:
-    rendered = _render_theme("geoqiao.me", author="Ada Lovelace")
-    home = rendered["index.html"]
-    post = rendered["blog/post/index.html"]
-    about = rendered["about/index.html"]
-
-    assert "/static/images/author-mark.png" not in home
-    assert 'class="author-mark"' not in home
-    for page in (post, about):
-        assert "/static/images/author-mark.png" in page
-        assert 'static/images/author-mark.png" alt=""' in page
-    for page in (home, post, about):
-        assert "Geo Qiao" not in page
-        assert ">GQ<" not in page
-    assert 'aria-label="Ada Lovelace author mark"' in about
-
-
-def test_geoqiao_about_body_is_the_only_owner_of_profile_copy() -> None:
-    about = _render_theme(
-        "geoqiao.me",
-        bio="This profile copy must not repeat above the About body.",
-    )["about/index.html"]
-
-    assert "This profile copy must not repeat above the About body." not in about
-    assert (
-        '<div class="about-body post-content"><p>Body <strong>content</strong>.</p>'
-        in about
-    )
-
-
 def test_shared_mermaid_loader_preserves_lazy_and_security_contract() -> None:
     script = (_ROOT / "src/escaping/static/mermaid.js").read_text(encoding="utf-8")
 
@@ -723,74 +561,7 @@ def test_shared_mermaid_loader_preserves_lazy_and_security_contract() -> None:
     assert "startOnLoad: false" in script
 
 
-def test_geoqiao_theme_preserves_semantic_page_structure() -> None:
-    html = _render_theme("geoqiao.me")
-    home = html["index.html"]
-    post = html["blog/post/index.html"]
-
-    assert '<main class="site-main" id="main-content" tabindex="-1">' in home
-    assert '<section class="home-hero" aria-labelledby="home-title">' in home
-    assert '<header class="home-intro">' in home
-    assert '<article class="latest-story" aria-labelledby="latest-title">' in home
-    assert (
-        '<section class="recent-writing" aria-labelledby="recent-writing-title">'
-        in home
-    )
-    assert 'class="author-mark"' not in home
-    assert '<article class="article-layout">' in post
-    assert '<aside class="article-issue" aria-label="Article metadata">' in post
-    assert '<nav data-article-toc aria-label="Article sections"></nav>' in post
-
-
-def test_geoqiao_projects_stay_on_their_own_page() -> None:
-    projects: list[dict[str, object]] = [
-        {
-            "slug": f"project-{index}",
-            "title": f"Project {index}",
-            "repository": f"geoqiao/project-{index}",
-            "summary": f"Project {index} summary.",
-            "order": index,
-            "fallback_metadata": {"stars": stars, "language": "Python"},
-        }
-        for index, stars in enumerate((2, 13, 5, 8, 3, 21, 1))
-    ]
-
-    rendered = _render_theme("geoqiao.me", projects=projects)
-    home = rendered["index.html"]
-    project_page = rendered["projects/index.html"]
-
-    assert "Project 5 ↗" not in home
-    assert "Project 5 ↗" in project_page
-    assert "Project 0 ↗" in project_page
-    assert "★ 21" in project_page and "★ 13" in project_page
-
-
-class _CurrentPageProbe(HTMLParser):
-    def __init__(self) -> None:
-        super().__init__()
-        self.current_hrefs: list[str] = []
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        attributes = dict(attrs)
-        if tag == "a" and attributes.get("aria-current") == "page":
-            self.current_hrefs.append(attributes.get("href") or "")
-
-
-def test_geoqiao_navigation_marks_exactly_one_current_destination() -> None:
-    rendered = _render_theme("geoqiao.me")
-    expectations = {
-        "index.html": "/",
-        "blog/index.html": "/blog/",
-        "blog/post/index.html": "/blog/",
-    }
-
-    for output_path, expected_href in expectations.items():
-        probe = _CurrentPageProbe()
-        probe.feed(rendered[output_path])
-        assert probe.current_hrefs == [expected_href]
-
-
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
+@pytest.mark.parametrize("theme", ["Quiet", "independent"])
 def test_profile_about_is_readable_safe_and_not_issue_content(
     theme: str, tmp_path: Path
 ) -> None:

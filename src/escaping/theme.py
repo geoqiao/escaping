@@ -83,16 +83,6 @@ class LoadedTheme:
     template_loader: BaseLoader
     manifest: ThemeManifest
 
-    @property
-    def asset_url_path(self) -> str:
-        return f"/templates/{self.name}"
-
-    def read_text(self, relative_path: str) -> str:
-        resource = _resource_at(self.resource_root, relative_path)
-        if not resource.is_file():
-            raise ThemeResolutionError(f"theme file is missing: {relative_path}")
-        return resource.read_text(encoding="utf-8")
-
     def environment(self) -> Environment:
         return Environment(
             loader=self.template_loader,

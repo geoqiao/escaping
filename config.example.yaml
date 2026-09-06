@@ -18,8 +18,7 @@ site:
   author: Your Name
   description: Short description
   language: en
-  # Optional Theme presentation hint. Escape2 renders these lines above its
-  # recent posts; geoqiao.me intentionally has no slogan.
+  # Optional presentation hint for local Themes. Quiet does not render thesis.
   # thesis:
   #   - A deliberate statement about your site's perspective.
   #   - A second line, when the thought needs one.
@@ -44,8 +43,7 @@ site:
 
 profile:
   avatar: https://github.com/username.png
-  # Optional Theme-specific profile copy. geoqiao.me intentionally keeps it
-  # out of Home and Issue About; Profile About displays bio in every Theme.
+  # Quiet shows tagline on Home. Profile About uses bio when no About Issue exists.
   # tagline: Researcher / tool builder
   # bio: A short bio about yourself.
   links:
@@ -84,7 +82,7 @@ security:
 # ============================================
 theme:
   source: builtin
-  name: Quiet # Alternatives: geoqiao.me, Escape1, Escape2
+  name: Quiet # The only built-in Theme; use source: local for another design.
 
 # Local Theme example:
 # theme:

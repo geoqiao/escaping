@@ -1,6 +1,6 @@
 # Quiet
 
-Quiet 是独立内置 Theme：以中性黑白为主，只用少量头像洋红点缀。
+Quiet 是唯一内置 Theme：以中性黑白为主，只用少量头像洋红点缀。
 
 ```yaml
 theme:
@@ -15,7 +15,7 @@ Quiet 是默认内置 Theme，省略上述配置也会选择它。无需新增�
 | --- | --- |
 | 浅色 | 白色画布、近黑正文、中性灰侧栏和既有面板；链接 `#a72f6a` |
 | 深色 | 中性近黑画布、近白正文；链接 `#e58bb6` |
-| 头像关联 | 洋红来自 Escape2 `author-mark.png` 的主体 `#D2428A`，调整明度满足 AA；不新增头像组件，不使用薄荷色 |
+| 点缀色 | 洋红以 `#D2428A` 为参考，调整明度满足 AA；身份头像使用 `profile.avatar`，未配置时显示作者首字母 |
 | 体验 | 固定站内索引、首页双栏、长文目录、代码复制、移动菜单、键盘导航与评论降级 |
 | 导航与评论 | 默认 Home/Blog/Ideas/Projects/Tags/About/RSS；显式菜单整体替换，空菜单不生成开关，品牌与外观控制仍独立可用。评论默认关闭，启用须显式配置并另行授权 App；Profile About 永远无评论 |
 | Idea 标签 | 显示为非交互文本，避免链接到不存在的 Blog tag archive；Blog 标签保持归档链接 |
@@ -26,6 +26,6 @@ Quiet 是默认内置 Theme，省略上述配置也会选择它。无需新增�
 | 主题偏好 | `quiet-theme` 保存读者明确选择的浅色或深色模式 |
 | 打印 | Theme 表面白底、文字黑色；内容图片保留原色，SVG 使用中性浅色 |
 
-Mermaid 的 CSS 配色方案适用于内置中性图表；作者自定义的 `classDef`、彩色图片和第三方内容需要另行检查其语义颜色及对比度。共享 `mermaid.js`、vendor runtime、comments 安全校验均未修改。
+Mermaid 的 CSS 配色方案适用于内置中性图表；作者自定义的 `classDef`、彩色图片和第三方内容需要另行检查其语义颜色及对比度。共享资源与评论安全边界见 [Theme 作者指南](authoring.md#static-and-shared-assets)。
 
 Config-relative 路径、canonical、RouteRegistry 和 staged publication 契约不变。
