@@ -1,8 +1,9 @@
 # Your Issue-based personal site
 
-**Maintainer preview: a public template and stable generator release have not yet been published.**
-This directory is the template source, not an already-available “Use template” destination.
-Do not use it to replace a live site's workflow before release and deployment verification.
+**Maintainer preview: this directory is the canonical starter source.**
+A generator release does not automatically publish or verify the separate “Use template” destination.
+Complete the platform checks below before declaring the template ready; use a reviewed migration
+rather than replacing a live site's workflow without compatibility and deployment verification.
 
 ## Start writing
 
