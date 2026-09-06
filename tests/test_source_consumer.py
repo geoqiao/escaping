@@ -22,7 +22,7 @@ def source_consumer(tmp_path: Path) -> tuple[Path, Path, dict[str, str], list[st
         "uv.lock",
         "README.md",
         "LICENSE",
-        "NOTICE",
+        "NOTICE.md",
         ".python-version",
     ):
         shutil.copy2(_PROJECT_ROOT / name, source / name)
