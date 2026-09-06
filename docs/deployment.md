@@ -9,11 +9,11 @@ Theme. The generator owns `config.example.yaml`, package resources, the compiler
 reusable starter source.
 
 The canonical [starter tree](../starter/) contains the same workflow and scripts used by local
-delivery tests and future template publication. Its workflow is not installed under this
+delivery tests and template publication. Its workflow is not installed under this
 repository's root `.github/workflows/`. Once copied, the site repository owns that automation.
-No public template or stable generator release is available yet; the starter README distinguishes
-maintainer verification from the eventual user journey. Do not substitute a personal site's
-Config, migration history, or deployment workflow for the starter.
+Generator releases and template publication are separate steps; a generator release does not
+by itself verify or publish the template. Do not substitute a personal site's Config, migration
+history, or deployment workflow for the starter.
 
 ## Consumer naming contract
 
@@ -45,8 +45,9 @@ Users save their Issue, wait for label preparation, refresh the selector, then a
 and `published` themselves. The same run can build after initialization; it does not depend on
 `GITHUB_TOKEN` writes recursively triggering workflows. No mandatory manual dispatch or hand-built
 labels are added to the normal journey. Actual template creation, event delivery, permissions,
-Linux execution and Pages publication must be verified on an authorized test site before release;
-local HTTP fixtures and YAML checks do not prove those platform behaviors.
+Linux execution and Pages publication must be verified before declaring the public template ready;
+a compatible existing site's deployment does not prove first-time template initialization.
+Local HTTP fixtures and YAML checks do not prove those platform behaviors.
 
 The step-scoped compiler token is mapped by the installed-Python adapter using
 `read_config_overrides` and `security_from_config`, not a second YAML parser or Config format.

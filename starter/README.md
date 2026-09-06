@@ -1,15 +1,16 @@
 # Your Issue-based personal site
 
-**Maintainer preview: a public template and stable generator release have not yet been published.**
-This directory is the template source, not an already-available “Use template” destination.
-Do not use it to replace a live site's workflow before release and deployment verification.
+**Public preview:** [escaping-template](https://github.com/geoqiao/escaping-template) is the template destination.
+An existing production site's build and deployment have been verified; first-time template
+creation, automatic label initialization and the complete new-user journey have not been fully
+verified on GitHub. This preview is not a claim that those platform checks are complete.
+Use a reviewed migration rather than replacing a live site's workflow without compatibility
+and deployment verification.
 
 ## Start writing
 
-Once the template is published:
-
-1. Create your site repository from the template. Use `username.github.io`, or a site with an
-   already-configured custom domain at its root. Keep Issues and Actions enabled. In repository
+1. Create your site repository with **Use this template**. Use `username.github.io`, or a site with an
+   already-configured custom domain at its root. On GitHub Free, use a public repository. Keep Issues and Actions enabled. In repository
    **Settings → Pages**, select **Source: GitHub Actions**.
 2. Save an Issue with a title and Markdown body; GitHub's normal image upload works. The workflow
    automatically prepares missing publishing labels. Wait for **Prepare missing labels only**
@@ -75,9 +76,9 @@ Publish this exact directory, including hidden files, as the template tree after
 Do not add a generator checkout, personal Config, attachment history, migration scripts or site
 output. Tests consume these same workflow/scripts; there is no second generated template copy.
 
-Before public release, verify a fresh site with a fixed candidate, real repository event/permission
-behavior, Linux installation and Pages publication. Then verify actual stable-release resolution
-and installation; controlled HTTP fixtures alone do not establish those platform guarantees.
+Before removing the preview status, verify a fresh site with a fixed candidate, real repository
+event/permission behavior, Linux installation and Pages publication. Verify actual stable-release
+resolution and installation; controlled HTTP fixtures alone do not establish those platform guarantees.
 The root default appearance and optional integrations must also match the selected release.
 
 Bundled automation is MIT-licensed. Choose a license for your own written content separately.
