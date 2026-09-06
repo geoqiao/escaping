@@ -186,7 +186,7 @@ workflow 模板。真实站点仓库拥有自己的 `config.yaml`、Pages workfl
 作为 source of truth；这样生成器与站点即使无法原子变更，也能通过固定版本验证、升级和回滚。
 完整要求见
 [`docs/deployment.md`](docs/deployment.md) 与
-[`Pages workflow 模板`](docs/deployment/geoqiao-pages.yml)。
+[`通用 starter`](starter/)。
 
 ## 🧪 开发与验证
 
