@@ -598,6 +598,7 @@ def test_navigation_remains_keyboard_reachable_without_handlers(
 def test_independent_theme_keyboard_navigation_and_local_overflow(
     browser: Browser, site_servers: dict[str, str], javascript: bool
 ) -> None:
+    tab = "Alt+Tab" if browser.browser_type.name == "webkit" else "Tab"
     page = browser.new_page(
         java_script_enabled=javascript, viewport={"width": 320, "height": 844}
     )
@@ -607,32 +608,32 @@ def test_independent_theme_keyboard_navigation_and_local_overflow(
     origin = site_servers["independent"]
     try:
         page.goto(origin + "/", wait_until="load")
-        page.keyboard.press("Tab")
+        page.keyboard.press(tab)
         expect(page.locator(".skip-link")).to_be_focused()
         page.keyboard.press("Enter")
         expect(page.locator("#main-content")).to_be_focused()
         brand = page.locator(".brand")
         brand.focus()
         for link in page.locator(".primary-nav a").all():
-            page.keyboard.press("Tab")
+            page.keyboard.press(tab)
             expect(link).to_be_focused()
             expect(link).to_be_in_viewport()
         brand.focus()
-        page.keyboard.press("Tab")
-        page.keyboard.press("Tab")
+        page.keyboard.press(tab)
+        page.keyboard.press(tab)
         page.keyboard.press("Enter")
         expect(page).to_have_url(origin + "/blog/")
         page.goto(origin + "/blog/a-blog/", wait_until="load")
         page.locator("#main-content").focus()
         region = page.locator(".rich-content")
         for _ in range(12):
-            page.keyboard.press("Tab")
+            page.keyboard.press(tab)
             if region.evaluate("el => el === document.activeElement"):
                 break
         expect(region).to_be_focused()
         assert region.evaluate("el => el.scrollWidth > el.clientWidth")
         region.evaluate("el => el.scrollLeft = 0")
-        page.keyboard.press("ArrowRight")
+        page.keyboard.press("ArrowRight", delay=100)
         expect(region).not_to_have_js_property("scrollLeft", 0)
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
 
