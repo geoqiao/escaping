@@ -44,11 +44,20 @@
       toc.appendChild(link);
       return link;
     });
-    document.querySelector(".reading-margin").hidden = false;
+    const margin = document.querySelector(".reading-margin");
+    margin.hidden = false;
     const details = document.querySelector(".toc");
-    const compact = matchMedia("(max-width: 1180px)");
+    const compact = matchMedia("(max-width: 1160px)");
     details.open = !compact.matches;
     compact.addEventListener("change", () => { details.open = !compact.matches; });
+    // Long TOCs scroll with the page, never in a nested or clipped panel.
+    function sizeToc() {
+      margin.classList.toggle("toc-long", details.scrollHeight > innerHeight - 96);
+    }
+    new ResizeObserver(sizeToc).observe(details);
+    window.addEventListener("resize", sizeToc);
+    details.addEventListener("toggle", sizeToc);
+    sizeToc();
     let scheduled = false;
     function updateLocation() {
       // ponytail: one scan per frame; use an observer if articles reach hundreds of headings.
@@ -86,8 +95,15 @@
         : "Code, scroll horizontally");
   });
   body.querySelectorAll("pre > code:not(.language-mermaid)").forEach((code) => {
+    const pre = code.parentElement;
+    if (pre.classList.contains("mermaid")) return;
+    const block = document.createElement("div");
+    block.className = "code-block";
     const bar = document.createElement("div");
     bar.className = "code-tools";
+    const language = document.createElement("span");
+    language.className = "code-language";
+    language.textContent = [...code.classList].find(name => name.startsWith("language-"))?.slice(9) || "text";
     const button = document.createElement("button");
     button.type = "button";
     button.className = "copy-code";
@@ -101,7 +117,8 @@
         button.textContent = "Select the code to copy manually";
       }
     });
-    bar.appendChild(button);
-    code.parentElement.before(bar);
+    bar.append(language, button);
+    pre.before(block);
+    block.append(bar, pre);
   });
 })();

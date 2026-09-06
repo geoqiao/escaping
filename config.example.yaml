@@ -30,8 +30,6 @@ site:
   #       url: /
   #     - name: Blog
   #       url: /blog/
-  #     - name: Ideas
-  #       url: /ideas/
   #     - name: Projects
   #       url: /projects/
   #     - name: Tags
@@ -132,3 +130,10 @@ theme:
 #       language: Python
 #       topics:
 #         - web
+#     # Prefer an HTTPS image URL pinned to an immutable commit:
+#     # image: https://raw.githubusercontent.com/username/project/<commit-sha>/preview.webp
+#     # Root-relative images must be assets from the selected local Theme:
+#     # image: /templates/my-theme/static/images/project.webp
+#     # links:
+#     #   - name: Demo
+#     #     url: https://demo.example.com/

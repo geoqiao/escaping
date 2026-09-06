@@ -100,9 +100,12 @@ installation follows the [deployment contract](deployment.md#locked-source-insta
 | `about.issue_number` | Discover the sole valid published About Issue; otherwise Profile About |
 | `projects` | Empty list; never enumerate an owner's repositories |
 | `theme` | Built-in Quiet |
-| `site.navigation.items` | Home `/`, Blog `/blog/`, Ideas `/ideas/`, Projects `/projects/`, Tags `/tags/`, About `/about/`, RSS `/atom.xml` |
+| `site.navigation.items` | Home `/`, Blog `/blog/`, Projects `/projects/`, Tags `/tags/`, About `/about/`, RSS `/atom.xml` |
 | `comments.enabled` | `false`; only actual YAML booleans are accepted |
 | Other fields | Existing strict model defaults, including output `output` and page size 10 |
+
+The default menu omits Ideas; an explicit `site.navigation.items` list may still
+include `/ideas/`, and Idea routes and format remain supported.
 
 Only absent fields get defaults. Explicit legal empty strings, `false`, and
 empty lists survive. Nested objects resolve field by field; lists replace as a
@@ -143,10 +146,22 @@ is not a migration. Follow the [migration checklist](themes/authoring.md#migrati
 ```yaml
 projects:
   - repository: Alice/Tool
+    image: https://raw.githubusercontent.com/Alice/Tool/<commit-sha>/preview.webp
+    links:
+      - name: Demo
+        url: https://demo.example.com/
   - repository: Bob/Tool
     title: My title
     summary: ""
 ```
+
+`image` defaults to `""` and `links` to `[]`. Images use the existing safe
+resource URL validation: prefer HTTPS URLs pinned to an immutable commit. A
+root-relative image must already be a file under the selected Theme asset path,
+for example `/templates/my-theme/static/images/project.webp`; arbitrary
+`/assets/...` paths are not copied or registered by the generator. Named links
+use the existing safe `Link` contract and are exposed as immutable values with
+`.name` and `.url`.
 
 A missing `slug` is the complete configured `repository.casefold()`:
 `alice/tool` and `bob/tool` are distinct. It is an internal catalog key, **not**

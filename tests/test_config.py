@@ -42,6 +42,24 @@ def test_strict_paths_have_only_output_and_page_size() -> None:
         PathsConfig.model_validate({"unknown": "value"})
 
 
+def test_project_catalog_visual_fields_use_safe_urls_and_defaults() -> None:
+    entry = ProjectCatalogEntry.model_validate(
+        {
+            "repository": "owner/project",
+            "image": "/templates/my-theme/static/images/project.webp",
+            "links": [{"name": "Demo", "url": "https://example.org/"}],
+        }
+    )
+    assert entry.image == "/templates/my-theme/static/images/project.webp"
+    assert [(link.name, link.url) for link in entry.links] == [
+        ("Demo", "https://example.org/")
+    ]
+    defaults = ProjectCatalogEntry(repository="owner/other")
+    assert defaults.image == "" and defaults.links == []
+    with pytest.raises(ValidationError):
+        ProjectCatalogEntry(repository="owner/project", image="javascript:bad")
+
+
 def test_theme_source_is_explicit_and_separate_from_output_paths() -> None:
     defaults = Settings.model_validate(_BASE)
     assert defaults.theme == BuiltinThemeConfig(name="Quiet")

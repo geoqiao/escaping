@@ -1,4 +1,20 @@
-{% extends 'article.html' %}
-{% set article = about_page %}
+{% extends 'base.html' %}
+{% set page_title = about_page.title %}
+{% set page_description = about_page.description %}
 {% set active_section = site_routes.about.canonical_path %}
-{% set section_label = 'About' %}
+{% block content %}
+{% from 'components.html' import project_entry, comments_section with context %}
+<article class="about-page">
+  <header class="about-header"><p class="eyebrow muted">About</p><h1>{{ about_page.title }}</h1></header>
+  <div class="post-content about-story">{% if about_is_profile %}<p>{{ metadata.profile.bio }}</p>{% else %}{{ about_page.body_html|safe }}{% endif %}</div>
+  {% if featured_projects %}
+  <section class="about-works" aria-labelledby="projects-title">
+    <div class="section-heading"><h2 id="projects-title">Also building</h2><a class="more-projects" href="{{ site_routes.projects.canonical_path }}">All projects <span aria-hidden="true">↗</span></a></div>
+    <div class="works-grid">{% for project in featured_projects[:4] %}{{ project_entry(project) }}{% endfor %}</div>
+  </section>
+  {% endif %}
+  <div class="article-end"><a href="{{ home_path }}">Back to Home</a><a href="#top">Back to top ↑</a></div>
+  {% if comments.enabled and not about_is_profile %}{{ comments_section(about_page.issue_number) }}{% endif %}
+</article>
+<script src="{{ theme_path }}/static/js/mermaid.js" data-runtime-src="{{ theme_path }}/static/vendor/mermaid-11.16.1/mermaid.min.js" data-mermaid-theme="neutral" defer></script>
+{% endblock %}

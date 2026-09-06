@@ -14,12 +14,13 @@
 {%- endmacro %}
 
 {% macro project_entry(project) -%}
-<article class="project-entry" id="{{ project.slug }}">
-  <div class="project-top"><span class="eyebrow">{{ project.language or 'Open source' }}</span>{% if project.featured %}<span class="project-featured">Featured</span>{% endif %}</div>
-  <h2><a href="{{ project.url }}">{{ project.title }} <span aria-hidden="true">↗</span></a></h2>
-  <p>{{ project.summary }}</p>
-  <div class="project-meta"><span>{{ project.repository }}</span>{% if project.stars is not none %}<span aria-label="{{ project.stars }} stars">☆ {{ project.stars }}</span>{% endif %}{% if project.forks is not none %}<span>{{ project.forks }} forks</span>{% endif %}</div>
-  {% if project.topics %}<ul class="project-topics">{% for topic in project.topics %}<li>{{ topic }}</li>{% endfor %}</ul>{% endif %}
+<article class="work-card" id="{{ project.slug }}">
+  <header class="work-heading">
+    {% if project.image %}<span class="work-image"><img src="{{ project.image }}" width="44" height="44" alt="" loading="lazy"></span>{% endif %}
+    <div>{% if project.language %}<p class="work-context">{{ project.language }}</p>{% endif %}<h2><a href="{{ project.url }}">{{ project.title }}</a></h2></div>
+  </header>
+  {% if project.summary %}<p class="work-summary">{{ project.summary }}</p>{% endif %}
+  <footer class="work-footer"><nav aria-label="{{ project.title }} links"><a href="{{ project.url }}">GitHub <span aria-hidden="true">↗</span></a>{% for link in project.links %}<a href="{{ link.url }}">{{ link.name }} <span aria-hidden="true">↗</span></a>{% endfor %}</nav></footer>
 </article>
 {%- endmacro %}
 

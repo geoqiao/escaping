@@ -64,6 +64,8 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
     assert "Name: escpe\n" in metadata
     assert "Requires-Python: <3.15,>=3.14\n" in metadata
     assert "Requires-Dist: nh3==0.3.7\n" in metadata
+    assert "Requires-Dist: pygments==2.19.2\n" in metadata
+    assert "escaping/themes/Quiet/static/css/syntax.css" in names
     assert any(name.endswith("/NOTICE.md") for name in names)
     assert not any(name.endswith((".so", ".dylib", ".pyd")) for name in names)
     assert "Name: escaping\n" not in metadata
@@ -87,6 +89,7 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
     site.mkdir()
     shutil.copytree(_PROJECT_ROOT / "tests/fixtures/independent_theme", site / "theme")
     script = """
+import re
 import sys
 import yaml
 from dataclasses import replace
@@ -115,7 +118,7 @@ snapshots = [
         1,
         'Post',
         'owner',
-        '---\\nslug: post\\ndescription: A post.\\ncreated_date: "2026-01-01"\\n---\\n\\nBody.',
+        '---\\nslug: post\\ndescription: A post.\\ncreated_date: "2026-01-01"\\n---\\n\\nBody.\\n\\n```python\\nprint("hello")\\n```',
         ('type:blog', 'published'),
         now,
         now,
@@ -150,6 +153,12 @@ assert (root / 'output/index.html').is_file()
 assert not any(path.suffix in {'.so', '.dylib', '.pyd'} for path in (root / 'output').rglob('*'))
 assert (root / 'output/blog/post/index.html').is_file()
 assert (root / 'output/templates/Quiet/static/css/style.css').is_file()
+assert (root / 'output/templates/Quiet/static/css/syntax.css').is_file()
+post_html = (root / 'output/blog/post/index.html').read_text()
+code_classes = re.search(r'<code class="([^"]+)">', post_html)
+assert code_classes and set(code_classes.group(1).split()) == {'syntax', 'language-python'}
+assert '<span class=' in post_html
+assert 'href="/templates/Quiet/static/css/syntax.css"' in post_html
 assert (root / 'output/templates/Quiet/static/js/comments.js').is_file()
 home_html = (root / 'output/index.html').read_text(encoding='utf-8')
 assert '<h1>Consumer</h1>' in home_html

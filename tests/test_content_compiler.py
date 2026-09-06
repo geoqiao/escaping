@@ -1,15 +1,20 @@
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
+from marko import Markdown
+from marko.ext.gfm import GFM
+from pygments.token import STANDARD_TYPES
 
 from escaping.config import Settings
 from escaping.content_compiler import ContentCompiler
 from escaping.models.content import ContentCompilationResult
 from escaping.models.issue_snapshot import IssueSnapshot
 from escaping.routes import RouteRegistry
+from escaping.utils.html_sanitizer import sanitize_html
 
 _NOW = datetime(2026, 1, 10, tzinfo=UTC)
 
@@ -360,6 +365,114 @@ def test_idea_about_defaults_never_allow_a_slug(kind: str, number: int) -> None:
             [_snapshot(number, kind, metadata=f"slug: {value}"), *supporting]
         )
         assert "SLUG_FORBIDDEN" in _codes(bad)
+
+
+@pytest.mark.parametrize("kind,number", [("blog", 1), ("idea", 2), ("about", 10)])
+def test_compiled_code_has_static_tokens_without_theme_ui(
+    kind: str, number: int
+) -> None:
+    supporting = [] if kind == "about" else [_snapshot(10, "about")]
+    result = _compiler().compile(
+        [
+            replace(_snapshot(number, kind), body="```python\nprint(42)\n```"),
+            *supporting,
+        ]
+    )
+    assert not result.has_errors, result.diagnostics
+    pages = {"blog": result.blogs, "idea": result.ideas, "about": (result.about,)}
+    page = pages[kind][0]
+    assert page is not None
+    pre = ET.fromstring(page.body_html)  # noqa: S314 - locally compiled test content
+    code = pre.find("code")
+    assert pre.tag == "pre" and code is not None and len(pre) == 1
+    assert set(code.attrib["class"].split()) == {"language-python", "syntax"}
+    assert code.find("span[@class='nb']") is not None
+    assert "".join(code.itertext()) == "print(42)\n"
+    assert all(node.tag in {"pre", "code", "span"} for node in pre.iter())
+    assert all(
+        set(span.attrib) == {"class"}
+        and set(span.attrib["class"].split()) <= set(STANDARD_TYPES.values())
+        for span in code.iter("span")
+    )
+
+
+def _compiled_body(markdown: str) -> str:
+    result = _compiler().compile(
+        [replace(_snapshot(1, "blog"), body=markdown), _snapshot(10, "about")]
+    )
+    assert not result.has_errors, result.diagnostics
+    return result.blogs[0].body_html
+
+
+@pytest.mark.parametrize(
+    "markdown",
+    [
+        "```python\n\n\n  print('中文 & < >')  \n\t# indented\n\n```",
+        "```js\n\n  const x = 1;\n\n```",
+        "```yaml\n\n  key: value\n\n```",
+        "```bash\n\n\techo hi  \n\n```",
+        "```pycon\n\n>>> print(1)\n1\n\n```",
+        "```python\nprint(1)",
+        "```python\n\ufeffprint(1)\n```",
+        "```python\n```",
+        "```python\n\n\n```",
+        "> ```python\n> \n>   print(1)\n> ```",
+        "- Example:\n\n  ```python\n\n    print(1)\n\n  ```",
+    ],
+)
+def test_highlighting_preserves_marko_code_text_exactly(markdown: str) -> None:
+    original = sanitize_html(Markdown(extensions=[GFM]).convert(markdown))
+    before = ET.fromstring(f"<div>{original}</div>")  # noqa: S314
+    after = ET.fromstring(f"<div>{_compiled_body(markdown)}</div>")  # noqa: S314
+    old_code, new_code = before.find(".//code"), after.find(".//code")
+    assert old_code is not None and new_code is not None
+    assert "syntax" in new_code.attrib["class"].split()
+    assert "".join(new_code.itertext()) == "".join(old_code.itertext())
+
+
+@pytest.mark.parametrize(
+    "markdown",
+    [
+        "```\n\nprint(1)\n\n```",
+        "```unknown-language\n\nprint(1)\n\n```",
+        "```mermaid\n\ngraph TD\n  A --> B\n\n```",
+        "    print(1)\n",
+        "Use `print(1)` inline.",
+    ],
+)
+def test_plain_unknown_and_mermaid_rendering_remains_unchanged(markdown: str) -> None:
+    assert _compiled_body(markdown) == sanitize_html(
+        Markdown(extensions=[GFM]).convert(markdown)
+    )
+
+
+def test_lossy_lexer_falls_back_instead_of_dropping_source_text() -> None:
+    # Pygments' console lexer drops a final line without a newline.
+    markdown = "```console\n$ echo hi"
+    assert _compiled_body(markdown) == sanitize_html(
+        Markdown(extensions=[GFM]).convert(markdown)
+    )
+
+
+@pytest.mark.parametrize(
+    "info",
+    ["html", "html nowrap=false,full=true,linenos=true", 'x"onmouseover="alert(1)'],
+)
+def test_highlighted_source_and_fence_options_cannot_inject_html(info: str) -> None:
+    source = '<script>alert(1)</script><img src=x onerror="bad()">&amp;'
+    body = _compiled_body(
+        f"```{info}\n{source}\n```\n\n"
+        '<span onclick="bad()" style="color:red">Safe</span> '
+        '<a href="javascript:bad()">link</a>'
+    )
+    tree = ET.fromstring(f"<div>{body}</div>")  # noqa: S314
+    code = tree.find(".//pre/code")
+    assert code is not None and "".join(code.itertext()) == source + "\n"
+    assert all(
+        node.tag in {"div", "pre", "code", "span", "p", "a"} for node in tree.iter()
+    )
+    assert all(set(node.attrib) <= {"class"} for node in tree.iter())
+    assert "Safe link" in "".join(tree.itertext())
 
 
 def test_missing_about_and_about_tags_fail() -> None:

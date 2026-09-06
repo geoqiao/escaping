@@ -112,6 +112,7 @@ templates. Do not emit extra HTML pages, aliases or a second feed.
 | `google_search_verification` | Verification value, possibly empty |
 | `comments`, `branding` | Same immutable objects as `metadata.comments` / `metadata.branding` |
 | `metadata` | Site metadata described next; not the entire SiteModel |
+| `featured_projects` | Ordered featured Project sequence from the catalog; Quiet shows at most four on Home and About, and omits empty featured sections |
 
 | Metadata object | Public fields |
 | --- | --- |
@@ -171,7 +172,7 @@ Dates below are ISO date strings; timestamps are timezone-aware Python datetimes
 | Issue About | `issue_number`, `title`, `description`, `body_html`, `route`, `canonical_path`, `canonical_url`; no date/tags/slug |
 | Profile About | `title`, `description`, `route`, `canonical_path`, `canonical_url`; **no Issue number, body_html, dates, tags or slug** |
 | ProjectsPage | `route`, `canonical_path`, `canonical_url`, `projects`, `featured` (Project sequences); `top_by_stars(limit=5)` returns a ranked Project tuple |
-| Project | `slug`, `title`, `repository`, `summary`, `url`, `featured` (bool), `order` (int), `stars` / `forks` (int or None), `language` (string or None), `topics` (string sequence) |
+| Project | `slug`, `title`, `repository`, `summary`, `url`, `featured` (bool), `order` (int), `stars` / `forks` (int or None), `language` (string or None), `topics` (string sequence), `image` (resource URL or empty string), `links` (ordered immutable sequence of `name`, `url` pairs) |
 | TagsIndex | `route`, `canonical_url`, `tags` (TagSummary sequence) |
 | TagSummary | `name`, `count`, `route`; use `route.canonical_path`, not `path` |
 | TagArchive | `route`, `canonical_url`, `tag_name`, `index_route`, `entries` (TagArchiveEntry sequence) |
@@ -182,6 +183,38 @@ Descriptions derived from visible code may contain `<` or `>`; autoescape them.
 `created_date` is a normalized ASCII `YYYY-MM-DD` calendar date, suitable for
 both display and `<time datetime="…">`. Display it for Blog/Idea, not About.
 Do not substitute it for native publication/update timestamps in structured data.
+
+### Project artwork and links
+
+Project content comes from the site-owned catalog, not Theme constants or README
+synchronization. `image` accepts HTTPS/root-relative resource URLs; `links` use
+the same safe named-link contract as Profile links. Empty optional values do not
+require placeholders. Quiet uses two columns on desktop and one on narrow screens;
+full cards have a preferred proportion but grow for long text rather than truncate
+it. About cards are smaller and subordinate to the authored narrative. The existing
+Home `top_projects` star-ranking context remains available for local Themes; Quiet
+uses `featured_projects` instead.
+
+An image URL is not an instruction to copy a local file. Prefer already published
+HTTPS artwork, including immutable GitHub raw URLs. Internal static resources must
+use the selected Theme's asset prefix and exist in the candidate artifact. An
+arbitrary `/assets/projects/` URL is not a registered resource; an upload-time copy
+does not make that URL valid. A site-owned local Theme may ship its own artwork
+under `/templates/<name>/static/`. Do not weaken the artifact validator or add
+arbitrary asset discovery to make an image appear.
+
+### Code highlighting
+
+Explicitly recognized fenced-code languages receive build-time Pygments token
+markup inside sanitized code. Unmarked/unknown languages remain plain text;
+Mermaid keeps its separate shared rendering path. Local Themes may style the safe
+token spans or leave them unstyled without losing readable source text.
+
+Quiet uses Pygments' Xcode/GitHub Dark token palettes with its own code surfaces
+and a lighter dark-mode generic-output color; it does not reproduce either
+application's entire interface. Long lines stay unwrapped in a native horizontal
+scroll region with a thin thumb and transparent track. Copy controls copy the code
+text, not the language label or highlighting markup.
 
 ## Head and structured data
 
@@ -376,8 +409,9 @@ content images or profile avatar.
 
 ## Navigation and keyboard/layout contract
 
-The default primary menu is Home, Blog, Ideas, Projects, Tags, About, RSS, in that
-order. An explicit `site.navigation.items` list replaces it entirely: preserve
+The default primary menu is Home, Blog, Projects, Tags, About, RSS, in that
+order. Ideas remains a supported content type and route, available through an
+explicit menu entry; its omission from the default menu does not delete content. An explicit `site.navigation.items` list replaces it entirely: preserve
 order and names, allow removal of Home and `[]`, and never inject Home or RSS
 back into that menu. The independent brand links to `home_path`; content links
 and footer links are not primary-menu entries. Hiding an entry does not delete,
@@ -489,7 +523,6 @@ site:
     items:
       - {name: Home, url: /}
       - {name: Blog, url: /blog/}
-      - {name: Ideas, url: /ideas/}
       - {name: Projects, url: /projects/}
       - {name: Tags, url: /tags/}
       - {name: About, url: /about/}

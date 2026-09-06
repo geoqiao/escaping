@@ -5,7 +5,12 @@ from dataclasses import dataclass
 
 from .build_result import Diagnostic
 from .config import ProjectCatalogEntry
-from .models.projects import Project, ProjectCompilationResult, ProjectsPage
+from .models.projects import (
+    Project,
+    ProjectCompilationResult,
+    ProjectLink,
+    ProjectsPage,
+)
 from .routes import Route
 
 
@@ -110,6 +115,10 @@ class ProjectCompiler:
                     forks=values.forks,
                     language=values.language,
                     topics=values.topics,
+                    image=entry.image,
+                    links=tuple(
+                        ProjectLink(link.name, link.url) for link in entry.links
+                    ),
                 )
             )
         items = tuple(projects)

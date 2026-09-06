@@ -7,7 +7,7 @@
 
   // Wire navigation before first paint. Delegation works before the body exists;
   // a failed head script leaves the CSS-only, expanded navigation intact.
-  const mobile = matchMedia("(max-width: 760px)");
+  const mobile = matchMedia("(max-width: 1160px)");
   function closeMenu() {
     document.querySelector(".menu-toggle")?.setAttribute("aria-expanded", "false");
     document.getElementById("navigation-panel")?.classList.remove("is-open");

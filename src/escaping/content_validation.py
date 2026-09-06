@@ -8,9 +8,16 @@ from __future__ import annotations
 import re
 from collections.abc import Sequence
 from datetime import datetime
+from typing import cast
 
-from marko import Markdown
+from marko import HTMLRenderer, Markdown
+from marko.block import FencedCode
 from marko.ext.gfm import GFM
+from marko.inline import RawText
+from pygments import format as format_tokens
+from pygments.formatters.html import HtmlFormatter
+from pygments.lexers import get_lexer_by_name
+from pygments.util import ClassNotFound
 
 from .build_result import Diagnostic
 from .utils.frontmatter import ParsedFrontMatter
@@ -19,7 +26,35 @@ from .utils.html_sanitizer import HTMLSanitizationError, sanitize_html
 CONTENT_TYPES = frozenset({"blog", "idea", "about"})
 _KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-_MARKDOWN = Markdown(extensions=[GFM])
+
+
+class _SyntaxRenderer(HTMLRenderer):
+    def render_fenced_code(self, element: FencedCode) -> str:
+        if not element.lang or element.lang.lower() == "mermaid":
+            return super().render_fenced_code(element)
+        try:
+            lexer = get_lexer_by_name(
+                element.lang, stripnl=False, stripall=False, ensurenl=False
+            )
+        except ClassNotFound:
+            return super().render_fenced_code(element)
+        code = cast(RawText, element.children[0]).children
+        # Public unprocessed tokens bypass BOM/newline normalization as well as
+        # stripping. The Marko source, not a lexer's rewrite, owns visible text.
+        tokens = [
+            (token, text) for _, token, text in lexer.get_tokens_unprocessed(code)
+        ]
+        if "".join(text for _, text in tokens) != code:
+            return super().render_fenced_code(element)
+        # Fence extras are never formatter options. No inline styles or UI HTML.
+        highlighted = format_tokens(tokens, HtmlFormatter(nowrap=True))
+        if not code.endswith("\n"):
+            highlighted = highlighted.removesuffix("\n")
+        language = self.escape_html(element.lang)
+        return f'<pre><code class="language-{language} syntax">{highlighted}</code></pre>\n'
+
+
+_MARKDOWN = Markdown(renderer=_SyntaxRenderer, extensions=[GFM])
 
 
 def valid_slug(value: str) -> bool:

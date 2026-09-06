@@ -3,6 +3,6 @@
 {% set active_section = site_routes.projects.canonical_path %}
 {% block content %}
 {% from 'components.html' import project_entry with context %}
-<div class="page-heading"><p class="eyebrow">From an idea to a working thing</p><h1>Projects<span class="heading-dot" aria-hidden="true">.</span></h1><p>Code, experiments, and independent projects.</p></div>
-<div class="project-grid">{% for project in projects.projects %}{{ project_entry(project) }}{% else %}<p class="empty-state">No public projects yet.</p>{% endfor %}</div>
+<div class="page-heading works-intro"><p class="eyebrow">From an idea to a working thing</p><h1>Projects<span class="heading-dot" aria-hidden="true">.</span></h1><p>Code, experiments, and independent projects.</p></div>
+<div class="works-grid">{% for project in projects.projects %}{{ project_entry(project) }}{% else %}<p class="empty-state">No public projects yet.</p>{% endfor %}</div>
 {% endblock %}

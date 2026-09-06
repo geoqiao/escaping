@@ -103,6 +103,7 @@ class RenderService:
             "navigation_items": metadata.navigation,
             "branding": metadata.branding,
             "comments": metadata.comments,
+            "featured_projects": site.projects.featured,
             "metadata": metadata,
             "site_routes": {
                 name: site.routes.route(name)

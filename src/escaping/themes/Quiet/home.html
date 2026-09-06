@@ -4,7 +4,7 @@
 <div class="home-heading">
   <p class="eyebrow">A personal website <span aria-hidden="true">/</span> Personal index</p>
   <h1>{{ blog_title }}</h1>
-  <div class="home-caption"><p>{{ metadata.profile.tagline or 'Writing, ideas, and things in the making.' }}</p><a href="{{ site_routes.about.canonical_path }}">About me <span aria-hidden="true">↗</span></a></div>
+  <div class="home-caption"><p>{{ metadata.profile.tagline or 'Writing and things in the making.' }}</p><a href="{{ site_routes.about.canonical_path }}">About me <span aria-hidden="true">↗</span></a></div>
 </div>
 {% if home_page.recent_posts %}
 <div class="home-grid">
@@ -26,10 +26,10 @@
 {% else %}
 <section class="empty-state"><h2>The story starts here.</h2><p>No published writing yet.</p><a href="{{ site_routes.about.canonical_path }}">Meet the author ↗</a></section>
 {% endif %}
-{% if top_projects %}
+{% if featured_projects %}
 <section class="home-projects" aria-labelledby="projects-title">
-  <div class="section-heading"><h2 id="projects-title">Also building</h2><a href="{{ projects_path }}">All projects ↗</a></div>
-  <div class="project-grid">{% for project in top_projects[:2] %}{{ project_entry(project) }}{% endfor %}</div>
+  <div class="section-heading"><h2 id="projects-title">Also building</h2><a class="more-projects" href="{{ site_routes.projects.canonical_path }}">All projects <span aria-hidden="true">↗</span></a></div>
+  <div class="works-grid">{% for project in featured_projects[:4] %}{{ project_entry(project) }}{% endfor %}</div>
 </section>
 {% endif %}
 {% endblock %}
