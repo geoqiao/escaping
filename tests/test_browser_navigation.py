@@ -533,9 +533,9 @@ def test_mobile_navigation_is_keyboard_operable_for_every_theme(
     expect(page).to_have_url(origin + "/blog/")
 
 
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2"])
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
 @pytest.mark.parametrize("initialization", ["no-js", "inline-csp", "binding-fails"])
-def test_escape_navigation_remains_keyboard_reachable_without_handlers(
+def test_navigation_remains_keyboard_reachable_without_handlers(
     browser: Browser, site_servers: dict[str, str], theme: str, initialization: str
 ) -> None:
     page = browser.new_page(
@@ -567,15 +567,18 @@ def test_escape_navigation_remains_keyboard_reachable_without_handlers(
     origin = site_servers[theme]
     try:
         page.goto(origin + "/", wait_until="load")
-        page.locator(".logo, .terminal").focus()
+        brand = page.locator(".logo, .terminal, .ledger-brand")
+        brand.focus()
         menu = page.locator("#header-nav")
         for link in menu.locator("a").all():
             page.keyboard.press("Tab")
             expect(link).to_be_focused()
             expect(link).to_be_in_viewport()
         expect(page.get_by_role("button", name="Toggle menu")).to_be_hidden()
+        if initialization == "no-js":
+            expect(page.locator(".theme-toggle:visible")).to_have_count(0)
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
-        page.locator(".logo, .terminal").focus()
+        brand.focus()
         page.keyboard.press("Tab")
         page.keyboard.press("Tab")
         page.keyboard.press("Enter")
