@@ -113,8 +113,6 @@ jobs:
     env:
       ESCAPING_VERSION: stable # Advanced: immutable formal release tag or full commit SHA.
       SITE_CONFIG: config.yaml # Update this path when moving the Config within the site repo.
-      UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/compiler-venv
-      UV_CACHE_DIR: ${{ runner.temp }}/compiler-cache
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -148,8 +146,11 @@ jobs:
       - name: Install verified source with the generator lock and build group
         env:
           RESOLVED_SHA: ${{ steps.version.outputs.sha }}
+          UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/compiler-venv
+          UV_CACHE_DIR: ${{ runner.temp }}/compiler-cache
         run: |
           set -euo pipefail
+          printf '%s\n' "UV_PROJECT_ENVIRONMENT=$UV_PROJECT_ENVIRONMENT" "UV_CACHE_DIR=$UV_CACHE_DIR" >> "$GITHUB_ENV"
           bash site/.github/scripts/install.sh "$GITHUB_WORKSPACE/compiler" "$RESOLVED_SHA" 3.14 >> "$GITHUB_STEP_SUMMARY"
       - name: Build from the original site Config directory
         id: compile
