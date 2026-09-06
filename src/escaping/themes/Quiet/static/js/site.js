@@ -1,9 +1,6 @@
 (() => {
   "use strict";
   const root = document.documentElement;
-  const mobile = matchMedia("(max-width: 760px)");
-  const menu = document.querySelector(".menu-toggle");
-  const panel = document.getElementById("navigation-panel");
   const themeToggle = document.querySelector(".theme-toggle");
   const system = matchMedia("(prefers-color-scheme: dark)");
   let choice;
@@ -25,36 +22,6 @@
   });
   themeToggle.hidden = false;
 
-  function closeMenu() {
-    menu.setAttribute("aria-expanded", "false");
-    panel.classList.remove("is-open");
-  }
-  menu.addEventListener("click", () => {
-    const open = menu.getAttribute("aria-expanded") !== "true";
-    menu.setAttribute("aria-expanded", String(open));
-    panel.classList.toggle("is-open", open);
-  });
-  document.addEventListener("keydown", (event) => {
-    if (event.key === "Escape" && menu.getAttribute("aria-expanded") === "true") {
-      closeMenu();
-      menu.focus();
-    }
-  });
-  let lastFocused = document.activeElement;
-  function dismissOutside(event) {
-    if (event.type === "focusin") lastFocused = event.target;
-    if (!panel.contains(event.target) && !menu.contains(event.target)) closeMenu();
-  }
-  document.addEventListener("pointerdown", dismissOutside);
-  document.addEventListener("focusin", dismissOutside);
-  mobile.addEventListener("change", () => {
-    // CSS can hide the focused panel before the media-query event runs.
-    const active = document.activeElement === document.body ? lastFocused : document.activeElement;
-    closeMenu();
-    if (mobile.matches && panel.contains(active)) menu.focus();
-    if (!mobile.matches && active === menu) document.querySelector(".identity").focus();
-  });
-  menu.hidden = false;
   root.classList.add("js");
 
   const body = document.querySelector(".post-content");

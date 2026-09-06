@@ -7,7 +7,7 @@ from .blog_archive import build_archives
 from .build_result import Diagnostic
 from .config import Settings
 from .home_builder import build_home
-from .models.content import ContentCompilationResult
+from .models.content import ContentCompilationResult, ProfileAbout
 from .models.projects import ProjectCompilationResult, ProjectsPage
 from .models.site import (
     BrandingMetadata,
@@ -77,7 +77,13 @@ class SiteBuilder:
             archives=archives,
             ideas_page=IdeasPage(self.routes.ideas(), content.ideas),
             ideas=content.ideas,
-            about=content.about,
+            about=content.about
+            if content.about is not None or content.has_errors
+            else ProfileAbout(
+                title=self.settings.site.author,
+                description=self.settings.profile.bio,
+                route=self.routes.about(),
+            ),
             projects=projects_page,
             tags=tags_result.index,
             tag_archives=tags_result.archives,
@@ -135,6 +141,7 @@ class SiteBuilder:
                 source_link_url=settings.branding.source_link_url,
             ),
             comments=CommentsMetadata(
+                enabled=settings.comments.enabled,
                 repo=settings.comments.repo or settings.github.repo,
                 theme=settings.comments.theme,
                 theme_mode=settings.comments.theme_mode,

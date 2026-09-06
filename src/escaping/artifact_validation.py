@@ -5,15 +5,18 @@ import re
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 from pathlib import Path
-from urllib.parse import urljoin, urlsplit
+from urllib.parse import unquote, urljoin, urlsplit
 
 from .build_result import Diagnostic
+from .models.content import ProfileAbout
 from .models.site import SiteModel
 
 _ATOM_NS = "http://www.w3.org/2005/Atom"
 _SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
-_FRONT_MATTER_FIELD_RE = re.compile(r"^\s*(?:slug|created_date):\s*", re.MULTILINE)
-_FRONT_MATTER_DELIMITER_RE = re.compile(r"^\s*---\s*$", re.MULTILINE)
+_BAD_ESCAPE = re.compile(r"%(?![0-9a-fA-F]{2})")
+_UNSAFE_PATH_CHARS = re.compile(
+    r"[\x00-\x1f\x7f-\x9f\\\u2028\u2029\u200b\u200c\u200d\ufeff]"
+)
 
 
 def _srcset_urls(value: str) -> list[str]:
@@ -33,10 +36,8 @@ class _HTMLProbe(HTMLParser):
         self.canonical: list[str] = []
         self.meta: dict[str, str] = {}
         self.json_ld: list[str] = []
-        self.visible_text: list[str] = []
         self._script_type = ""
         self._script_data: list[str] = []
-        self._ignored_text_depth = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
         values = {key: value or "" for key, value in attrs}
@@ -52,10 +53,8 @@ class _HTMLProbe(HTMLParser):
             self.canonical.append(values.get("href", ""))
         if tag == "meta":
             key = values.get("property") or values.get("name")
-            if key and values.get("content"):
+            if key and "content" in values:
                 self.meta[key.casefold()] = values["content"]
-        if tag in {"code", "pre", "script", "style"}:
-            self._ignored_text_depth += 1
         if tag == "script":
             self._script_type = values.get("type", "")
             self._script_data = []
@@ -63,16 +62,12 @@ class _HTMLProbe(HTMLParser):
     def handle_data(self, data: str) -> None:
         if self._script_type == "application/ld+json":
             self._script_data.append(data)
-        if self._ignored_text_depth == 0:
-            self.visible_text.append(data)
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "script" and self._script_type == "application/ld+json":
             self.json_ld.append("".join(self._script_data))
             self._script_type = ""
             self._script_data = []
-        if tag in {"code", "pre", "script", "style"}:
-            self._ignored_text_depth = max(0, self._ignored_text_depth - 1)
 
 
 class SiteArtifactValidator:
@@ -84,16 +79,16 @@ class SiteArtifactValidator:
     def validate(self, candidate_dir: Path) -> list[Diagnostic]:
         diagnostics: list[Diagnostic] = []
         expected = {route.output_path: route for route in self.site.routes.routes()}
-        actual_html = {
-            str(path.relative_to(candidate_dir))
-            for path in candidate_dir.rglob("*.html")
-            if path.is_file()
+        # File names, not host-filesystem case-insensitive lookups, prove that
+        # the public URL exists. Exact membership also rejects traversal paths.
+        actual_files = {
+            path.relative_to(candidate_dir).as_posix()
+            for path in candidate_dir.rglob("*")
+            if not path.is_symlink() and path.is_file()
         }
+        actual_html = {path for path in actual_files if path.endswith(".html")}
         for output_path in expected:
-            if (
-                output_path.endswith(".html")
-                and not (candidate_dir / output_path).is_file()
-            ):
+            if output_path not in actual_files:
                 diagnostics.append(
                     self._error(
                         "MISSING_ROUTE", f"missing route artifact: {output_path}"
@@ -111,7 +106,7 @@ class SiteArtifactValidator:
 
         for output_path, route in expected.items():
             path = candidate_dir / output_path
-            if not path.is_file() or not output_path.endswith(".html"):
+            if output_path not in actual_files or not output_path.endswith(".html"):
                 continue
             probe = _HTMLProbe()
             try:
@@ -122,15 +117,9 @@ class SiteArtifactValidator:
                     self._error("HTML_READ_FAILED", f"{output_path}: {exc}")
                 )
                 continue
-            visible_text = "\n".join(probe.visible_text)
-            if _FRONT_MATTER_FIELD_RE.search(
-                visible_text
-            ) or _FRONT_MATTER_DELIMITER_RE.search(visible_text):
-                diagnostics.append(
-                    self._error(
-                        "FRONT_MATTER_LEAK", f"front matter leaked into {output_path}"
-                    )
-                )
+            # Body provenance belongs to compilation: only parsed.body becomes
+            # body_html, and neither renderer nor validator receives raw Issues.
+            # Metadata-like prose cannot establish a front-matter leak.
             self._validate_page_metadata(
                 output_path, route.canonical_url, probe, diagnostics
             )
@@ -140,14 +129,14 @@ class SiteArtifactValidator:
                 output_path,
                 route.canonical_url,
                 probe.links,
-                candidate_dir,
+                actual_files,
                 diagnostics,
             )
             self._validate_resources(
                 output_path,
                 route.canonical_url,
                 probe.resources,
-                candidate_dir,
+                actual_files,
                 diagnostics,
             )
             self._validate_json_ld(
@@ -207,35 +196,34 @@ class SiteArtifactValidator:
         output_path: str,
         current_url: str,
         links: list[tuple[str, str]],
-        candidate_dir: Path,
+        actual_files: set[str],
         diagnostics: list[Diagnostic],
     ) -> None:
         for tag, value in links:
-            parsed = urlsplit(value)
             if value.startswith("#"):
                 continue
-            if parsed.scheme or parsed.netloc:
+            try:
+                parsed = urlsplit(value)
                 path = self._internal_resource_path(value, current_url)
-                if path is None:
-                    continue
-            elif not value.startswith("/"):
+            except ValueError:
+                diagnostics.append(
+                    self._error(
+                        "INVALID_INTERNAL_PATH", f"{output_path}: unsafe {tag} URL path"
+                    )
+                )
+                continue
+            if not parsed.scheme and not parsed.netloc and not value.startswith("/"):
                 diagnostics.append(
                     self._error(
                         "RELATIVE_LINK", f"{output_path}: relative {tag} link {value!r}"
                     )
                 )
                 continue
-            else:
-                path = parsed.path
+            if path is None:
+                continue
             static_prefix = f"{self.site.metadata.theme.asset_path}/"
             if path.startswith(static_prefix):
-                asset = candidate_dir / path.lstrip("/")
-                if not asset.is_file():
-                    diagnostics.append(
-                        self._error(
-                            "MISSING_ASSET", f"{output_path}: missing asset {path}"
-                        )
-                    )
+                self._validate_asset(output_path, path, actual_files, diagnostics)
                 continue
             if self.site.routes.route_for_path(path) is None:
                 diagnostics.append(
@@ -250,23 +238,24 @@ class SiteArtifactValidator:
         output_path: str,
         current_url: str,
         resources: list[tuple[str, str]],
-        candidate_dir: Path,
+        actual_files: set[str],
         diagnostics: list[Diagnostic],
     ) -> None:
         static_prefix = f"{self.site.metadata.theme.asset_path}/"
         for tag, value in resources:
-            path = self._internal_resource_path(value, current_url)
+            try:
+                path = self._internal_resource_path(value, current_url)
+            except ValueError:
+                diagnostics.append(
+                    self._error(
+                        "INVALID_INTERNAL_PATH", f"{output_path}: unsafe {tag} URL path"
+                    )
+                )
+                continue
             if path is None:
                 continue
             if path.startswith(static_prefix):
-                asset = candidate_dir / path.lstrip("/")
-                if not asset.is_file():
-                    diagnostics.append(
-                        self._error(
-                            "MISSING_ASSET",
-                            f"{output_path}: missing {tag} resource {path}",
-                        )
-                    )
+                self._validate_asset(output_path, path, actual_files, diagnostics)
                 continue
             if self.site.routes.route_for_path(path) is None:
                 diagnostics.append(
@@ -276,9 +265,50 @@ class SiteArtifactValidator:
                     )
                 )
 
+    def _validate_asset(
+        self,
+        output_path: str,
+        path: str,
+        actual_files: set[str],
+        diagnostics: list[Diagnostic],
+    ) -> None:
+        # Files use one strict UTF-8 URL decode. Never feed decoded names back
+        # into URL parsing or RouteRegistry: literal percent names stay literal.
+        try:
+            if _BAD_ESCAPE.search(path):
+                raise ValueError("invalid percent escape")
+            parts = [
+                unquote(part, errors="strict")
+                for part in path.removeprefix("/").split("/")
+            ]
+            if any(
+                part in ("", ".", "..")
+                or "/" in part
+                or _UNSAFE_PATH_CHARS.search(part)
+                for part in parts
+            ):
+                raise ValueError("unsafe file path component")
+        except ValueError:
+            diagnostics.append(
+                self._error(
+                    "INVALID_INTERNAL_PATH",
+                    f"{output_path}: unsafe static asset URL path",
+                )
+            )
+            return
+        if "/".join(parts) not in actual_files:
+            diagnostics.append(
+                self._error("MISSING_ASSET", f"{output_path}: missing asset {path}")
+            )
+
     def _internal_resource_path(self, value: str, current_url: str) -> str | None:
         if not value or value.startswith("#"):
             return None
+        # urlsplit can erase controls; preserve the raw path for the checks
+        # below because urljoin can also erase dot segments.
+        if _UNSAFE_PATH_CHARS.search(value):
+            raise ValueError("unsafe URL characters")
+        raw_path = urlsplit(value).path
         resolved = urlsplit(urljoin(current_url, value))
         origin = urlsplit(self.site.routes.origin)
         if (
@@ -286,6 +316,14 @@ class SiteArtifactValidator:
             or resolved.netloc.casefold() != origin.netloc.casefold()
         ):
             return None
+        # Internal file/route references use this explicit safe subset; do not
+        # impose local filesystem path rules on unrelated external links.
+        if (
+            " " in value
+            or "//" in raw_path
+            or any(part in (".", "..") for part in raw_path.split("/"))
+        ):
+            raise ValueError("unsafe URL path segments")
         return resolved.path or "/"
 
     def _validate_json_ld(
@@ -303,12 +341,63 @@ class SiteArtifactValidator:
                     self._error("INVALID_JSON_LD", f"{output_path}: invalid JSON-LD")
                 )
                 continue
-            urls = self._collect_urls(value)
-            if any(url != canonical_url for url in urls):
+            # Theme contract, not general JSON-LD interpretation: a legacy
+            # document's literal url, or one exact canonical @id in @graph.
+            if not isinstance(value, dict) or (
+                "@graph" in value
+                and (
+                    not isinstance(value["@graph"], list)
+                    or not all(isinstance(node, dict) for node in value["@graph"])
+                )
+            ):
+                diagnostics.append(
+                    self._error(
+                        "INVALID_JSON_LD",
+                        f"{output_path}: JSON-LD requires an object with optional @graph array of objects",
+                    )
+                )
+                continue
+            entities = [value]
+            if "@graph" in value:
+                primary = [
+                    node for node in value["@graph"] if node.get("@id") == canonical_url
+                ]
+                if len(primary) != 1:
+                    diagnostics.append(
+                        self._error(
+                            "JSON_LD_PAGE_IDENTITY",
+                            f"{output_path}: @graph requires exactly one node with @id equal to canonical",
+                        )
+                    )
+                    continue
+                entities.extend(primary)
+            if (
+                isinstance(self.site.about, ProfileAbout)
+                and canonical_url == self.site.about.canonical_url
+                and (
+                    entities[-1].get("@type") not in ("AboutPage", "ProfilePage")
+                    or any(
+                        key in entities[-1] for key in ("datePublished", "dateModified")
+                    )
+                )
+            ):
+                diagnostics.append(
+                    self._error(
+                        "PROFILE_ABOUT_IDENTITY",
+                        f"{output_path}: Profile About requires a non-Article page identity without Issue dates",
+                    )
+                )
+            if any(
+                "url" in entity
+                and (
+                    not isinstance(entity["url"], str) or entity["url"] != canonical_url
+                )
+                for entity in entities
+            ):
                 diagnostics.append(
                     self._error(
                         "JSON_LD_URL_MISMATCH",
-                        f"{output_path}: JSON-LD URL differs from canonical",
+                        f"{output_path}: provided JSON-LD page url must be a canonical string",
                     )
                 )
 
@@ -388,28 +477,6 @@ class SiteArtifactValidator:
                     "robots.txt does not reference registered sitemap",
                 )
             )
-
-    @staticmethod
-    def _collect_urls(value: object) -> list[str]:
-        if isinstance(value, dict):
-            direct = [
-                item
-                for key, item in value.items()
-                if key == "url" and isinstance(item, str)
-            ]
-            nested = [
-                url
-                for item in value.values()
-                for url in SiteArtifactValidator._collect_urls(item)
-            ]
-            return direct + nested
-        if isinstance(value, list):
-            return [
-                url
-                for item in value
-                for url in SiteArtifactValidator._collect_urls(item)
-            ]
-        return []
 
     @staticmethod
     def _error(code: str, message: str) -> Diagnostic:

@@ -56,6 +56,25 @@ def test_registry_rejects_reserved_and_malformed_dynamic_routes() -> None:
         registry.register("old", "/old/", "old.html")
 
 
+def test_lookup_requires_emitted_path_case_without_weakening_collisions() -> None:
+    registry = RouteRegistry("https://example.com")
+    blog = registry.blog_archive()
+    assert registry.route_for_path("/blog/") is blog
+    assert registry.route_for_url("https://example.com/blog/") is blog
+    for path in ("/Blog/", "/BLOG/", "/%62log/", "/blog"):
+        assert registry.route_for_path(path) is None
+        assert registry.route_for_url(f"https://example.com{path}") is None
+    for output in ("other/index.html", blog.output_path):
+        with pytest.raises(RouteCollisionError):
+            registry.register("wrong-case", "/Blog/", output)
+    assert registry.blog_archive() is blog
+    with pytest.raises(RouteCollisionError):
+        registry.register("output-case", "/other/", "Blog/index.html")
+    for path in ("/blog/../", "//blog/", "/blog/?q=1"):
+        with pytest.raises(RouteCollisionError):
+            registry.route_for_path(path)
+
+
 def test_registry_sitemap_membership_excludes_operational_files() -> None:
     registry = RouteRegistry("https://geoqiao.me")
     registry.home()

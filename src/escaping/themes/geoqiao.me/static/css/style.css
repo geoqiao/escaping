@@ -245,6 +245,8 @@ button:focus-visible,
   gap: 8px;
 }
 
+.theme-toggle[hidden] { display: none; }
+
 .theme-swatch {
   position: relative;
   width: 15px;
@@ -1173,7 +1175,19 @@ html[data-theme="dark"] .post-content a {
     width: min(100% - 36px, 680px);
   }
 
-  .hamb {
+  html:not(.navigation-ready) .ledger-header {
+    height: auto;
+  }
+
+  html:not(.navigation-ready) .ledger-header-inner {
+    flex-wrap: wrap;
+  }
+
+  html:not(.navigation-ready) .ledger-brand {
+    min-height: var(--header-height);
+  }
+
+  .navigation-ready .hamb {
     position: relative;
     z-index: 102;
     display: grid;
@@ -1181,6 +1195,11 @@ html[data-theme="dark"] .post-content a {
   }
 
   .ledger-nav {
+    width: 100%;
+    padding-bottom: 28px;
+  }
+
+  .navigation-ready .ledger-nav {
     position: fixed;
     z-index: 101;
     top: 0;

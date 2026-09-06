@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% set page_title = "Ideas" %}
+{% set page_description = meta_description %}
+{% set active_destination = site_routes.ideas.canonical_path %}
+
+{% block content %}
+<div class="page-shell">
+  <header class="page-heading">
+    <p class="eyebrow">Notes in progress</p>
+    <h1>Ideas</h1>
+    <p>{{ meta_description }}</p>
+  </header>
+
+  {% if ideas %}
+  <ol class="post-list">
+    {% for idea in ideas %}
+    <li>
+      <article>
+        <h2><a href="{{ idea.canonical_path }}">{{ idea.title }}</a></h2>
+        <p class="meta"><time>{{ idea.created_date }}</time></p>
+        <p>{{ idea.description }}</p>
+        {% if idea.tags %}
+        <ul class="tag-list" aria-label="Idea tags">
+          {% for tag in idea.tags %}
+          <li><span>{{ tag.name }}</span></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </article>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="empty-state">No ideas yet.</p>
+  {% endif %}
+</div>
+{% endblock %}

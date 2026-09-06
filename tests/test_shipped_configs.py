@@ -37,8 +37,9 @@ def test_example_config_strict_loads_with_default_theme() -> None:
 
     assert settings.site.url.scheme == "https"
     assert settings.security.token_env == "GITHUB_TOKEN"  # noqa: S105
-    assert settings.about.issue_number >= 1
-    assert settings.theme == BuiltinThemeConfig(name="geoqiao.me")
+    assert settings.about.issue_number is not None and settings.about.issue_number >= 1
+    assert settings.theme == BuiltinThemeConfig(name="Quiet")
+    assert not settings.comments.enabled
     assert settings.site.thesis == []
     assert settings.profile.tagline == ""
     assert settings.profile.bio == ""

@@ -5,7 +5,14 @@ from datetime import datetime
 
 from ..build_result import Diagnostic
 from ..routes import Route
-from .blog_post import BlogPost, BlogTag
+from .blog_post import BlogPost
+
+
+@dataclass(frozen=True)
+class IdeaTag:
+    """Display-only Idea label; it has no archive or route."""
+
+    name: str
 
 
 @dataclass(frozen=True)
@@ -16,7 +23,7 @@ class Idea:
     created_date: str
     published_at: datetime
     updated_at: datetime
-    tags: tuple[BlogTag, ...]
+    tags: tuple[IdeaTag, ...]
     body_html: str
     route: Route
 
@@ -35,6 +42,23 @@ class AboutPage:
     title: str
     description: str
     body_html: str
+    route: Route
+
+    @property
+    def canonical_path(self) -> str:
+        return self.route.canonical_path
+
+    @property
+    def canonical_url(self) -> str:
+        return self.route.canonical_url
+
+
+@dataclass(frozen=True)
+class ProfileAbout:
+    """Profile presentation, not Issue Content: no Issue/date/body/thread."""
+
+    title: str
+    description: str
     route: Route
 
     @property

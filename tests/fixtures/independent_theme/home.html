@@ -1,0 +1,64 @@
+{% extends "base.html" %}
+{% set page_title = blog_title %}
+{% set page_description = meta_description %}
+{% set active_destination = home_path %}
+
+{% block content %}
+<div class="page-shell">
+  <section class="home-intro" aria-labelledby="home-title">
+    <p class="eyebrow">Home</p>
+    <h1 id="home-title">{{ blog_title }}</h1>
+    <p class="lead">{{ meta_description }}</p>
+  </section>
+
+  <section aria-labelledby="recent-title">
+    <div class="section-heading">
+      <h2 id="recent-title">Recent posts</h2>
+      <a href="{{ site_routes.blog.canonical_path }}">All posts</a>
+    </div>
+    {% if home_page.recent_posts %}
+    <ol class="post-list">
+      {% for post in home_page.recent_posts %}
+      <li>
+        <article>
+          <h3><a href="{{ post.detail_path }}">{{ post.title }}</a></h3>
+          <p class="meta"><time>{{ post.created_date }}</time></p>
+          <p>{{ post.description }}</p>
+          {% if post.tags %}
+          <ul class="tag-list" aria-label="Post tags">
+            {% for tag in post.tags %}
+            <li><a href="{{ tag.path }}">{{ tag.name }}</a></li>
+            {% endfor %}
+          </ul>
+          {% endif %}
+        </article>
+      </li>
+      {% endfor %}
+    </ol>
+    {% else %}
+    <p class="empty-state">No posts yet.</p>
+    {% endif %}
+  </section>
+
+  {% if top_projects %}
+  <section aria-labelledby="projects-title">
+    <div class="section-heading">
+      <h2 id="projects-title">Selected projects</h2>
+      <a href="{{ projects_path }}">All projects</a>
+    </div>
+    <div class="project-grid">
+      {% for project in top_projects %}
+      <article class="project-card">
+        <h3><a href="{{ project.url }}">{{ project.title }}</a></h3>
+        <p>{{ project.summary }}</p>
+        <p class="meta">
+          {% if project.language is not none %}{{ project.language }}{% endif %}
+          {% if project.stars is not none %} · {{ project.stars }} stars{% endif %}
+        </p>
+      </article>
+      {% endfor %}
+    </div>
+  </section>
+  {% endif %}
+</div>
+{% endblock %}

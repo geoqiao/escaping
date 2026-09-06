@@ -14,6 +14,7 @@ from escaping.utils.frontmatter import (
     FRONT_MATTER_MAX_BYTES,
     FrontMatterError,
     parse_front_matter,
+    parse_yaml_envelope,
 )
 
 # ---------------------------------------------------------------------------
@@ -28,27 +29,35 @@ from escaping.utils.frontmatter import (
             '---\nslug: my-post\ndescription: A post.\ncreated_date: "2026-01-15"\n---\n\nBody text.',
             None,
         ),
-        ("No front matter here.", "FRONT_MATTER_MISSING"),
-        ("--- \nslug: x\n---\nbody", "FRONT_MATTER_MISSING"),
+        ("No front matter here.", None),
+        ("--- \nslug: x\n---\nbody", None),
+        ("\n---\nslug: x\n---\nbody", None),
+        ("slug: is a word.\r\n\r\n---\r\nBody.", None),
+        ("```yaml\n---\nslug: example\n---\n```", None),
         ("---\nslug: x\nbody without closing", "FRONT_MATTER_UNCLOSED"),
         ("---\n- item1\n- item2\n---\nbody", "FRONT_MATTER_NOT_MAPPING"),
         ("---\n---\nbody", None),  # empty mapping is valid
-    ],
-    ids=[
-        "valid",
-        "missing",
-        "first-line-space",
-        "unclosed",
-        "not-mapping",
-        "empty-mapping",
+        ("---\n{}\n---\nbody", None),
+        ("---\n# comment only\n---\nbody", None),
+        ("---\nnull\n---\nbody", "FRONT_MATTER_NOT_MAPPING"),
+        ("---\n~\n---\nbody", "FRONT_MATTER_NOT_MAPPING"),
+        ("---\nslug: [broken\n---\nbody", "FRONT_MATTER_INVALID_YAML"),
+        ("---\ncreated_date: 2025-02-29\n---\nbody", "FRONT_MATTER_INVALID_YAML"),
+        ("---\nslug: x\n--- \nbody", "FRONT_MATTER_UNCLOSED"),
     ],
 )
 def test_envelope_validation(body: str, code: str | None) -> None:
     if code is None:
         result = parse_front_matter(body)
-        if "slug" in body:
+        if not body.startswith("---\n"):
+            assert result.fields == {}
+            assert result.body == body
+        elif "slug" in body:
             assert result.fields["slug"] == "my-post"
             assert result.body == "Body text."
+        else:
+            assert result.fields == {}
+            assert result.body == "body"
     else:
         with pytest.raises(FrontMatterError) as exc:
             parse_front_matter(body)
@@ -244,3 +253,27 @@ def test_scalar_style_not_polluted_by_nested_keys() -> None:
 def test_no_scalar_style_for_missing_field() -> None:
     result = parse_front_matter("---\nslug: my-post\n---\nbody")
     assert "created_date" not in result.scalar_styles
+
+
+@pytest.mark.parametrize("ending", ["\n", "\r\n", "\r"])
+def test_mechanical_envelope_keeps_raw_fields_and_body(ending: str) -> None:
+    body = "\n\n  中文🙂\n\n---\nTail.\n ".replace("\n", ending)
+    raw = ('---\ntitle: Draft\ntype: blog\ncreated_date: "2020-02-29"\n---\n').replace(
+        "\n", ending
+    ) + body
+    parsed = parse_yaml_envelope(raw)
+    assert parsed is not None
+    assert parsed.body.encode("utf-8") == body.encode("utf-8")
+    assert parsed.fields == {
+        "title": "Draft",
+        "type": "blog",
+        "created_date": "2020-02-29",
+    }
+    assert parsed.scalar_styles["created_date"] == '"'
+    issue = parse_front_matter(raw, collect_unknown_fields=True)
+    assert issue.fields == {"created_date": "2020-02-29"}
+    assert issue.unknown_fields == ["title", "type"]
+    assert issue.body == "\n  中文🙂\n\n---\nTail.\n "
+    assert parse_yaml_envelope("ordinary Markdown") is None
+    empty_body = parse_yaml_envelope(f"---{ending}{{}}{ending}---")
+    assert empty_body is not None and empty_body.body == ""

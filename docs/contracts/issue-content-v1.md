@@ -28,13 +28,14 @@ Each authored value has exactly one authoritative input.
 | Content ID | GitHub Issue number |
 | Title | GitHub Issue title |
 | Author | GitHub Issue author login |
-| Markdown body | GitHub Issue body after front matter |
+| Markdown body | GitHub Issue body, excluding a declared front matter envelope |
 | Content type | One `type:*` label |
 | Publication state | `published` label |
 | Tags | `tag:*` labels |
-| Content creation date | Issue body front matter `created_date` |
+| Content creation date | Explicit `created_date`, otherwise the UTC date of Issue `created_at` |
 | Publication/updated time | GitHub Issue `created_at` / `updated_at` |
-| Slug and description | Issue body front matter |
+| Blog slug | Explicit `slug`, otherwise the Issue number as a decimal string |
+| Description | Explicit `description`, otherwise the first 50 code points of visible body text |
 | Comment thread | The same GitHub Issue number |
 
 The front matter MUST NOT duplicate values owned by GitHub native fields or
@@ -43,7 +44,11 @@ labels.
 The GitHub Issue `created_at` timestamp is the publication time. The authored
 `created_date` field records when the content itself was originally created.
 
-Every content type requires an explicit description.
+Metadata overrides are optional and resolved independently: providing one field
+MUST NOT require the others. An explicit invalid, null, or blank metadata value
+MUST fail validation; it MUST NOT be replaced by a default. Defaults are derived
+from the same Issue and sanitized body, not from a second content format, an AI
+service, or a publication history ledger.
 
 ## 3. Eligibility and selection
 
@@ -137,7 +142,13 @@ workflow and are ignored by `escaping`.
 
 ## 5. Issue body envelope
 
-A conforming v1 Issue body starts with YAML front matter, followed by Markdown:
+An Issue body MAY contain only Markdown. Front matter is optional; when the
+first line is exactly `---`, it declares an envelope and MUST satisfy all rules
+below. Missing or malformed closing delimiters and invalid YAML MUST NOT fall
+back to ordinary Markdown. A `slug:` phrase, fenced code, or a thematic break
+elsewhere in the body does not declare metadata.
+
+An optional envelope precedes the Markdown body:
 
 ```markdown
 ---
@@ -151,16 +162,19 @@ Markdown body starts here.
 
 Envelope requirements:
 
-- The first line MUST be exactly `---`.
+- A declared envelope's first line MUST be exactly `---`.
 - The closing delimiter MUST be a line containing exactly `---`.
 - The front matter document MUST be a YAML mapping.
 - YAML MUST be parsed with a safe loader.
 - Custom YAML tags and duplicate mapping keys MUST be rejected.
 - Front matter MUST NOT exceed 16 KiB encoded as UTF-8.
 - Unknown fields MUST be rejected.
-- The Markdown body begins after the closing delimiter.
-- Only the Markdown body after the closing delimiter may be passed to the
-  Markdown renderer. Front matter fields MUST NOT appear in rendered HTML.
+- An empty envelope is an empty mapping; a non-mapping YAML value is invalid.
+- If declared, the Markdown body begins after the closing delimiter. Without an
+  envelope, the entire Issue body is Markdown.
+- Only the separated Markdown body may be passed to the renderer. Authored
+  metadata MUST NOT be passed as body content; ordinary prose mentioning its
+  field names remains valid.
 
 ## 6. Front matter fields
 
@@ -188,7 +202,8 @@ The following fields MUST NOT appear because another source owns them:
 
 ### 6.3 `slug`
 
-For Blog content, `slug` is required and its current snapshot MUST:
+For Blog content, an omitted `slug` defaults to the immutable Issue number as a
+decimal string. An explicit `slug` and the resolved current snapshot MUST:
 
 - match `^[a-z0-9]+(?:-[a-z0-9]+)*$`;
 - contain 1–80 characters;
@@ -209,7 +224,7 @@ The canonical Blog path is:
 
 ### 6.4 `description`
 
-For Blog, Idea, and About content, `description` is required. It MUST:
+For Blog, Idea, and About content, an explicit `description` MUST:
 
 - be non-empty after trimming;
 - be a scalar string containing no newline or control character;
@@ -219,18 +234,33 @@ For Blog, Idea, and About content, `description` is required. It MUST:
 The value is treated as plain text and MUST be escaped, never parsed as Markdown
 or HTML.
 
-A length of 80–160 code points is recommended. The compiler MUST use this value
-for the page meta description, Open Graph/Twitter description, and feed entry
-summary.
+A length of 80–160 code points is recommended for an authored override.
+
+When omitted, the compiler MUST derive the description from the sanitized
+rendered body's visible text, trim its ends, collapse whitespace runs to one
+space, and take the first 50 Unicode code points. It MUST NOT append an ellipsis,
+include front matter or image URLs, invent a title-based summary, or rewrite the
+text. Inline text adjacency is preserved; block and line breaks separate words.
+Image-only content has an empty derived description, not a fabricated caption.
+
+The derived value is plain text, not a new authored field: code literals such as
+`<button>` remain text and MUST be safely escaped, not reparsed as HTML. An empty
+derived description is distinct from an explicitly empty invalid override. The
+resolved description is used consistently for page meta, Open Graph/Twitter,
+and applicable feed entry summaries.
 
 ### 6.5 `created_date`
 
-`created_date` is required. It records when the content itself was actually
-created, which may be earlier than the GitHub Issue `created_at` timestamp.
+An omitted `created_date` defaults to the UTC calendar date of the GitHub Issue
+`created_at` timestamp. An authored value records the original content creation
+date, which may be earlier, and MUST be a quoted string in `YYYY-MM-DD` format.
+It MUST be a valid calendar date. Compilation normalizes accepted date spellings
+to ASCII `YYYY-MM-DD` in SiteModel, including display and HTML `datetime` values;
+for example, `"٢٠٢٦-01-01"` becomes `"2026-01-01"`. This does not rewrite Issue
+content or narrow the accepted input rules.
 
-It MUST be a quoted string in `YYYY-MM-DD` format. The Site Compiler uses it as
-the content creation date and uses the native Issue `created_at` timestamp as
-the publication time.
+This default or override changes neither collection order nor publication/feed
+timestamps, which continue to use GitHub's native timestamps.
 
 ## 7. Content type profiles
 
@@ -241,7 +271,7 @@ A Blog Issue:
 - MUST have `type:blog` and `published`;
 - MUST have a non-empty GitHub Issue title;
 - MUST have a non-empty Markdown body;
-- MUST provide `slug`, `description`, and `created_date`;
+- MAY override `slug`, `description`, and `created_date` independently;
 - MAY use `tag:*` labels;
 - enters Home recent posts, `/blog/`, `/tags/`, `/atom.xml`, and sitemap;
 - uses `/blog/{slug}/` as its canonical path;
@@ -258,7 +288,7 @@ An Idea Issue:
 - MUST have a non-empty GitHub Issue title;
 - MUST have a non-empty Markdown body;
 - MUST NOT provide `slug`;
-- MUST provide `description` and `created_date`;
+- MAY override `description` and `created_date` independently;
 - MAY use `tag:*` labels without contributing to the Blog Tags taxonomy;
 - enters `/ideas/` and sitemap;
 - does not enter Blog, Blog Tags, or `/atom.xml`;
@@ -268,24 +298,32 @@ An Idea Issue:
 
 ### 7.3 About
 
-The site configuration selects one About Issue by immutable Issue number.
+Site configuration MAY select an About Issue by immutable `about.issue_number`.
+Without an explicit selection, the compiler selects the sole valid, published,
+allowed-author About Issue. If none exists, the site displays Profile About,
+not invented Issue Content.
 
 An About Issue:
 
-- MUST match `about.issue_number` in site configuration;
+- MUST match `about.issue_number` when explicitly configured;
 - MUST have `type:about` and `published`;
 - MUST have a non-empty GitHub Issue title and Markdown body;
 - MUST NOT provide `slug`;
-- MUST provide `description` and `created_date`;
+- MAY override `description` and `created_date` independently;
 - MUST NOT use `tag:*`;
 - uses `/about/` as its canonical path;
 - does not enter Blog, Ideas, Blog Tags, or `/atom.xml`;
 - binds comments to its own Issue number.
 
-The site MUST configure `about.issue_number`. If that Issue is missing, is a
-Pull Request, is unauthorized, lacks `published`, has the wrong type, or fails
-validation, the build MUST fail. More than one published, allowed-author
-`type:about` Issue is also a validation error.
+An explicit selection has priority over discovery and Profile About. If the
+selected Issue is missing, is a Pull Request, is unauthorized, lacks `published`,
+has the wrong type, or fails validation, the build MUST fail rather than fall
+back. More than one published, allowed-author `type:about` Issue remains a
+validation error; the compiler MUST NOT silently pick the newest.
+
+Profile About has no Issue number, authored date, or comment thread and MUST NOT
+be represented as a fabricated Article or Issue. Failure to fetch necessary
+Issue inputs MUST NOT be misreported as an empty set eligible for fallback.
 
 ## 8. Publication lifecycle
 
@@ -334,11 +372,18 @@ Transitions:
 
 ## 10. Comments
 
-Blog, Idea, and About pages bind their comment widget to the content's own
-GitHub Issue number. Mapping by title or full URL MUST NOT be used because title
-and domain changes must not split the discussion thread.
+Embedded comments are optional and disabled unless explicitly enabled in site
+configuration. When enabled, Blog, Idea, and About Issue pages bind the widget
+to the content's own GitHub Issue number. Mapping by title or full URL MUST NOT
+be used because title and domain changes must not split the discussion thread.
 
-Projects have no comment contract in v1.
+When disabled, pages MUST NOT load the comment plugin or show a loading state
+or a dead discussion anchor. A normal link to the source Issue MAY remain.
+Enabled comments require the relevant GitHub App authorization; configuration
+alone MUST NOT be presented as proof that writing comments works. Widget failure
+MUST leave the body readable and provide a usable source-Issue fallback.
+
+Profile About and Projects have no Issue comment thread.
 
 ## 11. Route integrity
 
@@ -370,7 +415,16 @@ The Site Compiler supports only the current Issue Content Contract and performs
 no runtime schema dispatch or legacy compatibility parsing. Historical Issues
 that do not conform MUST be edited to the current format before publication.
 
-## 13. Conforming Blog example
+## 13. Conforming Blog examples
+
+### 13.1 Basic Issue without front matter
+
+For Issue 128 titled `A small observation`, with labels `type:blog` and
+`published`, a body of `Writing should be simple.` is sufficient. Its canonical
+path is `/blog/128/`, its description is `Writing should be simple.`, and its
+creation date defaults to the Issue's UTC creation date.
+
+### 13.2 Explicit overrides
 
 Issue title:
 

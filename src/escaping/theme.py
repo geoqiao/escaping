@@ -17,7 +17,7 @@ from pydantic import BaseModel, ConfigDict, ValidationError
 
 from .config import BuiltinThemeConfig, LocalThemeConfig
 
-_THEME_API_VERSION = "1"
+_THEME_API_VERSION = "2"
 _MERMAID_VENDOR_DIRECTORY = "vendor/mermaid-11.16.1"
 _REQUIRED_TEMPLATES = (
     "base.html",
@@ -172,7 +172,9 @@ class ThemeLoader:
     def _validate(theme: LoadedTheme) -> None:
         if theme.manifest.api_version != _THEME_API_VERSION:
             raise ThemeResolutionError(
-                f"theme api_version {theme.manifest.api_version!r} is not supported"
+                f"theme api_version {theme.manifest.api_version!r} is not supported; "
+                f"expected {_THEME_API_VERSION!r}. "
+                "Migrate the manifest and templates using docs/themes/authoring.md."
             )
         required_templates = dict.fromkeys(
             (*_REQUIRED_TEMPLATES, *theme.manifest.required_templates)

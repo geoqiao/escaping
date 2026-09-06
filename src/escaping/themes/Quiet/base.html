@@ -33,15 +33,14 @@
       {% if metadata.profile.avatar %}<img class="identity-avatar" src="{{ metadata.profile.avatar }}" alt="" width="64" height="64">{% else %}<span class="identity-mark" aria-hidden="true">{{ author_initials }}</span>{% endif %}
       <span class="identity-name">{{ author_name }}</span>
     </a>
-    <button class="menu-toggle" type="button" aria-label="Toggle menu" aria-controls="navigation-panel" aria-expanded="false" hidden>Menu <span aria-hidden="true">＋</span></button>
-    <div class="navigation-panel" id="navigation-panel">
-    <nav id="site-navigation" aria-label="Main navigation">
+    {% if navigation_items %}<button class="menu-toggle" type="button" aria-label="Toggle menu" aria-controls="navigation-panel" aria-expanded="false">Menu <span aria-hidden="true">＋</span></button>{% endif %}
+    <div{% if navigation_items %} class="navigation-panel" id="navigation-panel"{% endif %}>
+    {% if navigation_items %}<nav id="site-navigation" aria-label="Main navigation">
       <p class="eyebrow rail-label">Site index</p>
-      <a href="{{ home_path }}"{% if active_section == home_path %} aria-current="page"{% endif %}>Home <span aria-hidden="true">↗</span></a>
-      {% for item in navigation_items if item.url != home_path %}
-      <a href="{{ item.url }}"{% if item.url == active_section %} aria-current="page"{% endif %}>{{ item.name }} <span aria-hidden="true">{{ '↗' if item.url.startswith('https:') or item.url in (active_section, site_routes.atom.canonical_path) else '·' }}</span></a>
+      {% for item in navigation_items %}
+      <a href="{{ item.url }}"{% if item.url == active_section %} aria-current="page"{% endif %}>{{ item.name }} <span aria-hidden="true">{{ '↗' if item.url.startswith('https:') or item.url in (home_path, active_section, site_routes.atom.canonical_path) else '·' }}</span></a>
       {% endfor %}
-    </nav>
+    </nav>{% endif %}
     <div class="rail-bottom">
       <button class="theme-toggle" type="button" aria-pressed="false" hidden><span aria-hidden="true">◐</span> Dark mode</button>
       <p class="rail-note">Writing, ideas &amp; projects.</p>

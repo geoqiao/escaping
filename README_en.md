@@ -1,5 +1,7 @@
 # escaping
 
+Requires Python 3.14.x, [`uv`](https://docs.astral.sh/uv/), and a GitHub token that can read the target repository's Issues.
+
 `escaping` is a strict static Site Compiler whose content source is GitHub
 Issues. It compiles conforming Issue snapshots from
 `docs/contracts/issue-content-v1.md` into one `SiteModel`. A single
@@ -19,23 +21,38 @@ staged publication using directory renames with rollback.
 | Tags | `/tags/`, `/tags/{tag}/` |
 | Atom / sitemap / robots | `/atom.xml`, `/sitemap.xml`, `/robots.txt` |
 
-Blog slugs come from Issue front matter and are never derived from titles. Idea
-tags are display-only; About is selected by its immutable configured Issue
-number. Front matter is stripped before Markdown rendering, and the resulting
-HTML goes through the allowlist sanitizer.
+Blog slugs default to the Issue number, with optional front matter overrides;
+they are never derived from titles. Idea tags are display-only. About uses an
+explicit immutable Issue number, otherwise the sole valid published About Issue,
+otherwise Profile About without a fabricated Issue or discussion. Front matter
+is stripped before Markdown rendering; HTML goes through the allowlist sanitizer.
 
 ## Local development
 
 ```bash
 uv sync
-export GITHUB_TOKEN=ghp_xxx
+export GITHUB_TOKEN=...
 uv run escpe --config /path/to/site/config.yaml
 # Serve the site Config-relative output as the document root.
 uv run python -m http.server 8000 --directory /path/to/site/output
 ```
 
-`security.token_env` selects the token environment variable dynamically. The
-generator ships `config.example.yaml`, and the default Theme is `geoqiao.me`.
+`security.token_env` selects the token environment variable dynamically (default
+name: `GITHUB_TOKEN`). The generator ships `config.example.yaml` as an expanded
+reference. Without context, provide an actual `github.repo` and HTTPS root
+`site.url`; Organization owners also require explicit `allowed_authors`.
+Alternatively, a verified non-secret `--context context.json` supplies repository
+and Pages identity so Config can be `{}`. Missing identity fields use the public
+owner profile, never the workflow actor. Projects need only a selected
+`repository`; explicit title/summary override public enrichment.
+
+See [site input sources and boundaries](docs/site-inputs.md), including the
+Site Orchestrator interface for safely reading the token variable name. The
+default Theme is **Quiet**, with Home, Blog, Ideas, Projects, Tags, About and RSS
+as the default menu. An explicit `site.navigation.items` list replaces it entirely,
+including order, names, removal of Home or `[]`; the brand links Home independently.
+Comments default off: set `comments.enabled: true` and separately authorize the
+[Utterances App](https://github.com/apps/utterances). Profile About never has comments.
 The canonical origin is owned by `site.url` in the site repository's Site Config,
 not by a Theme or by the generator. Escape1, Escape2, geoqiao.me, and
 [Quiet](docs/themes/quiet.md) share the same template contract, comments behavior,
@@ -44,6 +61,27 @@ avatar-magenta accents.
 The production workflow is owned by the site repository; see the
 [site Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml).
 Any consumer workflow must pin the compiler to a reviewed release or full 40-character SHA.
+
+## Custom Themes — API 2
+
+The [Theme authoring guide](docs/themes/authoring.md) documents the complete manifest,
+per-page context, static/shared assets, keyboard requirements and diagnostics.
+API 1 is rejected, not adapted. Follow the [migration checklist](docs/themes/authoring.md#migrating-from-api-1)
+for IdeaTag, About variants, optional comments, manifest and explicit old-site
+Config; changing only the version string is insufficient.
+
+Use `{{ structured_data|tojson }}` for safe serialization. Each script must contain
+an object. Without `@graph`, its literal `url` identifies the page. With an
+`@graph` array of objects, exactly one node must have `@id` equal to
+`page_canonical_url`, not a fragment such as `#author`. Any `url` supplied on that
+node or the root object must be the same canonical string; other nodes and nested
+references such as `author.url` need not match. Top-level arrays are unsupported;
+the validator neither fetches contexts nor infers primary entities. Existing
+custom graphs without that identity need an explicit `@id`; the built-in
+`structured_data` already follows this contract. Local About templates also need
+an `about_is_profile` branch before using Profile About: it has no Issue number,
+body HTML, dates, or comments. Render Profile text with autoescape and use
+AboutPage/ProfilePage JSON-LD, not Article; see the [migration notes](docs/site-inputs.md#about-and-local-themes).
 
 ## Canonical origin and URL migration boundaries
 

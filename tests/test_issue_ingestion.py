@@ -208,3 +208,58 @@ def test_pr_identity_without_detail_request() -> None:
     requester.requestJsonAndCheck.assert_not_called()
     assert snap_pr.is_pull_request is True
     assert snap_pr.number == 7
+
+
+@patch("escaping.services.github_service.Github")
+def test_public_profile_and_repository_identity_are_plain_verified_snapshots(
+    mock_github_class: MagicMock,
+) -> None:
+    import pytest
+    from github.NamedUser import NamedUser
+    from github.Repository import Repository
+    from pydantic import ValidationError
+
+    requester = MagicMock()
+    requester.is_not_lazy = False
+    user = NamedUser(
+        requester,
+        {},
+        {
+            "login": "alice",
+            "name": "Alice Example",
+            "bio": "Hello",
+            "avatar_url": "https://example.org/a.png",
+        },
+        completed=True,
+    )
+    mock_github_class.return_value.get_user.return_value = user
+    service = GitHubService("fake-token")
+    profile = service.fetch_public_profile("alice")
+    assert (profile.login, profile.name, profile.avatar_url, profile.bio) == (
+        "alice",
+        "Alice Example",
+        "https://example.org/a.png",
+        "Hello",
+    )
+    requester.requestJsonAndCheck.assert_not_called()
+    base = {
+        "full_name": "Alice/Site",
+        "html_url": "https://github.com/Alice/Site",
+        "owner": {"login": "Alice", "type": "User"},
+    }
+    mock_github_class.return_value.get_repo.return_value = Repository(
+        requester, {}, base, completed=True
+    )
+    identity = service.fetch_repository_identity("alice/site")
+    assert identity.owner_login == "Alice" and identity.owner_type == "User"
+    for patch_data in (
+        {"full_name": "alice/renamed"},
+        {"html_url": "https://enterprise.example/alice/site"},
+        {"owner": {"login": "mallory", "type": "User"}},
+        {"owner": {"login": "alice", "type": "Bot"}},
+    ):
+        mock_github_class.return_value.get_repo.return_value = Repository(
+            requester, {}, {**base, **patch_data}, completed=True
+        )
+        with pytest.raises((ValueError, ValidationError)):
+            service.fetch_repository_identity("alice/site")

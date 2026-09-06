@@ -1,0 +1,38 @@
+{% extends "base.html" %}
+{% set page_title = "Projects" %}
+{% set page_description = meta_description %}
+{% set active_destination = site_routes.projects.canonical_path %}
+
+{% block content %}
+<div class="page-shell">
+  <header class="page-heading">
+    <p class="eyebrow">Work</p>
+    <h1>Projects</h1>
+    <p>{{ meta_description }}</p>
+  </header>
+
+  {% if projects.projects %}
+  <div class="project-grid">
+    {% for project in projects.projects %}
+    <article class="project-card">
+      <h2><a href="{{ project.url }}">{{ project.title }}</a></h2>
+      <p>{{ project.summary }}</p>
+      <p class="meta">
+        {{ project.repository }}
+        {% if project.language is not none %} · {{ project.language }}{% endif %}
+        {% if project.stars is not none %} · {{ project.stars }} stars{% endif %}
+        {% if project.forks is not none %} · {{ project.forks }} forks{% endif %}
+      </p>
+      {% if project.topics %}
+      <ul class="tag-list" aria-label="Project topics">
+        {% for topic in project.topics %}<li><span>{{ topic }}</span></li>{% endfor %}
+      </ul>
+      {% endif %}
+    </article>
+    {% endfor %}
+  </div>
+  {% else %}
+  <p class="empty-state">No projects selected.</p>
+  {% endif %}
+</div>
+{% endblock %}

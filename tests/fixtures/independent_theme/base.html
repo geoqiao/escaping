@@ -1,0 +1,76 @@
+<!doctype html>
+<html lang="{{ language }}" class="no-js">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>{{ page_title }} · {{ blog_title }}</title>
+    <meta name="description" content="{{ page_description }}">
+    <link rel="canonical" href="{{ page_canonical_url }}">
+    <meta property="og:title" content="{{ page_title }}">
+    <meta property="og:description" content="{{ page_description }}">
+    <meta property="og:url" content="{{ page_canonical_url }}">
+    <meta property="og:type" content="website">
+    <meta property="og:site_name" content="{{ blog_title }}">
+    <meta name="twitter:card" content="summary">
+    <meta name="twitter:title" content="{{ page_title }}">
+    <meta name="twitter:description" content="{{ page_description }}">
+    <meta name="twitter:url" content="{{ page_canonical_url }}">
+    <link rel="alternate" type="application/atom+xml" href="{{ atom_url }}">
+    <link rel="icon" href="{{ theme_path }}/static/images/favicon.png">
+    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
+    <script src="{{ theme_path }}/static/js/site.js" defer></script>
+    {% if structured_data is defined %}
+    <script type="application/ld+json">{{ structured_data|tojson }}</script>
+    {% endif %}
+  </head>
+  <body>
+    <a class="skip-link" href="#main-content">{{ skip_link_text }}</a>
+    <header class="site-header">
+      <div class="header-inner">
+        <a class="brand" href="{{ home_path }}" aria-label="{{ blog_title }} — Home">
+          <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
+            <rect x="2" y="2" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"/>
+            <path d="M6 16 10 8l4 8 2-4 2 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"/>
+          </svg>
+          <span>{{ blog_title }}</span>
+        </a>
+        {% if navigation_items %}
+        <nav class="primary-nav" aria-label="Primary">
+          <ul>
+            {% for item in navigation_items %}
+            <li>
+              <a href="{{ item.url }}"{% if item.url == active_destination %} aria-current="page"{% endif %}>{{ item.name }}</a>
+            </li>
+            {% endfor %}
+          </ul>
+        </nav>
+        {% endif %}
+        <button class="theme-toggle" type="button" data-theme-toggle hidden>Use dark theme</button>
+      </div>
+    </header>
+
+    <main id="main-content" tabindex="-1">
+      {% block content %}{% endblock %}
+    </main>
+
+    <footer class="site-footer">
+      <div class="footer-inner">
+        {% if metadata.profile.links %}
+        <ul class="footer-links" aria-label="Profile links">
+          {% for link in metadata.profile.links %}
+          <li><a href="{{ link.url }}">{{ link.name }}</a></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+        <p class="footer-note">
+          {% if branding.show_powered_by %}
+          <a href="{{ branding.powered_by_url }}">{{ branding.powered_by_text }}</a>
+          {% endif %}
+          {% if branding.source_link_url %}
+          <a href="{{ branding.source_link_url }}">Source</a>
+          {% endif %}
+        </p>
+      </div>
+    </footer>
+  </body>
+</html>

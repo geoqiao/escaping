@@ -1,5 +1,5 @@
 # Quiet — neutral surfaces and restrained avatar-magenta accents.
-api_version: "1"
+api_version: "2"
 capabilities: [home, blog, ideas, about, projects, tags, comments, responsive, dark-mode]
 required_templates:
   - base.html

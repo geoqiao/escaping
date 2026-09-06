@@ -8,18 +8,28 @@
     <a class="breadcrumb" href="{{ home_path if section_label == 'About' else active_section }}">← {{ 'Home' if section_label == 'About' else section_label }}</a>
     <h1>{{ article.title }}</h1>
     {% if section_label != 'About' %}
-    <div class="article-meta"><span>{{ author_name }}</span><time datetime="{{ article.created_date }}">{{ article.created_date }}</time><a href="#comments-title">Discuss ↓</a></div>
+    <div class="article-meta"><span>{{ author_name }}</span><time datetime="{{ article.created_date }}">{{ article.created_date }}</time>{% if comments.enabled %}<a href="#comments-title">Discuss ↓</a>{% endif %}</div>
     {{ tags(article.tags, linked=section_label != 'Ideas') }}
     {% elif metadata.profile.avatar %}<img class="profile-avatar" src="{{ metadata.profile.avatar }}" alt="{{ author_name }}" width="80" height="80">{% endif %}
   </header>
   <div class="reading-layout">
     <div class="reading-main">
-      <div class="post-content">{{ article.body_html|safe }}</div>
+      <div class="post-content">{% if section_label == 'About' and about_is_profile %}<p>{{ metadata.profile.bio }}</p>{% else %}{{ article.body_html|safe }}{% endif %}</div>
+      {% if section_label == 'Blog' %}
+      {% if prev_post or next_post %}
+      <nav class="article-end" aria-label="Article navigation">
+        <span aria-hidden="true">↳</span>
+        {% if prev_post %}<a rel="prev" href="{{ prev_post.route.canonical_path }}" aria-label="Previous: {{ prev_post.title }}">Previous</a>{% endif %}
+        {% if next_post %}<a rel="next" href="{{ next_post.route.canonical_path }}" aria-label="Next: {{ next_post.title }}">Next</a>{% endif %}
+      </nav>
+      {% endif %}
+      {% else %}
       <div class="article-end"><span aria-hidden="true">↳</span><a href="{{ home_path if section_label == 'About' else active_section }}">Back to {{ 'Home' if section_label == 'About' else section_label }}</a><a href="#top">Back to top ↑</a></div>
-      {{ comments_section(article.issue_number) }}
+      {% endif %}
+      {% if comments.enabled and (section_label != 'About' or not about_is_profile) %}{{ comments_section(article.issue_number) }}{% endif %}
     </div>
     {% if section_label != 'About' %}<aside class="reading-margin" hidden>
-      <details class="toc" open><summary>On this page</summary><nav data-toc aria-label="On this page"></nav></details>
+      <details class="toc"><summary>On this page</summary><nav data-toc aria-label="On this page"></nav></details>
     </aside>{% endif %}
   </div>
 </article>

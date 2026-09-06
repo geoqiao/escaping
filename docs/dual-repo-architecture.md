@@ -189,23 +189,13 @@ geoqiao/geoqiao.github.io/.github/workflows/pages.yml
 
 生产文件应以[站点仓库的 Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml)
 为 source of truth。本仓库提供可复制的
-[Pages workflow 模板](deployment/geoqiao-pages.yml)；模板不会被 `escaping` 自己执行，
+[通用 starter](../starter/)；模板不会被 `escaping` 自己执行，
 复制后必须由站点仓库持有真实 `config.yaml`、workflow、`CNAME` 和站点迁移文件。
 
-该 workflow contract 使用不可变的 action SHA：
-
-- `actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1`（v7.0.1）；两次 checkout 都设置
-  `persist-credentials: false`；
-- `astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d`（v10.0.1）；
-- `actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9`（v5）；
-- `actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128`（v5）。
-- `concurrency` 使用 `group: "pages"` 和 `cancel-in-progress: false`；
-- redirect CLI 使用 `--repository-root "$GITHUB_WORKSPACE"`，并在上传前完成最终 artifact 验证。
-- `contents: read`
-- `issues: read`
-- `pages: write`
-- `id-token: write`
-- `GITHUB_TOKEN: ${{ github.token }}`
+通用 starter 的不可变 action pins、按 ref 隔离的 concurrency、分 job 权限和成功后上传规则，
+以 [canonical workflow](../starter/.github/workflows/pages.yml) 与
+[deployment contract](deployment.md) 为准，不另维护一份 workflow 清单。
+个人站点的 redirect CLI 和迁移验证继续由站点仓库持有，不进入通用 starter。
 
 workflow 不会 clone、push 生成文件，不使用个人 PAT、`G_T`、
 `repository_dispatch` 或 `issue_comment`。
@@ -272,9 +262,10 @@ security:
 action tag。实际站点 workflow 是 source of truth：
 [geoqiao.github.io/.github/workflows/pages.yml](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml)。
 
-可复制模板中的 compiler `ref` 使用 `REVIEWED_FULL_SHA` 占位符；复制到站点仓库前，必须
-替换为经过 consumer build 验证的完整 SHA。升级和回滚按
-[`docs/deployment.md`](deployment.md) 的 Config 兼容规则执行。
+通用 starter 默认 `ESCAPING_VERSION: stable`，每次构建只解析一次官方 latest formal release，
+再检出并验证完整 SHA。高级用户可固定完整 SHA 或由 API 确认 immutable 的正式 release tag；
+不回退到 `main`。升级和回滚按 [`docs/deployment.md`](deployment.md) 的 consumer 验证
+和 Config 兼容规则执行。
 
 本架构文档不记录某次上线的 consumer SHA、commit 缩写、Pages artifact 编号、Actions
 run ID 或证书签发快照；这些会过期的站点运维观测应直接从实际 workflow、Pages 设置和

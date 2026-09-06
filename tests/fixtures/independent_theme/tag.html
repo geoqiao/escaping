@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% set page_title = tag_archive.tag_name %}
+{% set page_description = meta_description %}
+{% set active_destination = site_routes.tags.canonical_path %}
+
+{% block content %}
+<div class="page-shell">
+  <header class="page-heading">
+    <p class="eyebrow">Tag archive</p>
+    <h1>{{ tag_archive.tag_name }}</h1>
+    <p><a href="{{ tag_archive.index_route.canonical_path }}">All tags</a></p>
+  </header>
+
+  {% if tag_archive.entries %}
+  <ol class="post-list">
+    {% for entry in tag_archive.entries %}
+    <li>
+      <article>
+        <h2><a href="{{ entry.detail_path }}">{{ entry.title }}</a></h2>
+        <p class="meta"><time>{{ entry.created_date }}</time></p>
+      </article>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="empty-state">No posts with this tag.</p>
+  {% endif %}
+</div>
+{% endblock %}

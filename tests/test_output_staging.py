@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import os
 import shutil
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 from unittest.mock import patch
@@ -267,22 +268,119 @@ def test_publish_reports_concurrent_disappearance_during_backup_reservation(
     assert not output.exists()
 
 
-def test_strict_compiler_failure_preserves_existing_output(tmp_path: Path) -> None:
-    output = tmp_path / "output"
-    output.mkdir()
-    sentinel = output / "index.html"
-    sentinel.write_text("old", encoding="utf-8")
-
-    result = SiteCompiler(
+@pytest.mark.parametrize(
+    "bad_body,code",
+    [
+        ("---\ndescription: [broken", "FRONT_MATTER_UNCLOSED"),
+        ("---\ndescription: null\n---\nBody.", "DESCRIPTION_INVALID"),
+        ("Safe start.\n\n<div><button>Broken end.", "SANITIZER_FAILED"),
+    ],
+)
+def test_strict_compiler_failure_preserves_existing_output(
+    tmp_path: Path, bad_body: str, code: str
+) -> None:
+    source = _FakeGitHub(
+        [_snapshot(1, "About.", kind="about"), _snapshot(2, "Plain body.")]
+    )
+    compiler = SiteCompiler(
         "unused",
         "geoqiao/site",
         _settings(),
         config_root=tmp_path,
-        github_service=_FakeGitHub([_snapshot(1, "not front matter")]),
-    ).generate()
-
+        github_service=source,
+    )
+    assert compiler.generate().success
+    output = tmp_path / "output"
+    before = {
+        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
+    }
+    source.snapshots.append(_snapshot(3, bad_body))
+    result = compiler.generate()
     assert not result.success
-    assert sentinel.read_text(encoding="utf-8") == "old"
+    assert any(d.code == code and d.issue_number == 3 for d in result.diagnostics)
+    assert {
+        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
+    } == before
+    assert not list(tmp_path.glob(".output.staging.*"))
+
+
+def test_wrong_case_body_link_fails_validation_without_replacing_output(
+    tmp_path: Path,
+) -> None:
+    about = _snapshot(
+        1,
+        '---\ndescription: About.\ncreated_date: "2026-01-01"\n---\n\n[Blog](/blog/)',
+        kind="about",
+    )
+    source = _FakeGitHub([about])
+    compiler = SiteCompiler(
+        "unused",
+        "geoqiao/site",
+        _settings(),
+        config_root=tmp_path,
+        github_service=source,
+    )
+    assert compiler.generate().success
+    output = tmp_path / "output"
+    before = {
+        str(p.relative_to(output)): p.read_bytes()
+        for p in output.rglob("*")
+        if p.is_file()
+    }
+    source.snapshots = [replace(about, body=about.body.replace("/blog/", "/Blog/"))]
+    result = compiler.generate()
+    assert not result.success
+    assert any(d.code == "BROKEN_INTERNAL_LINK" for d in result.diagnostics)
+    assert {
+        str(p.relative_to(output)): p.read_bytes()
+        for p in output.rglob("*")
+        if p.is_file()
+    } == before
+    assert not list(tmp_path.glob(".output.staging.*"))
+
+
+@pytest.mark.parametrize("kind", ["blog", "idea", "about"])
+def test_sanitizer_failure_preserves_the_complete_previous_site(
+    kind: str, tmp_path: Path
+) -> None:
+    metadata = 'description: Description.\ncreated_date: "2026-01-01"\n'
+    about = _snapshot(1, f"---\n{metadata}---\n\nAbout.", kind="about")
+    slug = "slug: post\n" if kind == "blog" else ""
+    target = _snapshot(
+        1 if kind == "about" else 2, f"---\n{slug}{metadata}---\n\nSafe.", kind=kind
+    )
+    source = _FakeGitHub([target] if kind == "about" else [about, target])
+    compiler = SiteCompiler(
+        "unused",
+        "geoqiao/site",
+        _settings(),
+        config_root=tmp_path,
+        github_service=source,
+    )
+    assert compiler.generate().success
+    output = tmp_path / "output"
+    before = {
+        str(p.relative_to(output)): p.read_bytes()
+        for p in output.rglob("*")
+        if p.is_file()
+    }
+    source.snapshots[-1] = replace(
+        target,
+        body=target.body
+        + "\n\nUse the <button> element. SECRET-SENTINEL\n\nSecond paragraph.\n\n## Section\n\nMore text.",
+    )
+    result = compiler.generate()
+    assert not result.success
+    diagnostic = next(d for d in result.diagnostics if d.code == "SANITIZER_FAILED")
+    assert diagnostic.issue_number == target.number and diagnostic.field == "body"
+    assert "<button> at HTML line" in diagnostic.message
+    assert "column" in diagnostic.message
+    assert "SECRET-SENTINEL" not in diagnostic.message
+    assert before == {
+        str(p.relative_to(output)): p.read_bytes()
+        for p in output.rglob("*")
+        if p.is_file()
+    }
     assert not list(tmp_path.glob(".output.staging.*"))
 
 

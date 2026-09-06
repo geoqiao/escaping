@@ -2,6 +2,8 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
+import pytest
+
 from escaping.config import Settings
 from escaping.models.blog_post import BlogPost, BlogTag
 from escaping.models.content import AboutPage, ContentCompilationResult, Idea
@@ -108,8 +110,8 @@ def test_site_builder_composes_metadata_routes_and_internal_page_models() -> Non
     assert site.metadata.profile.tagline == "Analyst / tool builder"
     assert site.metadata.profile.bio == "Bio"
     assert site.metadata.comments.repo == "owner/site"
-    assert site.metadata.theme.name == "geoqiao.me"
-    assert site.metadata.theme.asset_path == "/templates/geoqiao.me"
+    assert site.metadata.theme.name == "Quiet"
+    assert site.metadata.theme.asset_path == "/templates/Quiet"
 
     assert site.home.route is routes.route("home")
     assert [post.issue_number for post in site.home.recent_posts] == [6, 5, 4, 3, 2]
@@ -143,6 +145,36 @@ def test_site_builder_composes_metadata_routes_and_internal_page_models() -> Non
     ]
 
 
+def test_default_navigation_uses_registered_routes_and_explicit_lists_replace_it() -> (
+    None
+):
+    data = _settings().model_dump()
+    del data["site"]["navigation"]
+    defaults = Settings.model_validate(data)
+    expected = [
+        ("Home", "/"),
+        ("Blog", "/blog/"),
+        ("Ideas", "/ideas/"),
+        ("Projects", "/projects/"),
+        ("Tags", "/tags/"),
+        ("About", "/about/"),
+        ("RSS", "/atom.xml"),
+    ]
+    routes = RouteRegistry(str(defaults.site.url))
+    site = _build(defaults, routes, _content(routes))
+    assert [(link.name, link.url) for link in site.metadata.navigation] == expected
+    assert all(routes.route_for_path(link.url) for link in site.metadata.navigation)
+    for items in ([{"name": "Notes", "url": "/ideas/"}], []):
+        data["site"]["navigation"] = {"items": items}
+        settings = Settings.model_validate(data)
+        routes = RouteRegistry(str(settings.site.url))
+        site = _build(settings, routes, _content(routes))
+        assert [(link.name, link.url) for link in site.metadata.navigation] == [
+            (item["name"], item["url"]) for item in items
+        ]
+        assert all(routes.route_for_path(url) for _, url in expected)
+
+
 def test_site_builder_has_intentional_empty_blog_models() -> None:
     settings = _settings()
     routes = RouteRegistry(str(settings.site.url))
@@ -156,8 +188,11 @@ def test_site_builder_has_intentional_empty_blog_models() -> None:
     assert site.feed.entries == () and site.feed.updated == _BUILD_START
 
 
-def test_site_builder_reports_navigation_and_atom_safety_errors() -> None:
-    settings = _settings(navigation_url="/missing/", title="Bad\x01Title")
+@pytest.mark.parametrize("navigation_url", ["/missing/", "/Blog/"])
+def test_site_builder_reports_navigation_and_atom_safety_errors(
+    navigation_url: str,
+) -> None:
+    settings = _settings(navigation_url=navigation_url, title="Bad\x01Title")
     routes = RouteRegistry(str(settings.site.url))
     naive = _blog(routes, 1, naive=True)
 

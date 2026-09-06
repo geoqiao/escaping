@@ -8,7 +8,7 @@
 
 一个 opinionated personal-site generator：以 Issues 为内容源，经由不可变模型、严格校验与分阶段发布，生成 Blog、Ideas、Projects、About、Tags、Atom 和完整 SEO artifacts。
 
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python 3.14.x](https://img.shields.io/badge/Python-3.14.x-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![GitHub Issues](https://img.shields.io/badge/Content-GitHub_Issues-181717?logo=github)](https://docs.github.com/issues)
 [![Static Site](https://img.shields.io/badge/Output-Static_Site-315EFB)](https://geoqiao.me/)
 [![MIT License](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
@@ -27,7 +27,7 @@
 
 | | 能力 | 行为 |
 | --- | --- | --- |
-| ✍️ | **Issues as content** | Blog、Ideas 与 About 来自带标签和 front matter 的 GitHub Issues |
+| ✍️ | **Issues as content** | Blog、Ideas 与 About Issue 由发布标签选择，front matter 可选；无 About Issue 时展示 Profile |
 | 🧭 | **完整站点模型** | 统一生成 Home、归档、详情、Projects、Tags、Atom、sitemap 与 robots |
 | 🎨 | **可替换 Theme** | 内置 `geoqiao.me`、`Escape1`、`Escape2`、`Quiet`，也支持 Config-relative 本地 Theme |
 | 🔒 | **默认安全** | Markdown HTML allowlist、严格 URL 校验、输出目录 containment、Jinja autoescape |
@@ -50,7 +50,7 @@ Renderer 和 artifact validator 只读取同一份 `SiteModel`。Theme 作为已
 
 ## 🚀 快速开始
 
-需要 Python 3.11+、[`uv`](https://docs.astral.sh/uv/) 和一个可读取目标仓库 Issues 的 GitHub Token。
+需要 Python 3.14.x、[`uv`](https://docs.astral.sh/uv/) 和一个可读取目标仓库 Issues 的 GitHub Token。
 
 ```bash
 git clone https://github.com/geoqiao/escaping.git
@@ -68,7 +68,7 @@ uv run python -m http.server 8000 --directory ../my-site/output
 
 打开 <http://localhost:8000>。`output/` 是 HTTP document root，不是 URL 中的 `/output/` 前缀。
 
-最小配置的关键部分：
+完整显式配置示例（无需平台 context）：
 
 ```yaml
 github:
@@ -96,9 +96,16 @@ security:
   token_env: GITHUB_TOKEN
 ```
 
-Blog slug 由 Issue front matter 显式提供，不从标题推导；About 由不可变 Issue number 选择。完整字段见 [`config.example.yaml`](config.example.yaml)，内容格式见 [`Issue Content v1`](docs/contracts/issue-content-v1.md)。
+字段可省略，由同一个 resolver 补齐；无 context 时至少提供真实 `github.repo` 和 HTTPS 根 `site.url`，组织还须显式指定作者。平台可提供严格的 `--context context.json`，此时 Config 可为 `{}`；不从 actor 授权、不猜 Pages URL。字段来源、安全边界和 Site Orchestrator 接口见[站点输入说明](docs/site-inputs.md)。
 
-默认 `geoqiao.me` 会优先使用 `profile.avatar`，未配置时回退到内置 mark；
+Blog slug 缺省为 Issue 编号，也可逐字段覆盖；About 优先使用显式编号，否则发现唯一合法 published About，没有时展示无 Issue／日期／评论身份的 Profile About。Projects 只选 `repository` 即可补公开名称／摘要，手填值优先。完整字段见 [`config.example.yaml`](config.example.yaml)，内容格式见 [`Issue Content v1`](docs/contracts/issue-content-v1.md)。
+
+默认 Theme 为 Quiet；默认菜单是 Home、Blog、Ideas、Projects、Tags、About、RSS。
+显式 `site.navigation.items` 整体替换菜单，可排序、改名、去掉 Home 或设为 `[]`；品牌主页链接独立保留。
+评论默认关闭，需 `comments.enabled: true` 并单独完成 [Utterances App 授权](https://github.com/apps/utterances)；Profile About 永远没有评论。
+旧站保留评论／菜单的配置迁移见 [Theme 指南](docs/themes/authoring.md#migrating-from-api-1)。
+
+替代 Theme `geoqiao.me` 会优先使用 `profile.avatar`，未配置时回退到内置 mark；
 它不会把 Site Thesis、tagline 或 profile bio 放到首页。为兼容本地 Theme，这些字段
 仍被 Schema 接受并进入 `SiteModel`，具体展示由 Theme 决定。
 
@@ -119,7 +126,7 @@ Blog slug 由 Issue front matter 显式提供，不从标题推导；About 由�
 
 ## 🔗 Config-owned origin 与历史 URL
 
-canonical origin 由站点仓库的 Site Config 所有：`site.url` 是输入值，生产站点当前配置为
+canonical origin 由站点输入所有：显式 `site.url` 优先，缺失时可从可信 Pages context 补齐；生产站点当前配置为
 `https://geoqiao.me/`。生成器仓库不持有生产 `config.yaml`；RouteRegistry、canonical、
 Open Graph、Atom、sitemap 和 robots 都从调用时传入的 origin 派生，所以同一个 compiler
 也可以服务其它站点。
@@ -136,13 +143,24 @@ Open Graph、Atom、sitemap 和 robots 都从调用时传入的 origin 派生，
 
 ## 🎨 Themes
 
-不写 Theme 配置时，默认使用中文优先的内置 `geoqiao.me`；`Escape1`、
-`Escape2` 和 [Quiet](docs/themes/quiet.md) 是可选内置 Theme；Quiet 使用中性黑白与少量头像洋红：
+公开接口为 **Theme API 2**；完整文件、manifest、逐页 context、资源和键盘要求见
+[独立 Theme 作者指南](docs/themes/authoring.md)。API 1 不再运行兼容：需迁移 IdeaTag、
+About 变体、评论条件与 manifest，不能只改版本号。
+
+自定义 Theme 应使用 `{{ structured_data|tojson }}` 安全输出结构化数据。每段 JSON-LD
+必须是对象：没有 `@graph` 时，根对象的 `url` 表示当前页面；使用 `@graph` 对象数组时，
+必须恰有一个节点的 `@id` **精确等于** `page_canonical_url`（不含 `#author` 等片段）。
+根对象及该节点若提供 `url`，值必须为相同的 canonical 字符串；其他节点及嵌套
+`author.url` 等引用不必相同。不支持顶层数组，也不联网展开 context/推断主实体。
+旧自定义 graph 缺少该身份时需补 `@id`；内置 `structured_data` 已符合此约定。无 About Issue 的本地 Theme 还需支持 `about_is_profile` 分支；Profile About 没有 `body_html` 或 Issue 号，迁移见[站点输入说明](docs/site-inputs.md#about-and-local-themes)。
+
+不写 Theme 配置时，默认使用 [Quiet](docs/themes/quiet.md)；`geoqiao.me`、
+`Escape1`、`Escape2` 是可选内置 Theme。Quiet 使用中性黑白与少量头像洋红：
 
 ```yaml
 theme:
   source: builtin
-  name: geoqiao.me # 也可以是 Escape1、Escape2 或 Quiet
+  name: Quiet # 也可以是 geoqiao.me、Escape1 或 Escape2
 ```
 
 也可以加载站点仓库中的本地 Theme：
@@ -168,7 +186,7 @@ workflow 模板。真实站点仓库拥有自己的 `config.yaml`、Pages workfl
 作为 source of truth；这样生成器与站点即使无法原子变更，也能通过固定版本验证、升级和回滚。
 完整要求见
 [`docs/deployment.md`](docs/deployment.md) 与
-[`Pages workflow 模板`](docs/deployment/geoqiao-pages.yml)。
+[`通用 starter`](starter/)。
 
 ## 🧪 开发与验证
 

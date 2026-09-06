@@ -1,7 +1,8 @@
 """Strict YAML front-matter envelope parser.
 
 Implements the Issue Content Contract v1 front-matter envelope rules:
-- First line MUST be exactly ``---``.
+- Only a first line exactly ``---`` declares an envelope; otherwise the
+  entire input is Markdown.
 - Closing delimiter MUST be a line containing exactly ``---``.
 - The front matter MUST be a YAML mapping.
 - YAML MUST be parsed with a safe loader.
@@ -57,11 +58,13 @@ class FrontMatterError(Exception):
 
 @dataclass(frozen=True)
 class ParsedFrontMatter:
-    """Result of parsing front matter from an Issue body.
+    """YAML envelope values and body, with optional Issue-specific filtering.
 
     Attributes:
-        fields: Validated front-matter field values (only allowed keys).
-        body: Markdown body after the closing delimiter.
+        fields: Raw mapping from parse_yaml_envelope; only allowed string keys
+            after parse_front_matter has applied Issue policy.
+        body: Raw suffix from parse_yaml_envelope; normalized for Issue compilation
+            by parse_front_matter.
         unknown_fields: Names of fields not in ``ALLOWED_FIELDS``, collected
             only when ``collect_unknown_fields=True`` is passed to
             :func:`parse_front_matter`.  Empty otherwise.
@@ -74,7 +77,7 @@ class ParsedFrontMatter:
             regex-parsing the raw YAML text.
     """
 
-    fields: dict[str, object] = field(default_factory=dict)
+    fields: dict = field(default_factory=dict)
     body: str = ""
     unknown_fields: list[str] = field(default_factory=list)
     scalar_styles: dict[str, str | None] = field(default_factory=dict)
@@ -143,33 +146,13 @@ class _StrictYAMLLoader(yaml.SafeLoader):
         return super().construct_mapping(node, deep=deep)
 
 
-def parse_front_matter(
-    raw_body: str, *, collect_unknown_fields: bool = False
-) -> ParsedFrontMatter:
-    """Parse and validate YAML front matter from an Issue body.
+def parse_yaml_envelope(raw_body: str) -> ParsedFrontMatter | None:
+    """Read a declared strict YAML mapping without content-field policy.
 
-    Parameters
-    ----------
-    raw_body:
-        The raw Issue body (front matter included).
-    collect_unknown_fields:
-        When ``False`` (default), unknown fields raise
-        :class:`FrontMatterError`.  When ``True``, unknown fields are
-        collected in :attr:`ParsedFrontMatter.unknown_fields` and only
-        known fields are returned in ``fields``, allowing the caller to
-        continue processing known fields and body.
-
-    Returns
-    -------
-    ParsedFrontMatter
-        Validated fields and the Markdown body after front matter.
-
-    Raises
-    ------
-    FrontMatterError
-        If the envelope, YAML, size, duplicate-key, custom-tag rules are
-        violated, or (when ``collect_unknown_fields=False``) an unknown
-        field is present.
+    No envelope returns None. A malformed declared envelope raises
+    FrontMatterError; it never falls back to Markdown. The body is the exact
+    suffix after the closing delimiter's line ending (if any), including all
+    remaining whitespace. Callers own allowed fields and authored validation.
     """
     # Split by any line ending (CRLF, CR, or LF).  This produces the same
     # lines as the previous normalize-then-split approach, but preserves
@@ -177,12 +160,10 @@ def parse_front_matter(
     lines = _LINE_ENDING_RE.split(raw_body)
     line_endings = list(_LINE_ENDING_RE.finditer(raw_body))
 
-    # --- First line must be exactly '---' ---------------------------------
-    if not lines or lines[0] != "---":
-        raise FrontMatterError(
-            code="FRONT_MATTER_MISSING",
-            message="Issue body must start with a '---' front-matter delimiter",
-        )
+    # Only an exact first-line delimiter declares metadata. Preserve ordinary
+    # Markdown verbatim; malformed declared envelopes must still fail below.
+    if lines[0] != "---":
+        return None
 
     # --- Find closing delimiter -------------------------------------------
     close_index: int | None = None
@@ -218,16 +199,15 @@ def parse_front_matter(
             ),
         )
 
-    # --- Extract front-matter content and body (normalized) --------------
+    # YAML normalization is unchanged; authored Markdown is sliced, not joined.
     fm_lines = lines[1:close_index]
     fm_content = "\n".join(fm_lines)
-
-    # Body starts after the closing delimiter; consume exactly one leading
-    # newline so the Markdown body begins cleanly.
-    body_lines = lines[close_index + 1 :]
-    if body_lines and body_lines[0] == "":
-        body_lines = body_lines[1:]
-    body = "\n".join(body_lines)
+    body_start = (
+        line_endings[close_index].end()
+        if close_index < len(line_endings)
+        else len(raw_body)
+    )
+    body = raw_body[body_start:]
 
     # --- Parse YAML with strict safe loader -------------------------------
     # An explicit loader instance is used (instead of ``yaml.load``) so that
@@ -236,7 +216,8 @@ def parse_front_matter(
     try:
         loader = _StrictYAMLLoader(fm_content)
         try:
-            data = loader.get_single_data()
+            node = loader.get_single_node()
+            data = {} if node is None else loader.construct_document(node)
             scalar_styles = dict(loader.scalar_styles)
         finally:
             loader.dispose()
@@ -251,26 +232,39 @@ def parse_front_matter(
             code="FRONT_MATTER_INVALID_YAML",
             message=f"Invalid YAML in front matter: {exc}",
         ) from exc
-    except yaml.YAMLError as exc:
+    except (yaml.YAMLError, ValueError) as exc:
+        # SafeLoader's built-in timestamp constructor can raise ValueError for
+        # an impossible unquoted date. Keep malformed YAML a parser diagnostic.
         raise FrontMatterError(
             code="FRONT_MATTER_INVALID_YAML",
             message=f"Invalid YAML in front matter: {exc}",
         ) from exc
 
     # --- Must be a mapping ------------------------------------------------
-    if data is None:
-        data = {}
     if not isinstance(data, dict):
         raise FrontMatterError(
             code="FRONT_MATTER_NOT_MAPPING",
             message=f"Front matter must be a YAML mapping, got {type(data).__name__}",
         )
 
-    # --- Reject or collect unknown fields -------------------------------
+    return ParsedFrontMatter(fields=data, body=body, scalar_styles=scalar_styles)
+
+
+def parse_front_matter(
+    raw_body: str, *, collect_unknown_fields: bool = False
+) -> ParsedFrontMatter:
+    """Apply Issue fields and legacy body normalization to the shared envelope.
+
+    Unknown fields raise FrontMatterError by default; collect mode retains their
+    names but excludes their values. Undeclared Markdown is returned verbatim.
+    """
+    parsed = parse_yaml_envelope(raw_body)
+    if parsed is None:
+        return ParsedFrontMatter(body=raw_body)
     unknown_fields: list[str] = []
     known_fields: dict[str, object] = {}
-    for key, value in data.items():
-        if key in ALLOWED_FIELDS:
+    for key, value in parsed.fields.items():
+        if isinstance(key, str) and key in ALLOWED_FIELDS:
             known_fields[key] = value
         else:
             if collect_unknown_fields:
@@ -284,7 +278,7 @@ def parse_front_matter(
 
     return ParsedFrontMatter(
         fields=known_fields,
-        body=body,
+        body=_LINE_ENDING_RE.sub("\n", parsed.body).removeprefix("\n"),
         unknown_fields=unknown_fields,
-        scalar_styles=scalar_styles,
+        scalar_styles=parsed.scalar_styles,
     )

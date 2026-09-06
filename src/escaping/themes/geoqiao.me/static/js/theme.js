@@ -23,6 +23,7 @@
     function updateButton(theme) {
         var button = document.querySelector('.theme-toggle');
         if (!button) return;
+        button.hidden = false;
         var dark = theme === DARK;
         var label = button.querySelector('[data-theme-label]');
         button.setAttribute('aria-pressed', dark ? 'true' : 'false');

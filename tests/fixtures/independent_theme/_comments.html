@@ -1,0 +1,17 @@
+{% if comments.enabled %}
+<section class="comments" aria-labelledby="comments-title">
+  <h2 id="comments-title">Comments</h2>
+  <p><a href="https://github.com/{{ github_repo }}/issues/{{ comments_issue_number }}">View the original Issue on GitHub</a></p>
+  <div id="comments-container"
+       data-comments-repo="{{ comments.repo }}"
+       data-issue-number="{{ comments_issue_number }}"
+       data-source-repo="{{ github_repo }}"
+       data-comments-theme="{{ comments.theme }}"
+       data-comments-theme-mode="{{ comments.theme_mode }}"
+       data-blog-theme-default="light">
+    <p class="comments-loading" role="status">Loading comments…</p>
+  </div>
+  <noscript><p>Read and reply using the GitHub link above.</p></noscript>
+</section>
+<script src="{{ theme_path }}/static/js/comments.js" defer></script>
+{% endif %}

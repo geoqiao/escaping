@@ -23,6 +23,46 @@
     <meta name="twitter:description" content="{% block twitter_description %}{{ meta_description }}{% endblock %}">
     <meta name="twitter:image" content="{% block twitter_image %}{{ theme_favicon_url }}{% endblock %}">
 
+    <script>
+    (function() {
+        // Delegate before first paint; failed binding leaves navigation expanded.
+        function setMenuOpen(menuButton, expanded) {
+            menuButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
+            document.querySelector('.navigation-scrim').hidden = !expanded;
+            var regions = document.querySelectorAll('.skip-link, .ledger-brand, .site-content, .ledger-footer');
+            for (var index = 0; index < regions.length; index += 1) {
+                regions[index].inert = expanded;
+            }
+        }
+        function closeMenu() {
+            var menuButton = document.querySelector('.hamb');
+            if (!menuButton) return;
+            setMenuOpen(menuButton, false);
+            menuButton.focus();
+        }
+        document.addEventListener('click', function(event) {
+            var menuButton = event.target.closest('.hamb');
+            if (menuButton) {
+                setMenuOpen(menuButton, menuButton.getAttribute('aria-expanded') !== 'true');
+            } else if (event.target.closest('.navigation-scrim')) {
+                closeMenu();
+            }
+        });
+        document.addEventListener('keydown', function(event) {
+            var menuButton = document.querySelector('.hamb');
+            if (event.key === 'Escape' && menuButton && menuButton.getAttribute('aria-expanded') === 'true') {
+                closeMenu();
+            }
+        });
+        window.addEventListener('resize', function() {
+            var menuButton = document.querySelector('.hamb');
+            if (menuButton && menuButton.getAttribute('aria-expanded') === 'true' && window.getComputedStyle(menuButton).display === 'none') {
+                setMenuOpen(menuButton, false);
+            }
+        });
+        document.documentElement.classList.add('navigation-ready');
+    })();
+    </script>
     <script src="{{ theme_path }}/static/js/theme.js?v=geo-writer-1"></script>
     <link rel="stylesheet" href="{{ theme_path }}/static/css/prism-signal-blue.css?v=geo-writer-1">
     <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css?v=geo-writer-5">
@@ -41,23 +81,24 @@
                     <span class="ledger-brand-signal" aria-hidden="true"><i></i><i></i></span>
                     <strong>{{ author_name }}</strong>
                 </a>
-                <button class="hamb" type="button" aria-label="Toggle menu" aria-expanded="false" aria-controls="header-nav"><span class="hamb-line" aria-hidden="true"></span></button>
+                {% if navigation_items %}<button class="hamb" type="button" aria-label="Toggle menu" aria-expanded="false" aria-controls="header-nav"><span class="hamb-line" aria-hidden="true"></span></button>
                 <nav class="ledger-nav" id="header-nav" aria-label="Primary navigation">
                     <ul>
+                        {% set current_path = site_routes.blog.canonical_path if current_page == 'article' else site_routes[current_page].canonical_path %}
                         {% for item in navigation_items %}
                         {% set nav_page = item.name | lower | replace('/', '-') %}
-                        <li><a class="ledger-nav-link nav-{{ nav_page }}" href="{{ item.url }}"{% if current_page == nav_page or (current_page == 'article' and nav_page == 'blog') %} aria-current="page"{% endif %}><span>{{ item.name }}</span></a></li>
+                        <li><a class="ledger-nav-link nav-{{ nav_page }}" href="{{ item.url }}"{% if item.url == current_path %} aria-current="page"{% endif %}><span>{{ item.name }}</span></a></li>
                         {% endfor %}
-                        <li>
-                            <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">
+                        <li>{% endif %}
+                            <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode" hidden>
                                 <span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span data-theme-label>Dark</span>
                             </button>
-                        </li>
+                        {% if navigation_items %}</li>
                     </ul>
-                </nav>
+                </nav>{% endif %}
             </div>
         </header>
-        <button class="navigation-scrim" type="button" tabindex="-1" aria-label="Close navigation" hidden></button>
+        {% if navigation_items %}<button class="navigation-scrim" type="button" tabindex="-1" aria-label="Close navigation" hidden></button>{% endif %}
 
         <div class="site-content">
             <main class="site-main" id="main-content" tabindex="-1">
@@ -83,37 +124,6 @@
     <script>
     (function() {
         var progress = document.querySelector('.scroll-progress');
-        var menuButton = document.querySelector('.hamb');
-        var scrim = document.querySelector('.navigation-scrim');
-        var backgroundRegions = document.querySelectorAll('.skip-link, .ledger-brand, .site-content, .ledger-footer');
-        if (menuButton && scrim) {
-            function setMenuOpen(expanded) {
-                menuButton.setAttribute('aria-expanded', expanded ? 'true' : 'false');
-                scrim.hidden = !expanded;
-                for (var index = 0; index < backgroundRegions.length; index += 1) {
-                    backgroundRegions[index].inert = expanded;
-                }
-            }
-            function closeMenu() {
-                setMenuOpen(false);
-                menuButton.focus();
-            }
-            menuButton.addEventListener('click', function() {
-                var expanded = menuButton.getAttribute('aria-expanded') === 'true';
-                setMenuOpen(!expanded);
-            });
-            scrim.addEventListener('click', closeMenu);
-            document.addEventListener('keydown', function(event) {
-                if (event.key === 'Escape' && menuButton.getAttribute('aria-expanded') === 'true') {
-                    closeMenu();
-                }
-            });
-            window.addEventListener('resize', function() {
-                if (menuButton.getAttribute('aria-expanded') === 'true' && window.getComputedStyle(menuButton).display === 'none') {
-                    setMenuOpen(false);
-                }
-            });
-        }
         if (progress) {
             function updateProgress() {
                 var maximum = document.documentElement.scrollHeight - window.innerHeight;
