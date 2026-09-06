@@ -475,7 +475,15 @@ def test_workflow_uses_only_reviewed_code_and_separates_permissions() -> None:
     assert build_steps[-2]["env"]["COMPILER_TOKEN"] == "${{ github.token }}"  # noqa: S105 - Actions expression, not a credential
     assert jobs["build"]["env"]["ESCAPING_VERSION"] == "stable"
     assert jobs["build"]["env"]["SITE_CONFIG"] == "config.yaml"
-    assert jobs["build"]["env"]["UV_CACHE_DIR"] == "${{ runner.temp }}/compiler-cache"
+    assert "runner." not in json.dumps(jobs["build"]["env"])
+    assert (
+        install_step["env"]["UV_PROJECT_ENVIRONMENT"]
+        == "${{ runner.temp }}/compiler-venv"
+    )
+    assert install_step["env"]["UV_CACHE_DIR"] == "${{ runner.temp }}/compiler-cache"
+    assert '"UV_PROJECT_ENVIRONMENT=$UV_PROJECT_ENVIRONMENT"' in install_step["run"]
+    assert '"UV_CACHE_DIR=$UV_CACHE_DIR"' in install_step["run"]
+    assert '>> "$GITHUB_ENV"' in install_step["run"]
     assert yaml.safe_load((_STARTER / "config.yaml").read_text()) == {}
     writing = (_STARTER / ".github/ISSUE_TEMPLATE/write.md").read_text().split("---")[1]
     assert "labels" not in yaml.safe_load(writing)
