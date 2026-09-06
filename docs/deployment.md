@@ -93,13 +93,13 @@ are allowed after installation; tracked source/lock changes are still rejected b
 
 ```bash
 export UV_PROJECT_ENVIRONMENT="/absolute/path/to/compiler-env"
-uv sync --project "/absolute/path/to/compiler-source" --python 3.11 \
+uv sync --project "/absolute/path/to/compiler-source" --python 3.14 \
   --locked --no-default-groups --group build --no-editable \
   --no-build-isolation-package escpe
 "$UV_PROJECT_ENVIRONMENT/bin/escpe" --config "/absolute/path/to/site/config.yaml"
 ```
 
-For Python 3.14, pass `--python 3.14`; changing only the environment directory does not override
+Use Python 3.14.x and pass `--python 3.14`; changing only the environment directory does not override
 `.python-version`. Use the installed console directly after sync, rather than an automatic
 `uv run` sync that could reinstall the project as editable. On Windows, the console is
 `Scripts/escpe.exe` instead of `bin/escpe`.

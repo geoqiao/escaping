@@ -1,5 +1,7 @@
 # escaping
 
+Requires Python 3.14.x, [`uv`](https://docs.astral.sh/uv/), and a GitHub token that can read the target repository's Issues.
+
 `escaping` is a strict static Site Compiler whose content source is GitHub
 Issues. It compiles conforming Issue snapshots from
 `docs/contracts/issue-content-v1.md` into one `SiteModel`. A single

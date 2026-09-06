@@ -14,9 +14,13 @@ _MERMAID_VERSION = "11.16.1"
 _MERMAID_DIRECTORY = f"static/vendor/mermaid-{_MERMAID_VERSION}"
 
 
-def test_packaging_declares_an_explicit_setuptools_backend() -> None:
+def test_packaging_declares_python_314_only_and_explicit_setuptools_backend() -> None:
     project = tomllib.loads((_PROJECT_ROOT / "pyproject.toml").read_text())
+    lock = tomllib.loads((_PROJECT_ROOT / "uv.lock").read_text())
 
+    assert (_PROJECT_ROOT / ".python-version").read_text().strip() == "3.14"
+    assert project["project"]["requires-python"] == ">=3.14,<3.15"
+    assert lock["requires-python"] == "==3.14.*"
     assert project["build-system"]["build-backend"] == "setuptools.build_meta"
     assert any(
         requirement.startswith("setuptools")
@@ -54,6 +58,7 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
             if name.endswith(".dist-info/entry_points.txt")
         )
     assert "Name: escpe\n" in metadata
+    assert "Requires-Python: <3.15,>=3.14\n" in metadata
     assert "Requires-Dist: nh3==0.3.7\n" in metadata
     assert any(name.endswith("/NOTICE.md") for name in names)
     assert not any(name.endswith((".so", ".dylib", ".pyd")) for name in names)

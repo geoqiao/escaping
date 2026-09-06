@@ -60,7 +60,7 @@ Project-site subpaths such as `/my-project/` are unsupported even if Config spec
 | --- | --- |
 | `ESCAPING_VERSION: stable` | Each normal build resolves the official latest non-draft, non-prerelease release once, then installs its full commit SHA and dependency lock. Idle sites do not poll for releases. |
 | Advanced fixed version | Replace `stable` in the workflow with a full lowercase 40-character commit SHA, or a formal release tag confirmed immutable by GitHub. Fixed versions do not chase latest. |
-| Build summary | Records release/tag/commit, Python, uv, lock and project hashes, actual wheel builder and installed dependency versions. Keep this identity when reporting problems. |
+| Build summary | Records release/tag/commit, Python 3.14.x, uv, lock and project hashes, actual wheel builder and installed dependency versions. Keep this identity when reporting problems. |
 | Token | Each job receives only its required short-lived `GITHUB_TOKEN` permissions. The compile step maps it to the Config-selected `security.token_env`; reserved process variables and collisions are rejected. Never put a token value in Config. |
 | Failure | No release, failed API/identity/lock checks, or compiler errors stop upload/deployment. No fallback to `main`, empty content, or a different generator is performed. The previous deployed site remains in place. |
 

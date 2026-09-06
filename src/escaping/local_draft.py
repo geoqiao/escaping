@@ -158,7 +158,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         raw = args.path.read_bytes().decode("utf-8")
-    except (OSError, UnicodeError):
+    except OSError, UnicodeError:
         issue = None
         diagnostics = (
             Diagnostic(

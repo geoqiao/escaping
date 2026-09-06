@@ -8,7 +8,7 @@
 
 一个 opinionated personal-site generator：以 Issues 为内容源，经由不可变模型、严格校验与分阶段发布，生成 Blog、Ideas、Projects、About、Tags、Atom 和完整 SEO artifacts。
 
-[![Python 3.11+](https://img.shields.io/badge/Python-3.11%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![Python 3.14.x](https://img.shields.io/badge/Python-3.14.x-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![GitHub Issues](https://img.shields.io/badge/Content-GitHub_Issues-181717?logo=github)](https://docs.github.com/issues)
 [![Static Site](https://img.shields.io/badge/Output-Static_Site-315EFB)](https://geoqiao.me/)
 [![MIT License](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
@@ -50,7 +50,7 @@ Renderer 和 artifact validator 只读取同一份 `SiteModel`。Theme 作为已
 
 ## 🚀 快速开始
 
-需要 Python 3.11+、[`uv`](https://docs.astral.sh/uv/) 和一个可读取目标仓库 Issues 的 GitHub Token。
+需要 Python 3.14.x、[`uv`](https://docs.astral.sh/uv/) 和一个可读取目标仓库 Issues 的 GitHub Token。
 
 ```bash
 git clone https://github.com/geoqiao/escaping.git

@@ -264,7 +264,9 @@ def test_inline_label_initializer_preserves_user_labels_and_verifies_races(
 ) -> None:
     responses, calls = api_transport
     workflow = yaml.safe_load((_STARTER / ".github/workflows/pages.yml").read_text())
-    script = workflow["jobs"]["labels"]["steps"][0]["run"]
+    script = next(
+        step["run"] for step in workflow["jobs"]["labels"]["steps"] if "run" in step
+    )
     state = {
         "published": {
             "name": "published",
@@ -331,7 +333,13 @@ def test_http_redirects_do_not_forward_platform_or_label_credentials(
     labels: dict = {"__name__": "__main__"}
     exec(  # noqa: S102 - checked-in canonical workflow only
         compile(
-            workflow["jobs"]["labels"]["steps"][0]["run"], "pages.yml:labels", "exec"
+            next(
+                step["run"]
+                for step in workflow["jobs"]["labels"]["steps"]
+                if "run" in step
+            ),
+            "pages.yml:labels",
+            "exec",
         ),
         labels,
     )
@@ -427,10 +435,26 @@ def test_workflow_uses_only_reviewed_code_and_separates_permissions() -> None:
     }
     assert jobs["build"]["needs"] == ["labels", "context"]
     assert jobs["deploy"]["needs"] == "build"
-    assert (
-        len(jobs["labels"]["steps"]) == 1 and "uses" not in jobs["labels"]["steps"][0]
+    setup_python = "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065"
+    for job_name in ("labels", "context", "build"):
+        setup_steps = [
+            step for step in jobs[job_name]["steps"] if step.get("uses") == setup_python
+        ]
+        assert len(setup_steps) == 1
+        assert setup_steps[0]["with"] == {"python-version": "3.14"}
+    label_step = next(step for step in jobs["labels"]["steps"] if "run" in step)
+    assert label_step["shell"] == "python3.14"
+    assert ".github/scripts" not in label_step["run"]
+    assert "python3.14" in next(
+        step["run"] for step in jobs["context"]["steps"] if "run" in step
     )
-    assert ".github/scripts" not in jobs["labels"]["steps"][0]["run"]
+    assert "python3.14" in next(
+        step["run"] for step in jobs["build"]["steps"] if step.get("id") == "version"
+    )
+    install_step = next(
+        step for step in jobs["build"]["steps"] if "install.sh" in step.get("run", "")
+    )
+    assert '"$RESOLVED_SHA" 3.14' in install_step["run"]
     for job in jobs.values():
         assert "repository.default_branch" in job["if"]
         for step in job["steps"]:

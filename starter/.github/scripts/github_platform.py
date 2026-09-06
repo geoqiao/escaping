@@ -100,7 +100,7 @@ def select_version(selection: str = "stable") -> dict:
         )
         if published.utcoffset() is None:
             raise ValueError
-    except (KeyError, TypeError, AttributeError, ValueError):
+    except KeyError, TypeError, AttributeError, ValueError:
         raise DeliveryError("release has no valid publication time") from None
     if type(release.get("id")) is not int or release["id"] <= 0:
         raise DeliveryError("invalid release identity")
