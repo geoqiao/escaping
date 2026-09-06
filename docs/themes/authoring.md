@@ -397,7 +397,7 @@ user-editable label.
 | --- | --- |
 | Keyboard entry | A visible-on-focus skip link moves focus to main (e.g. `id="main-content" tabindex="-1"`); brand remains a working Home link |
 | Empty menu | No menu toggle, empty panel, hidden focus target or inert background. Existing appearance controls remain independently accessible |
-| Non-empty mobile menu | Labeled real control, aria-controls/expanded state, Enter/Space activation, Escape dismissal/focus return; closed links must not be a keyboard dead end |
+| Collapsible mobile menu | Labeled real control, aria-controls/expanded state, Enter/Space activation, Escape dismissal/focus return; closed links must not be a keyboard dead end. Always-visible, keyboard-accessible navigation needs no collapse control |
 | No/failed JS | Content and navigation remain usable without a fake enhancement button; don't hide the body for initialization or performance scores |
 | Local overflow | At narrow widths, wide tables/code/diagrams scroll inside their own region, not the page. Provide keyboard scrolling/focus and accessible names for interactive scroll regions |
 | Appearance | Visible focus indication, readable light/dark states, reduced-motion support for added animation; theme changes must not erase content or discussion identity |
