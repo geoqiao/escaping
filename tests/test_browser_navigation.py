@@ -1521,10 +1521,13 @@ def test_disabled_comments_make_no_third_party_requests(
 
 
 @pytest.mark.parametrize("theme", _THEMES)
+@pytest.mark.parametrize("javascript", [True, False])
 def test_empty_menu_preserves_keyboard_entry_brand_and_appearance(
-    browser: Browser, site_servers: dict[str, str], theme: str
+    browser: Browser, site_servers: dict[str, str], theme: str, javascript: bool
 ) -> None:
-    page = browser.new_page(viewport={"width": 320, "height": 700})
+    page = browser.new_page(
+        viewport={"width": 320, "height": 700}, java_script_enabled=javascript
+    )
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     origin = site_servers[f"{theme}-disabled"]
@@ -1539,7 +1542,9 @@ def test_empty_menu_preserves_keyboard_entry_brand_and_appearance(
         brand.focus()
         page.keyboard.press("Enter")
         expect(page).to_have_url(origin + "/")
-        if theme != "Escape2":
+        if not javascript:
+            expect(page.locator(".theme-toggle:visible")).to_have_count(0)
+        elif theme != "Escape2":
             toggle = page.locator(".theme-toggle")
             toggle.focus()
             expect(toggle).to_be_focused()

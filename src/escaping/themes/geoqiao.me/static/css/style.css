@@ -245,6 +245,8 @@ button:focus-visible,
   gap: 8px;
 }
 
+.theme-toggle[hidden] { display: none; }
+
 .theme-swatch {
   position: relative;
   width: 15px;

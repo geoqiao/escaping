@@ -50,7 +50,7 @@
                         <li><a class="ledger-nav-link nav-{{ nav_page }}" href="{{ item.url }}"{% if item.url == current_path %} aria-current="page"{% endif %}><span>{{ item.name }}</span></a></li>
                         {% endfor %}
                         <li>{% endif %}
-                            <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode">
+                            <button class="theme-toggle" type="button" aria-pressed="false" aria-label="Switch to dark mode"{% if not navigation_items %} hidden{% endif %}>
                                 <span class="theme-swatch" aria-hidden="true"><i></i><i></i></span><span data-theme-label>Dark</span>
                             </button>
                         {% if navigation_items %}</li>
