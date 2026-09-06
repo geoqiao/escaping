@@ -116,7 +116,7 @@ templates. Do not emit extra HTML pages, aliases or a second feed.
 | `author_initials` | Uppercase first letters of first/last words; first two characters for one word; empty for no words |
 | `github_name`, `github_repo` | Content repository's owner and `owner/repo`, not the workflow actor |
 | `theme_path` | Root-relative selected asset prefix, e.g. `/templates/my-theme`, with no trailing slash |
-| `theme_favicon_url` | Absolute URL to `theme_path + '/static/images/favicon.png'` |
+| `theme_favicon_url` | Absolute metadata URL to `theme_path + '/static/images/favicon.png'`; this does not supply a fallback file. Include the PNG if used; load the icon with the root-relative `theme_path` prefix |
 | `navigation_items` | Ordered sequence of `name`, `url` pairs; render exactly this menu, possibly empty |
 | `skip_link_text` | `Skip to main content` |
 | `google_search_verification` | Verification value, possibly empty |

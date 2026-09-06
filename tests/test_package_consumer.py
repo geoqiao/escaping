@@ -74,8 +74,13 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
     ] == [f"{vendor_root}/mermaid.min.js"]
     consumer = tmp_path / "consumer"
     consumer.mkdir()
+    site = consumer / "nested"
+    site.mkdir()
+    shutil.copytree(_PROJECT_ROOT / "tests/fixtures/independent_theme", site / "theme")
     script = """
 import sys
+import yaml
+from dataclasses import replace
 from datetime import UTC, datetime
 from pathlib import Path
 import escaping
@@ -172,6 +177,51 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
         assert 'data-issue-number="1"' in (output / 'blog/post/index.html').read_text()
         for font in ('manrope-bold.ttf', 'source-serif-4.ttf', 'Manrope-OFL.txt', 'SourceSerif4-OFL.txt'):
             assert (output / 'templates' / theme_name / 'static/fonts' / font).is_file()
+
+# One docs-only local Theme crosses the same installed compiler, using real YAML.
+snapshots[0] = replace(snapshots[0], labels=(*snapshots[0].labels, 'tag:shared'))
+snapshots.extend([
+    replace(snapshots[0], number=3, title='Another post', body='Another body.'),
+    replace(snapshots[0], number=4, title='Idea', body='Idea body.',
+            labels=('type:idea', 'published', 'tag:idea-only')),
+])
+authored = snapshots[:]
+local_root = root / 'nested'
+raw = settings.model_dump(mode='json', exclude_none=True)
+raw['theme'] = {'source': 'local', 'name': 'consumer-theme', 'path': 'theme'}
+raw['paths']['page_size'] = 1
+for scenario, destination in (('issue', 'build'), ('profile', 'dist'), ('empty', '_site')):
+    snapshots = authored if scenario == 'issue' else [s for s in authored if s.number != 2]
+    raw['comments']['enabled'] = scenario == 'issue'
+    raw['paths']['output'] = destination
+    if scenario != 'issue':
+        raw.pop('about', None)
+    if scenario == 'empty':
+        snapshots = []
+    config = local_root / 'config.yaml'
+    config.write_text(yaml.safe_dump(raw), encoding='utf-8')
+    result = SiteCompiler('unused', 'owner/site', Settings.load_from_yaml(config),
+                          config_root=local_root, github_service=FakeGitHub()).generate()
+    assert result.success, result.diagnostics
+    output = local_root / raw['paths']['output']
+    assert (output / 'templates/consumer-theme/static/css/style.css').is_file()
+    about = (output / 'about/index.html').read_text()
+    if scenario == 'issue':
+        assert 'data-issue-number="2"' in about
+        assert 'data-issue-number="1"' in (output / 'blog/post/index.html').read_text()
+    else:
+        assert '<h1>Owner</h1>' in about and 'data-issue-number' not in about
+        assert all('comments.js' not in p.read_text() for p in output.rglob('*.html'))
+    if scenario != 'empty':
+        for route in ('blog/page/2', 'tags/shared', 'ideas/4'):
+            assert (output / route / 'index.html').is_file(), route
+        idea = (output / 'ideas/4/index.html').read_text()
+        assert '<span>idea-only</span>' in idea and '/tags/idea-only/' not in idea
+        assert ('data-issue-number="4"' in idea) == (scenario == 'issue')
+    else:
+        assert 'No posts yet.' in (output / 'blog/index.html').read_text()
+        assert 'No ideas yet.' in (output / 'ideas/index.html').read_text()
+        assert 'No tags yet.' in (output / 'tags/index.html').read_text()
 """
     script = script.replace("__MERMAID_DIRECTORY__", _MERMAID_DIRECTORY)
 
@@ -255,22 +305,7 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
 
     # L2: actual installed console, with only HTTP transport replaced. Keep the
     # existing L1 full build above inside the clean wheel-installed interpreter.
-    site = consumer / "nested"
-    site.mkdir()
-    subprocess.run(  # noqa: S603
-        [
-            str(venv_python),
-            "-I",
-            "-c",
-            "import shutil; from importlib.resources import files; "
-            "shutil.copytree(str(files('escaping').joinpath('themes/Quiet')), 'nested/theme')",
-        ],
-        cwd=consumer,
-        env=uv_env,
-        check=True,
-        capture_output=True,
-        text=True,
-    )
+    # Reuse the independently authored Theme, rather than copying a built-in.
     config = site / "config.yaml"
     config.write_text(
         "security:\n  token_env: READ_TOKEN\npaths:\n  output: public\n"
