@@ -15,7 +15,7 @@
 - 每个功能 Ticket 默认 **3–6 个逻辑测试函数**。
 - 两个或多个主题必须使用参数化测试，禁止复制整套测试。
 - 新增测试代码不应明显超过对应生产代码；超出时必须说明真实风险和收益。
-- 测试套件应保持在数秒级，避免逐字段、逐异常、逐主题机械展开。
+- 日常迭代先跑相关 owner 的局部检查；完整套件含浏览器与隔离安装，不设“数秒跑完”的硬指标。避免机械展开，但不通过删掉真实验证来满足计时目标。
 - 已经发生过的真实安全或数据损坏问题可以保留专门 regression test。
 
 预算是约束思考的默认值，不是为了压行数删除必要的安全保障。
@@ -89,12 +89,51 @@ Reviewer 不应因为缺少理论 mutation coverage、低概率平台分支或�
 
 ## 验证命令
 
+[CI workflow](../../.github/workflows/ci.yml) 是自动检查的执行来源，以下命令用于本地复现。
+不要只检查 `src/escaping` 与 `tests` 而遗漏 starter 的隐藏脚本目录。
+
+### 环境准备
+
+使用 Python 3.14.x 和 uv 0.12.0。首次运行浏览器测试时安装两个引擎及所需系统依赖：
+
 ```bash
-uv run pytest -q
-uv run ruff check src/escaping tests
-uv run ruff format --check src/escaping tests
-uv run ty check
-uv run escpe --config /absolute/path/to/site/config.yaml
+uv sync --locked
+uv run playwright install --with-deps chromium webkit
 ```
 
-生成站点后还应检查代表性的 Home、Blog、Ideas、About、Projects、Tags、Atom、sitemap 和 robots；前端行为使用桌面与移动端 browser smoke 验证。
+### 局部验证
+
+按改动选择相关 owner，例如路由规则：
+
+```bash
+uv run pytest -q tests/test_routes.py
+```
+
+Theme 改动至少检查渲染、真实包消费及浏览器行为：
+
+```bash
+uv run pytest -q tests/test_template_integrity.py tests/test_package_consumer.py tests/test_browser_navigation.py
+```
+
+纯文档改动检查本地链接及锚点、示例路径、配置与命令；不要求为了文档措辞制造失败单测。
+若文档更正涉及公共行为，运行该行为已有的 owner 测试，不能仅凭改文档宣称实现符合契约。
+
+### 完整验证
+
+合并前运行一次完整验证；功能迭代过程中无需每个小改动都重复全套：
+
+```bash
+uv lock --check
+CI=true uv run pytest -q -ra
+uv run ruff check src/escaping tests starter/.github/scripts
+uv run ruff format --check src/escaping tests starter/.github/scripts
+uv run ty check src/escaping tests starter/.github/scripts
+git diff --check
+```
+
+`CI=true` 使 WebKit 启动失败成为错误，而非本地可选跳过。记录实际解释器、输入版本、
+通过数和跳过项；不同测试集合的耗时不能作为性能提升证据。不要把局部通过报告成完整验证。
+
+需要真实站点检查时按[本地构建步骤](../site-inputs.md#local-build)生成站点，检查代表性的
+Home、Blog、Ideas、About、Projects、Tags、Atom、sitemap 和 robots；前端行为用桌面与
+移动端 browser smoke 验证。WebKit/匿名评论可见不等于真机 Safari 或 App/OAuth 写入已验证。

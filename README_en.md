@@ -1,129 +1,91 @@
+<div align="center">
+
+<img src="docs/assets/escaping-logo.png" alt="escaping logo" width="180">
+
 # escaping
 
-`escaping` is a strict static Site Compiler whose content source is GitHub
-Issues. It compiles conforming Issue snapshots from
-`docs/contracts/issue-content-v1.md` into one `SiteModel`. A single
-`RouteRegistry` owns page routes, output paths, canonical URLs, Atom, sitemap,
-robots, and internal links. The complete artifact is validated before portable
-staged publication using directory renames with rollback.
+**Write in GitHub Issues. Publish on your own personal site.**
 
-## v1 routes
+Blog, Ideas, Projects, About, Tags and RSS, without a separate content management system.
 
-| Content | canonical route |
+**[中文](README.md)** · **[Live site](https://geoqiao.me/)** · **[Get started](#get-started)** · **[Maintainer guide](docs/dual-repo-architecture.md)**
+
+</div>
+
+## Why escaping?
+
+| What you need | What escaping provides |
 | --- | --- |
-| Home | `/` |
-| Blog archive/detail | `/blog/`, `/blog/{slug}/` |
-| Ideas | `/ideas/`, `/ideas/{issue_number}/` |
-| About | `/about/` |
-| Projects | `/projects/` |
-| Tags | `/tags/`, `/tags/{tag}/` |
-| Atom / sitemap / robots | `/atom.xml`, `/sitemap.xml`, `/robots.txt` |
+| Focus on writing | Issue titles and Markdown bodies, with labels controlling publication; front matter is optional |
+| A complete personal site | Home, article archives, short ideas, curated projects, About, tags, RSS and search-engine discovery files |
+| A simple default appearance | Quiet by default, with support for site-owned local Themes |
+| Controlled publication | Content and link validation; the site workflow deploys only successful builds |
 
-Blog slugs default to the Issue number, with optional front matter overrides;
-they are never derived from titles. Idea tags are display-only. About uses an
-explicit immutable Issue number, otherwise the sole valid published About Issue,
-otherwise Profile About without a fabricated Issue or discussion. Front matter
-is stripped before Markdown rendering; HTML goes through the allowlist sanitizer.
-
-## Start a site
+## Get started
 
 Use **Use this template** at [escaping-template](https://github.com/geoqiao/escaping-template).
 No local Python, PAT, or manually created publishing labels are required.
 
 > **Public preview:** an existing production site's build and deployment have been verified;
-> first-time template creation and the complete new-user initialization flow have not.
+> first-time template creation, automatic labels and the complete new-user initialization flow have not.
 
 1. Create `username.github.io` (public for GitHub Free), keep Issues/Actions enabled, and select **GitHub Actions** in **Settings → Pages**.
-2. Save an Issue with a title and Markdown body; wait for label preparation, then refresh the label selector.
+2. Save an Issue with a title and Markdown body; wait for **Prepare missing labels only** to succeed, then refresh the label selector.
 3. Add one of `type:blog`, `type:idea`, or `type:about`, plus `published` when ready, and check the Actions deployment.
 
 Project-site subpaths are unsupported; an existing custom domain must serve an HTTPS root URL.
-See the [starter instructions](starter/README.md).
+The [starter instructions](starter/README.md) cover the full setup, version selection and failure recovery.
 
-## Local development
+## Everyday writing
 
-Requires Python 3.14.x, [`uv`](https://docs.astral.sh/uv/), and a GitHub token that can read the target repository's Issues.
+| Action | Result |
+| --- | --- |
+| `type:blog` + `published` | Publish an article in Blog, RSS and applicable tag archives |
+| `type:idea` + `published` | Publish one independent short idea; exclude it from Blog/RSS and display its tags without archives |
+| `type:about` + `published` | Supply About content; without an About Issue, the site can use the public owner profile |
+| Edit a published Issue | Update the site on the next successful build; GitHub remains authoritative after creation |
+| Remove `published` | Unpublish on the next successful build; closing the Issue alone does not unpublish it |
 
-```bash
-uv sync
-export GITHUB_TOKEN=...
-uv run escpe --config /path/to/site/config.yaml
-# Serve the site Config-relative output as the document root.
-uv run python -m http.server 8000 --directory /path/to/site/output
+Only content from allowed authors is published; the workflow actor does not automatically gain author permission.
+Blogs can use labels such as `tag:python` and default to `/blog/{issue_number}/`.
+Optional front matter overrides the slug, description or original creation date independently;
+keep a published slug stable. See [Issue Content v1](docs/contracts/issue-content-v1.md) for rules and examples.
+
+## Customize when needed
+
+The template's `config.yaml` starts as `{}`. Override only the fields you need, for example:
+
+```yaml
+site:
+  title: My notes
 ```
 
-`security.token_env` selects the token environment variable dynamically (default
-name: `GITHUB_TOKEN`). The generator ships `config.example.yaml` as an expanded
-reference. Without context, provide an actual `github.repo` and HTTPS root
-`site.url`; Organization owners also require explicit `allowed_authors`.
-Alternatively, a verified non-secret `--context context.json` supplies repository
-and Pages identity so Config can be `{}`. Missing identity fields use the public
-owner profile, never the workflow actor. Projects need only a selected
-`repository`; explicit title/summary override public enrichment.
+| What to change | Where to look |
+| --- | --- |
+| Title, profile, curated projects | [Example Config](config.example.yaml) and [field sources](docs/site-inputs.md); the example is not a mandatory-field checklist |
+| Navigation | Home, Blog, Ideas, Projects, Tags, About, RSS by default; `site.navigation.items` replaces the whole menu, including `[]`, while the brand's Home link remains independent |
+| Appearance | [Quiet](docs/themes/quiet.md) is the only built-in/default Theme; [local Themes](docs/themes/authoring.md) use API 2, without automatic remote downloads |
+| Comments | Off by default; set `comments.enabled: true` and separately authorize the [Utterances App](https://github.com/apps/utterances). Profile About never has comments |
+| Local builds | Require Python 3.14.x, uv and a token that can read the target Issues; see the [local build steps](docs/site-inputs.md#local-build) |
 
-See [site input sources and boundaries](docs/site-inputs.md), including the
-Site Orchestrator interface for safely reading the token variable name. The
-default Theme is **Quiet**, with Home, Blog, Ideas, Projects, Tags, About and RSS
-as the default menu. An explicit `site.navigation.items` list replaces it entirely,
-including order, names, removal of Home or `[]`; the brand links Home independently.
-Comments default off: set `comments.enabled: true` and separately authorize the
-[Utterances App](https://github.com/apps/utterances). Profile About never has comments.
-The canonical origin is owned by `site.url` in the site repository's Site Config,
-not by a Theme or by the generator. [Quiet](docs/themes/quiet.md) is the only
-built-in Theme, using neutral black/white surfaces with restrained avatar-magenta
-accents. Independently maintained local Themes use the same public contract.
-The production workflow is owned by the site repository; see the
-[site Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml).
-Any consumer workflow must pin the compiler to a reviewed release or full 40-character SHA.
+Organization-owned content repositories require explicit `github.allowed_authors`.
+Missing fields use defaults; invalid explicit values fail rather than being ignored.
+Output and local Theme paths are relative to the Config directory. Serve output as the HTTP document root,
+not under an `/output/` URL prefix.
 
-## Custom Themes — API 2
+These instructions describe current source; a site's behavior depends on its selected generator version.
+The former built-ins `geoqiao.me`, `Escape1`, and `Escape2` are removed: explicit selections fail instead of silently changing the design.
+Before upgrading, [select Quiet or preserve a local copy](docs/themes/authoring.md#migrating-removed-built-in-themes).
+For old APIs, comments and menus, follow the [migration checklist](docs/themes/authoring.md#migrating-from-api-1).
+Configuring comments is not proof of posting; actual App/OAuth submission still needs separate verification.
 
-The [Theme authoring guide](docs/themes/authoring.md) documents the complete manifest,
-per-page context, static/shared assets, keyboard requirements and diagnostics.
-API 1 is rejected, not adapted. Follow the [migration checklist](docs/themes/authoring.md#migrating-from-api-1)
-for IdeaTag, About variants, optional comments, manifest and explicit old-site
-Config; changing only the version string is insufficient.
+## Development and maintenance
 
-`geoqiao.me`, `Escape1`, and `Escape2` are no longer shipped. Explicit selections
-fail without replacing old output or silently falling back to Quiet. Before
-upgrading, select Quiet or preserve the old design as a site-owned local Theme;
-see [removed-theme migration](docs/themes/authoring.md#migrating-removed-built-in-themes).
-Theme API 2, `capabilities`, and the optional `site.thesis` presentation hint
-remain supported. Structured data, Profile About and safe rendering rules have
-one source of truth: the Theme authoring guide.
+The [maintainer guide](docs/dual-repo-architecture.md) links architecture, contracts, tests and ADRs;
+agents use [AGENTS.md](AGENTS.md). The [starter workflow](starter/.github/workflows/pages.yml) is the canonical
+reusable deployment source; once copied, it is site-owned. Generator upgrades, local Theme migrations
+and production deployment are separate operations.
 
-## Canonical origin and URL migration boundaries
+## License
 
-The production site repository owns `config.yaml`; its current `site.url` is
-`https://geoqiao.me/`. The compiler derives canonical, Open Graph, Atom, sitemap,
-and robots URLs from the Config supplied at build time, so the generator does not
-silently impose geoqiao.me on another consumer.
-
-Two historical-URL cases are deliberately separate:
-
-- **Legacy `.html` Blog URLs:** the compiler does not generate
-  `/blog/{slug}.html` aliases or redirects. This remains the decision in
-  [ADR-0003](docs/adr/0003-drop-legacy-html-urls.md).
-- **Pinyin slug migrations:** the site repository may keep an explicit mapping such
-  as `/blog/old-pinyin-slug/` → `/blog/new-english-slug/` and run its own
-  `render_slug_redirects.py` after compilation. This is not title-derived slug
-  generation and does not reopen `.html` compatibility; see
-  [ADR-0005](docs/adr/0005-site-owned-blog-slug-migration-redirects.md).
-
-## Verification
-
-```bash
-uv run pytest -q
-uv run ruff check src/escaping tests
-uv run ruff format --check src/escaping tests
-uv run ty check
-git diff --check
-```
-
-After generation, inspect Home, Blog, Ideas, About, Projects, Tags, Atom,
-sitemap, and robots. Serve `output/` as the document root rather than opening
-`/output/`; otherwise root routes such as `/blog/` and `/ideas/` return 404.
-Historical `.html` Blog URLs have no aliases or redirects in the compiler. Any
-explicit non-`.html` slug migration redirect is a site-owned post-processing step;
-see [ADR-0003](docs/adr/0003-drop-legacy-html-urls.md) and
-[ADR-0005](docs/adr/0005-site-owned-blog-slug-migration-redirects.md).
+[MIT](LICENSE) © geoqiao

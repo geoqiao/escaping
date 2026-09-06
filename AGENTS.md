@@ -1,6 +1,7 @@
 # AGENTS.md
 
 本文件是 `escaping` 仓库的 coding-agent 指南。以当前代码、测试和 domain docs 为准。
+架构与完整文档导航见[维护者入口](docs/dual-repo-architecture.md)。
 
 ## 产品与边界
 
@@ -14,31 +15,20 @@ Blog、Ideas、About、Projects、Tags、Atom、sitemap 和 robots。
 - Site Orchestrator pin 生成器 release/完整 SHA；生产 workflow 使用短期
   `GITHUB_TOKEN`，不得硬编码 PAT。
 
-P3 产品决策未重新开启前，保留 Ideas 和 Projects，不引入 plugin system。
+保留 Ideas 和 Projects，不引入 plugin system；改变这些产品边界需单独确认。
 
-## Domain 与任务文档
+## 按任务读取
 
-- Ubiquitous language：`CONTEXT.md`
-- ADR：`docs/adr/`
-- Issue Content：`docs/contracts/issue-content-v1.md`
-- 测试策略：`docs/agents/testing.md`
-- Local scratch materials：`.scratch/<feature-slug>/`
-- Deployment contract：`docs/deployment.md`
+探索代码前先读 [CONTEXT.md](CONTEXT.md) 和相关 [ADR](docs/adr/)，其余按需读取。
 
-## Agent skills
-
-### Issue tracker
-
-Issues 和 specs 使用 GitHub Issues。详见 `docs/agents/issue-tracker.md`。
-
-### Triage labels
-
-使用默认五个 triage 标签。详见 `docs/agents/triage-labels.md`。
-
-### Domain docs
-
-使用 single-context 布局：根目录 `CONTEXT.md` 与 `docs/adr/`。详见
-`docs/agents/domain.md`。
+| 任务 | 文档 |
+| --- | --- |
+| 内容与发布规则 | [Issue Content v1](docs/contracts/issue-content-v1.md) |
+| 可选草稿创作辅助 | [Local Draft v1](docs/contracts/local-draft-v1.md)，不用于同步或发布 |
+| 开发与验证 | [测试策略](docs/agents/testing.md) |
+| 版本、安装与部署 | [Deployment contract](docs/deployment.md) |
+| Issues 与 specs | [GitHub tracker](docs/agents/issue-tracker.md)、[triage 标签约定](docs/agents/triage-labels.md)；使用前检查标签是否存在 |
+| Domain 文档维护 | [single-context 约定](docs/agents/domain.md) |
 
 ## 关键实现约束
 
@@ -82,7 +72,7 @@ tests/
 
 ## 开发流程
 
-非平凡改动遵循：
+涉及行为的非平凡改动遵循：
 
 ```text
 检查相关代码/调用者/文档
@@ -102,26 +92,13 @@ tests/
 - 不测试 private helper、mock 调用形状或 getter；
 - 优先完整静态站点、真实链接、wheel consumer 和浏览器行为；
 - 重构测试本身无需先制造失败，但必须先记录通过基线。
+- 纯文档改动验证链接、路径和示例，不为制造红灯添加行为无关的测试。
 
-## 常用命令
+## 验证与本地构建
 
-```bash
-uv sync
-uv run pytest -q
-uv run ruff check src/escaping tests
-uv run ruff format --check src/escaping tests
-uv run ty check
-git diff --check
-```
-
-本地生成：
-
-```bash
-export GITHUB_TOKEN=...
-uv run escpe --config /absolute/or/relative/site/config.yaml
-uv run python -m http.server 8000 --directory /path/to/site/output
-```
-
+环境准备、局部检查和完整验证统一见[验证命令](docs/agents/testing.md#验证命令)，与
+[CI](.github/workflows/ci.yml) 对齐；不要遗漏 `starter/.github/scripts`。
+本地生成见[本地构建步骤](docs/site-inputs.md#local-build)。
 `output/` 必须作为 HTTP document root；不要使用 `/output/` URL 前缀。
 
 ## Config 与安全
@@ -140,14 +117,15 @@ uv run python -m http.server 8000 --directory /path/to/site/output
 模板和 `static/`。共享评论逻辑不复制进 Theme source；构建时复制到所选 Theme 的
 输出 asset directory。
 
-修改 Theme 后运行：
-
-```bash
-uv run pytest -q tests/test_template_integrity.py tests/test_package_consumer.py
-```
-
+修改 Theme 后运行[局部验证中的 Theme 检查](docs/agents/testing.md#局部验证)。
 Theme contract 必须同时覆盖模板渲染、keyboard navigation、本地 overflow、comments
 container/script 和 package assets。
+
+## Scratch 材料
+
+- 当期任务材料放 `.scratch/<feature-slug>/`；可重建环境和缓存优先使用系统临时目录。
+- 结项保留输入版本、必要反例、结果与未验证范围；旧报告属于其记录的阶段，不代表当前状态。
+- `.scratch/` 被 Git 忽略，不等于可随意删除。独有原稿、附件、备份及嵌套仓库须先核对可恢复性；清理按精确路径确认，不整目录删除或自动过期。
 
 ## 部署保护
 

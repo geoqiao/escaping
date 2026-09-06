@@ -1,4 +1,10 @@
-# 生成器与站点的职责
+# 维护者入口：架构与文档
+
+建站与写作从 [README](../README.md) 和[模板说明](../starter/README.md)开始。
+维护生成器时先读 [CONTEXT.md](../CONTEXT.md) 与相关 [ADR](adr/)，再按任务查下表；
+验证步骤见[测试指南](agents/testing.md)，Agent 另读 [AGENTS.md](../AGENTS.md)。
+
+## 生成器与站点的职责
 
 `escaping` 负责生成可靠的静态站点；站点仓库拥有内容、配置和生产部署。
 
@@ -46,10 +52,14 @@ Renderer 和 validator 只读 `SiteModel`，不读 Settings 或原始 Issues。
 | --- | --- |
 | 输入来源、作者授权、默认值 | [Site inputs](site-inputs.md) |
 | 内容与发布标签 | [Issue Content v1](contracts/issue-content-v1.md) |
-| Theme API、安全与迁移 | [Theme authoring](themes/authoring.md) |
+| 可选草稿创作辅助 | [Local Draft v1](contracts/local-draft-v1.md)、[只读 lint](../.agents/skills/issue-draft-lint/SKILL.md)、[一次性创建未发布 Issue](../.agents/skills/issue-draft-uploader/SKILL.md)；不是同步或编译入口 |
+| Theme API、安全与迁移 | [Theme authoring](themes/authoring.md)；默认外观见 [Quiet](themes/quiet.md) |
 | 版本选择、短期 Token、安装、发布与回滚 | [Deployment contract](deployment.md) |
 | 通用站点自动化 | [Starter](../starter/README.md) 与 [canonical workflow](../starter/.github/workflows/pages.yml) |
 | 历史 URL 的站点自管边界 | [ADR-0003](adr/0003-drop-legacy-html-urls.md)、[ADR-0005](adr/0005-site-owned-blog-slug-migration-redirects.md) |
+| 环境、局部检查与合并前验证 | [测试指南](agents/testing.md)、[CI](../.github/workflows/ci.yml)、[PR 模板](../.github/pull_request_template.md) |
+| 术语与架构取舍 | [CONTEXT.md](../CONTEXT.md)、[ADR 目录](adr/)、[domain 文档约定](agents/domain.md) |
+| 维护任务与标签 | [GitHub tracker](agents/issue-tracker.md)、[triage 标签约定](agents/triage-labels.md) |
 
 生产 Config、generator pin、Pages 设置、DNS 与部署记录以各站点仓库和平台当前状态为准；
 本仓库不复制个人站点的运维快照。

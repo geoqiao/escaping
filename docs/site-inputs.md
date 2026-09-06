@@ -4,13 +4,9 @@ The CLI resolves missing Config fields once, before compilation. The renderer,
 artifact validator, and `Settings` constructors never fetch public profiles.
 Direct `Settings` injection remains supported without new Profile requests.
 
-The default Theme is **Quiet**. The default primary menu is Home, Blog, Ideas,
-Projects, Tags, About, RSS. An explicit `site.navigation.items` list replaces it
-entirely, preserving order/names and accepting `[]`; the brand's Home link is
-independent. Comments default off. Set `comments.enabled: true` and separately
-authorize the Utterances App to enable embedded Issue comments. Profile About
-never loads comments. See the [Theme API 2 guide](themes/authoring.md) for authoring,
-comment setup and explicit old-site migration.
+Use the [starter instructions](../starter/README.md) for the normal hosted workflow.
+This document owns Config sources and resolution; rendering, comments and Theme
+migration belong to the [Theme API 2 guide](themes/authoring.md).
 
 ## CLI inputs
 
@@ -26,8 +22,8 @@ site:
 
 The CLI verifies the repository owner through GitHub. Organizations must also
 supply `github.allowed_authors`. Complete explicit identity/Profile settings
-need neither context nor Profile enrichment. `config.example.yaml` is the
-expanded reference, not a list of mandatory fields.
+need neither context nor Profile enrichment. [config.example.yaml](../config.example.yaml)
+is the expanded reference, not a list of mandatory fields.
 
 An orchestrator may instead provide `config.yaml` containing `{}` and an
 independently verified, non-secret platform snapshot:
@@ -60,6 +56,35 @@ a Config repository differing from context require fresh repository identity
 verification. Pages origin still belongs to the site context unless Config
 explicitly overrides it. A repository redirect/rename cannot silently authorize
 a different content repository; update Config deliberately.
+
+## Local build
+
+Local source builds require Python 3.14.x, [uv](https://docs.astral.sh/uv/) and a
+GitHub token that can read the target repository's Issues. Clone the generator
+and prepare a separate site directory:
+
+```bash
+git clone https://github.com/geoqiao/escaping.git
+cd escaping
+uv sync --locked
+mkdir -p ../my-site
+```
+
+Save the minimal YAML from [CLI inputs](#cli-inputs) as `../my-site/config.yaml`,
+using your actual repository and HTTPS root URL. Add `github.allowed_authors`
+for an Organization. Then build and preview:
+
+```bash
+export GITHUB_TOKEN=...
+uv run escpe --config ../my-site/config.yaml
+uv run python -m http.server 8000 --directory ../my-site/output
+```
+
+Open <http://localhost:8000>. This example uses the default output directory;
+serve your resolved output as the HTTP document root, never under an `/output/`
+URL prefix. `security.token_env` selects the token variable name if changed.
+This is local generation, not production deployment; locked production source
+installation follows the [deployment contract](deployment.md#locked-source-installation).
 
 ## Missing-field sources
 
@@ -104,21 +129,14 @@ used; multiple candidates fail rather than selecting the latest. Invalid
 published content still fails the whole build.
 
 With no About Issue, `SiteBuilder` creates a distinct immutable `ProfileAbout`
-using resolved author/bio and the registered `/about/` Route. It has `title`,
-`description`, `route`, `canonical_path`, and `canonical_url`, **not**
-`issue_number`, `body_html`, original dates, or a discussion thread. Templates
-receive `about_is_profile` alongside `about_page`; render the name/bio using
-normal autoescape, never `|safe`. Issue About retains its existing fields.
+using resolved author/bio and the registered `/about/` Route. It has no Issue
+identity, authored date, body HTML or discussion thread; it is not a fake Issue.
 
-Local Themes must declare API `"2"` and support both About variants; API 1 fails
-clearly and preserves old output. Add this branch before using Profile fields;
-merely changing the manifest is not a migration. Do not construct Issue #0/None
-to keep an old template working. The full [manifest/context migration checklist](themes/authoring.md#migrating-from-api-1)
-also covers display-only IdeaTag and optional comments. Use
-`{{ structured_data|tojson }}`: Profile About emits `AboutPage` with the resolved
-display name, without assuming an Organization owner is a Person. Its primary
-JSON-LD identity must be `AboutPage` or `ProfilePage`, never
-Article/BlogPosting or Issue dates.
+Local Themes must declare API `"2"` and handle both About variants. Exact fields,
+autoescape, comments and JSON-LD rules have one source of truth: the
+[Theme About contract](themes/authoring.md#about-branch-before-reading-issue-only-fields).
+API 1 fails clearly and preserves old output; changing only the version string
+is not a migration. Follow the [migration checklist](themes/authoring.md#migrating-from-api-1).
 
 ## Selected Projects
 
