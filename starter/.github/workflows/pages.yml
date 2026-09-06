@@ -1,0 +1,167 @@
+name: Build site
+
+'on':
+  issues:
+    types: [opened, edited, labeled, unlabeled, closed, reopened, deleted, transferred]
+  push: # No path filter: every Config-relative local Theme path is covered.
+  workflow_dispatch: # Optional recovery, not a required first-run step.
+
+permissions: {}
+concurrency:
+  group: pages-${{ github.ref }}
+  cancel-in-progress: false
+
+jobs:
+  labels:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    permissions:
+      issues: write
+    steps:
+      - name: Prepare missing labels only
+        env:
+          LABEL_TOKEN: ${{ github.token }}
+        shell: python
+        run: |
+          import json
+          import os
+          import re
+          from urllib.error import HTTPError
+          from urllib.parse import quote
+          from urllib.request import HTTPRedirectHandler, Request, build_opener
+
+          LABELS = {"published": "0e8a16", "type:blog": "1d76db", "type:idea": "d876e3", "type:about": "5319e7"}
+
+          class NoRedirect(HTTPRedirectHandler):
+              def redirect_request(self, *args, **kwargs):
+                  return None
+
+          def request(method, path, data=None):
+              headers = {
+                  "Authorization": "Bearer " + os.environ["LABEL_TOKEN"],
+                  "Accept": "application/vnd.github+json",
+                  "X-GitHub-Api-Version": "2022-11-28",
+                  "Content-Type": "application/json",
+              }
+              url = "https://api.github.com/repos/" + os.environ["GITHUB_REPOSITORY"] + path
+              req = Request(url, method=method, data=json.dumps(data).encode() if data is not None else None, headers=headers)
+              try:
+                  with build_opener(NoRedirect).open(req, timeout=30) as response:
+                      return response.status
+              except HTTPError as exc:
+                  return exc.code
+
+          try:
+              repository = os.environ["GITHUB_REPOSITORY"]
+              if not re.fullmatch(r"[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9_.-]+", repository) or repository.split("/")[1] in {".", ".."}:
+                  raise ValueError("invalid repository")
+              for name, color in LABELS.items():
+                  path = "/labels/" + quote(name, safe="")
+                  status = request("GET", path)
+                  if status == 200:
+                      continue # Never PATCH existing colors/descriptions or label an Issue.
+                  if status != 404:
+                      raise ValueError("label lookup failed")
+                  status = request("POST", "/labels", {"name": name, "color": color})
+                  if status == 201:
+                      continue
+                  if status == 422 and request("GET", path) == 200:
+                      continue # Another initializer/user created the label; preserve it.
+                  raise ValueError("label creation failed")
+          except Exception:
+              raise SystemExit("Label preparation failed; check Actions permissions. No Issues were modified.") from None
+          with open(os.environ["GITHUB_STEP_SUMMARY"], "a", encoding="utf-8") as summary:
+              summary.write("Required labels are ready. Refresh the saved Issue, then choose one type:* and published yourself. No Issue was published automatically.\n")
+
+  context:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      pages: read
+    outputs:
+      context: ${{ steps.context.outputs.context }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          persist-credentials: false
+      - name: Read repository and Pages identity without setup writes
+        id: context
+        env:
+          PLATFORM_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 .github/scripts/github_platform.py context > "$RUNNER_TEMP/context.json"
+          printf 'context=%s\n' "$(jq -c . "$RUNNER_TEMP/context.json")" >> "$GITHUB_OUTPUT"
+
+  build:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: [labels, context]
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      issues: read
+    env:
+      ESCAPING_VERSION: stable # Advanced: immutable formal release tag or full commit SHA.
+      SITE_CONFIG: config.yaml # Update this path when moving the Config within the site repo.
+      UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/compiler-venv
+      UV_CACHE_DIR: ${{ runner.temp }}/compiler-cache
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ github.sha }}
+          path: site
+          persist-credentials: false
+      - name: Resolve one compiler version for this run
+        id: version
+        env:
+          PLATFORM_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          python3 site/.github/scripts/github_platform.py version > "$RUNNER_TEMP/version.json"
+          printf 'sha=%s\n' "$(jq -r .commit "$RUNNER_TEMP/version.json")" >> "$GITHUB_OUTPUT"
+          printf 'Compiler identity: ' >> "$GITHUB_STEP_SUMMARY"
+          jq -c . "$RUNNER_TEMP/version.json" >> "$GITHUB_STEP_SUMMARY"
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          repository: geoqiao/escaping
+          ref: ${{ steps.version.outputs.sha }}
+          path: compiler
+          persist-credentials: false
+      - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+        with:
+          version: '0.12.0'
+          enable-cache: false
+      - name: Install verified source with the generator lock and build group
+        env:
+          RESOLVED_SHA: ${{ steps.version.outputs.sha }}
+        run: |
+          set -euo pipefail
+          bash site/.github/scripts/install.sh "$GITHUB_WORKSPACE/compiler" "$RESOLVED_SHA" 3.11 >> "$GITHUB_STEP_SUMMARY"
+      - name: Build from the original site Config directory
+        id: compile
+        env:
+          COMPILER_TOKEN: ${{ github.token }}
+          PLATFORM_CONTEXT_JSON: ${{ needs.context.outputs.context }}
+        run: |
+          set -euo pipefail
+          printf '%s\n' "$PLATFORM_CONTEXT_JSON" > "$RUNNER_TEMP/platform-context.json"
+          "$UV_PROJECT_ENVIRONMENT/bin/python" site/.github/scripts/run_configured.py "$GITHUB_WORKSPACE/site/$SITE_CONFIG" "$RUNNER_TEMP/platform-context.json"
+      - uses: actions/upload-pages-artifact@fc324d3547104276b827a68afc52ff2a11cc49c9 # v5.0.0
+        with:
+          path: ${{ steps.compile.outputs.output }}
+
+  deploy:
+    if: github.ref == format('refs/heads/{0}', github.event.repository.default_branch)
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      pages: write
+      id-token: write
+    environment:
+      name: github-pages
+      url: ${{ steps.deployment.outputs.page_url }}
+    steps:
+      - id: deployment
+        uses: actions/deploy-pages@cd2ce8fcbc39b97be8ca5fce6e763baed58fa128 # v5.0.0
