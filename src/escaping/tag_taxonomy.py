@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import unicodedata
 from collections.abc import Sequence
-from dataclasses import dataclass
 
 from .build_result import Diagnostic
 from .models.blog_post import BlogPost, blog_post_sort_key
@@ -20,13 +19,6 @@ def _normalize_key(name: str) -> str:
     return unicodedata.normalize("NFC", name).casefold()
 
 
-@dataclass(frozen=True)
-class _AggregatedTag:
-    key: str
-    display_name: str
-    posts: tuple[BlogPost, ...]
-
-
 def build_tag_taxonomy(
     posts: Sequence[BlogPost], routes: RouteRegistry
 ) -> TagTaxonomyResult:
@@ -36,14 +28,16 @@ def build_tag_taxonomy(
     try:
         summaries = tuple(
             TagSummary(
-                name=tag.display_name,
-                count=len(tag.posts),
-                route=routes.tag(tag.key),
+                name=key,
+                count=len(aggregated[key]),
+                route=routes.tag(key),
             )
-            for tag in aggregated
+            for key in sorted(aggregated)
         )
         index = TagsIndex(route=index_route, tags=summaries)
-        archives = tuple(_build_archive(tag, index_route, routes) for tag in aggregated)
+        archives = tuple(
+            _build_archive(tag, aggregated[tag.name], index_route) for tag in summaries
+        )
     except (RouteCollisionError, ValueError) as exc:
         return TagTaxonomyResult(
             index=TagsIndex(route=index_route),
@@ -54,7 +48,7 @@ def build_tag_taxonomy(
     return TagTaxonomyResult(index=index, archives=archives)
 
 
-def _aggregate(posts: Sequence[BlogPost]) -> tuple[_AggregatedTag, ...]:
+def _aggregate(posts: Sequence[BlogPost]) -> dict[str, list[BlogPost]]:
     tag_posts: dict[str, list[BlogPost]] = {}
     for post in posts:
         seen_keys: set[str] = set()
@@ -64,22 +58,20 @@ def _aggregate(posts: Sequence[BlogPost]) -> tuple[_AggregatedTag, ...]:
                 continue
             seen_keys.add(key)
             tag_posts.setdefault(key, []).append(post)
-    return tuple(
-        _AggregatedTag(key, key, tuple(tag_posts[key])) for key in sorted(tag_posts)
-    )
+    return tag_posts
 
 
 def _build_archive(
-    tag: _AggregatedTag, index_route: Route, routes: RouteRegistry
+    tag: TagSummary, posts: Sequence[BlogPost], index_route: Route
 ) -> TagArchive:
     posts = sorted(
-        tag.posts,
+        posts,
         key=blog_post_sort_key,
         reverse=True,
     )
     return TagArchive(
-        route=routes.tag(tag.key),
-        tag_name=tag.display_name,
+        route=tag.route,
+        tag_name=tag.name,
         index_route=index_route,
         entries=tuple(
             TagArchiveEntry(

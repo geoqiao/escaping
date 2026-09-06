@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -173,6 +174,62 @@ def test_default_navigation_uses_registered_routes_and_explicit_lists_replace_it
             (item["name"], item["url"]) for item in items
         ]
         assert all(routes.route_for_path(url) for _, url in expected)
+
+
+def test_tag_archives_normalize_deduplicate_and_order_by_publication() -> None:
+    settings = _settings()
+    routes = RouteRegistry(str(settings.site.url))
+    posts = tuple(
+        replace(
+            _blog(routes, number),
+            published_at=_BUILD_START,
+            tags=(
+                BlogTag("Python", "/tags/python/"),
+                BlogTag("PYTHON", "/tags/python/"),
+            ),
+        )
+        for number in (2, 1, 3)
+    )
+    posts = (
+        replace(
+            posts[0],
+            tags=(
+                *posts[0].tags,
+                BlogTag("\N{KELVIN SIGN}", "/tags/k/"),
+                BlogTag("K", "/tags/k/"),
+            ),
+        ),
+        *posts[1:],
+    )
+    for ordered in (posts, tuple(reversed(posts))):
+        site = _build(settings, routes, _content(routes, ordered))
+        assert not site.has_errors
+        assert [(tag.name, tag.count) for tag in site.tags.tags] == [
+            ("k", 1),
+            ("python", 3),
+        ]
+        assert [archive.tag_name for archive in site.tag_archives] == ["k", "python"]
+        assert [
+            [entry.issue_number for entry in archive.entries]
+            for archive in site.tag_archives
+        ] == [[2], [3, 2, 1]]
+        for summary, archive in zip(site.tags.tags, site.tag_archives, strict=True):
+            assert (
+                summary.route
+                is archive.route
+                is routes.route_for_path(f"/tags/{summary.name}/")
+            )
+            assert archive.index_route is site.tags.route
+
+
+def test_invalid_tag_route_prevents_a_publishable_site() -> None:
+    settings = _settings()
+    routes = RouteRegistry(str(settings.site.url))
+    post = replace(_blog(routes, 1), tags=(BlogTag("bad tag", "/tags/bad/"),))
+    site = _build(settings, routes, _content(routes, (post,)))
+    assert site.has_errors
+    assert any(d.code == "TAG_ROUTE_COLLISION" for d in site.diagnostics)
+    assert site.tags.tags == () and site.tag_archives == ()
 
 
 def test_site_builder_has_intentional_empty_blog_models() -> None:

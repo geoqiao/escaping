@@ -137,9 +137,6 @@ class RouteRegistry:
     def robots(self) -> Route:
         return self.register("robots", "/robots.txt", "robots.txt")
 
-    def url(self, route: Route) -> str:
-        return route.canonical_url
-
     def route(self, name: str) -> Route:
         return self._routes[name]
 

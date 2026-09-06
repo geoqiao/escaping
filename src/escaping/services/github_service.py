@@ -3,7 +3,6 @@ from dataclasses import dataclass
 from github import Auth, Github
 from github.Issue import Issue
 from github.Repository import Repository
-from tenacity import retry, stop_after_attempt, wait_exponential
 
 from escaping.config import RepositoryIdentity, SiteProfileConfig
 from escaping.models.issue_snapshot import IssueSnapshot
@@ -21,15 +20,9 @@ class GitHubService:
     def __init__(self, token: str) -> None:
         self.gh = Github(auth=Auth.Token(token))
 
-    @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
-    )
     def get_repo(self, repo_name: str) -> Repository:
         return self.gh.get_repo(repo_name)
 
-    @retry(
-        stop=stop_after_attempt(3), wait=wait_exponential(multiplier=1, min=4, max=10)
-    )
     def fetch_issue_snapshots(self, repo: Repository) -> list[IssueSnapshot]:
         """Fetch open and closed Issues (state=all) as immutable snapshots.
 
