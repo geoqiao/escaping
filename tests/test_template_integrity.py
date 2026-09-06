@@ -214,6 +214,10 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
     assert "/templates/" + theme + "/static/" in combined
     assert "created_date:" not in combined and "slug:" not in combined
     assert "<script>alert" not in combined
+    assert "idea-only" in html["ideas/2/index.html"]
+    assert 'href="/tags/idea-only/"' not in combined
+    assert "tags/idea-only/index.html" not in html
+    assert 'href="/tags/python/"' in html["blog/post/index.html"]
 
     comment_pages = {
         "blog": ("blog/post/index.html", 1),
@@ -255,6 +259,43 @@ def test_quiet_uses_profile_avatar_for_identity_about_and_favicon() -> None:
     fallback = _render_theme("Quiet", author="Ada Lovelace")["index.html"]
     assert ">AL</span>" in fallback
     assert 'href="/templates/Quiet/static/images/favicon.png"' in fallback
+
+
+def test_idea_tag_public_context_is_display_only_not_a_blog_route() -> None:
+    settings = _settings("geoqiao.me")
+    routes = RouteRegistry(str(settings.site.url))
+    content = ContentCompiler(settings, route_registry=routes).compile(
+        [
+            _snap(
+                2,
+                "idea",
+                'description: Idea.\ncreated_date: "2026-01-02"',
+                labels=("tag:idea-only", "TAG:IDEA-ONLY"),
+            ),
+            _snap(10, "about", 'description: About.\ncreated_date: "2026-01-03"'),
+        ]
+    )
+    site = SiteBuilder(settings, routes).build(
+        content,
+        ProjectCompiler().compile([], route=routes.projects()),
+        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
+    )
+    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
+    assert renderer.env.loader is not None
+    renderer.env.loader = ChoiceLoader(
+        [
+            DictLoader(
+                {
+                    "idea.html": "{% for tag in idea.tags %}<span>{{ tag.name }}</span>{% if tag.path is defined %}FALSE ROUTE{% endif %}{% endfor %}"
+                }
+            ),
+            renderer.env.loader,
+        ]
+    )
+    rendered = renderer.render_site(site)
+    assert rendered["ideas/2/index.html"] == "<span>idea-only</span>"
+    assert not site.tags.tags and not site.tag_archives
+    assert routes.route_for_path("/tags/idea-only/") is None
 
 
 def test_quiet_idea_tags_are_text_while_blog_tags_keep_their_archive() -> None:

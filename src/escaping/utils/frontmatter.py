@@ -1,7 +1,8 @@
 """Strict YAML front-matter envelope parser.
 
 Implements the Issue Content Contract v1 front-matter envelope rules:
-- First line MUST be exactly ``---``.
+- Only a first line exactly ``---`` declares an envelope; otherwise the
+  entire input is Markdown.
 - Closing delimiter MUST be a line containing exactly ``---``.
 - The front matter MUST be a YAML mapping.
 - YAML MUST be parsed with a safe loader.
@@ -177,12 +178,10 @@ def parse_front_matter(
     lines = _LINE_ENDING_RE.split(raw_body)
     line_endings = list(_LINE_ENDING_RE.finditer(raw_body))
 
-    # --- First line must be exactly '---' ---------------------------------
-    if not lines or lines[0] != "---":
-        raise FrontMatterError(
-            code="FRONT_MATTER_MISSING",
-            message="Issue body must start with a '---' front-matter delimiter",
-        )
+    # Only an exact first-line delimiter declares metadata. Preserve ordinary
+    # Markdown verbatim; malformed declared envelopes must still fail below.
+    if lines[0] != "---":
+        return ParsedFrontMatter(body=raw_body)
 
     # --- Find closing delimiter -------------------------------------------
     close_index: int | None = None
@@ -236,7 +235,8 @@ def parse_front_matter(
     try:
         loader = _StrictYAMLLoader(fm_content)
         try:
-            data = loader.get_single_data()
+            node = loader.get_single_node()
+            data = {} if node is None else loader.construct_document(node)
             scalar_styles = dict(loader.scalar_styles)
         finally:
             loader.dispose()
@@ -258,8 +258,6 @@ def parse_front_matter(
         ) from exc
 
     # --- Must be a mapping ------------------------------------------------
-    if data is None:
-        data = {}
     if not isinstance(data, dict):
         raise FrontMatterError(
             code="FRONT_MATTER_NOT_MAPPING",
@@ -270,7 +268,7 @@ def parse_front_matter(
     unknown_fields: list[str] = []
     known_fields: dict[str, object] = {}
     for key, value in data.items():
-        if key in ALLOWED_FIELDS:
+        if isinstance(key, str) and key in ALLOWED_FIELDS:
             known_fields[key] = value
         else:
             if collect_unknown_fields:

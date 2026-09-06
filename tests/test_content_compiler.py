@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -145,6 +146,200 @@ def test_about_failure_matrix(
     result = _compiler().compile(snapshots)
     assert expected in _codes(result)
     assert result.about is None
+
+
+@pytest.mark.parametrize(
+    "metadata,expected",
+    [
+        (None, ("128", "Writing should be simple.", "2026-01-01")),
+        ("", ("128", "Writing should be simple.", "2026-01-01")),
+        ("{}", ("128", "Writing should be simple.", "2026-01-01")),
+        ("slug: chosen", ("chosen", "Writing should be simple.", "2026-01-01")),
+        (
+            "description: An authored summary.",
+            ("128", "An authored summary.", "2026-01-01"),
+        ),
+        (
+            'created_date: "2020-02-29"',
+            ("128", "Writing should be simple.", "2020-02-29"),
+        ),
+        (
+            'slug: original\ndescription: Original summary.\ncreated_date: "2020-02-29"',
+            ("original", "Original summary.", "2020-02-29"),
+        ),
+    ],
+)
+def test_missing_metadata_defaults_and_independent_overrides(
+    metadata: str | None, expected: tuple[str, str, str]
+) -> None:
+    created = datetime.fromisoformat("2026-01-02T00:30:00+02:00")
+    body = "Writing should be simple."
+    if metadata is not None:
+        body = f"---\n{metadata}\n---\n\n{body}"
+    snapshot = replace(_snapshot(128, "blog", created_at=created), body=body)
+    result = _compiler().compile([snapshot, _snapshot(10, "about")])
+    assert not result.has_errors, result.diagnostics
+    post = result.blogs[0]
+    assert (post.slug, post.description, post.created_date) == expected
+    assert post.body_html == "<p>Writing should be simple.</p>\n"
+    assert post.published_at == created and post.updated_at == created
+    renamed = _compiler().compile(
+        [replace(snapshot, title="Changed title"), _snapshot(10, "about")]
+    )
+    assert renamed.blogs[0].canonical_path == post.canonical_path
+
+
+@pytest.mark.parametrize(
+    "body,expected",
+    [
+        ("Hel**lo** &amp; [friends](https://example.org).", "Hello & friends."),
+        ("# Heading\n\nBody.", "Heading Body."),
+        (
+            "<div>one</div><p>two<br>three</p><ul><li>four</li><li>five</li></ul>",
+            "one two three four five",
+        ),
+        ("<table><tr><td>one</td><td>two</td></tr></table>", "one two"),
+        ("  中文🙂" * 30, ("中文🙂 " * 30).strip()[:50]),
+        ("e\u0301" * 30, "e\u0301" * 25),
+        ("Use `<button>`.", "Use <button>."),
+        ("```html\n<button>&amp;</button>\n```", "<button>&amp;</button>"),
+        ("![Picture](https://example.org/p.png)", ""),
+        (
+            'Before<img src="https://example.org/p.png" alt="hidden">After',
+            "BeforeAfter",
+        ),
+        (
+            "<div>Safe<button>hidden</button> text.</div>",
+            "Safe text.",
+        ),
+        (
+            "slug: is a word.\n\n---\n\n```yaml\ndescription: literal\n```",
+            "slug: is a word. description: literal",
+        ),
+    ],
+)
+def test_description_uses_only_sanitized_visible_body_text(
+    body: str, expected: str
+) -> None:
+    result = _compiler().compile(
+        [replace(_snapshot(128, "blog"), body=body), _snapshot(10, "about")]
+    )
+    assert not result.has_errors, result.diagnostics
+    assert result.blogs[0].description == expected
+
+
+@pytest.mark.parametrize(
+    "metadata,code",
+    [
+        *[
+            (f"{field}: {value}", f"{field.upper()}_INVALID")
+            for field in ("slug", "description", "created_date")
+            for value in ("null", '""', '"   "', "42", "[]")
+        ],
+        ("slug: Bad-Slug", "SLUG_INVALID"),
+        ("slug: " + "x" * 81, "SLUG_INVALID"),
+        ("slug: page", "SLUG_RESERVED"),
+        ("description: '<button>'", "DESCRIPTION_INVALID"),
+        ('description: "line\\nline"', "DESCRIPTION_INVALID"),
+        ("description: " + "x" * 301, "DESCRIPTION_TOO_LONG"),
+        ("created_date: 2026-01-01", "CREATED_DATE_INVALID"),
+        ('created_date: "2025-02-29"', "CREATED_DATE_INVALID"),
+        ("created_date: !!str 2026-01-01", "CREATED_DATE_INVALID"),
+        ("unknown: value", "FRONT_MATTER_UNKNOWN_FIELD"),
+    ],
+)
+def test_explicit_invalid_metadata_fails_the_entire_batch(
+    metadata: str, code: str
+) -> None:
+    result = _compiler().compile(
+        [
+            _snapshot(128, "blog", metadata=metadata),
+            _snapshot(1, "blog"),
+            _snapshot(10, "about"),
+        ]
+    )
+    assert code in _codes(result)
+    assert any(d.code == code and d.issue_number == 128 for d in result.diagnostics)
+    assert not result.blogs and not result.ideas and result.about is None
+
+
+def test_defaults_keep_publication_gates_and_collect_published_errors() -> None:
+    plain = replace(
+        _snapshot(128, "blog"),
+        body="Visible body.",
+        author="GeoQiao",
+        labels=("TYPE:BLOG", "PUBLISHED"),
+    )
+    ignored = [
+        replace(_snapshot(2, "blog", published=False), body="---\nbroken: ["),
+        replace(_snapshot(3, "blog", published=False), body="---", labels=()),
+        replace(_snapshot(4, "blog", author="other"), body="---"),
+        replace(_snapshot(5, "blog", is_pr=True), body="---"),
+    ]
+    good = _compiler().compile([plain, *ignored, _snapshot(10, "about")])
+    assert not good.has_errors, good.diagnostics
+    assert [p.issue_number for p in good.blogs] == [128]
+    assert [(d.code, d.issue_number) for d in good.diagnostics] == [
+        ("UNAUTHORIZED_AUTHOR", 4)
+    ]
+    removed = _compiler().compile(
+        [replace(plain, labels=("type:blog",)), _snapshot(10, "about")]
+    )
+    assert not removed.has_errors and not removed.blogs
+    bad = _compiler().compile(
+        [
+            plain,
+            _snapshot(10, "about"),
+            replace(plain, number=20, labels=("published",)),
+            replace(plain, number=21, labels=("published", "type:blog", "type:idea")),
+            replace(plain, number=22, labels=("published", "type:unknown")),
+            replace(plain, number=23, body="---\nbroken: ["),
+        ]
+    )
+    assert _codes(bad) == {
+        "TYPE_LABEL_MISSING",
+        "TYPE_LABEL_MULTIPLE",
+        "TYPE_LABEL_UNKNOWN",
+        "FRONT_MATTER_UNCLOSED",
+    }
+    assert not bad.blogs and bad.about is None
+
+
+def test_default_and_explicit_slugs_share_registry_and_collision_checks() -> None:
+    routes = RouteRegistry(str(_settings().site.url))
+    default = replace(_snapshot(128, "blog"), body="Body.")
+    registered = ContentCompiler(_settings(), route_registry=routes).compile(
+        [default, _snapshot(10, "about")]
+    )
+    assert not registered.has_errors
+    assert registered.blogs[0].route is routes.route("blog-detail-128")
+    collision = _compiler().compile(
+        [
+            default,
+            _snapshot(129, "blog", metadata='slug: "128"'),
+            _snapshot(10, "about"),
+        ]
+    )
+    assert "SLUG_DUPLICATE" in _codes(collision)
+    assert not collision.blogs
+
+
+@pytest.mark.parametrize("kind,number", [("idea", 2), ("about", 10)])
+def test_idea_about_defaults_never_allow_a_slug(kind: str, number: int) -> None:
+    supporting = [] if kind == "about" else [_snapshot(10, "about")]
+    result = _compiler().compile(
+        [replace(_snapshot(number, kind), body="Body."), *supporting]
+    )
+    assert not result.has_errors, result.diagnostics
+    page = result.about if kind == "about" else result.ideas[0]
+    assert page is not None and page.description == "Body."
+    if kind == "idea":
+        assert result.ideas[0].created_date == "2026-01-10"
+    for value in ("null", '""', "forbidden"):
+        bad = _compiler().compile(
+            [_snapshot(number, kind, metadata=f"slug: {value}"), *supporting]
+        )
+        assert "SLUG_FORBIDDEN" in _codes(bad)
 
 
 def test_missing_about_and_about_tags_fail() -> None:

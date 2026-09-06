@@ -52,7 +52,7 @@ class _HTMLProbe(HTMLParser):
             self.canonical.append(values.get("href", ""))
         if tag == "meta":
             key = values.get("property") or values.get("name")
-            if key and values.get("content"):
+            if key and "content" in values:
                 self.meta[key.casefold()] = values["content"]
         if tag == "script":
             self._script_type = values.get("type", "")

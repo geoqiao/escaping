@@ -3,7 +3,8 @@ from __future__ import annotations
 import re
 import unicodedata
 from collections.abc import Sequence
-from datetime import datetime
+from datetime import UTC, datetime
+from html.parser import HTMLParser
 
 from marko import Markdown
 from marko.ext.gfm import GFM
@@ -11,7 +12,7 @@ from marko.ext.gfm import GFM
 from .build_result import Diagnostic
 from .config import Settings
 from .models.blog_post import BlogPost, BlogTag, blog_post_sort_key
-from .models.content import AboutPage, ContentCompilationResult, Idea
+from .models.content import AboutPage, ContentCompilationResult, Idea, IdeaTag
 from .models.issue_snapshot import IssueSnapshot
 from .routes import RouteCollisionError, RouteRegistry
 from .utils.frontmatter import FrontMatterError, ParsedFrontMatter, parse_front_matter
@@ -37,6 +38,74 @@ def _label_values(labels: tuple[str, ...], prefix: str) -> list[str]:
 
 def _render_markdown(text: str) -> str:
     return _MARKDOWN.convert(text)
+
+
+class _VisibleBodyText(HTMLParser):
+    """Extract text from sanitized HTML, preserving inline adjacency."""
+
+    _BREAKS = frozenset(
+        [
+            "p",
+            "div",
+            "br",
+            "hr",
+            "h1",
+            "h2",
+            "h3",
+            "h4",
+            "h5",
+            "h6",
+            "ul",
+            "ol",
+            "li",
+            "dl",
+            "dt",
+            "dd",
+            "table",
+            "thead",
+            "tbody",
+            "tfoot",
+            "tr",
+            "td",
+            "th",
+            "caption",
+            "pre",
+            "blockquote",
+            "section",
+            "article",
+            "header",
+            "footer",
+            "aside",
+            "nav",
+            "figure",
+            "figcaption",
+            "details",
+            "summary",
+            "hgroup",
+        ]
+    )
+
+    def __init__(self) -> None:
+        super().__init__(convert_charrefs=True)
+        self.parts: list[str] = []
+
+    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag in self._BREAKS:
+            self.parts.append(" ")
+
+    def handle_endtag(self, tag: str) -> None:
+        if tag in self._BREAKS:
+            self.parts.append(" ")
+
+    def handle_data(self, data: str) -> None:
+        self.parts.append(data)
+
+
+def _body_description(body_html: str) -> str:
+    parser = _VisibleBodyText()
+    parser.feed(body_html)
+    parser.close()
+    return " ".join("".join(parser.parts).split())[:50]
 
 
 class ContentCompiler:
@@ -131,7 +200,7 @@ class ContentCompiler:
             local_errors.extend(self._validate_type(snapshot, parsed, content_type))
             diagnostics.extend(local_errors)
 
-            slug = parsed.fields.get("slug")
+            slug = parsed.fields.get("slug", str(snapshot.number))
             if (
                 content_type == "blog"
                 and isinstance(slug, str)
@@ -144,13 +213,26 @@ class ContentCompiler:
             body_html = self._compile_body(snapshot, parsed.body, diagnostics)
             if body_html is None:
                 continue
-            description = str(parsed.fields["description"])
-            created_date = str(parsed.fields["created_date"])
+            description = (
+                str(parsed.fields["description"])
+                if "description" in parsed.fields
+                else _body_description(body_html)
+            )
+            created_date = (
+                str(parsed.fields["created_date"])
+                if "created_date" in parsed.fields
+                else snapshot.created_at.astimezone(UTC).date().isoformat()
+            )
 
             try:
                 if content_type == "blog":
                     route = self._routes.blog_detail(str(slug))
-                    tags = self._tags(snapshot.labels, register_routes=True)
+                    tags = tuple(
+                        BlogTag(name, self._routes.tag(name).canonical_path)
+                        for name in dict.fromkeys(
+                            _label_values(snapshot.labels, "tag:")
+                        )
+                    )
                     blogs.append(
                         BlogPost(
                             issue_number=snapshot.number,
@@ -175,7 +257,12 @@ class ContentCompiler:
                             created_date=created_date,
                             published_at=snapshot.created_at,
                             updated_at=snapshot.updated_at,
-                            tags=self._tags(snapshot.labels, register_routes=False),
+                            tags=tuple(
+                                IdeaTag(name)
+                                for name in dict.fromkeys(
+                                    _label_values(snapshot.labels, "tag:")
+                                )
+                            ),
                             body_html=body_html,
                             route=route,
                         )
@@ -320,17 +407,8 @@ class ContentCompiler:
             )
 
         description = fields.get("description")
-        if description is None:
-            errors.append(
-                self._error(
-                    snapshot,
-                    "DESCRIPTION_MISSING",
-                    "description is required",
-                    "description",
-                )
-            )
-        elif not isinstance(description, str) or not self._valid_description(
-            description
+        if "description" in fields and (
+            not isinstance(description, str) or not self._valid_description(description)
         ):
             code = (
                 "DESCRIPTION_TOO_LONG"
@@ -347,16 +425,7 @@ class ContentCompiler:
             )
 
         created_date = fields.get("created_date")
-        if created_date is None:
-            errors.append(
-                self._error(
-                    snapshot,
-                    "CREATED_DATE_MISSING",
-                    "created_date is required",
-                    "created_date",
-                )
-            )
-        elif not self._valid_date(
+        if "created_date" in fields and not self._valid_date(
             created_date, parsed.scalar_styles.get("created_date")
         ):
             errors.append(
@@ -375,13 +444,9 @@ class ContentCompiler:
         errors: list[Diagnostic] = []
         slug = parsed.fields.get("slug")
         if content_type == "blog":
-            if slug is None:
-                errors.append(
-                    self._error(
-                        snapshot, "SLUG_MISSING", "slug is required for Blog", "slug"
-                    )
-                )
-            elif not isinstance(slug, str) or not self._valid_slug(slug):
+            if "slug" in parsed.fields and (
+                not isinstance(slug, str) or not self._valid_slug(slug)
+            ):
                 errors.append(
                     self._error(
                         snapshot,
@@ -390,7 +455,7 @@ class ContentCompiler:
                         "slug",
                     )
                 )
-        elif slug is not None:
+        elif "slug" in parsed.fields:
             errors.append(
                 self._error(
                     snapshot,
@@ -508,20 +573,6 @@ class ContentCompiler:
         except ValueError:
             return False
         return True
-
-    def _tags(
-        self, labels: tuple[str, ...], *, register_routes: bool
-    ) -> tuple[BlogTag, ...]:
-        names = dict.fromkeys(_label_values(labels, "tag:"))
-        tags: list[BlogTag] = []
-        for name in names:
-            path = (
-                self._routes.tag(name).canonical_path
-                if register_routes
-                else f"/tags/{name}/"
-            )
-            tags.append(BlogTag(name, path))
-        return tuple(tags)
 
     @staticmethod
     def _error(

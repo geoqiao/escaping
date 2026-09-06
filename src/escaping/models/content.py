@@ -5,7 +5,14 @@ from datetime import datetime
 
 from ..build_result import Diagnostic
 from ..routes import Route
-from .blog_post import BlogPost, BlogTag
+from .blog_post import BlogPost
+
+
+@dataclass(frozen=True)
+class IdeaTag:
+    """Display-only Idea label; it has no archive or route."""
+
+    name: str
 
 
 @dataclass(frozen=True)
@@ -16,7 +23,7 @@ class Idea:
     created_date: str
     published_at: datetime
     updated_at: datetime
-    tags: tuple[BlogTag, ...]
+    tags: tuple[IdeaTag, ...]
     body_html: str
     route: Route
 

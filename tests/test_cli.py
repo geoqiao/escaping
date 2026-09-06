@@ -174,7 +174,7 @@ def test_content_error_preserves_existing_output(
     sentinel = output / "index.html"
     sentinel.write_text("old", encoding="utf-8")
     bad = _valid_snapshots()
-    bad[0] = _snapshot(1, "blog", "not front matter")
+    bad[0] = _snapshot(1, "blog", "---\nslug: unclosed")
     result = SiteCompiler(
         "unused",
         "geoqiao/site",
@@ -183,5 +183,9 @@ def test_content_error_preserves_existing_output(
         github_service=_FakeGitHub(bad),
     ).generate()
     assert not result.success
+    assert any(
+        d.code == "FRONT_MATTER_UNCLOSED" and d.issue_number == 1
+        for d in result.diagnostics
+    )
     assert sentinel.read_text(encoding="utf-8") == "old"
     assert outside_sentinel.read_text(encoding="utf-8") == "keep"

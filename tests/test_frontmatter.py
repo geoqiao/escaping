@@ -28,27 +28,34 @@ from escaping.utils.frontmatter import (
             '---\nslug: my-post\ndescription: A post.\ncreated_date: "2026-01-15"\n---\n\nBody text.',
             None,
         ),
-        ("No front matter here.", "FRONT_MATTER_MISSING"),
-        ("--- \nslug: x\n---\nbody", "FRONT_MATTER_MISSING"),
+        ("No front matter here.", None),
+        ("--- \nslug: x\n---\nbody", None),
+        ("\n---\nslug: x\n---\nbody", None),
+        ("slug: is a word.\r\n\r\n---\r\nBody.", None),
+        ("```yaml\n---\nslug: example\n---\n```", None),
         ("---\nslug: x\nbody without closing", "FRONT_MATTER_UNCLOSED"),
         ("---\n- item1\n- item2\n---\nbody", "FRONT_MATTER_NOT_MAPPING"),
         ("---\n---\nbody", None),  # empty mapping is valid
-    ],
-    ids=[
-        "valid",
-        "missing",
-        "first-line-space",
-        "unclosed",
-        "not-mapping",
-        "empty-mapping",
+        ("---\n{}\n---\nbody", None),
+        ("---\n# comment only\n---\nbody", None),
+        ("---\nnull\n---\nbody", "FRONT_MATTER_NOT_MAPPING"),
+        ("---\n~\n---\nbody", "FRONT_MATTER_NOT_MAPPING"),
+        ("---\nslug: [broken\n---\nbody", "FRONT_MATTER_INVALID_YAML"),
+        ("---\nslug: x\n--- \nbody", "FRONT_MATTER_UNCLOSED"),
     ],
 )
 def test_envelope_validation(body: str, code: str | None) -> None:
     if code is None:
         result = parse_front_matter(body)
-        if "slug" in body:
+        if not body.startswith("---\n"):
+            assert result.fields == {}
+            assert result.body == body
+        elif "slug" in body:
             assert result.fields["slug"] == "my-post"
             assert result.body == "Body text."
+        else:
+            assert result.fields == {}
+            assert result.body == "body"
     else:
         with pytest.raises(FrontMatterError) as exc:
             parse_front_matter(body)

@@ -3,9 +3,11 @@ from __future__ import annotations
 import json
 import re
 import shutil
+import xml.etree.ElementTree as ET
 from dataclasses import replace
 from datetime import UTC, datetime
 from functools import partial
+from html import unescape
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
@@ -24,6 +26,7 @@ from escaping.projects import ProjectCompiler
 from escaping.routes import RouteRegistry
 from escaping.services.render_service import RenderService
 from escaping.site_builder import SiteBuilder
+from escaping.site_compiler import SiteCompiler
 from escaping.theme import ThemeLoader
 
 _ROOT = Path(__file__).parent.parent.absolute()
@@ -142,6 +145,83 @@ def _render_representative_site(
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(html, encoding="utf-8")
     return site
+
+
+@pytest.mark.parametrize(
+    "about_body", ["About body.", "![Picture](https://example.org/p.png)"]
+)
+def test_defaults_reach_complete_artifacts_with_safe_summaries_and_native_times(
+    tmp_path: Path, about_body: str
+) -> None:
+    created = datetime.fromisoformat("2026-01-02T00:30:00+02:00")
+    updated = datetime(2026, 2, 1, tzinfo=UTC)
+    summary = 'Use <button> & "</script><script>x".'
+    snapshots = [
+        replace(
+            _snapshot(1, "blog", ""),
+            body='Use `<button>` & "`</script><script>x`".',
+            created_at=created,
+            updated_at=updated,
+        ),
+        replace(
+            _snapshot(3, "blog", ""),
+            body='---\ncreated_date: "2000-02-29"\n---\n\nNewer post.',
+        ),
+        replace(_snapshot(2, "idea", "", labels=("tag:idea-only",)), body="Idea body."),
+        replace(_snapshot(10, "about", ""), body=about_body),
+    ]
+
+    class Source:
+        def get_repo(self, name: str) -> object:
+            return object()
+
+        def fetch_issue_snapshots(self, repo: object) -> list[IssueSnapshot]:
+            return snapshots
+
+    settings = _settings().model_copy(update={"projects": []})
+    result = SiteCompiler(
+        "unused",
+        settings.github.repo,
+        settings,
+        config_root=tmp_path,
+        github_service=Source(),
+    ).generate()
+    assert result.success, result.diagnostics
+    output = tmp_path / settings.paths.output
+    blog = (output / "blog/1/index.html").read_text()
+    for key in (
+        'name="description"',
+        'property="og:description"',
+        'name="twitter:description"',
+    ):
+        meta = re.search(rf'<meta {key} content="([^"]*)">', blog)
+        assert meta is not None and unescape(meta[1]) == summary
+    assert '<time datetime="2026-01-01">' in blog
+    assert 'data-issue-number="1"' in blog
+    script = re.search(
+        r'<script type="application/ld\+json">(.*?)</script>', blog, re.DOTALL
+    )
+    assert script is not None and json.loads(script[1])["description"] == summary
+    assert "</script><script>x" not in blog
+    feed = ET.fromstring((output / "atom.xml").read_bytes())  # noqa: S314 - locally generated XML
+    ns = {"a": "http://www.w3.org/2005/Atom"}
+    entries = feed.findall("a:entry", ns)
+    assert [entry.findtext("a:id", namespaces=ns) for entry in entries] == [
+        "https://geoqiao.me/blog/3/",
+        "https://geoqiao.me/blog/1/",
+    ]
+    assert entries[1].findtext("a:summary", namespaces=ns) == summary
+    assert entries[1].findtext("a:published", namespaces=ns) == "2026-01-01T22:30:00Z"
+    assert entries[1].findtext("a:updated", namespaces=ns) == "2026-02-01T00:00:00Z"
+    assert feed.findtext("a:updated", namespaces=ns) == "2026-02-01T00:00:00Z"
+    archive = (output / "blog/index.html").read_text()
+    assert archive.index('href="/blog/3/"') < archive.index('href="/blog/1/"')
+    assert '<time datetime="2000-02-29">' in (output / "blog/3/index.html").read_text()
+    assert (output / "ideas/2/index.html").exists()
+    assert not (output / "tags/idea-only").exists()
+    about = (output / "about/index.html").read_text()
+    expected_about = "About body." if about_body == "About body." else ""
+    assert f'<meta name="description" content="{expected_about}">' in about
 
 
 def test_representative_content_compiles_to_valid_complete_artifact(
@@ -543,16 +623,33 @@ def test_atom_entry_lookup_requires_exact_route_case(tmp_path: Path) -> None:
     )
 
 
+@pytest.mark.parametrize(
+    "replacement",
+    [
+        '<meta property="og:description" content="Wrong description.">',
+        '<meta property="og:description">',
+        "",
+    ],
+)
+@pytest.mark.parametrize("description", ["About description.", ""])
 def test_about_description_mismatch_fails_artifact_validation(
     tmp_path: Path,
+    replacement: str,
+    description: str,
 ) -> None:
     settings = _settings()
     site = _render_representative_site(settings, tmp_path)
+    assert site.about is not None
+    site = replace(site, about=replace(site.about, description=description))
     about_path = tmp_path / "about" / "index.html"
-    about_html = about_path.read_text(encoding="utf-8")
+    about_html = about_path.read_text(encoding="utf-8").replace(
+        "About description.", description
+    )
+    about_path.write_text(about_html, encoding="utf-8")
+    assert SiteArtifactValidator(site).validate(tmp_path) == []
     broken_html = about_html.replace(
-        '<meta property="og:description" content="About description.">',
-        '<meta property="og:description" content="Wrong description.">',
+        f'<meta property="og:description" content="{description}">',
+        replacement,
         1,
     )
     assert broken_html != about_html
