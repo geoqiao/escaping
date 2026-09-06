@@ -39,7 +39,7 @@ jobs:
       - name: Check formatting
         run: uv run ruff format --check src/escaping tests starter/.github/scripts
       - name: Check types
-        run: uv run ty check src/escaping starter/.github/scripts
+        run: uv run ty check src/escaping tests starter/.github/scripts
       - name: Check committed diff whitespace
         env:
           EVENT_NAME: ${{ github.event_name }}

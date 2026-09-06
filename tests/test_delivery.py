@@ -443,7 +443,7 @@ def test_workflow_uses_only_reviewed_code_and_separates_permissions() -> None:
         assert len(setup_steps) == 1
         assert setup_steps[0]["with"] == {"python-version": "3.14"}
     label_step = next(step for step in jobs["labels"]["steps"] if "run" in step)
-    assert label_step["shell"] == "python3.14"
+    assert label_step["shell"] == "python3.14 {0}"
     assert ".github/scripts" not in label_step["run"]
     assert "python3.14" in next(
         step["run"] for step in jobs["context"]["steps"] if "run" in step

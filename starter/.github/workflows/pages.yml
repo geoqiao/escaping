@@ -25,7 +25,7 @@ jobs:
       - name: Prepare missing labels only
         env:
           LABEL_TOKEN: ${{ github.token }}
-        shell: python3.14
+        shell: python3.14 {0}
         run: |
           import json
           import os
