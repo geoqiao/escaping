@@ -54,6 +54,23 @@ class AboutPage:
 
 
 @dataclass(frozen=True)
+class ProfileAbout:
+    """Profile presentation, not Issue Content: no Issue/date/body/thread."""
+
+    title: str
+    description: str
+    route: Route
+
+    @property
+    def canonical_path(self) -> str:
+        return self.route.canonical_path
+
+    @property
+    def canonical_url(self) -> str:
+        return self.route.canonical_url
+
+
+@dataclass(frozen=True)
 class ContentCompilationResult:
     blogs: tuple[BlogPost, ...] = field(default_factory=tuple)
     ideas: tuple[Idea, ...] = field(default_factory=tuple)

@@ -189,3 +189,109 @@ def test_content_error_preserves_existing_output(
     )
     assert sentinel.read_text(encoding="utf-8") == "old"
     assert outside_sentinel.read_text(encoding="utf-8") == "keep"
+
+
+def test_cli_resolves_context_from_original_config_directory_and_preserves_output_on_failure(
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    capsys: pytest.CaptureFixture[str],
+) -> None:
+    import json
+
+    from escaping.config import RepositoryIdentity
+    from escaping.services.github_service import PublicProfile
+
+    site = tmp_path / "site"
+    site.mkdir()
+    config = site / "config.yaml"
+    config.write_text(
+        "security:\n  token_env: READ_TOKEN\nprojects:\n  - repository: alice/tool\n",
+        encoding="utf-8",
+    )
+    context = tmp_path / "context.json"
+    context_data = {
+        "repository": "alice/site",
+        "owner_login": "alice",
+        "owner_type": "User",
+        "pages_base_url": "https://notes.example/",
+        "pages_base_path": "/",
+    }
+    context.write_text(json.dumps(context_data), encoding="utf-8")
+    monkeypatch.chdir(tmp_path)
+    monkeypatch.setenv("READ_TOKEN", "not-for-output")
+    monkeypatch.setenv("GITHUB_ACTOR", "mallory")
+    monkeypatch.setattr(
+        sys, "argv", ["escpe", "--config", str(config), "--context", str(context)]
+    )
+    now = datetime(2026, 1, 1, tzinfo=UTC)
+
+    class Source:
+        fail = False
+
+        def __init__(self, token: str) -> None:
+            assert token == "not-for-output"  # noqa: S105 - controlled test credential
+
+        def get_repo(self, name: str) -> object:
+            if self.fail:
+                raise RuntimeError("not-for-output")
+            if name == "alice/tool":
+                raise RuntimeError("optional project unavailable")
+            return object()
+
+        def fetch_repository_identity(self, repository: str) -> RepositoryIdentity:
+            return RepositoryIdentity(
+                repository=repository, owner_login="alice", owner_type="User"
+            )
+
+        def fetch_public_profile(self, login: str) -> PublicProfile:
+            raise RuntimeError("not-for-output")
+
+        def fetch_issue_snapshots(self, repo: object) -> list[IssueSnapshot]:
+            return [
+                IssueSnapshot(
+                    1,
+                    "Plain",
+                    "alice",
+                    "Body.",
+                    ("published", "type:blog"),
+                    now,
+                    now,
+                    False,
+                )
+            ]
+
+    monkeypatch.setattr("escaping.cli.GitHubService", Source)
+    run_cli()
+    output = site / "output"
+    assert (output / "blog/1/index.html").is_file()
+    assert "alice" in (output / "about/index.html").read_text()
+    assert "tool" in (output / "projects/index.html").read_text()
+    before = {
+        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
+    }
+    assert not (tmp_path / "output").exists()
+    Source.fail = True
+    with pytest.raises(SystemExit) as error:
+        run_cli()
+    assert error.value.code == 1
+    assert before == {
+        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
+    }
+    # Even a good explicit URL cannot mask an explicitly invalid platform context.
+    config.write_text(
+        "site:\n  url: https://good.example/\nsecurity:\n  token_env: READ_TOKEN\n",
+        encoding="utf-8",
+    )
+    context.write_text(
+        json.dumps({**context_data, "pages_base_path": "/blog/"}), encoding="utf-8"
+    )
+    with pytest.raises(SystemExit) as error:
+        run_cli()
+    assert error.value.code == 1
+    assert before == {
+        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
+    }
+    logs = capsys.readouterr().out
+    assert "PROFILE_ENRICHMENT_FAILED" in logs and "FETCH_FAILED" in logs
+    assert "not-for-output" not in logs
+    assert all(b"not-for-output" not in value for value in before.values())

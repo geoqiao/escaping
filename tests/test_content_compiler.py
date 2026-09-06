@@ -348,3 +348,24 @@ def test_missing_about_and_about_tags_fail() -> None:
 
     tagged = _compiler().compile([_snapshot(10, "about", labels=("tag:profile",))])
     assert "ABOUT_TAG_FORBIDDEN" in _codes(tagged)
+
+
+def test_about_discovery_requires_a_unique_valid_published_candidate() -> None:
+    settings = Settings.model_validate({**_settings().model_dump(), "about": {}})
+
+    def discover(snapshots: list[IssueSnapshot]) -> ContentCompilationResult:
+        return ContentCompiler(
+            settings, route_registry=RouteRegistry(str(settings.site.url))
+        ).compile(snapshots)
+
+    empty = discover(
+        [_snapshot(4, "about", published=False), _snapshot(5, "about", author="other")]
+    )
+    assert not empty.has_errors and empty.about is None
+    discovered = discover([_snapshot(42, "about")])
+    assert not discovered.has_errors and discovered.about is not None
+    assert discovered.about.issue_number == 42
+    duplicate = discover([_snapshot(42, "about"), _snapshot(43, "about")])
+    assert "ABOUT_DUPLICATE" in _codes(duplicate)
+    invalid = discover([_snapshot(42, "about", metadata="slug: forbidden")])
+    assert "SLUG_FORBIDDEN" in _codes(invalid) and invalid.about is None

@@ -174,3 +174,171 @@ def test_project_fallback_contract() -> None:
     assert entry.fallback_metadata is not None
     with pytest.raises(ValidationError):
         ProjectFallbackMetadata(stars=-1)
+
+
+def test_resolver_sources_preserve_overrides_and_require_trusted_authors() -> None:
+    from escaping.config import PlatformContext, RepositoryIdentity
+    from escaping.services.github_service import PublicProfile
+    from escaping.site_inputs import resolve_settings
+
+    context = PlatformContext.model_validate(
+        {
+            "repository": "alice/site",
+            "owner_login": "alice",
+            "owner_type": "User",
+            "pages_base_url": "https://notes.example/",
+            "pages_base_path": "/",
+        }
+    )
+
+    class Source:
+        def fetch_repository_identity(self, repository: str) -> RepositoryIdentity:
+            return RepositoryIdentity(
+                repository=repository,
+                owner_login=repository.split("/")[0],
+                owner_type="Organization" if repository.startswith("bob/") else "User",
+            )
+
+        def fetch_public_profile(self, login: str) -> PublicProfile:
+            return PublicProfile(
+                login, f"{login.title()} Example", "https://example.org/a.png", "Hello"
+            )
+
+    source = Source()
+    settings, warnings = resolve_settings({}, context=context, github_service=source)
+    assert not warnings
+    assert settings.github.allowed_authors == ["alice"]
+    assert settings.site.title == settings.site.author == "Alice Example"
+    assert str(settings.site.url) == "https://notes.example/"
+    assert settings.profile.bio == settings.site.description == "Hello"
+    overrides = {
+        "site": {"description": "", "navigation": {"items": []}},
+        "profile": {"avatar": "", "bio": ""},
+        "projects": [],
+        "branding": {"show_powered_by": False},
+        "theme": {"name": "Quiet"},
+    }
+    settings, _ = resolve_settings(overrides, context=context, github_service=source)
+    assert (
+        settings.site.description
+        == settings.profile.avatar
+        == settings.profile.bio
+        == ""
+    )
+    assert not settings.site.navigation.items and not settings.projects
+    assert not settings.branding.show_powered_by and settings.theme.name == "Quiet"
+    assert overrides["site"] == {"description": "", "navigation": {"items": []}}
+    with pytest.raises(ValueError, match=r"github\.allowed_authors"):
+        resolve_settings(
+            {"github": {"repo": "bob/content"}}, context=context, github_service=source
+        )
+    settings, _ = resolve_settings(
+        {"github": {"repo": "bob/content", "allowed_authors": [" Carol "]}},
+        context=context,
+        github_service=source,
+    )
+    assert settings.github.allowed_authors == ["Carol"]
+    assert (
+        settings.github.repo == "bob/content" and settings.site.author == "Bob Example"
+    )
+    assert str(settings.site.url) == "https://notes.example/"
+    settings, _ = resolve_settings(
+        {},
+        context=context,
+        github_service=source,
+        repository_override="carol/content",
+    )
+    assert settings.github.allowed_authors == ["carol"]
+    assert settings.site.author == "Carol Example"
+    # No context is needed when the actual URL and repository are explicit.
+    settings, _ = resolve_settings(
+        {
+            "github": {"repo": "carol/content"},
+            "site": {"url": "https://notes.example/"},
+        },
+        github_service=source,
+    )
+    assert settings.github.allowed_authors == ["carol"]
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"site": None},
+        {"site": {"url": 123}},
+        {"profile": {"avatar": None}},
+        {"paths": {"typo": True}},
+        {"security": {"token_env": "TOKEN\n"}},
+        {"about": {"issue_number": None}},
+        {"projects": [{"repository": "alice/tool", "title": None}]},
+        {"site": {"url": "https://example.org\\nested"}},
+        {"site": {"url": "https://exa\nmple.org/"}},
+    ],
+)
+def test_resolver_rejects_invalid_explicit_values_before_enrichment(data: dict) -> None:
+    from escaping.site_inputs import resolve_settings
+
+    with pytest.raises(ValueError, match=r"Invalid Config fields|explicit null"):
+        resolve_settings(data)
+
+
+def test_context_and_missing_information_are_not_guessed(tmp_path: Path) -> None:
+    from escaping.config import PlatformContext, read_platform_context
+    from escaping.site_inputs import resolve_settings
+
+    valid = {
+        "repository": "alice/site",
+        "owner_login": "alice",
+        "owner_type": "User",
+        "pages_base_url": "https://example.org/",
+        "pages_base_path": "",
+    }
+    for patch in (
+        {"owner_login": "mallory"},
+        {"owner_type": "Bot"},
+        {"actor": "alice"},
+        {"pages_base_path": "/blog/"},
+        {"pages_base_url": "https://example.org/blog/"},
+        {"pages_base_url": "https://exa\nmple.org/"},
+        {"pages_base_url": 123},
+    ):
+        with pytest.raises(ValidationError):
+            PlatformContext.model_validate({**valid, **patch})
+    with pytest.raises(ValueError, match=r"github\.repo.*site\.url"):
+        resolve_settings({})
+    # Fully explicit config needs neither context nor any network collaborator.
+    complete = {
+        **_BASE,
+        "site": {**_BASE["site"], "description": ""},
+        "profile": {"avatar": "", "bio": ""},
+    }
+    settings, warnings = resolve_settings(complete)
+    assert settings.github.repo == "geoqiao/site" and not warnings
+    context_path = tmp_path / "context.json"
+    context_path.write_text(
+        '{"repository": "alice/site", "repository": "bob/site"}', encoding="utf-8"
+    )
+    with pytest.raises(ValueError, match="unique fields"):
+        read_platform_context(context_path)
+
+
+def test_safe_config_reader_is_shared_with_pre_settings_security(
+    tmp_path: Path,
+) -> None:
+    from escaping.config import read_config_overrides, security_from_config
+
+    path = tmp_path / "config.yaml"
+    path.write_text("{}", encoding="utf-8")
+    assert security_from_config(read_config_overrides(path)).token_env == "GITHUB_TOKEN"  # noqa: S105
+    path.write_text("security:\n  token_env: READ_TOKEN\n", encoding="utf-8")
+    assert security_from_config(read_config_overrides(path)).token_env == "READ_TOKEN"  # noqa: S105
+    for invalid in (
+        "null",
+        "[]",
+        "site: {}\nsite: {}",
+        "security: !!python/object:bad {}",
+        "security: null",
+    ):
+        path.write_text(invalid, encoding="utf-8")
+        with pytest.raises(ValueError):
+            security_from_config(read_config_overrides(path))

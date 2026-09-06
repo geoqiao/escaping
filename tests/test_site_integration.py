@@ -20,6 +20,7 @@ from jinja2 import ChoiceLoader, DictLoader, UndefinedError
 from escaping.artifact_validation import SiteArtifactValidator
 from escaping.config import LocalThemeConfig, Settings
 from escaping.content_compiler import ContentCompiler
+from escaping.models.content import AboutPage
 from escaping.models.issue_snapshot import IssueSnapshot
 from escaping.models.site import SiteModel
 from escaping.projects import ProjectCompiler
@@ -252,7 +253,7 @@ def test_front_matter_source_is_separate_from_rendered_body(
         '<p>Body sentinel.</p>\n<pre><code class="language-yaml">'
         "---\nslug: literal\n---\n</code></pre>\n"
     )
-    assert site.about is not None
+    assert isinstance(site.about, AboutPage)
     for page in (*site.blogs, *site.ideas, site.about):
         assert page.body_html == expected
         rendered = (tmp_path / page.route.output_path).read_text(encoding="utf-8")

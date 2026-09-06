@@ -27,6 +27,8 @@ logger = structlog.get_logger()
 
 
 class _GitHubRepository(Protocol):
+    name: str
+    description: str | None
     stargazers_count: int
     forks_count: int
     language: str | None
@@ -50,7 +52,7 @@ class SiteCompiler:
         settings: Settings,
         *,
         config_root: Path,
-        github_service: _GitHubSource | None = None,
+        github_service: _GitHubSource | GitHubService | None = None,
         output_staging: OutputStagingService | None = None,
         project_enricher: Callable[[str], ProjectEnrichment] | None = None,
     ) -> None:
@@ -71,15 +73,15 @@ class SiteCompiler:
         try:
             repository = self.github.get_repo(self.repo_name)
             snapshots = self.github.fetch_issue_snapshots(repository)
-        except Exception as exc:
-            logger.exception("fetch_failed")
+        except Exception:
+            logger.error("fetch_failed")
             return BuildResult(
                 False,
                 (
                     Diagnostic(
                         "error",
                         "FETCH_FAILED",
-                        f"Failed to fetch Issue snapshots: {exc}",
+                        "Failed to fetch necessary repository/Issue snapshots",
                     ),
                 ),
             )
@@ -150,6 +152,8 @@ class SiteCompiler:
             forks=repository.forks_count,
             language=repository.language,
             topics=topics,
+            name=repository.name,
+            description=repository.description,
         )
 
     @staticmethod

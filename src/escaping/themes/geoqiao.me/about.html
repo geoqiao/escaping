@@ -11,14 +11,14 @@
 <article class="page-shell about-page">
     <header class="about-heading">
         <div>
-            <p class="utility-label">ABOUT / ISSUE {{ "%03d" | format(about_page.issue_number) }}</p>
-            <h1>About</h1>
+            <p class="utility-label">{% if about_is_profile %}ABOUT{% else %}ABOUT / ISSUE {{ "%03d" | format(about_page.issue_number) }}{% endif %}</p>
+            <h1>{% if about_is_profile %}{{ about_page.title }}{% else %}About{% endif %}</h1>
         </div>
         {% set about_mark = metadata.profile.avatar or theme_path ~ '/static/images/author-mark.png' %}
         <figure class="about-mark" aria-label="{{ author_name }} author mark"><img src="{{ about_mark }}" alt="" width="1024" height="1024"></figure>
     </header>
 
-    <div class="about-body post-content">{{ about_page.body_html|safe }}</div>
+    <div class="about-body post-content">{% if about_is_profile %}<p>{{ metadata.profile.bio }}</p>{% else %}{{ about_page.body_html|safe }}{% endif %}</div>
 
     {% if metadata.profile.links %}
     <nav class="about-links" aria-label="Profile links">
@@ -27,5 +27,5 @@
     {% endif %}
 </article>
 
-{% set comments_issue_number = about_page.issue_number %}{% include '_comments.html' %}
+{% if not about_is_profile %}{% set comments_issue_number = about_page.issue_number %}{% include '_comments.html' %}{% endif %}
 {% endblock %}

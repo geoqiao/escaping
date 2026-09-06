@@ -116,3 +116,67 @@ def test_enrichment_failure_falls_back_without_failing() -> None:
     assert diagnostic.field == "projects.fallback"
     assert "geoqiao/fallback" in diagnostic.message
     assert "API unavailable" not in diagnostic.message
+
+
+def test_repository_only_projects_preserve_keys_choices_and_explicit_empty_values() -> (
+    None
+):
+    def enrich(repository: str) -> ProjectEnrichment:
+        return ProjectEnrichment(
+            name="Renamed", description="Public description", stars=12
+        )
+
+    entries = [
+        ProjectCatalogEntry(repository="Alice/Tool"),
+        ProjectCatalogEntry(repository="Bob/Tool", title="Manual", summary=""),
+        ProjectCatalogEntry(repository="Alice/Tool", slug="UNCHANGED"),
+    ]
+    result = ProjectCompiler(enrich).compile(entries, route=_projects_route())
+    assert not result.diagnostics
+    projects = {p.slug: p for p in result.page.projects}
+    assert set(projects) == {"alice/tool", "bob/tool", "UNCHANGED"}
+    assert projects["alice/tool"].title == "Renamed"
+    assert projects["alice/tool"].summary == "Public description"
+    assert projects["alice/tool"].url == "https://github.com/Alice/Tool"
+    assert projects["bob/tool"].title == "Manual" and projects["bob/tool"].summary == ""
+    # Explicit internal keys are not route slugs and do not get case-folded.
+    assert projects["UNCHANGED"].repository == "Alice/Tool"
+    for duplicate in (
+        ProjectCatalogEntry(repository="alice/tool"),
+        ProjectCatalogEntry(repository="other/repo", slug="alice/tool"),
+    ):
+        bad = ProjectCompiler().compile(
+            [entries[0], duplicate], route=_projects_route()
+        )
+        assert any(
+            d.code == "PROJECT_KEY_DUPLICATE" and d.severity == "error"
+            for d in bad.diagnostics
+        )
+
+
+def test_selected_project_defaults_survive_optional_failure_without_secret_leaks() -> (
+    None
+):
+    def fail(repository: str) -> ProjectEnrichment:
+        raise RuntimeError("token=secret")
+
+    result = ProjectCompiler(fail).compile(
+        [
+            ProjectCatalogEntry(
+                repository="Alice/Tool",
+                fallback_metadata=ProjectFallbackMetadata(stars=7),
+            ),
+            ProjectCatalogEntry(repository="Bob/Tool", summary=""),
+        ],
+        route=_projects_route(),
+    )
+    assert [(p.title, p.summary) for p in result.page.projects] == [
+        ("Tool", ""),
+        ("Tool", ""),
+    ]
+    assert result.page.projects[0].stars == 7
+    assert all(
+        d.severity == "warning" and "secret" not in d.message
+        for d in result.diagnostics
+    )
+    assert len(result.diagnostics) == 2

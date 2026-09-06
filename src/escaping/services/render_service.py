@@ -9,7 +9,7 @@ from jinja2 import Environment
 
 from ..atom_feed import render_atom_xml
 from ..models.blog_post import BlogPost, blog_post_sort_key
-from ..models.content import AboutPage, Idea
+from ..models.content import AboutPage, Idea, ProfileAbout
 from ..models.home_page import HomePage
 from ..models.site import SiteMetadata, SiteModel
 from ..theme import LoadedTheme
@@ -178,8 +178,9 @@ class RenderService:
         )
         return self.env.get_template("idea.html").render(idea=idea, **context)
 
-    def _render_about(self, site: SiteModel, about: AboutPage) -> str:
+    def _render_about(self, site: SiteModel, about: AboutPage | ProfileAbout) -> str:
         context = self._common_context(site)
+        context["about_is_profile"] = isinstance(about, ProfileAbout)
         context["page_canonical_url"] = about.route.canonical_url
         context["structured_data"] = self._about_json_ld(site.metadata, about)
         return self.env.get_template("about.html").render(about_page=about, **context)
@@ -230,7 +231,17 @@ class RenderService:
         }
 
     @staticmethod
-    def _about_json_ld(metadata: SiteMetadata, about: AboutPage) -> dict[str, Any]:
+    def _about_json_ld(
+        metadata: SiteMetadata, about: AboutPage | ProfileAbout
+    ) -> dict[str, Any]:
+        if isinstance(about, ProfileAbout):
+            return {
+                "@context": "https://schema.org",
+                "@type": "AboutPage",
+                "url": about.route.canonical_url,
+                "description": about.description,
+                "mainEntity": {"@type": "Person", "name": metadata.author},
+            }
         return {
             "@context": "https://schema.org",
             "@type": "Person",

@@ -283,7 +283,7 @@ class ContentCompiler:
                     self._error(snapshot, "ROUTE_COLLISION", str(exc), "route")
                 )
 
-        if not configured_seen:
+        if configured_number is not None and not configured_seen:
             diagnostics.append(
                 Diagnostic(
                     "error",
@@ -297,20 +297,17 @@ class ContentCompiler:
             (
                 page
                 for page in about_candidates
-                if page.issue_number == configured_number
+                if configured_number is None or page.issue_number == configured_number
             ),
             None,
         )
-        other_about = [
-            page for page in about_candidates if page.issue_number != configured_number
-        ]
-        if configured_about is not None and other_about:
+        if len(about_candidates) > 1:
             diagnostics.append(
                 Diagnostic(
                     "error",
                     "ABOUT_DUPLICATE",
                     "More than one valid published About Issue exists",
-                    other_about[0].issue_number,
+                    about_candidates[1].issue_number,
                 )
             )
 

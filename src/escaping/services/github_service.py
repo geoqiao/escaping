@@ -1,9 +1,20 @@
+from dataclasses import dataclass
+
 from github import Auth, Github
 from github.Issue import Issue
 from github.Repository import Repository
 from tenacity import retry, stop_after_attempt, wait_exponential
 
+from escaping.config import RepositoryIdentity, SiteProfileConfig
 from escaping.models.issue_snapshot import IssueSnapshot
+
+
+@dataclass(frozen=True)
+class PublicProfile:
+    login: str
+    name: str = ""
+    avatar_url: str = ""
+    bio: str = ""
 
 
 class GitHubService:
@@ -30,6 +41,32 @@ class GitHubService:
         """
         issues = repo.get_issues(state="all")  # type: ignore[union-attr]
         return [_to_issue_snapshot(issue) for issue in issues]
+
+    def fetch_repository_identity(self, repository: str) -> RepositoryIdentity:
+        repo = self.get_repo(repository)
+        identity = RepositoryIdentity.model_validate(
+            {
+                "repository": repo.full_name,
+                "owner_login": repo.owner.login,
+                "owner_type": repo.owner.type,
+            }
+        )
+        if (
+            identity.repository.casefold() != repository.casefold()
+            or repo.html_url.casefold() != f"https://github.com/{repository}".casefold()
+        ):
+            raise ValueError(
+                "content repository identity does not match GitHub.com input"
+            )
+        return identity
+
+    def fetch_public_profile(self, login: str) -> PublicProfile:
+        # Only these public fields cross the boundary; no email or repo listing.
+        user = self.gh.get_user(login)
+        if user.login.casefold() != login.casefold():
+            raise ValueError("public profile login does not match repository owner")
+        profile = SiteProfileConfig(avatar=user.avatar_url or "", bio=user.bio or "")
+        return PublicProfile(user.login, user.name or "", profile.avatar, profile.bio)
 
 
 def _to_issue_snapshot(issue: Issue) -> IssueSnapshot:

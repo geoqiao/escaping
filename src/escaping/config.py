@@ -9,11 +9,11 @@ Configuration contract (per accepted spec):
   HTTPS origin, description, language, optional Theme presentation hints, and
   navigation.
 - ``profile``: Site Profile — avatar, optional Theme-specific copy, and links.
-- ``about``: immutable About Issue selection by ``issue_number``.
+- ``about``: optional immutable About Issue selection by ``issue_number``.
 - ``paths``: output and page-size configuration (positive, default 10).
 - ``theme``: explicit built-in package resource or Config-relative local source.
 - ``comments``: Utterances repository fallback, theme, and ``theme_mode``.
-- ``security``: dynamic token environment-variable name (no hard-coded default).
+- ``security``: dynamic token environment-variable name (default GITHUB_TOKEN).
 - ``projects``: repository-owned project catalog entries with strict fields.
 - ``seo`` / ``branding``: active verification and attribution fields only.
 
@@ -23,6 +23,7 @@ No global settings singleton is introduced.
 
 from __future__ import annotations
 
+import json
 import re
 from pathlib import Path
 from typing import Annotated, Literal
@@ -34,10 +35,13 @@ from pydantic import (
     ConfigDict,
     Field,
     HttpUrl,
+    ValidationError,
     field_validator,
+    model_validator,
 )
 
 from .output_safety import validate_output_child_name
+from .utils.frontmatter import _StrictYAMLLoader
 
 #: Valid POSIX shell environment-variable identifier pattern.
 _ENV_VAR_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -227,6 +231,39 @@ class SiteConfig(BaseModel):
         return urlunparse(("https", parsed.netloc, "/", "", "", ""))
 
 
+class RepositoryIdentity(BaseModel):
+    """Verified GitHub.com repository owner; never the workflow actor."""
+
+    model_config = ConfigDict(extra="forbid", strict=True, frozen=True)
+
+    repository: str
+    owner_login: str
+    owner_type: Literal["User", "Organization"]
+
+    @field_validator("repository")
+    @classmethod
+    def validate_repository(cls, value: str) -> str:
+        return _validate_repository(value)
+
+    @model_validator(mode="after")
+    def coherent_owner(self) -> RepositoryIdentity:
+        if self.repository.split("/")[0].casefold() != self.owner_login.casefold():
+            raise ValueError("repository and owner_login must identify the same owner")
+        return self
+
+
+class PlatformContext(RepositoryIdentity):
+    """Non-secret platform snapshot, not another Site Config."""
+
+    pages_base_url: HttpUrl
+    pages_base_path: Literal["", "/"]
+
+    @field_validator("pages_base_url", mode="before")
+    @classmethod
+    def validate_pages_origin(cls, value: str | HttpUrl) -> str:
+        return SiteConfig.validate_canonical_origin(value)
+
+
 class SiteProfileConfig(BaseModel):
     """Site Profile — avatar, optional Theme-specific copy, and links.
 
@@ -252,7 +289,14 @@ class AboutConfig(BaseModel):
 
     model_config = ConfigDict(extra="forbid")
 
-    issue_number: int = Field(gt=0)
+    issue_number: int | None = Field(default=None, gt=0)
+
+    @field_validator("issue_number", mode="before")
+    @classmethod
+    def reject_explicit_null(cls, value: object) -> object:
+        if value is None:
+            raise ValueError("omit issue_number for About discovery; null is invalid")
+        return value
 
 
 class PathsConfig(BaseModel):
@@ -334,13 +378,13 @@ class CommentsConfig(BaseModel):
 class SecurityConfig(BaseModel):
     """Security settings - the token environment-variable name.
 
-    The variable name is selected by configuration; no hard-coded default
-    exists so that callers must be explicit.
+    Configuration selects the name, defaulting to GITHUB_TOKEN. The secret
+    value itself is read only from process environment by the CLI.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    token_env: str
+    token_env: str = "GITHUB_TOKEN"  # noqa: S105 - environment variable name, not a secret
 
     @field_validator("token_env")
     @classmethod
@@ -398,17 +442,18 @@ class ProjectFallbackMetadata(BaseModel):
 class ProjectCatalogEntry(BaseModel):
     """A curated project catalog entry — repository-owned, not Issue-authored.
 
-    Each entry requires ``slug``, ``title``, ``repository``, and ``summary``,
-    and supports ``featured`` plus numeric ``order``.  Entries sort
-    deterministically by ``order`` then ``slug``.
+    Only ``repository`` is required. Missing keys use its complete casefolded
+    identity; title/summary are optionally enriched by ProjectCompiler. Pydantic
+    model_fields_set preserves explicit title/summary (including empty values).
+    Entries sort deterministically by ``order`` then ``slug``.
     """
 
     model_config = ConfigDict(extra="forbid")
 
-    slug: str
-    title: str
     repository: str
-    summary: str
+    slug: str = Field(default_factory=lambda data: data["repository"].casefold())
+    title: str = Field(default_factory=lambda data: data["repository"].split("/")[1])
+    summary: str = ""
     featured: bool = False
     order: int = 0
     fallback_metadata: ProjectFallbackMetadata | None = None
@@ -431,18 +476,93 @@ class Settings(BaseModel):
     github: GithubConfig
     site: SiteConfig
     profile: SiteProfileConfig = Field(default_factory=SiteProfileConfig)
-    about: AboutConfig
+    about: AboutConfig = Field(default_factory=AboutConfig)
     branding: BrandingConfig = Field(default_factory=BrandingConfig)
     paths: PathsConfig = Field(default_factory=PathsConfig)
     theme: ThemeConfig = Field(default_factory=BuiltinThemeConfig)
     seo: SeoConfig = Field(default_factory=SeoConfig)
     comments: CommentsConfig = Field(default_factory=CommentsConfig)
-    security: SecurityConfig
+    security: SecurityConfig = Field(default_factory=SecurityConfig)
     projects: list[ProjectCatalogEntry] = Field(default_factory=list)
+
+    @field_validator("theme", mode="before")
+    @classmethod
+    def default_builtin_source(cls, value: object) -> object:
+        if isinstance(value, dict) and "source" not in value:
+            return {"source": "builtin", **value}
+        return value
 
     @classmethod
     def load_from_yaml(cls, yaml_path: Path) -> Settings:
         """Load settings from a YAML file."""
-        with open(yaml_path, encoding="utf-8") as f:
-            data = yaml.safe_load(f)
-        return cls.model_validate(data)
+        return cls.model_validate(read_config_overrides(yaml_path))
+
+
+def read_config_overrides(path: Path) -> dict:
+    """Read the original Config once using the existing strict safe YAML loader.
+
+    Also usable by orchestration before Settings exist. No token values are read
+    here and relative paths are not rebased to a temporary context directory.
+    """
+    try:
+        data = yaml.load(path.read_text(encoding="utf-8"), Loader=_StrictYAMLLoader)  # noqa: S506 - SafeLoader subclass rejects duplicate keys
+    except yaml.YAMLError:
+        raise ValueError("Config must be valid safe YAML with unique keys") from None
+    validate_config_overrides(data)
+    return data
+
+
+def validate_config_overrides(data: object) -> None:
+    """Validate supplied fields against Settings, deferring only missing fields.
+
+    There is deliberately no parallel tree of optional configuration models.
+    """
+
+    def reject_null(value: object, field: str, parents: frozenset[int]) -> None:
+        if value is None:
+            raise ValueError(f"{field}: explicit null is invalid; omit the field")
+        if isinstance(value, (dict, list)):
+            if id(value) in parents:
+                raise ValueError(f"{field}: recursive Config is invalid")
+            items = value.items() if isinstance(value, dict) else enumerate(value)
+            for key, child in items:
+                reject_null(child, f"{field}.{key}", parents | {id(value)})
+
+    reject_null(data, "Config", frozenset())
+    try:
+        Settings.model_validate(data)
+    except ValidationError as exc:
+        errors = [error for error in exc.errors() if error["type"] != "missing"]
+        if errors:
+            # Do not echo arbitrary Config values (or secrets) into CLI logs.
+            fields = ", ".join(".".join(map(str, e["loc"])) or "Config" for e in errors)
+            raise ValueError(f"Invalid Config fields: {fields}") from None
+
+
+def read_platform_context(path: Path) -> PlatformContext:
+    """Validate every explicitly provided platform field, even with full Config."""
+
+    def unique_keys(pairs: list[tuple[str, object]]) -> dict:
+        result: dict = {}
+        for key, value in pairs:
+            if key in result:
+                raise ValueError("Context JSON must have unique fields")
+            result[key] = value
+        return result
+
+    return PlatformContext.model_validate(
+        json.loads(
+            path.read_text(encoding="utf-8"),
+            object_pairs_hook=unique_keys,
+        )
+    )
+
+
+def security_from_config(overrides: dict) -> SecurityConfig:
+    """N6 seam: validate the same Config and read only the token variable name.
+
+    The caller owns any child-process secret mapping; no env mutation or shell
+    evaluation is performed here.
+    """
+    validate_config_overrides(overrides)
+    return SecurityConfig.model_validate(overrides.get("security", {}))

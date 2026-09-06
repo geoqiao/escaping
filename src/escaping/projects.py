@@ -15,6 +15,8 @@ class ProjectEnrichment:
     forks: int | None = None
     language: str | None = None
     topics: tuple[str, ...] = ()
+    name: str | None = None
+    description: str | None = None
 
 
 class ProjectCompiler:
@@ -30,7 +32,19 @@ class ProjectCompiler:
     ) -> ProjectCompilationResult:
         projects: list[Project] = []
         diagnostics: list[Diagnostic] = []
+        seen: set[str] = set()
+        enrichment: dict[str, ProjectEnrichment | None] = {}
         for entry in sorted(entries, key=lambda value: (value.order, value.slug)):
+            if entry.slug in seen:
+                diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "PROJECT_KEY_DUPLICATE",
+                        "Duplicate project catalog key",
+                        field=f"projects.{entry.slug}",
+                    )
+                )
+            seen.add(entry.slug)
             fallback = entry.fallback_metadata
             values = ProjectEnrichment(
                 stars=fallback.stars if fallback else None,
@@ -40,9 +54,14 @@ class ProjectCompiler:
             )
             if self._enrich is not None:
                 try:
-                    enriched = self._enrich(entry.repository)
+                    key = entry.repository.casefold()
+                    if key not in enrichment:
+                        enrichment[key] = self._enrich(entry.repository)
+                    enriched = enrichment[key]
                 except Exception:
+                    enrichment[entry.repository.casefold()] = None
                     enriched = None
+                if enriched is None:
                     outcome = (
                         "configured fallback metadata was used"
                         if fallback is not None
@@ -67,13 +86,23 @@ class ProjectCompiler:
                         else values.forks,
                         language=enriched.language or values.language,
                         topics=enriched.topics or values.topics,
+                        name=enriched.name,
+                        description=enriched.description,
                     )
             projects.append(
                 Project(
                     slug=entry.slug,
-                    title=entry.title,
+                    title=(
+                        entry.title
+                        if "title" in entry.model_fields_set
+                        else values.name or entry.title
+                    ),
                     repository=entry.repository,
-                    summary=entry.summary,
+                    summary=(
+                        entry.summary
+                        if "summary" in entry.model_fields_set
+                        else values.description or entry.summary
+                    ),
                     url=f"https://github.com/{entry.repository}",
                     featured=entry.featured,
                     order=entry.order,

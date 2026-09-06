@@ -8,6 +8,7 @@ from pathlib import Path
 from urllib.parse import unquote, urljoin, urlsplit
 
 from .build_result import Diagnostic
+from .models.content import ProfileAbout
 from .models.site import SiteModel
 
 _ATOM_NS = "http://www.w3.org/2005/Atom"
@@ -370,6 +371,22 @@ class SiteArtifactValidator:
                     )
                     continue
                 entities.extend(primary)
+            if (
+                isinstance(self.site.about, ProfileAbout)
+                and canonical_url == self.site.about.canonical_url
+                and (
+                    entities[-1].get("@type") not in ("AboutPage", "ProfilePage")
+                    or any(
+                        key in entities[-1] for key in ("datePublished", "dateModified")
+                    )
+                )
+            ):
+                diagnostics.append(
+                    self._error(
+                        "PROFILE_ABOUT_IDENTITY",
+                        f"{output_path}: Profile About requires a non-Article page identity without Issue dates",
+                    )
+                )
             if any(
                 "url" in entity
                 and (

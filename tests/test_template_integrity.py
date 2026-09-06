@@ -702,3 +702,63 @@ def test_geoqiao_navigation_marks_exactly_one_current_destination() -> None:
         probe = _CurrentPageProbe()
         probe.feed(rendered[output_path])
         assert probe.current_hrefs == [expected_href]
+
+
+@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me", "Quiet"])
+def test_profile_about_is_readable_safe_and_not_issue_content(
+    theme: str, tmp_path: Path
+) -> None:
+    from escaping.artifact_validation import SiteArtifactValidator
+    from escaping.models.content import ProfileAbout
+
+    settings = Settings.model_validate(
+        {
+            **_settings(
+                theme,
+                author="Alice <Builder>",
+                bio="Public <script>alert(1)</script> & bio",
+            ).model_dump(),
+            "about": {},
+        }
+    )
+    routes = RouteRegistry(str(settings.site.url))
+    content = ContentCompiler(settings, route_registry=routes).compile([])
+    site = SiteBuilder(settings, routes).build(
+        content,
+        ProjectCompiler().compile([], route=routes.projects()),
+        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
+    )
+    assert not site.has_errors and isinstance(site.about, ProfileAbout)
+    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
+    renderer.copy_theme_assets(tmp_path)
+    rendered = renderer.render_site(site)
+    about = rendered["about/index.html"]
+    assert "Alice &lt;Builder&gt;" in about
+    assert "Public &lt;script&gt;alert(1)&lt;/script&gt; &amp; bio" in about
+    assert "<script>alert(1)" not in about
+    for absent in (
+        "data-issue-number",
+        "comments.js",
+        "comments-container",
+        "comments-title",
+        "/issues/",
+        "ISSUE",
+        "<time",
+        "BlogPosting",
+        "datePublished",
+    ):
+        assert absent not in about
+    for path, html in rendered.items():
+        destination = tmp_path / path
+        destination.parent.mkdir(parents=True, exist_ok=True)
+        destination.write_text(html, encoding="utf-8")
+    assert not SiteArtifactValidator(site).validate(tmp_path)
+    target = tmp_path / "about/index.html"
+    target.write_text(
+        about.replace('"@type": "AboutPage"', '"@type": "BlogPosting"'),
+        encoding="utf-8",
+    )
+    assert any(
+        d.code == "PROFILE_ABOUT_IDENTITY"
+        for d in SiteArtifactValidator(site).validate(tmp_path)
+    )

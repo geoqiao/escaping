@@ -7,7 +7,7 @@ from ..routes import Route, RouteRegistry
 from .atom_feed import AtomFeed
 from .blog_archive import ArchivePage
 from .blog_post import BlogPost
-from .content import AboutPage, Idea
+from .content import AboutPage, Idea, ProfileAbout
 from .home_page import HomePage
 from .projects import ProjectsPage
 from .tag_taxonomy import TagArchive, TagsIndex
@@ -84,7 +84,7 @@ class SiteModel:
     archives: tuple[ArchivePage, ...]
     ideas_page: IdeasPage
     ideas: tuple[Idea, ...]
-    about: AboutPage | None
+    about: AboutPage | ProfileAbout | None
     projects: ProjectsPage
     tags: TagsIndex
     tag_archives: tuple[TagArchive, ...]
