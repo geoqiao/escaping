@@ -17,7 +17,14 @@ _PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 def source_consumer(tmp_path: Path) -> tuple[Path, Path, dict[str, str], list[str]]:
     source = tmp_path / "source"
     source.mkdir()
-    for name in ("pyproject.toml", "uv.lock", "README.md", ".python-version"):
+    for name in (
+        "pyproject.toml",
+        "uv.lock",
+        "README.md",
+        "LICENSE",
+        "NOTICE",
+        ".python-version",
+    ):
         shutil.copy2(_PROJECT_ROOT / name, source / name)
     shutil.copytree(
         _PROJECT_ROOT / "src",
@@ -39,7 +46,7 @@ def source_consumer(tmp_path: Path) -> tuple[Path, Path, dict[str, str], list[st
         "--project",
         str(source),
         "--python",
-        f"{sys.version_info.major}.{sys.version_info.minor}",
+        sys.executable,
         "--locked",
         "--no-default-groups",
         "--no-editable",
