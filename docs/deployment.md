@@ -25,7 +25,7 @@ A production workflow must:
 1. check out the site repository;
 2. check out `geoqiao/escaping` at a reviewed release or full 40-character commit SHA, never a
    moving `main` ref;
-3. install the pinned project with `uv run --project` and `--frozen`;
+3. install the pinned source and lockfile using the non-editable command below;
 4. invoke `escpe --config "$GITHUB_WORKSPACE/config.yaml"` explicitly;
 5. optionally run site-owned post-processing after the compiler succeeds and before artifact
    upload;
@@ -50,6 +50,43 @@ not record a consumer-specific current compiler pin.
 Config, workflow, `CNAME`, local Theme, and migration tooling changes should trigger a build.
 Issue events may also trigger it because Issues are the content source. Branch/PR validation may
 build and upload an artifact, but the deploy job must be guarded to `refs/heads/main`.
+
+## Locked source installation
+
+Use a reviewed source checkout/archive whose `pyproject.toml`, `uv.lock`, and package resources
+come from the same immutable revision. With uv 0.12.0, an explicitly selected Python, and a fresh,
+dedicated environment outside the source directory:
+
+```bash
+export UV_PROJECT_ENVIRONMENT="/absolute/path/to/compiler-env"
+uv sync --project "/absolute/path/to/compiler-source" --python 3.11 \
+  --locked --no-default-groups --group build --no-editable \
+  --no-build-isolation-package escpe
+"$UV_PROJECT_ENVIRONMENT/bin/escpe" --config "/absolute/path/to/site/config.yaml"
+```
+
+For Python 3.14, pass `--python 3.14`; changing only the environment directory does not override
+`.python-version`. Use the installed console directly after sync, rather than an automatic
+`uv run` sync that could reinstall the project as editable. On Windows, the console is
+`Scripts/escpe.exe` instead of `bin/escpe`.
+
+The generator's `build` dependency group locks its setuptools version and artifact hashes in
+`uv.lock`, without making setuptools a runtime requirement of the distributed wheel. uv's
+[package-specific isolation control](https://docs.astral.sh/uv/concepts/projects/config/#disabling-build-isolation)
+installs the selected dependencies first, then builds `escpe` using that environment's backend.
+A separate `--no-install-project` bootstrap is therefore unnecessary. A lone global
+`--no-build-isolation` is not equivalent: in a fresh environment it can build the project before
+setuptools is installed. This locks the generator backend, not unrelated third-party sdist build
+backends; dependency wheel availability still needs validation for the deployment Python/platform.
+
+Keep `build-system.requires` and the `build` group aligned and validate source installation before
+publishing a generator revision: disabling isolation assumes the declared build requirements are
+already satisfied. `--locked` rejects a missing/outdated lock without rewriting it and installation
+checks downloaded artifact hashes; it does not independently validate PEP 518 requirements.
+[`--frozen`](https://docs.astral.sh/uv/concepts/projects/sync/#checking-the-lockfile) skips lock
+freshness checks and can silently omit new requirements, so it is not a substitute here. This
+source-install contract does not change normal isolated wheel building or wheel consumption;
+the site-owned workflow must adopt it explicitly when updating its generator pin.
 
 ## Site-owned attachments with immutable GitHub links
 
