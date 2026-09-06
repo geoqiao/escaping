@@ -27,6 +27,8 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
     uv = shutil.which("uv")
     assert uv is not None
     uv_env = {**os.environ, "UV_CACHE_DIR": str(tmp_path / "uv-cache")}
+    uv_env.pop("PYTHONPATH", None)
+    uv_env.pop("PYTHONHOME", None)
     dist = tmp_path / "dist"
     subprocess.run(  # noqa: S603
         [uv, "build", "--wheel", "--out-dir", str(dist)],
@@ -75,14 +77,14 @@ def test_wheel_consumer_builds_site_outside_checkout(tmp_path: Path) -> None:
 import sys
 from datetime import UTC, datetime
 from pathlib import Path
-sys.path.insert(0, __WHEEL__)
 import escaping
 from escaping.config import Settings
 from escaping.config import BuiltinThemeConfig
 from escaping.models.issue_snapshot import IssueSnapshot
 from escaping.site_compiler import SiteCompiler
 from escaping.theme import ThemeLoader
-assert '.whl/' in escaping.__file__.replace('\\\\', '/')
+assert sys.prefix != sys.base_prefix
+assert Path(escaping.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
 
 root = Path.cwd()
 settings = Settings.model_validate({
@@ -167,16 +169,8 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
         assert 'data-issue-number="1"' in (output / 'blog/post/index.html').read_text()
         for font in ('manrope-bold.ttf', 'source-serif-4.ttf', 'Manrope-OFL.txt', 'SourceSerif4-OFL.txt'):
             assert (output / 'templates' / theme_name / 'static/fonts' / font).is_file()
-""".replace("__WHEEL__", repr(str(wheel)))
+"""
     script = script.replace("__MERMAID_DIRECTORY__", _MERMAID_DIRECTORY)
-    subprocess.run(  # noqa: S603
-        [sys.executable, "-c", script],
-        cwd=consumer,
-        check=True,
-        capture_output=True,
-        text=True,
-        env=uv_env,
-    )
 
     venv = tmp_path / "venv"
     subprocess.run(  # noqa: S603
@@ -197,8 +191,17 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
         env=uv_env,
     )
     subprocess.run(  # noqa: S603
+        [str(venv_python), "-I", "-c", script],
+        cwd=consumer,
+        check=True,
+        capture_output=True,
+        text=True,
+        env=uv_env,
+    )
+    subprocess.run(  # noqa: S603
         [
             str(venv_python),
+            "-I",
             "-c",
             "import importlib.util, nh3; assert nh3.__version__ == '0.3.7'; assert importlib.util.find_spec('github_blog') is None",
         ],
