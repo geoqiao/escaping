@@ -1,0 +1,36 @@
+{% extends "base.html" %}
+{% set page_title = post.title %}
+{% set page_description = post.description %}
+{% set active_destination = site_routes.blog.canonical_path %}
+
+{% block content %}
+<div class="page-shell">
+  <article class="detail-page">
+    <header class="page-heading">
+      <p class="eyebrow">Blog</p>
+      <h1>{{ post.title }}</h1>
+      <p class="meta"><time>{{ post.created_date }}</time></p>
+      {% if post.tags %}
+      <ul class="tag-list" aria-label="Post tags">
+        {% for tag in post.tags %}
+        <li><a href="{{ tag.path }}">{{ tag.name }}</a></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </header>
+    <div class="rich-content" tabindex="0" role="region" aria-label="Post content">{{ post.body_html|safe }}</div>
+
+    {% if comments.enabled %}
+      {% set comments_issue_number = post.issue_number %}
+      {% include "_comments.html" %}
+    {% endif %}
+  </article>
+
+  {% if prev_post is not none or next_post is not none %}
+  <nav class="neighbor-nav" aria-label="Post navigation">
+    {% if prev_post is not none %}<a href="{{ prev_post.canonical_path }}">← {{ prev_post.title }}</a>{% endif %}
+    {% if next_post is not none %}<a href="{{ next_post.canonical_path }}">{{ next_post.title }} →</a>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

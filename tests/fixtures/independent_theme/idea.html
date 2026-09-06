@@ -1,0 +1,29 @@
+{% extends "base.html" %}
+{% set page_title = idea.title %}
+{% set page_description = idea.description %}
+{% set active_destination = site_routes.ideas.canonical_path %}
+
+{% block content %}
+<div class="page-shell">
+  <article class="detail-page">
+    <header class="page-heading">
+      <p class="eyebrow">Idea</p>
+      <h1>{{ idea.title }}</h1>
+      <p class="meta"><time>{{ idea.created_date }}</time></p>
+      {% if idea.tags %}
+      <ul class="tag-list" aria-label="Idea tags">
+        {% for tag in idea.tags %}
+        <li><span>{{ tag.name }}</span></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </header>
+    <div class="rich-content" tabindex="0" role="region" aria-label="Idea content">{{ idea.body_html|safe }}</div>
+
+    {% if comments.enabled %}
+      {% set comments_issue_number = idea.issue_number %}
+      {% include "_comments.html" %}
+    {% endif %}
+  </article>
+</div>
+{% endblock %}

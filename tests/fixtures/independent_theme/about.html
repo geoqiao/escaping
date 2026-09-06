@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% set page_title = about_page.title %}
+{% set page_description = about_page.description %}
+{% set active_destination = site_routes.about.canonical_path %}
+
+{% block content %}
+<div class="page-shell">
+  <article class="detail-page">
+    <header class="page-heading">
+      <p class="eyebrow">About</p>
+      <h1>{{ about_page.title }}</h1>
+    </header>
+    {% if about_is_profile %}
+    <p class="lead">{{ about_page.description }}</p>
+    {% else %}
+    <div class="rich-content" tabindex="0" role="region" aria-label="About content">{{ about_page.body_html|safe }}</div>
+      {% if comments.enabled %}
+        {% set comments_issue_number = about_page.issue_number %}
+        {% include "_comments.html" %}
+      {% endif %}
+    {% endif %}
+  </article>
+</div>
+{% endblock %}

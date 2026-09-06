@@ -1,0 +1,44 @@
+{% extends "base.html" %}
+{% set page_title = "Blog" %}
+{% set page_description = meta_description %}
+{% set active_destination = site_routes.blog.canonical_path %}
+
+{% block content %}
+<div class="page-shell">
+  <header class="page-heading">
+    <p class="eyebrow">Archive</p>
+    <h1>Blog</h1>
+    <p>{{ meta_description }}</p>
+  </header>
+
+  {% if archive_page.entries %}
+  <ol class="post-list">
+    {% for entry in archive_page.entries %}
+    <li>
+      <article>
+        <h2><a href="{{ entry.detail_path }}">{{ entry.title }}</a></h2>
+        <p class="meta"><time>{{ entry.created_date }}</time></p>
+        {% if entry.tags %}
+        <ul class="tag-list" aria-label="Post tags">
+          {% for tag in entry.tags %}
+          <li><a href="{{ tag.path }}">{{ tag.name }}</a></li>
+          {% endfor %}
+        </ul>
+        {% endif %}
+      </article>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="empty-state">No posts yet.</p>
+  {% endif %}
+
+  {% if archive_page.total_pages > 1 %}
+  <nav class="pagination" aria-label="Blog pages">
+    {% if archive_page.prev_route is not none %}<a href="{{ archive_page.prev_route.canonical_path }}">Newer posts</a>{% endif %}
+    <span>Page {{ archive_page.page_number }} of {{ archive_page.total_pages }}</span>
+    {% if archive_page.next_route is not none %}<a href="{{ archive_page.next_route.canonical_path }}">Older posts</a>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}
