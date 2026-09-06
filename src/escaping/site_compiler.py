@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import os
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
@@ -187,8 +186,3 @@ class SiteCompiler:
             except Exception as exc:
                 diagnostics.append(Diagnostic("error", "CLEANUP_FAILED", str(exc)))
         return BuildResult(False, tuple(diagnostics))
-
-
-def token_from_settings(settings: Settings) -> str | None:
-    """Read the configured token variable without hard-coding its name."""
-    return os.environ.get(settings.security.token_env)

@@ -11,7 +11,7 @@ from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
 from typing import Any, Literal
-from urllib.parse import parse_qs, quote, urlsplit
+from urllib.parse import parse_qs, urlsplit
 
 import pytest
 
@@ -49,7 +49,7 @@ from escaping.theme import ThemeLoader  # noqa: E402
 from escaping.utils.html_sanitizer import sanitize_html  # noqa: E402
 
 _ROOT = Path(__file__).parent.parent.absolute()
-_THEMES = ("Escape1", "Escape2", "geoqiao.me", "Quiet")
+_THEMES = ("Quiet", "independent")
 _MERMAID_RENDER_TIMEOUT_MS = 15_000
 _ADJACENT_POSTS: tuple[tuple[int, str, str, datetime, str], ...] = (
     (4, "Tie low", "tie-low", datetime(2026, 1, 2, tzinfo=UTC), "focus"),
@@ -247,7 +247,7 @@ def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
             replace(snapshot, body=snapshot.body.replace("Body.", body))
         )
     output_dirs: dict[str, Path] = {}
-    for theme in (*_THEMES, "independent"):
+    for theme in _THEMES:
         settings = _browser_settings(theme)
         routes = RouteRegistry(str(settings.site.url))
         content = ContentCompiler(settings, route_registry=routes).compile(
@@ -320,7 +320,7 @@ def site_servers(built_site_dirs: dict[str, Path]) -> Iterator[dict[str, str]]:
 
 @pytest.fixture(scope="session")
 def site_server(site_servers: dict[str, str]) -> str:
-    return site_servers["geoqiao.me"]
+    return site_servers["Quiet"]
 
 
 def test_quiet_blog_adjacent_navigation_is_http_keyboard_and_narrow_safe(
@@ -452,24 +452,6 @@ def mobile_page(
         context.close()
 
 
-@pytest.fixture(params=_THEMES)
-def theme_page(
-    request: pytest.FixtureRequest,
-    browser: Browser,
-    site_servers: dict[str, str],
-    mobile_context_options: dict[str, Any],
-) -> Iterator[tuple[str, Page, str]]:
-    theme = str(request.param)
-    site_server = site_servers[theme]
-    context = browser.new_context(**mobile_context_options)
-    page = context.new_page()
-    try:
-        page.goto(f"{site_server}/", wait_until="load")
-        yield theme, page, site_server
-    finally:
-        context.close()
-
-
 def test_sanitized_fragments_stay_inside_the_theme_body(browser: Browser) -> None:
     page = browser.new_page()
     page.route("**/*", lambda route: route.abort())
@@ -503,10 +485,11 @@ def test_sanitized_fragments_stay_inside_the_theme_body(browser: Browser) -> Non
         page.close()
 
 
-def test_mobile_navigation_is_keyboard_operable_for_every_theme(
-    theme_page: tuple[str, Page, str],
+def test_quiet_mobile_navigation_is_keyboard_operable(
+    mobile_page: Page,
+    site_server: str,
 ) -> None:
-    _, page, origin = theme_page
+    page, origin = mobile_page, site_server
     menu_control = page.get_by_role("button", name="Toggle menu")
     controlled_id = menu_control.get_attribute("aria-controls")
     assert controlled_id
@@ -537,61 +520,6 @@ def test_mobile_navigation_is_keyboard_operable_for_every_theme(
     expect(blog_link).to_be_focused()
     page.keyboard.press("Enter")
     expect(page).to_have_url(origin + "/blog/")
-
-
-@pytest.mark.parametrize("theme", ["Escape1", "Escape2", "geoqiao.me"])
-@pytest.mark.parametrize("initialization", ["no-js", "inline-csp", "binding-fails"])
-def test_navigation_remains_keyboard_reachable_without_handlers(
-    browser: Browser, site_servers: dict[str, str], theme: str, initialization: str
-) -> None:
-    page = browser.new_page(
-        java_script_enabled=initialization != "no-js",
-        viewport={"width": 320, "height": 844},
-    )
-    if initialization == "inline-csp":
-
-        def restrict_inline(route: Route) -> None:
-            response = route.fetch()
-            route.fulfill(
-                response=response,
-                headers={
-                    **response.headers,
-                    "content-security-policy": "script-src 'self'",
-                },
-            )
-
-        page.route("**/", restrict_inline)
-    elif initialization == "binding-fails":
-        page.add_init_script("""(() => {
-            const add = document.addEventListener;
-            document.addEventListener = function(type, ...args) {
-                if (type === 'keydown') throw new Error('Navigation binding unavailable');
-                return add.call(this, type, ...args);
-            };
-        })();""")
-    page.route("https://**/*", lambda route: route.abort())
-    origin = site_servers[theme]
-    try:
-        page.goto(origin + "/", wait_until="load")
-        brand = page.locator(".logo, .terminal, .ledger-brand")
-        brand.focus()
-        menu = page.locator("#header-nav")
-        for link in menu.locator("a").all():
-            page.keyboard.press("Tab")
-            expect(link).to_be_focused()
-            expect(link).to_be_in_viewport()
-        expect(page.get_by_role("button", name="Toggle menu")).to_be_hidden()
-        if initialization == "no-js":
-            expect(page.locator(".theme-toggle:visible")).to_have_count(0)
-        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
-        brand.focus()
-        page.keyboard.press("Tab")
-        page.keyboard.press("Tab")
-        page.keyboard.press("Enter")
-        expect(page).to_have_url(origin + "/blog/")
-        expect(page.locator('main a[href="/blog/a-blog/"]').first).to_be_visible()
-    finally:
-        page.close()
 
 
 @pytest.mark.parametrize("javascript", [True, False])
@@ -652,192 +580,6 @@ def test_independent_theme_keyboard_navigation_and_local_overflow(
         page.close()
 
 
-def test_geoqiao_mobile_navigation_contains_focus_and_resets_cleanly(
-    mobile_page: Page,
-) -> None:
-    menu_control = mobile_page.get_by_role(
-        "button", name="Toggle menu", include_hidden=True
-    )
-    controlled_id = menu_control.get_attribute("aria-controls")
-    assert controlled_id
-    menu = mobile_page.locator(f"#{controlled_id}")
-    menu_controls = menu.get_by_role("link").or_(menu.get_by_role("button"))
-    blog_link = menu.get_by_role("link", name="Blog", exact=True)
-    scrim = mobile_page.get_by_role("button", name="Close navigation")
-    line = menu_control.locator('[aria-hidden="true"]')
-    background_regions = (
-        ".skip-link",
-        ".ledger-brand",
-        ".site-content",
-        ".ledger-footer",
-    )
-
-    button_box = menu_control.bounding_box()
-    line_box = line.bounding_box()
-    assert button_box is not None and line_box is not None
-    assert line_box["x"] + line_box["width"] / 2 == pytest.approx(
-        button_box["x"] + button_box["width"] / 2, abs=2
-    )
-    assert line_box["y"] + line_box["height"] / 2 == pytest.approx(
-        button_box["y"] + button_box["height"] / 2, abs=2
-    )
-
-    menu_control.focus()
-    mobile_page.keyboard.press("Enter")
-    expect(menu_control).to_have_attribute("aria-expanded", "true")
-    expect(scrim).to_be_visible()
-    for selector in background_regions:
-        expect(mobile_page.locator(selector)).to_have_attribute("inert", "")
-
-    for _ in range(menu_controls.count()):
-        mobile_page.keyboard.press("Tab")
-        assert mobile_page.evaluate(
-            """() => {
-                const active = document.activeElement;
-                const menu = document.getElementById('header-nav');
-                const toggle = document.querySelector('.hamb');
-                return active === toggle || (menu && menu.contains(active));
-            }"""
-        )
-        expect(mobile_page.locator("[inert]:focus, [inert] :focus")).to_have_count(0)
-
-    mobile_page.keyboard.press("Escape")
-    expect(menu_control).to_have_attribute("aria-expanded", "false")
-    expect(scrim).to_be_hidden()
-    expect(menu_control).to_be_focused()
-
-    mobile_page.keyboard.press("Enter")
-    expect(menu_control).to_have_attribute("aria-expanded", "true")
-    scrim_box = scrim.bounding_box()
-    assert scrim_box is not None
-    scrim.click(position={"x": scrim_box["width"] / 2, "y": scrim_box["height"] - 1})
-    expect(menu_control).to_have_attribute("aria-expanded", "false")
-    expect(scrim).to_be_hidden()
-    expect(menu_control).to_be_focused()
-
-    mobile_page.keyboard.press("Enter")
-    expect(menu_control).to_have_attribute("aria-expanded", "true")
-    blog_link.focus()
-    expect(blog_link).to_be_focused()
-    mobile_page.set_viewport_size({"width": 1024, "height": 768})
-    expect(menu_control).to_have_attribute("aria-expanded", "false")
-    expect(scrim).to_be_hidden()
-    expect(blog_link).to_be_focused()
-    expect(mobile_page.locator("[inert]")).to_have_count(0)
-
-
-def test_geoqiao_mobile_home_keeps_the_latest_story_readable_and_actionable(
-    browser: Browser, site_server: str
-) -> None:
-    titles = (
-        "我试了 6 款 Agent Orchestrator，这是我的最终选择",  # noqa: RUF001
-        "从零开始搭建一个完全自动化的个人博客发布流水线",
-        "AnUnusuallyLongUnbrokenAgentName",
-    )
-    for width, height in ((390, 844), (430, 932), (600, 844)):
-        context = browser.new_context(viewport={"width": width, "height": height})
-        page = context.new_page()
-        page.route("https://utteranc.es/**", lambda route: route.abort())
-        try:
-            page.goto(f"{site_server}/", wait_until="load")
-            expect(page.locator(".author-mark")).to_have_count(0)
-            expect(page.locator(".home-intro")).to_be_visible()
-            read_link = page.get_by_role("link", name="Read this issue")
-            expect(read_link).to_be_visible()
-            read_link_box = read_link.bounding_box()
-            recent_box = page.locator(".recent-writing").bounding_box()
-            assert read_link_box is not None and recent_box is not None
-            assert read_link_box["height"] >= 44
-            assert recent_box["y"] <= height
-
-            for title in titles:
-                page.locator("#latest-title a").evaluate(
-                    "(element, value) => { element.textContent = value; }", title
-                )
-                metrics = page.locator("#latest-title").evaluate(
-                    """element => {
-                        const range = document.createRange();
-                        range.selectNodeContents(element);
-                        const lines = new Set(
-                            [...range.getClientRects()].map(rect => Math.round(rect.top))
-                        );
-                        return {
-                            lines: lines.size,
-                            scrollWidth: element.scrollWidth,
-                            clientWidth: element.clientWidth,
-                            pageScrollWidth: document.documentElement.scrollWidth,
-                            pageClientWidth: document.documentElement.clientWidth,
-                        };
-                    }"""
-                )
-                assert metrics["lines"] <= 3
-                assert metrics["scrollWidth"] <= metrics["clientWidth"] + 1
-                assert metrics["pageScrollWidth"] <= metrics["pageClientWidth"] + 1
-
-            if width == 600:
-                page.goto(f"{site_server}/blog/a-blog/", wait_until="load")
-                article_title = page.locator(".article-heading h1")
-                article_title.evaluate(
-                    "element => { element.textContent = "
-                    "'从零开始搭建一个完全自动化的个人博客发布流水线'; }"
-                )
-                assert article_title.evaluate(
-                    "element => element.scrollWidth <= element.clientWidth + 1"
-                )
-        finally:
-            context.close()
-
-    context = browser.new_context(viewport={"width": 1440, "height": 900})
-    page = context.new_page()
-    try:
-        page.goto(f"{site_server}/", wait_until="load")
-        expect(page.locator(".author-mark")).to_have_count(0)
-        home_box = page.locator(".home-hero-inner").bounding_box()
-        recent_box = page.locator(".recent-writing").bounding_box()
-        recent_inner_box = page.locator(".recent-writing-inner").bounding_box()
-        assert home_box is not None and recent_box is not None
-        assert recent_inner_box is not None
-        assert 760 <= home_box["width"] <= 840
-        assert recent_inner_box["width"] == pytest.approx(home_box["width"], abs=1)
-        assert recent_inner_box["x"] == pytest.approx(home_box["x"], abs=1)
-        assert recent_box["y"] <= 660
-        assert (
-            page.locator("#latest-title").evaluate(
-                "element => parseFloat(getComputedStyle(element).fontSize)"
-            )
-            <= 40.5
-        )
-
-        page.set_viewport_size({"width": 1920, "height": 1080})
-        home_box = page.locator(".home-hero-inner").bounding_box()
-        recent_inner_box = page.locator(".recent-writing-inner").bounding_box()
-        assert home_box is not None and recent_inner_box is not None
-        assert recent_inner_box["width"] == pytest.approx(home_box["width"], abs=1)
-        assert recent_inner_box["x"] == pytest.approx(home_box["x"], abs=1)
-    finally:
-        context.close()
-
-
-def test_theme_follows_system_until_the_user_chooses(mobile_page: Page) -> None:
-    root = mobile_page.locator("html")
-    menu = mobile_page.get_by_role("button", name="Toggle menu")
-    toggle = mobile_page.locator(".theme-toggle")
-
-    mobile_page.evaluate("localStorage.removeItem('theme')")
-    mobile_page.emulate_media(color_scheme="dark")
-    mobile_page.reload(wait_until="load")
-    expect(root).to_have_attribute("data-theme", "dark")
-
-    menu.click()
-    expect(toggle).to_be_visible()
-    toggle.click()
-    expect(root).to_have_attribute("data-theme", "light")
-    assert mobile_page.evaluate("localStorage.getItem('theme')") == "light"
-
-    mobile_page.emulate_media(color_scheme="dark")
-    expect(root).to_have_attribute("data-theme", "light")
-
-
 def test_mermaid_diagram_uses_the_local_theme_runtime(
     mobile_page: Page, site_server: str
 ) -> None:
@@ -866,43 +608,11 @@ def test_mermaid_diagram_uses_the_local_theme_runtime(
     )
 
 
-def test_geoqiao_article_toc_supports_nested_hash_navigation_and_active_state(
-    browser: Browser, site_server: str
+def test_quiet_long_form_content_has_local_overflow_and_a_readable_width(
+    mobile_page: Page,
+    site_server: str,
 ) -> None:
-    context = browser.new_context(viewport={"width": 1440, "height": 900})
-    page = context.new_page()
-    page.route("https://utteranc.es/**", lambda route: route.abort())
-    try:
-        fragment = quote("嵌套细节", safe="")
-        page.goto(f"{site_server}/blog/a-blog/#{fragment}", wait_until="load")
-
-        toc = page.get_by_role("navigation", name="Article sections")
-        nested_link = toc.get_by_role("link", name="嵌套细节", exact=True)
-        other_nested_link = toc.get_by_role("link", name="Closing Detail", exact=True)
-        nested_heading = page.get_by_role("heading", name="嵌套细节", exact=True)
-
-        expect(nested_heading).to_be_in_viewport()
-        expect(nested_link).to_be_visible()
-        expect(nested_link).to_have_attribute("aria-current", "location")
-        expect(toc.locator('[aria-current="location"]')).to_have_count(1)
-        expect(other_nested_link).to_be_hidden()
-
-        toc.get_by_role("link", name="Closing Section", exact=True).click()
-        expect(other_nested_link).to_be_visible()
-        expect(nested_link).to_be_hidden()
-        other_nested_link.click()
-        expect(page).to_have_url(re.compile(r"#closing-detail$"))
-        expect(page.get_by_role("heading", name="Closing Detail")).to_be_in_viewport()
-        expect(other_nested_link).to_have_attribute("aria-current", "location")
-        expect(toc.locator('[aria-current="location"]')).to_have_count(1)
-    finally:
-        context.close()
-
-
-def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
-    theme_page: tuple[str, Page, str],
-) -> None:
-    theme, page, site_server = theme_page
+    page = mobile_page
     page.route("https://utteranc.es/**", lambda route: route.abort())
 
     page.set_viewport_size({"width": 1440, "height": 900})
@@ -912,27 +622,6 @@ def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
             "element => element.getBoundingClientRect().width"
         )
         assert 480 <= content_width <= 820
-
-    if theme == "geoqiao.me":
-        page.goto(f"{site_server}/blog/a-blog/", wait_until="load")
-        article_box = page.locator(".article-main").bounding_box()
-        assert article_box is not None
-        assert 660 <= article_box["width"] <= 700
-        assert abs(article_box["x"] + article_box["width"] / 2 - 720) <= 24
-
-        page.goto(f"{site_server}/blog/", wait_until="load")
-        index_box = page.locator(".index-page").bounding_box()
-        first_row_box = page.locator(".editorial-row").first.bounding_box()
-        assert index_box is not None and first_row_box is not None
-        assert 760 <= index_box["width"] <= 840
-        assert first_row_box["y"] <= 420
-        assert first_row_box["height"] <= 100
-        assert (
-            page.get_by_role("heading", name="Blog", exact=True).evaluate(
-                "element => parseFloat(getComputedStyle(element).fontSize)"
-            )
-            <= 56.5
-        )
 
     page.set_viewport_size({"width": 390, "height": 844})
     page.goto(f"{site_server}/blog/a-blog/", wait_until="load")
@@ -961,69 +650,6 @@ def test_theme_long_form_content_has_local_overflow_and_a_readable_width(
     assert metrics["pageScrollWidth"] <= metrics["pageClientWidth"] + 1
     for element_name in ("table", "pre"):
         assert metrics[element_name]
-
-    if theme != "geoqiao.me":
-        return
-
-    page.goto(f"{site_server}/blog/", wait_until="load")
-    blog_row = page.locator(".editorial-row").first
-    blog_title_area = blog_row.locator(".editorial-copy")
-    blog_title = blog_title_area.get_by_role("heading", level=2)
-    row_box = blog_row.bounding_box()
-    title_area_box = blog_title_area.bounding_box()
-    assert row_box is not None and title_area_box is not None
-    assert title_area_box["width"] == pytest.approx(row_box["width"], abs=1.5)
-    assert (
-        blog_title.evaluate("element => parseFloat(getComputedStyle(element).fontSize)")
-        <= 22.5
-    )
-    assert page.evaluate(
-        "document.documentElement.scrollWidth <= "
-        "document.documentElement.clientWidth + 1"
-    )
-
-    page.goto(f"{site_server}/about/", wait_until="load")
-    about_heading = page.locator(".about-heading")
-    about_title = about_heading.get_by_role("heading", name="About", exact=True)
-    about_mark = about_heading.get_by_role("figure", name=re.compile(r"author mark$"))
-    about_body = page.locator(".about-body")
-    about_section_title = about_body.get_by_role(
-        "heading", name="Things I Do", exact=True
-    )
-    heading_box = about_heading.bounding_box()
-    title_box = about_title.bounding_box()
-    mark_box = about_mark.bounding_box()
-    body_box = about_body.bounding_box()
-    viewport = page.viewport_size
-    assert heading_box is not None and body_box is not None
-    assert title_box is not None and mark_box is not None
-    assert viewport is not None
-    assert heading_box["width"] == pytest.approx(body_box["width"], rel=0.1)
-    assert heading_box["x"] == pytest.approx(body_box["x"], abs=8)
-    assert title_box["x"] >= heading_box["x"] - 1
-    assert mark_box["x"] + mark_box["width"] <= (
-        heading_box["x"] + heading_box["width"] + 1
-    )
-    assert mark_box["width"] <= heading_box["width"] * 0.35
-    assert mark_box["width"] <= viewport["width"] * 0.35
-    assert (
-        about_title.evaluate(
-            "element => parseFloat(getComputedStyle(element).fontSize)"
-        )
-        <= viewport["width"] * 0.13
-    )
-    assert (
-        about_section_title.evaluate(
-            "element => parseFloat(getComputedStyle(element).fontSize)"
-        )
-        <= body_box["width"] * 0.08
-    )
-    assert title_box["y"] < mark_box["y"] + mark_box["height"]
-    assert mark_box["y"] < title_box["y"] + title_box["height"]
-    assert page.evaluate(
-        "document.documentElement.scrollWidth <= "
-        "document.documentElement.clientWidth + 1"
-    )
 
 
 @pytest.mark.parametrize("initial_mode", ["light", "dark"])
@@ -1479,6 +1105,8 @@ def comments_browser(
     try:
         engine = playwright_api.webkit.launch()
     except Error as exc:
+        if os.environ.get("CI", "").lower() == "true":
+            raise
         pytest.skip(f"Optional WebKit unavailable: {exc}")
     try:
         yield engine
@@ -1592,7 +1220,7 @@ def _expect_comments_ready(page: Page, number: int) -> None:
     expect(page.locator("#comments-container .comments-error")).to_have_count(0)
 
 
-@pytest.mark.parametrize("theme", (*_THEMES, "independent"))
+@pytest.mark.parametrize("theme", _THEMES)
 def test_comments_generated_theme_wiring_uses_issue_identity(
     browser: Browser, site_servers: dict[str, str], theme: str
 ) -> None:
@@ -1641,7 +1269,7 @@ def test_disabled_comments_make_no_third_party_requests(
                 page.locator("iframe, #comments-container, .comments-loading")
             ).to_have_count(0)
             expect(page.locator('a[href="#comments-title"]')).to_have_count(0)
-            expect(page.locator(".post-content")).to_be_visible()
+            expect(page.locator(".post-content, .rich-content")).to_be_visible()
         assert not external
     finally:
         page.close()
@@ -1665,7 +1293,7 @@ def test_empty_menu_preserves_keyboard_entry_brand_and_appearance(
         expect(page.get_by_role("link", name="Skip to main content")).to_be_focused()
         page.keyboard.press("Enter")
         expect(page.locator("#main-content")).to_be_focused()
-        brand = page.locator(".identity, .logo, .terminal, .ledger-brand")
+        brand = page.locator(".identity, .brand")
         brand.focus()
         page.keyboard.press("Enter")
         expect(page).to_have_url(origin + "/")
@@ -1674,7 +1302,7 @@ def test_empty_menu_preserves_keyboard_entry_brand_and_appearance(
             # A nonempty menu must not expose an inoperable appearance button either.
             page.goto(site_servers[theme] + "/", wait_until="load")
             expect(page.locator(".theme-toggle:visible")).to_have_count(0)
-        elif theme != "Escape2":
+        else:
             toggle = page.locator(".theme-toggle")
             toggle.focus()
             expect(toggle).to_be_focused()

@@ -13,7 +13,7 @@
 [![Static Site](https://img.shields.io/badge/Output-Static_Site-315EFB)](https://geoqiao.me/)
 [![MIT License](https://img.shields.io/badge/License-MIT-22C55E)](LICENSE)
 
-**[线上站点](https://geoqiao.me/)** · **[快速开始](#-快速开始)** · **[配置示例](config.example.yaml)** · **[完整指南](docs/detailed-guide.md)** · **[部署契约](docs/deployment.md)**
+**[线上站点](https://geoqiao.me/)** · **[快速开始](#-快速开始)** · **[配置示例](config.example.yaml)** · **[内容契约](docs/contracts/issue-content-v1.md)** · **[部署契约](docs/deployment.md)**
 
 </div>
 
@@ -29,7 +29,7 @@
 | --- | --- | --- |
 | ✍️ | **Issues as content** | Blog、Ideas 与 About Issue 由发布标签选择，front matter 可选；无 About Issue 时展示 Profile |
 | 🧭 | **完整站点模型** | 统一生成 Home、归档、详情、Projects、Tags、Atom、sitemap 与 robots |
-| 🎨 | **可替换 Theme** | 内置 `geoqiao.me`、`Escape1`、`Escape2`、`Quiet`，也支持 Config-relative 本地 Theme |
+| 🎨 | **可替换 Theme** | 唯一内置 Theme Quiet，也支持 Config-relative 本地 Theme |
 | 🔒 | **默认安全** | Markdown HTML allowlist、严格 URL 校验、输出目录 containment、Jinja autoescape |
 | 🔗 | **单一路由来源** | `RouteRegistry` 统一生成 canonical URL 与文件输出路径，避免手工拼接 |
 | 🚀 | **分阶段发布** | 新产物在 staging 中渲染和验证，再通过目录 rename 与 rollback 替换本地输出 |
@@ -117,9 +117,8 @@ Blog slug 缺省为 Issue 编号，也可逐字段覆盖；About 优先使用显
 评论默认关闭，需 `comments.enabled: true` 并单独完成 [Utterances App 授权](https://github.com/apps/utterances)；Profile About 永远没有评论。
 旧站保留评论／菜单的配置迁移见 [Theme 指南](docs/themes/authoring.md#migrating-from-api-1)。
 
-替代 Theme `geoqiao.me` 会优先使用 `profile.avatar`，未配置时回退到内置 mark；
-它不会把 Site Thesis、tagline 或 profile bio 放到首页。为兼容本地 Theme，这些字段
-仍被 Schema 接受并进入 `SiteModel`，具体展示由 Theme 决定。
+Quiet 使用 `profile.avatar`，未配置时显示作者首字母；首页可显示 tagline。
+`site.thesis` 仍作为本地 Theme 的可选展示提示保留，Quiet 不展示它。
 
 > [!NOTE]
 > Config 中的 output 和本地 Theme 等相对路径，始终以 **Config 文件所在目录** 为根，因此命令可以从任意工作目录执行。
@@ -159,23 +158,18 @@ Open Graph、Atom、sitemap 和 robots 都从调用时传入的 origin 派生，
 [独立 Theme 作者指南](docs/themes/authoring.md)。API 1 不再运行兼容：需迁移 IdeaTag、
 About 变体、评论条件与 manifest，不能只改版本号。
 
-自定义 Theme 应使用 `{{ structured_data|tojson }}` 安全输出结构化数据。每段 JSON-LD
-必须是对象：没有 `@graph` 时，根对象的 `url` 表示当前页面；使用 `@graph` 对象数组时，
-必须恰有一个节点的 `@id` **精确等于** `page_canonical_url`（不含 `#author` 等片段）。
-根对象及该节点若提供 `url`，值必须为相同的 canonical 字符串；其他节点及嵌套
-`author.url` 等引用不必相同。不支持顶层数组，也不联网展开 context/推断主实体。
-旧自定义 graph 缺少该身份时需补 `@id`；内置 `structured_data` 已符合此约定。无 About Issue 的本地 Theme 还需支持 `about_is_profile` 分支；Profile About 没有 `body_html` 或 Issue 号，迁移见[站点输入说明](docs/site-inputs.md#about-and-local-themes)。
-
-不写 Theme 配置时，默认使用 [Quiet](docs/themes/quiet.md)；`geoqiao.me`、
-`Escape1`、`Escape2` 是可选内置 Theme。Quiet 使用中性黑白与少量头像洋红：
+结构化数据、安全输出、Profile About 分支和资源规则统一以作者指南为准。
+[Quiet](docs/themes/quiet.md) 是唯一内置及默认 Theme，使用中性黑白与少量头像洋红：
 
 ```yaml
 theme:
   source: builtin
-  name: Quiet # 也可以是 geoqiao.me、Escape1 或 Escape2
+  name: Quiet
 ```
 
-也可以加载站点仓库中的本地 Theme：
+`geoqiao.me`、`Escape1`、`Escape2` 已移除；旧配置会明确失败，不会静默切换外观。
+升级前切换 Quiet，或按[迁移说明](docs/themes/authoring.md#migrating-removed-built-in-themes)
+保留为站点自管的本地 Theme：
 
 ```yaml
 theme:
@@ -184,7 +178,7 @@ theme:
   path: theme
 ```
 
-`ThemeLoader` 只加载 package resources 或本地目录，不隐式执行 Git/HTTP fetch、cache 或 update。所有内置 Theme 共用生成器维护的 `comments.js`，包含 Utterances 自动主题同步、消息来源校验与 Safari lazy iframe 兼容处理。
+`ThemeLoader` 只加载 package resources 或本地目录，不隐式执行 Git/HTTP fetch、cache 或 update。Quiet 与本地 Theme 使用生成器维护的共享 `comments.js`，包含 Utterances 自动主题同步、消息来源校验与 Safari lazy iframe 兼容处理。
 
 ## 🏗️ 生成器与站点分离
 

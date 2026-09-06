@@ -48,7 +48,7 @@ Issues 和 specs 使用 GitHub Issues。详见 `docs/agents/issue-tracker.md`。
 4. Config-relative Theme/output 路径以 Config 文件目录为根，不能依赖 process CWD。
 5. `ThemeLoader` 只加载 package resources 或本地目录；不得加入 Git/HTTP
    fetch、cache、update 或 `theme_lock`。
-6. Quiet 是默认内置 Theme；`geoqiao.me`、Escape1 和 Escape2 是内置替代 Themes。
+6. Quiet 是唯一内置及默认 Theme；保留本地 Theme API 2。已移除的内置名称必须明确失败，不得静默回退。
 7. Theme 静态 URL 使用以 `/` 开头的 `{{ theme_path }}`。
 8. Utterances 行为位于共享 `src/escaping/static/comments.js`。必须保留：
    - immutable Issue number binding；
@@ -71,7 +71,7 @@ src/escaping/
 ├── output_staging.py
 ├── theme.py
 ├── static/comments.js
-├── themes/{geoqiao.me,Escape1,Escape2,Quiet}/
+├── themes/Quiet/
 ├── models/
 └── services/
 config.example.yaml

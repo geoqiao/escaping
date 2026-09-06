@@ -421,7 +421,7 @@ class SiteArtifactValidator:
             ),
             None,
         )
-        if self_url != self.site.routes.url(self.site.routes.route("atom")):
+        if self_url != self.site.routes.route("atom").canonical_url:
             diagnostics.append(
                 self._error("ATOM_SELF_MISMATCH", "Atom self link is not registered")
             )
@@ -469,7 +469,7 @@ class SiteArtifactValidator:
         if not path.is_file():
             diagnostics.append(self._error("MISSING_ROBOTS", "robots.txt is missing"))
             return
-        expected = self.site.routes.url(self.site.routes.route("sitemap"))
+        expected = self.site.routes.route("sitemap").canonical_url
         if f"Sitemap: {expected}" not in path.read_text(encoding="utf-8"):
             diagnostics.append(
                 self._error(

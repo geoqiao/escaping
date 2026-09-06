@@ -31,7 +31,7 @@ def test_registry_covers_routes_and_output_mapping() -> None:
     assert atom.output_path == "atom.xml"
     assert sitemap.output_path == "sitemap.xml"
     assert robots.output_path == "robots.txt"
-    assert registry.url(detail) == "https://geoqiao.me/blog/my-post/"
+    assert detail.canonical_url == "https://geoqiao.me/blog/my-post/"
 
 
 def test_registry_normalizes_nfc_casefold_and_rejects_collisions() -> None:

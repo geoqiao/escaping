@@ -5,8 +5,8 @@ is the public rendering contract: you do not need to import generator internals
 to write one. The current manifest API is **`"2"`**; API 1 is rejected, not adapted.
 See [migration](#migrating-from-api-1) before upgrading an existing local Theme.
 
-Quiet is the default built-in Theme. `geoqiao.me`, `Escape1`, and `Escape2` remain
-alternatives. A local Theme is an independently maintained, trusted dependency:
+Quiet is the only built-in and default Theme. For removed built-ins, follow the
+[migration notes](#migrating-removed-built-in-themes). A local Theme is an independently maintained, trusted dependency:
 review its HTML, JavaScript and Jinja before use. Autoescape is not a sandbox for
 untrusted template code. There is no remote fetch, cross-Theme inheritance,
 update/cache service, plugin system, or runtime API-1 compatibility layer.
@@ -54,17 +54,7 @@ A complete manifest is:
 ```yaml
 api_version: "2"
 capabilities: [comments, markdown, responsive]
-required_templates:
-  - base.html
-  - home.html
-  - index.html
-  - post.html
-  - ideas.html
-  - idea.html
-  - about.html
-  - projects.html
-  - tags.html
-  - tag.html
+required_templates: []
 required_assets:
   - static/css
   - static/js
@@ -445,6 +435,29 @@ Use Chromium and WebKit for comments wiring; actual Safari and authenticated
 App/OAuth behavior need their own evidence. Copying a built-in Theme validates
 loading, **not** independent authorship from this document.
 
+## Migrating removed built-in Themes
+
+`geoqiao.me`, `Escape1`, and `Escape2` are no longer shipped. An explicit built-in
+selection of these names fails with `built-in theme is missing`, leaves existing
+output intact, and never silently falls back to Quiet. Theme API 2 is unchanged.
+
+| Desired presentation | Before upgrading the compiler |
+| --- | --- |
+| Quiet | Replace the Theme declaration with `theme: {source: builtin, name: Quiet}` |
+| Keep an old design | Copy its complete Theme directory from the site's previously reviewed compiler revision into the site repository, then select it with `source: local`, its existing `name`, and a Config-relative `path` |
+
+Keeping the old name for a local Theme preserves its `/templates/<name>/` asset
+prefix. Include its manifest, templates, static files and licenses; shared
+comments/Mermaid assets still come from the compiler. Do not add a remote loader
+or assume the old built-in name downloads anything. Local Theme maintenance now
+belongs to the site owner; API-1 copies also need the migration below.
+
+Verify the candidate compiler, Config and Theme together outside production,
+including explicit avatar/resource URLs, links, keyboard navigation and comments.
+Do not change Issue numbers, slugs, dates or comment repositories for a Theme
+migration. Deploy separately after consumer verification; rollback the compatible
+compiler/Config/Theme set together. See [deployment](../deployment.md).
+
 ## Migrating from API 1
 
 API 2 is a deliberate break: IdeaTag no longer supplies a fictitious archive path,
@@ -462,9 +475,9 @@ manifest version is insufficient.
 | Hard-coded Home/menu additions | Iterate navigation_items exactly; retain independent brand and accessible empty-menu behavior |
 | Bundled comments protocol / old asset prefix | Use shared assets through theme_path, not a copied runtime or `/output/` prefix |
 
-For a site that previously omitted Theme and relied on geoqiao.me, explicitly set
-`theme: {source: builtin, name: geoqiao.me}` to retain that design. Quiet sites can
-keep their existing explicit Theme. To preserve previously enabled comments,
+For a site that previously omitted Theme and relied on an older design, choose
+Quiet or preserve a local copy as described [above](#migrating-removed-built-in-themes).
+Quiet sites can keep their existing explicit Theme. To preserve previously enabled comments,
 add `comments.enabled: true` without changing repo/theme_mode or Issue identity.
 If the old Quiet menu relied on its injected Home link, **add Home explicitly**
 to the existing full configured list (and RSS only if desired); do not discard

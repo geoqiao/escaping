@@ -517,12 +517,51 @@ def test_starter_installs_then_runs_real_console_with_original_config_and_safe_t
     site = tmp_path / "site"
     shutil.copytree(_STARTER, site)
     source = tmp_path / "compiler"
-    subprocess.run(  # noqa: S603 - local checkout, no remote fetch
-        [git, "clone", "--no-hardlinks", str(_ROOT), str(source)],
-        env=env,
-        check=True,
-        capture_output=True,
-    )
+    source.mkdir()
+    # Snapshot the working tree, including pending additions/deletions, not HEAD.
+    # Ignore caches/build output; only this disposable repository gets a commit.
+    names = subprocess.check_output(  # noqa: S603 - local file inventory
+        [
+            git,
+            "-C",
+            str(_ROOT),
+            "ls-files",
+            "--cached",
+            "--others",
+            "--exclude-standard",
+            "-z",
+        ],
+        text=True,
+    ).split("\0")
+    for name in names:
+        original = _ROOT / name
+        if name and original.is_file():
+            destination = source / name
+            destination.parent.mkdir(parents=True, exist_ok=True)
+            shutil.copy2(original, destination)
+    for arguments in (
+        ["init"],
+        ["add", "."],
+        [
+            "-c",
+            "user.name=Test",
+            "-c",
+            "user.email=test@example.org",
+            "-c",
+            "commit.gpgsign=false",
+            "-c",
+            "core.hooksPath=/dev/null",
+            "commit",
+            "-m",
+            "Working-tree test snapshot",
+        ],
+    ):
+        subprocess.run(  # noqa: S603 - disposable test repository only
+            [git, "-C", str(source), *arguments],
+            env=env,
+            check=True,
+            capture_output=True,
+        )
     sha = subprocess.check_output(  # noqa: S603
         [git, "-C", str(source), "rev-parse", "HEAD"], text=True
     ).strip()
@@ -616,13 +655,13 @@ def test_starter_installs_then_runs_real_console_with_original_config_and_safe_t
             "-I",
             "-c",
             "from importlib.resources import files; "
-            "print(files('escaping').joinpath('themes/Quiet/theme.yaml').read_text())",
+            "print(files('escaping').joinpath('themes/Quiet/theme.yaml').read_text(), end='')",
         ],
         env=env,
         cwd=tmp_path,
         text=True,
     )
-    assert yaml.safe_load(manifest)["api_version"] == "2"
+    assert manifest == (_ROOT / "src/escaping/themes/Quiet/theme.yaml").read_text()
     # Reuse the existing HTTP-only boundary, not its wheel/Theme/config matrix.
     boundary = tmp_path / "http-boundary"
     shutil.copytree(_ROOT / "tests/fixtures/cli_api", boundary)

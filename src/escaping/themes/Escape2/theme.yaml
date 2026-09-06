@@ -1,9 +1,0 @@
-api_version: "2"
-capabilities:
-  - comments
-  - markdown
-required_templates: []
-required_assets:
-  - static/css
-  - static/js
-  - static/images

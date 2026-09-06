@@ -62,7 +62,7 @@
 - front matter 未进入正文；
 - internal links 与 output paths 一致；
 - canonical、Atom、sitemap 和 Open Graph 使用同一 origin/route；
-- 两个主题可渲染；
+- Quiet 与 `tests/fixtures/independent_theme` 可渲染；
 - comments 绑定 Issue number。
 
 ## Review 成本约束
@@ -81,7 +81,7 @@ Reviewer 不应因为缺少理论 mutation coverage、低概率平台分支或�
 较深的改造按可运行批次推进，而不是让每张 Ticket 都维持可独立发布的兼容层：
 
 1. 内容模型：Blog、Ideas、About、Projects；
-2. 主题：theme lock、shell 和全部页面；
+2. 主题：本地 Theme API、shell 和全部页面；
 3. 全站整合：SiteModel、RouteRegistry、SEO、strict pipeline；
 4. 上线验证：真实构建、浏览器 smoke、Pages Artifact。
 
@@ -94,7 +94,7 @@ uv run pytest -q
 uv run ruff check src/escaping tests
 uv run ruff format --check src/escaping tests
 uv run ty check
-uv run escpe
+uv run escpe --config /absolute/path/to/site/config.yaml
 ```
 
 生成站点后还应检查代表性的 Home、Blog、Ideas、About、Projects、Tags、Atom、sitemap 和 robots；前端行为使用桌面与移动端 browser smoke 验证。

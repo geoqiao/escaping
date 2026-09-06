@@ -394,7 +394,7 @@ def test_template_error_preserves_existing_output_and_cleans_staging(
 
     local_theme = tmp_path / "broken-theme"
     shutil.copytree(
-        Path(__file__).parent.parent / "src/escaping/themes/geoqiao.me",
+        Path(__file__).parent.parent / "tests/fixtures/independent_theme",
         local_theme,
     )
     home_template = local_theme / "home.html"

@@ -181,7 +181,7 @@ def test_no_filesystem_mutation(tmp_path: Path) -> None:
     [
         ("blog", "blog", True, ""),
         ("atom.xml", "rss", True, ""),
-        ("Escape1", "theme", True, ""),
+        ("Quiet", "theme", True, ""),
         ("", "rss", False, "empty"),
         ("/etc/passwd", "rss", False, "absolute"),
         ("foo/bar", "blog", False, "separator"),

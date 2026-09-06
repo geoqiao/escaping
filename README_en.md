@@ -69,10 +69,9 @@ including order, names, removal of Home or `[]`; the brand links Home independen
 Comments default off: set `comments.enabled: true` and separately authorize the
 [Utterances App](https://github.com/apps/utterances). Profile About never has comments.
 The canonical origin is owned by `site.url` in the site repository's Site Config,
-not by a Theme or by the generator. Escape1, Escape2, geoqiao.me, and
-[Quiet](docs/themes/quiet.md) share the same template contract, comments behavior,
-and RouteRegistry rules. Quiet uses neutral black/white surfaces with restrained
-avatar-magenta accents.
+not by a Theme or by the generator. [Quiet](docs/themes/quiet.md) is the only
+built-in Theme, using neutral black/white surfaces with restrained avatar-magenta
+accents. Independently maintained local Themes use the same public contract.
 The production workflow is owned by the site repository; see the
 [site Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml).
 Any consumer workflow must pin the compiler to a reviewed release or full 40-character SHA.
@@ -85,18 +84,13 @@ API 1 is rejected, not adapted. Follow the [migration checklist](docs/themes/aut
 for IdeaTag, About variants, optional comments, manifest and explicit old-site
 Config; changing only the version string is insufficient.
 
-Use `{{ structured_data|tojson }}` for safe serialization. Each script must contain
-an object. Without `@graph`, its literal `url` identifies the page. With an
-`@graph` array of objects, exactly one node must have `@id` equal to
-`page_canonical_url`, not a fragment such as `#author`. Any `url` supplied on that
-node or the root object must be the same canonical string; other nodes and nested
-references such as `author.url` need not match. Top-level arrays are unsupported;
-the validator neither fetches contexts nor infers primary entities. Existing
-custom graphs without that identity need an explicit `@id`; the built-in
-`structured_data` already follows this contract. Local About templates also need
-an `about_is_profile` branch before using Profile About: it has no Issue number,
-body HTML, dates, or comments. Render Profile text with autoescape and use
-AboutPage/ProfilePage JSON-LD, not Article; see the [migration notes](docs/site-inputs.md#about-and-local-themes).
+`geoqiao.me`, `Escape1`, and `Escape2` are no longer shipped. Explicit selections
+fail without replacing old output or silently falling back to Quiet. Before
+upgrading, select Quiet or preserve the old design as a site-owned local Theme;
+see [removed-theme migration](docs/themes/authoring.md#migrating-removed-built-in-themes).
+Theme API 2, `capabilities`, and the optional `site.thesis` presentation hint
+remain supported. Structured data, Profile About and safe rendering rules have
+one source of truth: the Theme authoring guide.
 
 ## Canonical origin and URL migration boundaries
 
