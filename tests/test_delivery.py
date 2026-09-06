@@ -516,6 +516,60 @@ def test_starter_installs_then_runs_real_console_with_original_config_and_safe_t
         text=True,
     )
     assert mismatch.returncode != 0 and not venv.exists()
+    rejected_inputs = []
+    for name in ("untracked-source-probe.txt", "ignored-source-probe.log"):
+        probe = source / "src/escaping/themes/Quiet/static" / name
+        probe.write_text("benign source identity probe\n")
+        ignored = subprocess.run(  # noqa: S603 - verify the ignored-input counterexample
+            [git, "-C", str(source), "check-ignore", "--quiet", str(probe)],
+            env=env,
+            capture_output=True,
+        )
+        assert ignored.returncode == (0 if name.endswith(".log") else 1)
+        before_source = {
+            p.relative_to(source): p.read_bytes()
+            for p in source.rglob("*")
+            if p.is_file() and ".git" not in p.relative_to(source).parts
+        }
+        rejected_venv = tmp_path / (name + "-env")
+        untracked = subprocess.run(  # noqa: S603 - real installer and real filesystem
+            install,
+            env={
+                **env,
+                "UV_PROJECT_ENVIRONMENT": str(rejected_venv),
+                "UV_CACHE_DIR": str(tmp_path / (name + "-cache")),
+            },
+            cwd=tmp_path,
+            capture_output=True,
+            text=True,
+        )
+        unchanged = before_source == {
+            p.relative_to(source): p.read_bytes()
+            for p in source.rglob("*")
+            if p.is_file() and ".git" not in p.relative_to(source).parts
+        }
+        rejected_inputs.append(
+            {
+                "name": name,
+                "exit_code": untracked.returncode,
+                "venv_created": rejected_venv.exists(),
+                "source_unchanged": unchanged,
+                "safe_diagnostic": "source contains untracked or ignored files"
+                in untracked.stderr,
+            }
+        )
+        (tmp_path / (name + "-install.log")).write_text(
+            untracked.stdout + untracked.stderr
+        )
+        probe.unlink()  # Remove only this test's own sentinel, never git clean.
+    (tmp_path / "source-guard.json").write_text(json.dumps(rejected_inputs, indent=2))
+    assert all(
+        result["exit_code"] != 0
+        and not result["venv_created"]
+        and result["source_unchanged"]
+        and result["safe_diagnostic"]
+        for result in rejected_inputs
+    ), rejected_inputs
     installed = subprocess.run(  # noqa: S603
         install, env=env, cwd=tmp_path, capture_output=True, text=True
     )
@@ -524,6 +578,19 @@ def test_starter_installs_then_runs_real_console_with_original_config_and_safe_t
     assert "lock_sha256" in installed.stdout and "Generator:" in installed.stdout
     source.rename(tmp_path / "source-unavailable")
     python = venv / ("Scripts" if sys.platform == "win32" else "bin") / "python"
+    manifest = subprocess.check_output(  # noqa: S603 - installed resources, source hidden
+        [
+            str(python),
+            "-I",
+            "-c",
+            "from importlib.resources import files; "
+            "print(files('escaping').joinpath('themes/Quiet/theme.yaml').read_text())",
+        ],
+        env=env,
+        cwd=tmp_path,
+        text=True,
+    )
+    assert yaml.safe_load(manifest)["api_version"] == "2"
     # Reuse the existing HTTP-only boundary, not its wheel/Theme/config matrix.
     boundary = tmp_path / "http-boundary"
     shutil.copytree(_ROOT / "tests/fixtures/cli_api", boundary)
@@ -619,12 +686,53 @@ def test_starter_installs_then_runs_real_console_with_original_config_and_safe_t
         text=True,
     )
     assert minimal.returncode == 0, minimal.stdout + minimal.stderr
-    assert (site / "output/blog/128/index.html").is_file()
-    assert step_output.read_text() == f"output={site / 'output'}\n"
+    default_output = site / "output"
+    assert (default_output / "blog/128/index.html").is_file()
+    assert (default_output / "templates/Quiet/static/css/style.css").is_file()
+    home = (default_output / "index.html").read_text()
+    assert 'href="/templates/Quiet/static/css/style.css"' in home
+    # A single default-delivery smoke, not a second Theme/navigation matrix.
+    menu = re.search(r'<nav id="site-navigation"[^>]*>(.*?)</nav>', home, re.S)
+    assert menu is not None
+    links = re.findall(r'<a\b[^>]*href="([^"]+)"[^>]*>\s*([^<]+)', menu[1])
+    assert [(url, name.strip()) for url, name in links] == [
+        ("/", "Home"),
+        ("/blog/", "Blog"),
+        ("/ideas/", "Ideas"),
+        ("/projects/", "Projects"),
+        ("/tags/", "Tags"),
+        ("/about/", "About"),
+        ("/atom.xml", "RSS"),
+    ]
+    for url, _ in links:
+        route = url.lstrip("/") + ("index.html" if url.endswith("/") else "")
+        assert (default_output / route).is_file()
+    default_files = {
+        p.relative_to(default_output): p.read_bytes()
+        for p in default_output.rglob("*")
+        if p.is_file()
+    }
+    for path, body in default_files.items():
+        assert b"consumer-fixture" not in body
+        if path.suffix == ".html":
+            assert all(
+                marker not in body
+                for marker in (
+                    b"comments.js",
+                    b"data-issue-number",
+                    b"utteranc.es",
+                    b'id="comments"',
+                )
+            )
+    assert "consumer-fixture" not in minimal.stdout + minimal.stderr
+    assert step_output.read_text() == f"output={default_output}\n"
     (tmp_path / "delivery.log").write_text(
         installed.stdout
         + installed.stderr
+        + "Installed Quiet manifest:\n"
+        + manifest
         + built.stdout
         + failed.stdout
         + minimal.stdout
+        + "Verified default delivery: Quiet / Theme API 2 / comments off / seven menu targets exist.\n"
     )

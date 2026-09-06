@@ -27,8 +27,12 @@ authorized content is published; the workflow actor is not an author-permission 
 
 ## Customize when needed
 
-`config.yaml` starts as `{}`. It is the only Site Config; the workflow supplies non-secret,
-verified repository and Pages identity separately. You may override individual fields, for example:
+`config.yaml` starts as `{}`. The current generator defaults to Quiet, with Home, Blog, Ideas,
+Projects, Tags, About and RSS in the menu. Comments are off; enabling them requires the YAML
+boolean `true` for `comments.enabled`, not quoted text. Local Themes use Theme API `"2"`.
+
+This is the only Site Config; the workflow supplies non-secret, verified repository and Pages
+identity separately. You may override individual fields, for example:
 
 ```yaml
 site:

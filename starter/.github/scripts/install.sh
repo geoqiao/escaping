@@ -10,6 +10,12 @@ if [[ ! "$commit" =~ ^[0-9a-f]{40}$ ]] || [[ "$(git -C "$source" rev-parse HEAD)
   exit 1
 fi
 git -C "$source" diff --exit-code HEAD --quiet
+# Include ignored files: package-data globs can ship them too. Never clean user inputs.
+untracked=$(git -C "$source" ls-files --others)
+if [[ -n "$untracked" ]]; then
+  echo "Generator source contains untracked or ignored files; use a fresh checkout." >&2
+  exit 1
+fi
 if [[ "${UV_PROJECT_ENVIRONMENT:-}" != /* ]] || [[ -e "$UV_PROJECT_ENVIRONMENT" || -L "$UV_PROJECT_ENVIRONMENT" ]] || [[ "$UV_PROJECT_ENVIRONMENT/" == "$source/"* ]]; then
   echo "Set UV_PROJECT_ENVIRONMENT to a fresh absolute environment outside the source." >&2
   exit 1

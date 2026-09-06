@@ -85,8 +85,11 @@ real stable-resolution/install/build check before the public template is declare
 ## Locked source installation
 
 Use a reviewed source checkout/archive whose `pyproject.toml`, `uv.lock`, and package resources
-come from the same immutable revision. With uv 0.12.0, an explicitly selected Python, and a fresh,
-dedicated environment outside the source directory:
+come from the same immutable revision. Use uv 0.12.0 with an explicitly selected Python and a fresh,
+dedicated environment outside the source directory. The starter's installer requires a pristine
+Git checkout: before uv runs it rejects all untracked inputs, including ignored files that package
+resource globs could include. It never cleans or deletes user files. Normal build-generated files
+are allowed after installation; tracked source/lock changes are still rejected by the post-check.
 
 ```bash
 export UV_PROJECT_ENVIRONMENT="/absolute/path/to/compiler-env"
@@ -208,7 +211,8 @@ Before production cutover, verify at least:
 - Theme CSS/JS/images and shared `comments.js`;
 - canonical, Open Graph, Twitter, and JSON-LD URLs;
 - Atom entry/self links, sitemap membership, and robots sitemap URL;
-- Issue-number comments and light/dark synchronization;
+- no comment widget/script in rendered HTML by default; when enabled, Issue-number binding
+  and light/dark synchronization;
 - explicit site-owned slug migration pages, when a migration map is present;
 - Site Orchestrator gating leaves the currently deployed artifact untouched when a build fails;
 - compiler staging leaves existing local output unchanged when compilation or validation fails.
