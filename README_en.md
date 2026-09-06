@@ -46,8 +46,11 @@ owner profile, never the workflow actor. Projects need only a selected
 
 See [site input sources and boundaries](docs/site-inputs.md), including the
 Site Orchestrator interface for safely reading the token variable name. The
-default Theme is `geoqiao.me`; navigation is rendered by the Theme using Config
-entries. Built-in Issue pages load comments; Profile About does not.
+default Theme is **Quiet**, with Home, Blog, Ideas, Projects, Tags, About and RSS
+as the default menu. An explicit `site.navigation.items` list replaces it entirely,
+including order, names, removal of Home or `[]`; the brand links Home independently.
+Comments default off: set `comments.enabled: true` and separately authorize the
+[Utterances App](https://github.com/apps/utterances). Profile About never has comments.
 The canonical origin is owned by `site.url` in the site repository's Site Config,
 not by a Theme or by the generator. Escape1, Escape2, geoqiao.me, and
 [Quiet](docs/themes/quiet.md) share the same template contract, comments behavior,
@@ -57,7 +60,13 @@ The production workflow is owned by the site repository; see the
 [site Pages workflow](https://github.com/geoqiao/geoqiao.github.io/blob/main/.github/workflows/pages.yml).
 Any consumer workflow must pin the compiler to a reviewed release or full 40-character SHA.
 
-## Custom Theme JSON-LD
+## Custom Themes — API 2
+
+The [Theme authoring guide](docs/themes/authoring.md) documents the complete manifest,
+per-page context, static/shared assets, keyboard requirements and diagnostics.
+API 1 is rejected, not adapted. Follow the [migration checklist](docs/themes/authoring.md#migrating-from-api-1)
+for IdeaTag, About variants, optional comments, manifest and explicit old-site
+Config; changing only the version string is insufficient.
 
 Use `{{ structured_data|tojson }}` for safe serialization. Each script must contain
 an object. Without `@graph`, its literal `url` identifies the page. With an

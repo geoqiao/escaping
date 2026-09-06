@@ -306,6 +306,27 @@ for theme_name in ('Escape1', 'Escape2', 'geoqiao.me', 'Quiet'):
     before = {
         p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
     }
+    manifest = site / "theme/theme.yaml"
+    current_manifest = manifest.read_text()
+    manifest.write_text(
+        current_manifest.replace('api_version: "2"', 'api_version: "1"')
+    )
+    incompatible = subprocess.run(  # noqa: S603
+        command,
+        cwd=consumer,
+        env=console_env,
+        capture_output=True,
+        text=True,
+    )
+    assert incompatible.returncode == 1
+    assert (
+        "api_version '1'" in incompatible.stdout
+        and "expected '2'" in incompatible.stdout
+    )
+    assert before == {
+        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
+    }
+    manifest.write_text(current_manifest)
     failed = subprocess.run(  # noqa: S603
         command,
         cwd=consumer,

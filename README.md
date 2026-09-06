@@ -100,9 +100,12 @@ security:
 
 Blog slug 缺省为 Issue 编号，也可逐字段覆盖；About 优先使用显式编号，否则发现唯一合法 published About，没有时展示无 Issue／日期／评论身份的 Profile About。Projects 只选 `repository` 即可补公开名称／摘要，手填值优先。完整字段见 [`config.example.yaml`](config.example.yaml)，内容格式见 [`Issue Content v1`](docs/contracts/issue-content-v1.md)。
 
-导航由 Theme 结合配置渲染；内置 Theme 的 Issue 页面加载评论，Profile About 不加载评论。
+默认 Theme 为 Quiet；默认菜单是 Home、Blog、Ideas、Projects、Tags、About、RSS。
+显式 `site.navigation.items` 整体替换菜单，可排序、改名、去掉 Home 或设为 `[]`；品牌主页链接独立保留。
+评论默认关闭，需 `comments.enabled: true` 并单独完成 [Utterances App 授权](https://github.com/apps/utterances)；Profile About 永远没有评论。
+旧站保留评论／菜单的配置迁移见 [Theme 指南](docs/themes/authoring.md#migrating-from-api-1)。
 
-默认 `geoqiao.me` 会优先使用 `profile.avatar`，未配置时回退到内置 mark；
+替代 Theme `geoqiao.me` 会优先使用 `profile.avatar`，未配置时回退到内置 mark；
 它不会把 Site Thesis、tagline 或 profile bio 放到首页。为兼容本地 Theme，这些字段
 仍被 Schema 接受并进入 `SiteModel`，具体展示由 Theme 决定。
 
@@ -140,6 +143,10 @@ Open Graph、Atom、sitemap 和 robots 都从调用时传入的 origin 派生，
 
 ## 🎨 Themes
 
+公开接口为 **Theme API 2**；完整文件、manifest、逐页 context、资源和键盘要求见
+[独立 Theme 作者指南](docs/themes/authoring.md)。API 1 不再运行兼容：需迁移 IdeaTag、
+About 变体、评论条件与 manifest，不能只改版本号。
+
 自定义 Theme 应使用 `{{ structured_data|tojson }}` 安全输出结构化数据。每段 JSON-LD
 必须是对象：没有 `@graph` 时，根对象的 `url` 表示当前页面；使用 `@graph` 对象数组时，
 必须恰有一个节点的 `@id` **精确等于** `page_canonical_url`（不含 `#author` 等片段）。
@@ -147,13 +154,13 @@ Open Graph、Atom、sitemap 和 robots 都从调用时传入的 origin 派生，
 `author.url` 等引用不必相同。不支持顶层数组，也不联网展开 context/推断主实体。
 旧自定义 graph 缺少该身份时需补 `@id`；内置 `structured_data` 已符合此约定。无 About Issue 的本地 Theme 还需支持 `about_is_profile` 分支；Profile About 没有 `body_html` 或 Issue 号，迁移见[站点输入说明](docs/site-inputs.md#about-and-local-themes)。
 
-不写 Theme 配置时，默认使用中文优先的内置 `geoqiao.me`；`Escape1`、
-`Escape2` 和 [Quiet](docs/themes/quiet.md) 是可选内置 Theme；Quiet 使用中性黑白与少量头像洋红：
+不写 Theme 配置时，默认使用 [Quiet](docs/themes/quiet.md)；`geoqiao.me`、
+`Escape1`、`Escape2` 是可选内置 Theme。Quiet 使用中性黑白与少量头像洋红：
 
 ```yaml
 theme:
   source: builtin
-  name: geoqiao.me # 也可以是 Escape1、Escape2 或 Quiet
+  name: Quiet # 也可以是 geoqiao.me、Escape1 或 Escape2
 ```
 
 也可以加载站点仓库中的本地 Theme：

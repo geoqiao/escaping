@@ -4,9 +4,13 @@ The CLI resolves missing Config fields once, before compilation. The renderer,
 artifact validator, and `Settings` constructors never fetch public profiles.
 Direct `Settings` injection remains supported without new Profile requests.
 
-The default Theme is `geoqiao.me`. Navigation is Theme-specific: Themes render
-configured entries and may add their own Home or RSS links. Built-in Issue pages
-load comments; Profile About never loads comments, regardless of Theme.
+The default Theme is **Quiet**. The default primary menu is Home, Blog, Ideas,
+Projects, Tags, About, RSS. An explicit `site.navigation.items` list replaces it
+entirely, preserving order/names and accepting `[]`; the brand's Home link is
+independent. Comments default off. Set `comments.enabled: true` and separately
+authorize the Utterances App to enable embedded Issue comments. Profile About
+never loads comments. See the [Theme API 2 guide](themes/authoring.md) for authoring,
+comment setup and explicit old-site migration.
 
 ## CLI inputs
 
@@ -70,6 +74,9 @@ a different content repository; update Config deliberately.
 | `security.token_env` | `GITHUB_TOKEN` (the variable name, not a token) |
 | `about.issue_number` | Discover the sole valid published About Issue; otherwise Profile About |
 | `projects` | Empty list; never enumerate an owner's repositories |
+| `theme` | Built-in Quiet |
+| `site.navigation.items` | Home `/`, Blog `/blog/`, Ideas `/ideas/`, Projects `/projects/`, Tags `/tags/`, About `/about/`, RSS `/atom.xml` |
+| `comments.enabled` | `false`; only actual YAML booleans are accepted |
 | Other fields | Existing strict model defaults, including output `output` and page size 10 |
 
 Only absent fields get defaults. Explicit legal empty strings, `false`, and
@@ -103,9 +110,11 @@ using resolved author/bio and the registered `/about/` Route. It has `title`,
 receive `about_is_profile` alongside `about_page`; render the name/bio using
 normal autoescape, never `|safe`. Issue About retains its existing fields.
 
-A local Theme that only supports Issue About must keep an explicit valid About
-selection or add this branch before using discovery/Profile fallback. Do not
-construct Issue #0/None to keep an old template working. Use
+Local Themes must declare API `"2"` and support both About variants; API 1 fails
+clearly and preserves old output. Add this branch before using Profile fields;
+merely changing the manifest is not a migration. Do not construct Issue #0/None
+to keep an old template working. The full [manifest/context migration checklist](themes/authoring.md#migrating-from-api-1)
+also covers display-only IdeaTag and optional comments. Use
 `{{ structured_data|tojson }}`: Profile About emits `AboutPage` with the resolved
 display name, without assuming an Organization owner is a Person. Its primary
 JSON-LD identity must be `AboutPage` or `ProfilePage`, never

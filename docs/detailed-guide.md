@@ -50,12 +50,24 @@ Directory routes write `index.html`:
 - `source: builtin`: a package resource from `src/escaping/themes/`;
 - `source: local`: a directory relative to the Config file.
 
-`geoqiao.me` is the default; Escape1, Escape2 and Quiet are alternatives.
-Navigation is Theme-specific, using configured entries alongside any links the
-Theme supplies. Built-in Issue pages load comments; Profile About does not.
-Templates and static assets come from the same validated manifest and use Jinja
-`StrictUndefined` with autoescape. Theme fetching and commit pinning are
-orchestration concerns, not compiler behavior.
+Quiet is the default; geoqiao.me, Escape1 and Escape2 are alternatives. The default
+menu is Home, Blog, Ideas, Projects, Tags, About, RSS. Explicit
+`site.navigation.items` replaces it entirely, preserving names/order, allowing
+removal of Home or `[]`, independently of the brand's Home link. No product page
+is removed by hiding a menu entry.
+
+Comments default off. Set `comments.enabled: true` and separately authorize the
+[Utterances GitHub App](https://github.com/apps/utterances) for the public repository;
+visitors also authorize OAuth to write through the widget. Configuration alone
+does not install the App or prove posting works. Disabled pages have no comment
+script, iframe, loading state or dead Discuss link. Profile About never has comments.
+
+Templates and static assets use **Theme API 2**, Jinja `StrictUndefined` and
+autoescape. API 1 is rejected with an explicit migration error and old output
+preserved, not silently adapted. The [Theme authoring guide](themes/authoring.md)
+defines all files, page-scoped context, JSON-LD identity, assets, keyboard behavior
+and [migration](themes/authoring.md#migrating-from-api-1). There is no remote Theme
+fetch, inheritance between Themes or cache/update system.
 
 Site Thesis and Site Profile copy remain in `SiteMetadata` for compatible local
 Themes, but presentation is Theme-specific. Escape2 renders configured thesis

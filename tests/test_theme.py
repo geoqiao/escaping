@@ -34,7 +34,7 @@ def _theme(root: Path, name: str = "local") -> Path:
         )
     (theme / "static" / "css" / "style.css").write_text("body {}", encoding="utf-8")
     (theme / "theme.yaml").write_text(
-        "api_version: '1'\ncapabilities: [comments]\nrequired_templates:\n"
+        "api_version: '2'\ncapabilities: [comments]\nrequired_templates:\n"
         + "".join(f"  - {filename}\n" for filename in templates)
         + "required_assets: [static/css, static/js, static/images]\n",
         encoding="utf-8",
@@ -50,6 +50,7 @@ def test_builtin_theme_loads_and_copies_assets_outside_checkout(
 
     source = ThemeLoader(tmp_path).load(BuiltinThemeConfig(name=name))
 
+    assert source.manifest.api_version == "2"
     assert source.environment().get_template("home.html")
     assert source.environment().undefined.__name__ == "StrictUndefined"
     assert source.asset_url_path == f"/templates/{name}"
@@ -85,27 +86,82 @@ def test_local_theme_resolves_from_config_root_instead_of_cwd(
     ).is_file()
 
 
+def test_old_api_and_undefined_context_fail_without_replacing_output(
+    tmp_path: Path,
+) -> None:
+    from escaping.config import Settings
+    from escaping.models.issue_snapshot import IssueSnapshot
+    from escaping.site_compiler import SiteCompiler
+
+    class Source:
+        def get_repo(self, name: str) -> object:
+            return object()
+
+        def fetch_issue_snapshots(self, repo: object) -> list[IssueSnapshot]:
+            return []
+
+    theme = _theme(tmp_path, "theme")
+    manifest = theme / "theme.yaml"
+    current = manifest.read_text()
+    settings = Settings.model_validate(
+        {
+            "github": {"repo": "owner/site", "allowed_authors": ["owner"]},
+            "site": {"title": "Site", "author": "Owner", "url": "https://example.org/"},
+            "theme": {"source": "local", "name": "custom", "path": "theme"},
+        }
+    )
+    output = tmp_path / "output"
+    output.mkdir()
+    sentinel = output / "index.html"
+    sentinel.write_text("Old output remains readable.")
+    compiler = SiteCompiler(
+        "unused",
+        settings.github.repo,
+        settings,
+        config_root=tmp_path,
+        github_service=Source(),
+    )
+    manifest.write_text(current.replace("api_version: '2'", "api_version: '1'"))
+    result = compiler.generate()
+    assert not result.success
+    assert any(
+        d.code == "BUILD_FAILED"
+        and "api_version '1'" in d.message
+        and "expected '2'" in d.message
+        for d in result.diagnostics
+    )
+    manifest.write_text(current)
+    result = compiler.generate()
+    assert not result.success
+    assert any(
+        d.code == "TEMPLATE_RENDER_FAILED" and "value" in d.message
+        for d in result.diagnostics
+    )
+    assert list(output.iterdir()) == [sentinel]
+    assert sentinel.read_text() == "Old output remains readable."
+
+
 def test_manifest_mismatch_missing_contract_and_unsafe_path_fail(
     tmp_path: Path,
 ) -> None:
     theme = _theme(tmp_path / "themes", "broken")
     declaration = LocalThemeConfig(name="broken", path=Path("themes/broken"))
     (theme / "theme.yaml").write_text(
-        "api_version: '2'\ncapabilities: []\nrequired_templates: [base.html]\nrequired_assets: []\n",
+        "api_version: '1'\ncapabilities: []\nrequired_templates: [base.html]\nrequired_assets: []\n",
         encoding="utf-8",
     )
     with pytest.raises(ThemeResolutionError, match="api_version"):
         ThemeLoader(tmp_path).load(declaration)
 
     (theme / "theme.yaml").write_text(
-        "api_version: '1'\ncapabilities: []\nrequired_templates: [missing.html]\nrequired_assets: []\n",
+        "api_version: '2'\ncapabilities: []\nrequired_templates: [missing.html]\nrequired_assets: []\n",
         encoding="utf-8",
     )
     with pytest.raises(ThemeResolutionError, match=r"missing\.html"):
         ThemeLoader(tmp_path).load(declaration)
 
     (theme / "theme.yaml").write_text(
-        "api_version: '1'\ncapabilities: []\nrequired_templates: []\nrequired_assets: [/tmp]\n",
+        "api_version: '2'\ncapabilities: []\nrequired_templates: []\nrequired_assets: [/tmp]\n",
         encoding="utf-8",
     )
     with pytest.raises(ThemeResolutionError, match="unsafe theme resource path"):
