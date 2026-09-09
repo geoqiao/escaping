@@ -189,6 +189,197 @@ def _write_quiet_adjacent_site(output_dir: Path) -> None:
         path.write_text(html, encoding="utf-8")
 
 
+@pytest.mark.parametrize("width", [1440, 390, 320])
+def test_quiet_search_is_lazy_keyboard_usable_and_finds_public_content(
+    comments_browser: Browser, site_servers: dict[str, str], width: int
+) -> None:
+    page = comments_browser.new_page(viewport={"width": width, "height": 844})
+    requests: list[str] = []
+    page.on("request", lambda request: requests.append(request.url))
+    origin = site_servers["Quiet"]
+    try:
+        page.goto(origin)
+        trigger = page.get_by_role("button", name="Search")
+        if width < 768:
+            page.get_by_role("button", name="Toggle menu").click()
+        expect(trigger).to_be_visible()
+        assert f"{origin}/search.json" not in requests
+        trigger.click()
+        dialog = page.get_by_role("dialog", name="Search")
+        query = dialog.get_by_role("searchbox")
+        expect(query).to_be_focused()
+        query.fill("最终选择")
+        results = dialog.locator(".search-results a")
+        expect(results).to_have_count(1)
+        expect(results.first).to_have_attribute("href", "/blog/a-blog/")
+        query.fill("PI")
+        expect(results).to_have_count(1)
+        query.fill("tool 6")
+        expect(results).to_have_count(1)
+        expect(results.first).to_have_attribute(
+            "href", "https://github.com/example/tool6"
+        )
+        query.fill("no-such-keyword")
+        expect(dialog.get_by_role("status")).to_contain_text("No results")
+        query.fill("最终选择")
+        query.press("ArrowDown")
+        expect(results.first).to_be_focused()
+        page.keyboard.press("Escape")
+        expect(dialog).not_to_be_visible()
+        # Existing navigation dismisses when focus leaves it for the modal.
+        if width < 768:
+            expect(page.get_by_role("button", name="Toggle menu")).to_be_focused()
+        else:
+            expect(trigger).to_be_focused()
+        page.keyboard.press("Control+k")
+        expect(query).to_be_focused()
+        assert requests.count(f"{origin}/search.json") == 1
+        assert page.evaluate("document.documentElement.scrollWidth") == width
+        # Native dialog keeps keyboard focus inside; Shift+Tab cannot reach the site.
+        query.press("Shift+Tab")
+        assert dialog.evaluate("el => el.contains(document.activeElement)")
+        results.first.click()
+        expect(page).to_have_url(f"{origin}/blog/a-blog/")
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("failure", ["http", "invalid", "unsafe"])
+def test_quiet_search_failure_can_retry_without_rendering_untrusted_html(
+    comments_browser: Browser, site_servers: dict[str, str], failure: str
+) -> None:
+    page = comments_browser.new_page()
+    origin = site_servers["Quiet"]
+    try:
+        page.route(
+            "**/search.json",
+            lambda route: route.fulfill(
+                status=503 if failure == "http" else 200,
+                content_type="application/json",
+                body="invalid json"
+                if failure != "unsafe"
+                else json.dumps(
+                    {
+                        "version": 1,
+                        "items": [
+                            {
+                                "title": "<img src=x onerror=alert(1)>",
+                                "description": "",
+                                "tags": [],
+                                "type": "Blog",
+                                "url": "javascript:alert(1)",
+                            }
+                        ],
+                    }
+                ),
+            ),
+        )
+        page.goto(origin)
+        page.get_by_role("button", name="Search").click()
+        dialog = page.get_by_role("dialog", name="Search")
+        expect(dialog.get_by_role("status")).to_contain_text("Could not load")
+        expect(dialog.locator("img")).to_have_count(0)
+        expect(dialog.get_by_role("link", name="Browse Blog")).to_have_attribute(
+            "href", "/blog/"
+        )
+        page.unroute("**/search.json")
+        dialog.get_by_role("button", name="Retry").click()
+        expect(dialog.get_by_role("status")).to_contain_text("Browse recent")
+        dialog.get_by_role("searchbox").fill("unfinished")
+        expect(dialog.locator(".search-results a")).to_have_count(1)
+        expect(dialog.locator(".search-results a")).to_have_attribute(
+            "href", "/ideas/2/"
+        )
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("empty", [False, True])
+def test_quiet_search_ranks_plain_text_safely_and_handles_an_empty_site(
+    comments_browser: Browser, site_servers: dict[str, str], empty: bool
+) -> None:
+    page = comments_browser.new_page()
+    title = '中文 Python <img src=x onerror="alert(1)">'
+    items = [
+        {
+            "title": "Description match",
+            "description": "中文 Python",
+            "tags": [],
+            "type": "Blog",
+            "url": "/blog/a-blog/",
+        },
+        {
+            "title": title,
+            "description": "Safe <button> text.",
+            "tags": [],
+            "type": "Project",
+            "url": "https://github.com/example/tool6",
+        },
+        {
+            "title": "Tag match",
+            "description": "",
+            "tags": ["中文", "Python"],
+            "type": "Idea",
+            "url": "/ideas/2/",
+        },
+    ]
+    try:
+        page.route(
+            "**/search.json",
+            lambda route: route.fulfill(
+                content_type="application/json",
+                body=json.dumps({"version": 1, "items": [] if empty else items}),
+            ),
+        )
+        page.goto(site_servers["Quiet"])
+        page.get_by_role("button", name="Search").click()
+        dialog = page.get_by_role("dialog", name="Search")
+        if empty:
+            expect(dialog.get_by_role("status")).to_contain_text("No published content")
+        else:
+            dialog.get_by_role("searchbox").fill("中文 PYTHON")
+            expect(dialog.locator(".search-result-title")).to_have_text(
+                [
+                    title,
+                    "Tag match",
+                    "Description match",
+                ]
+            )
+            expect(
+                dialog.locator(".search-results img, .search-results button")
+            ).to_have_count(0)
+            page.emulate_media(media="print")
+            expect(dialog).not_to_be_visible()
+            expect(page.locator("main h1")).to_be_visible()
+            expect(page.get_by_role("button", name="Search")).not_to_be_visible()
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("mode", ["no-js", "missing-script"])
+def test_quiet_search_degrades_to_existing_navigation(
+    comments_browser: Browser, site_servers: dict[str, str], mode: str
+) -> None:
+    page = comments_browser.new_page(java_script_enabled=mode != "no-js")
+    try:
+        if mode == "missing-script":
+            page.route("**/search.js", lambda route: route.abort())
+        page.goto(site_servers["Quiet"])
+        expect(page.get_by_role("button", name="Search")).not_to_be_visible()
+        expect(
+            page.locator("#site-navigation").get_by_role(
+                "link", name="Blog", exact=True
+            )
+        ).to_be_visible()
+        expect(
+            page.locator("#site-navigation").get_by_role(
+                "link", name="Tags", exact=True
+            )
+        ).to_be_visible()
+    finally:
+        page.close()
+
+
 @pytest.fixture(scope="session")
 def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]:
     build_time = datetime(2026, 1, 1, tzinfo=UTC)
@@ -548,6 +739,8 @@ def test_quiet_mobile_navigation_is_keyboard_operable(
     expect(menu_control).to_be_focused()
     page.keyboard.press("Space")
     expect(menu_control).to_have_attribute("aria-expanded", "true")
+    page.keyboard.press("Tab")
+    expect(menu.get_by_role("button", name="Search")).to_be_focused()
     page.keyboard.press("Tab")
     expect(menu.locator("a").first).to_be_focused()
     page.keyboard.press("Tab")
@@ -1428,7 +1621,12 @@ def test_comments_failure_has_bounded_keyboard_usable_issue_fallback(
             ).to_be_visible()
             assert not requests
         page.clock.fast_forward(20_001)
-        fallback = page.locator("#comments-container .comments-error").get_by_role(
+        error_message = page.locator("#comments-container .comments-error")
+        expect(error_message).to_contain_text(
+            "Your network or browser privacy settings may block third-party content."
+        )
+        expect(error_message).not_to_contain_text("Try turning off")
+        fallback = error_message.get_by_role(
             "link", name="View or add comment on GitHub"
         )
         expect(fallback).to_be_visible()

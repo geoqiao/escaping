@@ -33,6 +33,77 @@ from escaping.theme import ThemeLoader
 _ROOT = Path(__file__).parent.parent.absolute()
 
 
+@pytest.mark.parametrize("theme", ["Quiet", "independent"])
+def test_search_artifact_indexes_only_public_content_with_canonical_destinations(
+    tmp_path: Path, theme: str
+) -> None:
+    settings = _settings(theme)
+    public = replace(
+        _snapshot(1, "blog", "", labels=("tag:python",)),
+        title="中文 Python <img src=x onerror=alert(1)>",
+        body='A `<button>` & "quoted" summary.',
+    )
+    snapshots = [
+        public,
+        replace(public, number=3, labels=("type:blog",), title="PRIVATE DRAFT"),
+        replace(public, number=4, author="stranger", title="UNTRUSTED AUTHOR"),
+        _snapshot(2, "idea", "", labels=("tag:tools",)),
+        _snapshot(10, "about", ""),
+    ]
+    routes = RouteRegistry(str(settings.site.url))
+    content = ContentCompiler(settings, route_registry=routes).compile(snapshots)
+    site = SiteBuilder(settings, routes).build(
+        content,
+        ProjectCompiler().compile(settings.projects, route=routes.projects()),
+        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
+    )
+    assert not site.has_errors
+    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
+    renderer.copy_theme_assets(tmp_path)
+    artifacts = renderer.render_site(site)
+    for name, text in artifacts.items():
+        path = tmp_path / name
+        path.parent.mkdir(parents=True, exist_ok=True)
+        path.write_text(text, encoding="utf-8")
+    index = json.loads((tmp_path / "search.json").read_text())
+    assert index["version"] == 1
+    assert index["items"] == [
+        {
+            "title": public.title,
+            "description": site.blogs[0].description,
+            "tags": ["python"],
+            "type": "Blog",
+            "url": site.blogs[0].route.canonical_path,
+        },
+        {
+            "title": "An Idea",
+            "description": site.ideas[0].description,
+            "tags": ["tools"],
+            "type": "Idea",
+            "url": site.ideas[0].route.canonical_path,
+        },
+        {
+            "title": "Escaping",
+            "description": "A strict static site compiler.",
+            "tags": [],
+            "type": "Project",
+            "url": "https://github.com/geoqiao/escaping",
+        },
+    ]
+    assert "search.json" not in artifacts["sitemap.xml"]
+    assert not SiteArtifactValidator(site).validate(tmp_path)
+    # An injected draft / modified destination cannot pass staged publication.
+    index["items"][0]["url"] = "javascript:alert(1)"
+    (tmp_path / "search.json").write_text(json.dumps(index))
+    assert "SEARCH_INDEX_MISMATCH" in {
+        d.code for d in SiteArtifactValidator(site).validate(tmp_path)
+    }
+    (tmp_path / "search.json").write_text("not json")
+    assert "INVALID_SEARCH_INDEX" in {
+        d.code for d in SiteArtifactValidator(site).validate(tmp_path)
+    }
+
+
 def _settings(theme: str = "Quiet", *, profile_avatar: str = "") -> Settings:
     data: dict[str, object] = {
         "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},

@@ -1,0 +1,19 @@
+<dialog id="site-search" class="search-dialog" aria-labelledby="search-title" lang="en">
+  <div class="search-header">
+    <h2 id="search-title">Search</h2>
+    <button class="search-close" type="button" aria-label="Close search">Esc <span aria-hidden="true">×</span></button>
+  </div>
+  <form class="search-form" role="search">
+    <label for="search-query" class="search-label">Search articles, ideas and projects</label>
+    <div class="search-input-row"><span aria-hidden="true">⌕</span><input id="search-query" type="search" maxlength="200" placeholder="Search…" autocomplete="off" spellcheck="false" aria-describedby="search-scope" autofocus></div>
+  </form>
+  <p id="search-scope" class="search-scope">Titles, summaries and tags · Published content only</p>
+  <p class="search-status" role="status" aria-live="polite" aria-atomic="true"></p>
+  <div class="search-error" hidden>
+    <button type="button" class="search-retry">Retry</button>
+    <a href="{{ site_routes.blog.canonical_path }}">Browse Blog</a>
+    <a href="{{ site_routes.tags.canonical_path }}">Browse Tags</a>
+  </div>
+  <ul class="search-results" aria-label="Search results"></ul>
+  <div class="search-footer"><span>↑ ↓ or Tab to select</span><span>Esc to close</span></div>
+</dialog>

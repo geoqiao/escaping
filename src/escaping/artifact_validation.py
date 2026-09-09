@@ -10,6 +10,7 @@ from urllib.parse import unquote, urljoin, urlsplit
 from .build_result import Diagnostic
 from .models.content import ProfileAbout
 from .models.site import SiteModel
+from .search import build_search_index
 
 _ATOM_NS = "http://www.w3.org/2005/Atom"
 _SITEMAP_NS = "http://www.sitemaps.org/schemas/sitemap/0.9"
@@ -47,6 +48,8 @@ class _HTMLProbe(HTMLParser):
             self.resources.append((tag, values["src"]))
         if tag == "script" and values.get("data-runtime-src"):
             self.resources.append((tag, values["data-runtime-src"]))
+        if tag == "script" and values.get("data-search-index"):
+            self.resources.append((tag, values["data-search-index"]))
         if tag == "img" and values.get("srcset"):
             self.resources.extend((tag, url) for url in _srcset_urls(values["srcset"]))
         if tag == "link" and values.get("rel", "").casefold() == "canonical":
@@ -146,7 +149,25 @@ class SiteArtifactValidator:
         self._validate_atom(candidate_dir, diagnostics)
         self._validate_sitemap(candidate_dir, diagnostics)
         self._validate_robots(candidate_dir, diagnostics)
+        self._validate_search(candidate_dir, diagnostics)
         return diagnostics
+
+    def _validate_search(
+        self, candidate_dir: Path, diagnostics: list[Diagnostic]
+    ) -> None:
+        path = candidate_dir / self.site.routes.route("search").output_path
+        try:
+            index = json.loads(path.read_text(encoding="utf-8"))
+        except (OSError, UnicodeError, ValueError) as exc:
+            diagnostics.append(self._error("INVALID_SEARCH_INDEX", str(exc)))
+            return
+        if index != build_search_index(self.site):
+            diagnostics.append(
+                self._error(
+                    "SEARCH_INDEX_MISMATCH",
+                    "search index must match published content and catalog destinations",
+                )
+            )
 
     def _validate_page_metadata(
         self,
