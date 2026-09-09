@@ -222,6 +222,15 @@ def test_quiet_search_is_lazy_keyboard_usable_and_finds_public_content(
         query.fill("no-such-keyword")
         expect(dialog.get_by_role("status")).to_contain_text("No results")
         query.fill("最终选择")
+        # A populated searchbox must not consume Escape just to clear its value.
+        query.press("Escape")
+        expect(dialog).not_to_be_visible()
+        if width < 768:
+            expect(page.get_by_role("button", name="Toggle menu")).to_be_focused()
+        else:
+            expect(trigger).to_be_focused()
+        page.keyboard.press("Control+k")
+        expect(query).to_be_focused()
         query.press("ArrowDown")
         expect(results.first).to_be_focused()
         page.keyboard.press("Escape")
