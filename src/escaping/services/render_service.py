@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import json
 import xml.etree.ElementTree as ET
 from datetime import UTC
 from pathlib import Path
@@ -12,6 +13,7 @@ from ..models.blog_post import BlogPost, blog_post_sort_key
 from ..models.content import AboutPage, Idea, ProfileAbout
 from ..models.home_page import HomePage
 from ..models.site import SiteMetadata, SiteModel
+from ..search import build_search_index
 from ..theme import LoadedTheme
 
 
@@ -46,6 +48,9 @@ class RenderService:
             site.routes.route("sitemap").output_path: self._render_sitemap(site),
             site.routes.route("robots").output_path: self._render_robots(site),
             site.ideas_page.route.output_path: self._render_ideas(site),
+            site.routes.route("search").output_path: json.dumps(
+                build_search_index(site), ensure_ascii=False, separators=(",", ":")
+            ),
         }
         for page in site.archives:
             artifacts[page.route.output_path] = self.env.get_template(
@@ -115,6 +120,7 @@ class RenderService:
                     "projects",
                     "tags",
                     "atom",
+                    "search",
                 )
             },
         }

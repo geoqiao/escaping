@@ -137,6 +137,9 @@ class RouteRegistry:
     def robots(self) -> Route:
         return self.register("robots", "/robots.txt", "robots.txt")
 
+    def search(self) -> Route:
+        return self.register("search", "/search.json", "search.json")
+
     def route(self, name: str) -> Route:
         return self._routes[name]
 
@@ -159,7 +162,7 @@ class RouteRegistry:
         return tuple(
             route.canonical_path
             for route in self._routes.values()
-            if route.name not in {"atom", "sitemap", "robots"}
+            if route.name not in {"atom", "sitemap", "robots", "search"}
         )
 
     @staticmethod

@@ -93,14 +93,8 @@
 
     function showError() {
         if (!loadingMsg) return;
-        loadingMsg.textContent = "Comments may not be available.";
-        if (isIOS || isSafari || isWebKit) {
-            var safariHint = document.createElement("small");
-            safariHint.textContent =
-                ' iOS Safari may block third-party content. Try turning off "Prevent Cross-Site Tracking".';
-            loadingMsg.appendChild(document.createElement("br"));
-            loadingMsg.appendChild(safariHint);
-        }
+        loadingMsg.textContent =
+            "Comments may not be available. Your network or browser privacy settings may block third-party content.";
         var link = document.createElement("a");
         link.href =
             "https://github.com/" + sourceRepo + "/issues/" + issueNumber;

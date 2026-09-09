@@ -101,6 +101,7 @@ class SiteBuilder:
         self.routes.atom()
         self.routes.sitemap()
         self.routes.robots()
+        self.routes.search()
 
     def _build_metadata(self, *, validate_navigation: bool) -> SiteMetadata:
         settings = self.settings

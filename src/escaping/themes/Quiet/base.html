@@ -24,7 +24,9 @@
   <script src="{{ theme_path }}/static/js/appearance.js"></script>
   <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
   <link rel="stylesheet" href="{{ theme_path }}/static/css/syntax.css">
+  <link rel="stylesheet" href="{{ theme_path }}/static/css/search.css">
   <script src="{{ theme_path }}/static/js/site.js" defer></script>
+  <script src="{{ theme_path }}/static/js/search.js" data-search-index="{{ site_routes.search.canonical_path }}" defer></script>
   {% if structured_data is defined %}<script type="application/ld+json">{{ structured_data|tojson }}</script>{% endif %}
 </head>
 <body id="top">
@@ -36,6 +38,7 @@
     </a>
     {% if navigation_items %}<button class="menu-toggle" type="button" aria-label="Toggle menu" aria-controls="navigation-panel" aria-expanded="false">Menu <span aria-hidden="true">＋</span></button>{% endif %}
     <div{% if navigation_items %} class="navigation-panel" id="navigation-panel"{% endif %}>
+    <button class="search-toggle" type="button" aria-label="Search" aria-haspopup="dialog" aria-controls="site-search" hidden><span aria-hidden="true">⌕</span> Search… <kbd aria-hidden="true" data-search-shortcut>Ctrl K</kbd></button>
     {% if navigation_items %}<nav id="site-navigation" aria-label="Main navigation">
       <p class="eyebrow rail-label">Site index</p>
       {% for item in navigation_items %}
@@ -48,6 +51,7 @@
     </div>
     </div>
   </header>
+  {% include "search.html" %}
   <div class="site-surface">
     <main id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>
     <footer class="site-footer" lang="en">
