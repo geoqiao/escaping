@@ -18,6 +18,7 @@ theme:
 | 点缀色 | 洋红以 `#D2428A` 为参考，调整明度满足 AA；使用已解析的 `profile.avatar`，无可用头像时显示作者首字母 |
 | 体验 | 固定站内索引、首页双栏、长文目录、代码复制、移动菜单、键盘导航与评论降级 |
 | 搜索 | 导航上方 Search 入口打开居中原生 dialog；手机位于 Menu 内。首次打开加载静态索引，匹配已发布 Blog/Idea 及项目的标题、摘要和标签（非全文）。标题优先于标签、摘要，多词须全部匹配；最多显示 20 条。支持 Ctrl/⌘ K、方向键、Tab、Esc，关闭后归还可见入口焦点。加载失败可重试或访问 Blog/Tags；禁 JS、缺失脚本或不支持 dialog 时不显示入口，原导航保留。无导航配置仍可使用独立搜索按钮 |
+| 共享社交预览 | 配置 `seo.social_image` 时，在每个 HTML 页面输出 `og:image`、`twitter:image` 和 `summary_large_image`；非空 `seo.social_image_alt` 同时输出两种 `*:image:alt`。未配置时保持 `summary` 且不输出图片标签 |
 | 导航与评论 | 默认 Home/Blog/Ideas/Projects/Tags/About/RSS；显式菜单整体替换，空菜单不生成开关，品牌与外观控制仍独立可用。评论默认关闭，启用须显式配置并另行授权 App；Profile About 永远无评论 |
 | Idea 标签 | 显示为非交互文本，避免链接到不存在的 Blog tag archive；Blog 标签保持归档链接 |
 | Blog 文章页尾 | 只显示全量已发布 Blog 中的英文 Previous（较新）/ Next（较旧）；首末和单篇不造链接，Idea/About 保留原页尾 |

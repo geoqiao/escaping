@@ -117,6 +117,41 @@ def test_profile_and_branding_reject_unsafe_rendered_urls() -> None:
         )
 
 
+def test_social_image_defaults_and_accepts_safe_resource_urls() -> None:
+    defaults = Settings.model_validate(_BASE)
+    assert defaults.seo.social_image == ""
+    assert defaults.seo.social_image_alt == ""
+
+    for image in (
+        "https://raw.githubusercontent.com/owner/site/abc/assets/social/og.png",
+        "/templates/Quiet/static/images/og.png",
+    ):
+        settings = Settings.model_validate(
+            {
+                **_BASE,
+                "seo": {"social_image": image, "social_image_alt": "Preview"},
+            }
+        )
+        assert settings.seo.social_image == image
+        assert settings.seo.social_image_alt == "Preview"
+
+
+@pytest.mark.parametrize(
+    "url",
+    [
+        "http://example.org/og.png",
+        "mailto:image@example.org",
+        "#og-image",
+        "//evil.example/og.png",
+        "https://user:password@example.org/og.png",
+        "https://example.org/og\n.png",
+    ],
+)
+def test_social_image_reuses_safe_resource_url_boundary(url: str) -> None:
+    with pytest.raises(ValidationError):
+        Settings.model_validate({**_BASE, "seo": {"social_image": url}})
+
+
 @pytest.mark.parametrize(
     "thesis",
     [

@@ -44,6 +44,8 @@ def _settings(
     page_size: int | None = None,
     comments_enabled: bool = True,
     navigation_items: list[dict[str, str]] | None = None,
+    social_image: str | None = None,
+    social_image_alt: str | None = None,
 ) -> Settings:
     site: dict[str, object] = {
         "title": title,
@@ -71,6 +73,11 @@ def _settings(
     }
     if page_size is not None:
         data["paths"] = {"page_size": page_size}
+    if social_image is not None or social_image_alt is not None:
+        data["seo"] = {
+            "social_image": social_image or "",
+            "social_image_alt": social_image_alt or "",
+        }
     return Settings.model_validate(data)
 
 
@@ -100,6 +107,8 @@ def _render_theme(
     bio: str = "",
     comments_enabled: bool = True,
     navigation_items: list[dict[str, str]] | None = None,
+    social_image: str | None = None,
+    social_image_alt: str | None = None,
 ) -> dict[str, str]:
     settings = _settings(
         theme,
@@ -110,6 +119,8 @@ def _render_theme(
         bio=bio,
         comments_enabled=comments_enabled,
         navigation_items=navigation_items,
+        social_image=social_image,
+        social_image_alt=social_image_alt,
     )
     routes = RouteRegistry(str(settings.site.url))
     content = ContentCompiler(settings, route_registry=routes).compile(
@@ -552,6 +563,45 @@ def test_configured_site_identity_reaches_homepage_search_signals() -> None:
     graph = json.loads(match.group(1))["@graph"]
     website = next(item for item in graph if item["@type"] == "WebSite")
     assert website["name"] == "Geo Qiao"
+
+
+def test_quiet_shared_social_image_metadata_covers_every_page() -> None:
+    configured = _render_theme(
+        "Quiet",
+        social_image="/templates/Quiet/static/images/og.png",
+        social_image_alt='Preview "art" & text',
+    )
+    for path, html in configured.items():
+        if not path.endswith(".html"):
+            continue
+        assert (
+            '<meta property="og:image" '
+            'content="https://geoqiao.me/templates/Quiet/static/images/og.png">'
+        ) in html
+        assert (
+            '<meta name="twitter:image" '
+            'content="https://geoqiao.me/templates/Quiet/static/images/og.png">'
+        ) in html
+        assert '<meta name="twitter:card" content="summary_large_image">' in html
+        assert (
+            '<meta property="og:image:alt" content="Preview &#34;art&#34; &amp; text">'
+            in html
+        )
+        assert (
+            '<meta name="twitter:image:alt" content="Preview &#34;art&#34; &amp; text">'
+            in html
+        )
+
+    absent = _render_theme("Quiet")
+    for path, html in absent.items():
+        if not path.endswith(".html"):
+            continue
+        assert 'property="og:image"' not in html
+        assert 'name="twitter:image"' not in html
+        assert 'property="og:image:alt"' not in html
+        assert 'name="twitter:image:alt"' not in html
+        assert '<meta name="twitter:card" content="summary">' in html
+        assert "summary_large_image" not in html
 
 
 def test_shared_mermaid_loader_preserves_lazy_and_security_contract() -> None:

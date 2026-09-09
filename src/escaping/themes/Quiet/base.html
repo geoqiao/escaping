@@ -14,7 +14,15 @@
   <meta property="og:description" content="{{ page_description }}">
   <meta property="og:url" content="{{ page_canonical_url }}">
   <meta property="og:type" content="{{ 'article' if article is defined and section_label != 'About' else 'website' }}">
+  {% if metadata.social_image %}
+  <meta property="og:image" content="{{ metadata.social_image }}">
+  {% if metadata.social_image_alt %}<meta property="og:image:alt" content="{{ metadata.social_image_alt }}">{% endif %}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{ metadata.social_image }}">
+  {% if metadata.social_image_alt %}<meta name="twitter:image:alt" content="{{ metadata.social_image_alt }}">{% endif %}
+  {% else %}
   <meta name="twitter:card" content="summary">
+  {% endif %}
   <meta name="twitter:title" content="{{ page_title }}">
   <meta name="twitter:description" content="{{ page_description }}">
   <meta name="twitter:url" content="{{ page_canonical_url }}">

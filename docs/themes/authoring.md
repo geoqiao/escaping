@@ -118,6 +118,8 @@ feed.
 | Metadata object | Public fields |
 | --- | --- |
 | `metadata` | `title`, `author`, `description`, `language`, `github_name`, `github_repo`, `navigation` (= `navigation_items`), `thesis` (sequence of strings), plus the objects below and `google_search_verification` |
+| `metadata.social_image` | Optional absolute HTTPS shared social-preview image URL; empty when not configured |
+| `metadata.social_image_alt` | Optional plain-text alternative text for the shared social-preview image |
 | `metadata.profile` | `avatar`, `tagline`, `bio` (strings, possibly empty), `links` (sequence of `name`, `url`) |
 | `metadata.branding` | `show_powered_by` (bool), `powered_by_text`, `powered_by_url`, `source_link_url` (strings) |
 | `metadata.comments` | `enabled` (bool), `repo`, `theme`, `theme_mode` (strings). Empty Config repo is already resolved to `github_repo` |
@@ -125,6 +127,11 @@ feed.
 
 Thesis/tagline are optional presentation hints, not mandatory slogan copy. Profile
 text and all metadata remain plain text: use ordinary autoescape, never `|safe`.
+`social_image` and `social_image_alt` are additive API 2 fields. Existing local
+Themes may ignore them and keep their current head markup; they are not required
+to implement Quiet's social-image tags. If a Theme emits either image URL, it
+must emit an absolute HTTPS URL and the artifact validator checks same-origin
+resources and the configured `metadata.social_image` value.
 
 ### Page-specific context: not globals
 
@@ -258,7 +265,15 @@ A shared-head excerpt (define page_title/page_description in your page template)
 <meta property="og:title" content="{{ page_title }}">
 <meta property="og:description" content="{{ page_description }}">
 <meta property="og:url" content="{{ page_canonical_url }}">
+{% if metadata.social_image %}
+<meta property="og:image" content="{{ metadata.social_image }}">
+{% if metadata.social_image_alt %}<meta property="og:image:alt" content="{{ metadata.social_image_alt }}">{% endif %}
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:image" content="{{ metadata.social_image }}">
+{% if metadata.social_image_alt %}<meta name="twitter:image:alt" content="{{ metadata.social_image_alt }}">{% endif %}
+{% else %}
 <meta name="twitter:card" content="summary">
+{% endif %}
 <meta name="twitter:title" content="{{ page_title }}">
 <meta name="twitter:description" content="{{ page_description }}">
 <meta name="twitter:url" content="{{ page_canonical_url }}">

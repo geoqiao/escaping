@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import datetime
+from urllib.parse import urljoin
 
 from .atom_feed import AtomFeedBuilder
 from .blog_archive import build_archives
@@ -106,6 +107,9 @@ class SiteBuilder:
     def _build_metadata(self, *, validate_navigation: bool) -> SiteMetadata:
         settings = self.settings
         theme_path = f"/templates/{settings.theme.name}"
+        social_image = settings.seo.social_image
+        if social_image.startswith("/"):
+            social_image = urljoin(f"{self.routes.origin}/", social_image)
         navigation: list[SiteLink] = []
         for item in settings.site.navigation.items:
             url = item.url
@@ -155,6 +159,8 @@ class SiteBuilder:
                     f"{self.routes.origin}{theme_path}/static/images/favicon.png"
                 ),
             ),
+            social_image=social_image,
+            social_image_alt=settings.seo.social_image_alt,
         )
 
     def _require_registered_content(
