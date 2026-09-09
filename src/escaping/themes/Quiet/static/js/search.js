@@ -136,7 +136,14 @@
     else if (fallback.getClientRects().length) fallback.focus();
   });
   dialog.addEventListener("keydown", event => {
-    if (composing || event.isComposing || !["ArrowDown", "ArrowUp"].includes(event.key)) return;
+    if (composing || event.isComposing) return;
+    if (event.key === "Escape") {
+      // type=search otherwise consumes Escape to clear a populated input first.
+      event.preventDefault();
+      dialog.close();
+      return;
+    }
+    if (!["ArrowDown", "ArrowUp"].includes(event.key)) return;
     const links = [...results.querySelectorAll("a")];
     const index = links.indexOf(document.activeElement);
     if (!links.length || (document.activeElement !== query && index < 0)) return;
