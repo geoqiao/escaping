@@ -36,6 +36,7 @@ class _HTMLProbe(HTMLParser):
         self.resources: list[tuple[str, str]] = []
         self.canonical: list[str] = []
         self.meta: dict[str, str] = {}
+        self.social_images: list[tuple[str, str]] = []
         self.json_ld: list[str] = []
         self._script_type = ""
         self._script_data: list[str] = []
@@ -57,7 +58,12 @@ class _HTMLProbe(HTMLParser):
         if tag == "meta":
             key = values.get("property") or values.get("name")
             if key and "content" in values:
-                self.meta[key.casefold()] = values["content"]
+                normalized_key = key.casefold()
+                content = values["content"]
+                self.meta[normalized_key] = content
+                if normalized_key in {"og:image", "twitter:image"}:
+                    self.social_images.append((normalized_key, content))
+                    self.resources.append(("meta", content))
         if tag == "script":
             self._script_type = values.get("type", "")
             self._script_data = []
@@ -189,6 +195,34 @@ class SiteArtifactValidator:
                     self._error(
                         "SEO_URL_MISMATCH",
                         f"{output_path}: {key} must be {canonical_url}",
+                    )
+                )
+        expected_image = self.site.metadata.social_image
+        for key, value in probe.social_images:
+            try:
+                parsed = urlsplit(value)
+                invalid_image_url = (
+                    parsed.scheme.casefold() != "https"
+                    or not parsed.netloc
+                    or parsed.username is not None
+                    or parsed.password is not None
+                    or _UNSAFE_PATH_CHARS.search(value)
+                    or any(char.isspace() for char in value)
+                )
+            except ValueError:
+                invalid_image_url = True
+            if invalid_image_url:
+                diagnostics.append(
+                    self._error(
+                        "SEO_URL_MISMATCH",
+                        f"{output_path}: {key} must be an absolute HTTPS URL",
+                    )
+                )
+            elif expected_image and value != expected_image:
+                diagnostics.append(
+                    self._error(
+                        "SEO_URL_MISMATCH",
+                        f"{output_path}: {key} must match the configured social image",
                     )
                 )
 

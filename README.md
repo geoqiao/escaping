@@ -68,6 +68,7 @@ site:
 | 标题、个人资料、自选项目 | [配置示例](config.example.yaml)与[字段来源](docs/site-inputs.md)；示例不是必填清单 |
 | 导航 | 默认 Home、Blog、Ideas、Projects、Tags、About、RSS；`site.navigation.items` 整体替换菜单，可设为 `[]`，品牌主页链接独立保留 |
 | 外观 | [Quiet](docs/themes/quiet.md) 是唯一内置及默认 Theme；[本地 Theme](docs/themes/authoring.md) 使用 API 2，无远程自动下载 |
+| 社交预览图 | 在 `seo.social_image` 配置 HTTPS 或 Theme 资源 URL；Quiet 会输出 Open Graph/Twitter 图片标签，未配置则保持无图片的摘要卡 |
 | 评论 | 默认关闭；设置 `comments.enabled: true`，并另行完成 [Utterances App 授权](https://github.com/apps/utterances)；Profile About 永远无评论 |
 | 本地构建 | 需要 Python 3.14.x、uv 和可读取目标 Issues 的 Token，见[本地构建步骤](docs/site-inputs.md#local-build) |
 

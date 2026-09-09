@@ -67,6 +67,8 @@ class SiteMetadata:
     comments: CommentsMetadata
     google_search_verification: str
     theme: ThemeMetadata
+    social_image: str = ""
+    social_image_alt: str = ""
 
 
 @dataclass(frozen=True)

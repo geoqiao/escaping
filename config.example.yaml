@@ -93,6 +93,9 @@ theme:
 # ============================================
 # seo:
 #   google_search_console: ""
+#   # Optional shared social preview image; use HTTPS or a selected Theme asset path.
+#   social_image: https://example.com/social/og.png
+#   social_image_alt: "A short description of the shared preview image"
 
 # ============================================
 # Comments (optional, disabled by default)

@@ -102,6 +102,7 @@ installation follows the [deployment contract](deployment.md#locked-source-insta
 | `theme` | Built-in Quiet |
 | `site.navigation.items` | Home `/`, Blog `/blog/`, Projects `/projects/`, Tags `/tags/`, About `/about/`, RSS `/atom.xml` |
 | `comments.enabled` | `false`; only actual YAML booleans are accepted |
+| `seo.social_image`, `seo.social_image_alt` | Empty strings; shared social preview metadata is opt-in |
 | Other fields | Existing strict model defaults, including output `output` and page size 10 |
 
 The default menu omits Ideas; an explicit `site.navigation.items` list may still
@@ -115,6 +116,26 @@ repository fallback is unchanged. Author entries are trimmed; this does not
 expand the authorization set. Only missing repository/site identity fields can
 be deferred to context/Profile resolution. Selected project `repository`, link
 `name`/`url`, and local Theme `name`/`path` must be supplied before any API request.
+
+### Shared social preview image
+
+`seo.social_image` is an optional HTTPS or root-relative resource URL, and
+`seo.social_image_alt` is optional plain-text alternative text. A root-relative
+value is normalized to an absolute HTTPS URL against `site.url` in the immutable
+`SiteMetadata`; it is not copied or downloaded. Quiet emits the configured URL
+as `og:image` and `twitter:image`, emits both `*:image:alt` tags only when the
+alt text is nonempty, and switches Twitter to `summary_large_image`. With no
+image, it keeps `twitter:card: summary` and emits no image tags.
+
+A site-owned image may use an immutable external URL such as a full-commit
+`raw.githubusercontent.com` link. When a Theme emits the configured image, a
+root-relative URL must already exist in the selected Theme's published asset
+tree, or artifact validation rejects the build. A local Theme may ignore these
+additive fields, so omitted tags are not forced on third-party Themes. External
+availability and bytes remain the site repository's responsibility.
+API 2 local Themes receive these metadata fields but are not required to render
+new tags; the validator checks any image tags they do emit without imposing
+Quiet's markup on them.
 
 Only public `login/name/avatar_url/bio` are fetched for Profile defaults. Optional
 Profile failure emits `PROFILE_ENRICHMENT_FAILED`, then uses the verified owner

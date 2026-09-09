@@ -15,7 +15,7 @@ Configuration contract (per accepted spec):
 - ``comments``: explicit opt-in, Utterances repository fallback, and theme mode.
 - ``security``: dynamic token environment-variable name (default GITHUB_TOKEN).
 - ``projects``: repository-owned project catalog entries with strict fields.
-- ``seo`` / ``branding``: active verification and attribution fields only.
+- ``seo`` / ``branding``: verification, shared social-preview, and attribution fields.
 
 Settings are explicitly injected into compiler and rendering collaborators.
 No global settings singleton is introduced.
@@ -415,11 +415,18 @@ class SecurityConfig(BaseModel):
 
 
 class SeoConfig(BaseModel):
-    """SEO configuration."""
+    """SEO verification and optional shared social-preview configuration."""
 
     model_config = ConfigDict(extra="forbid")
 
     google_search_console: str = ""
+    social_image: str = ""
+    social_image_alt: str = ""
+
+    @field_validator("social_image")
+    @classmethod
+    def validate_social_image(cls, v: str) -> str:
+        return _validate_safe_resource_url(v)
 
 
 class BrandingConfig(BaseModel):

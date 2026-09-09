@@ -104,7 +104,13 @@ def test_search_artifact_indexes_only_public_content_with_canonical_destinations
     }
 
 
-def _settings(theme: str = "Quiet", *, profile_avatar: str = "") -> Settings:
+def _settings(
+    theme: str = "Quiet",
+    *,
+    profile_avatar: str = "",
+    social_image: str | None = None,
+    social_image_alt: str | None = None,
+) -> Settings:
     data: dict[str, object] = {
         "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
         "site": {
@@ -144,6 +150,11 @@ def _settings(theme: str = "Quiet", *, profile_avatar: str = "") -> Settings:
     }
     if profile_avatar:
         data["profile"] = {"avatar": profile_avatar}
+    if social_image is not None or social_image_alt is not None:
+        data["seo"] = {
+            "social_image": social_image or "",
+            "social_image_alt": social_image_alt or "",
+        }
     return Settings.model_validate(data)
 
 
@@ -319,6 +330,43 @@ def test_representative_content_compiles_to_valid_complete_artifact(
         rendered = (tmp_path / output_path).read_text(encoding="utf-8")
         assert re.search(r'<a\b[^>]*\bhref="/"', rendered)
         assert not re.search(r'<a\b[^>]*\bhref="https://geoqiao.me/"', rendered)
+
+
+def test_root_relative_social_image_is_normalized_and_missing_resource_fails(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(
+        social_image="/templates/Quiet/static/images/og.png",
+        social_image_alt="Site preview",
+    )
+    site = _render_representative_site(settings, tmp_path)
+
+    assert site.metadata.social_image == (
+        "https://geoqiao.me/templates/Quiet/static/images/og.png"
+    )
+    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
+    assert any(
+        diagnostic.code == "MISSING_ASSET" and "og.png" in diagnostic.message
+        for diagnostic in diagnostics
+    )
+
+
+def test_local_api2_theme_may_ignore_social_image_fields(tmp_path: Path) -> None:
+    site = _render_representative_site(
+        _settings(
+            "independent",
+            social_image="https://raw.githubusercontent.com/owner/site/abc/og.png",
+            social_image_alt="Site preview",
+        ),
+        tmp_path,
+    )
+    combined = "\n".join(
+        path.read_text(encoding="utf-8") for path in tmp_path.rglob("*.html")
+    )
+
+    assert 'property="og:image"' not in combined
+    assert 'name="twitter:image"' not in combined
+    assert SiteArtifactValidator(site).validate(tmp_path) == []
 
 
 @pytest.mark.parametrize("theme", ["Quiet", "independent"])
@@ -738,6 +786,31 @@ def test_about_description_mismatch_fails_artifact_validation(
     assert any(
         diagnostic.code == "ABOUT_DESCRIPTION_MISMATCH" for diagnostic in diagnostics
     )
+
+
+@pytest.mark.parametrize(
+    "tampered",
+    [
+        "javascript:alert(1)",
+        "/templates/Quiet/static/images/other.png",
+        "https://wrong.example/og.png",
+        "https://[invalid",
+    ],
+)
+def test_tampered_social_image_metadata_is_rejected(
+    tmp_path: Path, tampered: str
+) -> None:
+    configured = "https://raw.githubusercontent.com/owner/site/abc/assets/social/og.png"
+    site = _render_representative_site(
+        _settings(social_image=configured, social_image_alt="Site preview"), tmp_path
+    )
+    path = tmp_path / "index.html"
+    html = path.read_text(encoding="utf-8")
+    assert html.count(configured) == 2
+    path.write_text(html.replace(configured, tampered, 1), encoding="utf-8")
+
+    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
+    assert any(diagnostic.code == "SEO_URL_MISMATCH" for diagnostic in diagnostics)
 
 
 def test_missing_referenced_script_fails_artifact_validation(
