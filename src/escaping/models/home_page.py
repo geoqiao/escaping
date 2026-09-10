@@ -22,6 +22,7 @@ class HomePage:
 
     route: Route
     recent_posts: tuple[HomePostEntry, ...] = field(default_factory=tuple)
+    featured_posts: tuple[HomePostEntry, ...] = field(default_factory=tuple)
 
     @property
     def canonical_url(self) -> str:

@@ -202,6 +202,16 @@ class SiteConfig(BaseModel):
     language: str = "en"
     thesis: list[str] = Field(default_factory=list)
     navigation: NavigationConfig = Field(default_factory=NavigationConfig)
+    featured_posts: list[Annotated[int, Field(strict=True, gt=0)]] = Field(
+        default_factory=list
+    )
+
+    @field_validator("featured_posts")
+    @classmethod
+    def validate_featured_posts(cls, v: list[int]) -> list[int]:
+        if len(v) != len(set(v)):
+            raise ValueError("featured_posts must not contain duplicate Issue numbers")
+        return v
 
     @field_validator("thesis")
     @classmethod

@@ -173,8 +173,15 @@ def _local_blog(
     )
 
 
-def _render_quiet_adjacent_posts() -> dict[str, str]:
+def _render_quiet_adjacent_posts(
+    featured_posts: list[int] | None = None,
+) -> dict[str, str]:
     settings = _settings("Quiet", page_size=2)
+    data = settings.model_dump()
+    if featured_posts is not None:
+        data["site"]["featured_posts"] = featured_posts
+    data["profile"].update(tagline="Tools for my work.", bio="Experiments & lessons.")
+    settings = Settings.model_validate(data)
     routes = RouteRegistry(str(settings.site.url))
     posts = tuple(_local_blog(routes, *definition) for definition in _ADJACENT_POSTS)
     supporting_content = ContentCompiler(settings, route_registry=routes).compile(
@@ -549,6 +556,33 @@ def test_quiet_favicon_is_a_valid_search_eligible_png() -> None:
     width, height = struct.unpack(">II", favicon[16:24])
     assert width == height
     assert width >= 48
+
+
+@pytest.mark.parametrize("selection", [None, [], [1, 7, 4]])
+def test_home_featured_selection_or_recent_fallback(
+    selection: list[int] | None,
+) -> None:
+    artifacts = _render_quiet_adjacent_posts(selection)
+    home = artifacts["index.html"]
+    assert "Tools for my work." in home
+    assert "Experiments &amp; lessons." in home
+    assert 'href="/blog/newest/"' in home
+    if selection:
+        assert "Featured writing" in home
+        assert "More writing" not in home
+        assert home.index('href="/blog/oldest/"') < home.index('href="/blog/tie-high/"')
+        assert home.index('href="/blog/tie-high/"') < home.index(
+            'href="/blog/tie-low/"'
+        )
+        assert "Description 1" in home
+        assert 'href="/blog/older/"' not in home
+        assert "Tie &lt;high&gt; &amp; safe" in home
+    else:
+        assert "More writing" in home
+        assert "Featured writing" not in home
+        assert 'href="/blog/older/"' in home
+    assert 'href="/blog/"' in home
+    assert 'href="/blog/older/"' in artifacts["blog/page/2/index.html"]
 
 
 def test_configured_site_identity_reaches_homepage_search_signals() -> None:

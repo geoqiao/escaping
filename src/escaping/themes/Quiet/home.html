@@ -5,6 +5,7 @@
   <p class="eyebrow">A personal website <span aria-hidden="true">/</span> Personal index</p>
   <h1>{{ blog_title }}</h1>
   <div class="home-caption"><p>{{ metadata.profile.tagline or 'Writing and things in the making.' }}</p><a href="{{ site_routes.about.canonical_path }}">About me <span aria-hidden="true">↗</span></a></div>
+  {% if metadata.profile.bio %}<p class="home-bio">{{ metadata.profile.bio }}</p>{% endif %}
 </div>
 {% if home_page.recent_posts %}
 <div class="home-grid">
@@ -16,12 +17,25 @@
     {{ tags(latest.tags) }}
     <a class="read-link" href="{{ latest.detail_path }}">Start reading <span aria-hidden="true">↗</span></a>
   </section>
+  {% if home_page.featured_posts %}
+  <section class="recent featured" aria-labelledby="featured-title">
+    <div class="section-heading"><h2 id="featured-title">Featured writing</h2><a href="{{ site_routes.blog.canonical_path }}">All writing ↗</a></div>
+    {% for entry in home_page.featured_posts %}
+    <article class="recent-entry">
+      <h3><a href="{{ entry.detail_path }}">{{ entry.title }}</a></h3>
+      <p class="featured-description">{{ entry.description }}</p>
+      {{ tags(entry.tags) }}
+    </article>
+    {% endfor %}
+  </section>
+  {% else %}
   <section class="recent" aria-labelledby="recent-title">
     <div class="section-heading"><h2 id="recent-title">More writing</h2><a href="{{ site_routes.blog.canonical_path }}">All ↗</a></div>
     {% for entry in home_page.recent_posts[1:] %}
     <article class="recent-entry"><time datetime="{{ entry.created_date }}">{{ entry.created_date }}</time><h3><a href="{{ entry.detail_path }}">{{ entry.title }}</a></h3></article>
     {% else %}<p>More writing to come.</p>{% endfor %}
   </section>
+  {% endif %}
 </div>
 {% else %}
 <section class="empty-state"><h2>The story starts here.</h2><p>No published writing yet.</p><a href="{{ site_routes.about.canonical_path }}">Meet the author ↗</a></section>

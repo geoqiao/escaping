@@ -18,6 +18,9 @@ site:
   author: Your Name
   description: Short description
   language: en
+  # Ordered immutable Issue numbers of published Blog content; [] (default)
+  # keeps Quiet's recent-writing list. Invalid selections fail the build.
+  # featured_posts: [41, 62, 49]
   # Optional presentation hint for local Themes. Quiet does not render thesis.
   # thesis:
   #   - A deliberate statement about your site's perspective.
@@ -41,7 +44,7 @@ site:
 
 profile:
   avatar: https://github.com/username.png
-  # Quiet shows tagline on Home. Profile About uses bio when no About Issue exists.
+  # Quiet shows tagline and bio on Home. Profile About also uses bio.
   # tagline: Researcher / tool builder
   # bio: A short bio about yourself.
   links:

@@ -146,6 +146,36 @@ def test_site_builder_composes_metadata_routes_and_internal_page_models() -> Non
     ]
 
 
+def test_featured_posts_follow_editorial_order_without_changing_chronology() -> None:
+    data = _settings().model_dump()
+    data["site"]["featured_posts"] = [1, 3, 6]
+    settings = Settings.model_validate(data)
+    routes = RouteRegistry(str(settings.site.url))
+    blogs = tuple(_blog(routes, number) for number in range(1, 7))
+    site = _build(settings, routes, _content(routes, blogs))
+
+    assert not site.has_errors
+    assert [post.issue_number for post in site.home.featured_posts] == [1, 3, 6]
+    assert site.home.featured_posts[0].detail_path == blogs[0].route.canonical_path
+    assert site.home.featured_posts[0].description == blogs[0].description
+    assert [post.issue_number for post in site.home.recent_posts] == [6, 5, 4, 3, 2]
+    assert [post.title for post in site.feed.entries] == [
+        f"Post {number}" for number in range(6, 0, -1)
+    ]
+
+
+@pytest.mark.parametrize("number", [2, 10, 99])
+def test_featured_posts_must_reference_published_blog_content(number: int) -> None:
+    data = _settings().model_dump()
+    data["site"]["featured_posts"] = [number]
+    settings = Settings.model_validate(data)
+    routes = RouteRegistry(str(settings.site.url))
+    site = _build(settings, routes, _content(routes, (_blog(routes, 1),)))
+
+    assert site.has_errors
+    assert any(d.code == "FEATURED_POST_INVALID" for d in site.diagnostics)
+
+
 def test_default_navigation_uses_registered_routes_and_explicit_lists_replace_it() -> (
     None
 ):

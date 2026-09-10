@@ -169,7 +169,7 @@ Dates below are ISO date strings; timestamps are timezone-aware Python datetimes
 
 | Model | Public fields/properties |
 | --- | --- |
-| HomePage | `route`, `canonical_url`, `recent_posts` (up to five HomePostEntry, newest first) |
+| HomePage | `route`, `canonical_url`, `recent_posts` (up to five HomePostEntry, newest first), `featured_posts` (HomePostEntry sequence in configured order, empty by default) |
 | HomePostEntry | `issue_number`, `title`, `description`, `created_date`, `detail_path`, `tags` (BlogTag sequence) |
 | ArchivePage | `route`, `canonical_url`, `page_number`, `total_pages`, `prev_route`, `next_route` (Route or None), `entries` (ArchiveEntry sequence). Empty Blog still has page 1 of 1 |
 | ArchiveEntry / TagArchiveEntry | `issue_number`, `title`, `created_date`, `detail_path`, `tags` (BlogTag sequence); **no description or body** |
