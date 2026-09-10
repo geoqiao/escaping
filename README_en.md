@@ -63,7 +63,7 @@ site:
 | What to change | Where to look |
 | --- | --- |
 | Title, profile, curated projects | [Example Config](config.example.yaml) and [field sources](docs/site-inputs.md); the example is not a mandatory-field checklist |
-| Navigation | Home, Blog, Ideas, Projects, Tags, About, RSS by default; `site.navigation.items` replaces the whole menu, including `[]`, while the brand's Home link remains independent |
+| Navigation | Home, Blog, Projects, Tags, About, RSS by default; Ideas can be added explicitly. `site.navigation.items` replaces the whole menu, including `[]`, while the brand's Home link remains independent; see [Config sources](docs/site-inputs.md#missing-field-sources) |
 | Social preview image | Set `seo.social_image` to an HTTPS or Theme resource URL; Quiet emits Open Graph/Twitter image tags, while the unset default keeps summary cards without an image |
 | Appearance | [Quiet](docs/themes/quiet.md) is the only built-in/default Theme; [local Themes](docs/themes/authoring.md) use API 2, without automatic remote downloads |
 | Comments | Off by default; set `comments.enabled: true` and separately authorize the [Utterances App](https://github.com/apps/utterances). Profile About never has comments |
