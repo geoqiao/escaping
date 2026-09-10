@@ -64,7 +64,20 @@ class SiteBuilder:
             )
             metadata = self._build_metadata(validate_navigation=False)
 
-        home = build_home(content.blogs, self.routes)
+        try:
+            home = build_home(
+                content.blogs, self.routes, self.settings.site.featured_posts
+            )
+        except ValueError as exc:
+            diagnostics.append(
+                Diagnostic(
+                    "error",
+                    "FEATURED_POST_INVALID",
+                    str(exc),
+                    field="site.featured_posts",
+                )
+            )
+            home = build_home(content.blogs, self.routes)
         feed_result = AtomFeedBuilder(
             metadata,
             build_start_time=build_start_time,

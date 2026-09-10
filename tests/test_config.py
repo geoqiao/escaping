@@ -34,6 +34,14 @@ def test_settings_reject_unknown_nested_fields() -> None:
         Settings.model_validate({**_BASE, "site": {**_BASE["site"], "typo": True}})
 
 
+@pytest.mark.parametrize("selection", [[1, 1], [0], [-1], [True], ["41"], None])
+def test_featured_posts_reject_invalid_issue_selections(selection: object) -> None:
+    with pytest.raises(ValidationError):
+        Settings.model_validate(
+            {**_BASE, "site": {**_BASE["site"], "featured_posts": selection}}
+        )
+
+
 def test_strict_paths_have_only_output_and_page_size() -> None:
     paths = PathsConfig()
     assert paths.output == "output"

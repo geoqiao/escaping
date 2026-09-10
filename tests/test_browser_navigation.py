@@ -483,6 +483,8 @@ def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
     output_dirs: dict[str, Path] = {}
     for theme in _THEMES:
         settings = _browser_settings(theme)
+        if theme == "Quiet":
+            settings.site.featured_posts = [1]
         routes = RouteRegistry(str(settings.site.url))
         content = ContentCompiler(settings, route_registry=routes).compile(
             snapshots + (quiet_toc_snapshots if theme == "Quiet" else [])
@@ -1830,6 +1832,35 @@ def test_quiet_v3_toc_follows_page_when_taller_than_viewport(
         expect(margin).to_have_css("position", "sticky")
         page.set_viewport_size({"width": 1495, "height": 520})
         expect(margin).to_have_css("position", "static")
+    finally:
+        page.close()
+
+
+def test_quiet_featured_excerpt_is_compact_and_tags_are_keyboard_links(
+    comments_browser: Browser, site_servers: dict[str, str]
+) -> None:
+    page = comments_browser.new_page()
+    try:
+        page.goto(site_servers["Quiet"])
+        entry = page.locator(".featured .recent-entry").first
+        description = entry.locator(".featured-description")
+        text = "记录真实任务中的工具选择、使用限制与搭建工作流的过程。" * 8
+        description.evaluate("(el, text) => el.textContent = text", text)
+        for width in (1440, 390, 320):
+            page.set_viewport_size({"width": width, "height": 844})
+            assert description.evaluate(
+                "el => el.getBoundingClientRect().height <= "
+                "2 * parseFloat(getComputedStyle(el).lineHeight) + 1"
+            )
+            expect(description).to_have_text(text)
+            expect(entry.get_by_role("link", name="pi", exact=True)).to_be_visible()
+        entry.locator("h3 a").focus()
+        page.keyboard.press(
+            "Alt+Tab" if comments_browser.browser_type.name == "webkit" else "Tab"
+        )
+        expect(entry.get_by_role("link", name="pi", exact=True)).to_be_focused()
+        page.keyboard.press("Enter")
+        expect(page).to_have_url(f"{site_servers['Quiet']}/tags/pi/")
     finally:
         page.close()
 

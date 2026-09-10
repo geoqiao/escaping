@@ -144,6 +144,35 @@ stop the build and preserve old output. Exception payloads are not used as
 public diagnostics. There is no PAT fallback, remote write, or Profile fetch
 inside an Issue loop.
 
+## Featured writing on Home
+
+`site.featured_posts` selects published Blog content by immutable Issue number,
+in editorial order. It does not change Blog archives, feed order, labels, or
+publication rules. Missing or empty selection keeps Quiet's recent-writing list.
+
+```yaml
+site:
+  featured_posts: [41, 62, 49]
+profile:
+  tagline: I make tools for the way I work.
+  bio: Practical notes from building and using those tools.
+```
+
+Numbers must be unique positive integers (not strings or booleans). Each must
+resolve to allowed, published Blog content; missing, draft, unauthorized, Idea,
+or About selections fail with `FEATURED_POST_INVALID` and preserve old output.
+Titles, summaries, dates and links come from compiled content, not Config copies.
+
+Quiet shows the latest article, then Featured writing when configured, otherwise
+the remaining recent articles. Featured entries keep their configured order even
+if one is also the latest article. The full chronological archive remains at
+`/blog/`. Featured summaries are visually limited to two lines, followed by
+linked Blog tags; the full description remains unchanged in content and metadata.
+The optional Profile `tagline` and `bio` appear in the Home introduction.
+These are additive Theme API 2 fields; local Themes may keep using `recent_posts`
+and ignore the selection. Site Config must only enable the new field after its
+pinned generator supports it.
+
 ## About and local Themes
 
 An explicit `about.issue_number` wins and must identify valid, allowed-author,
