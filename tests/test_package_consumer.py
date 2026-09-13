@@ -417,6 +417,8 @@ for scenario, destination in (('issue', 'build'), ('profile', 'dist'), ('empty',
     minimal_post = (site / "output/blog/128/index.html").read_text()
     assert "comments.js" not in minimal_post and "Discuss" not in minimal_post
     minimal_home = (site / "output/index.html").read_text()
-    assert 'id="site-navigation"' in minimal_home and 'href="/atom.xml"' in minimal_home
+    assert 'class="site-rail"' not in minimal_home
+    assert 'href="/blog/"' in minimal_home and 'href="/atom.xml"' in minimal_home
+    assert 'id="site-navigation"' in minimal_post
     minimal_about = (site / "output/about/index.html").read_text()
     assert "Alice Example" in minimal_about and "comments.js" not in minimal_about

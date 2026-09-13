@@ -190,17 +190,19 @@ def _write_quiet_adjacent_site(output_dir: Path) -> None:
 
 
 @pytest.mark.parametrize("width", [1440, 390, 320])
+@pytest.mark.parametrize("path", ["", "blog/"])
 def test_quiet_search_is_lazy_keyboard_usable_and_finds_public_content(
-    comments_browser: Browser, site_servers: dict[str, str], width: int
+    comments_browser: Browser, site_servers: dict[str, str], width: int, path: str
 ) -> None:
     page = comments_browser.new_page(viewport={"width": width, "height": 844})
     requests: list[str] = []
     page.on("request", lambda request: requests.append(request.url))
     origin = site_servers["Quiet"]
     try:
-        page.goto(origin)
+        page.goto(f"{origin}/{path}")
         trigger = page.get_by_role("button", name="Search")
-        if width < 768:
+        compact_menu = bool(path) and width <= 1160
+        if compact_menu:
             page.get_by_role("button", name="Toggle menu").click()
         expect(trigger).to_be_visible()
         assert f"{origin}/search.json" not in requests
@@ -225,7 +227,7 @@ def test_quiet_search_is_lazy_keyboard_usable_and_finds_public_content(
         # A populated searchbox must not consume Escape just to clear its value.
         query.press("Escape")
         expect(dialog).not_to_be_visible()
-        if width < 768:
+        if compact_menu:
             expect(page.get_by_role("button", name="Toggle menu")).to_be_focused()
         else:
             expect(trigger).to_be_focused()
@@ -236,7 +238,7 @@ def test_quiet_search_is_lazy_keyboard_usable_and_finds_public_content(
         page.keyboard.press("Escape")
         expect(dialog).not_to_be_visible()
         # Existing navigation dismisses when focus leaves it for the modal.
-        if width < 768:
+        if compact_menu:
             expect(page.get_by_role("button", name="Toggle menu")).to_be_focused()
         else:
             expect(trigger).to_be_focused()
@@ -375,6 +377,7 @@ def test_quiet_search_degrades_to_existing_navigation(
             page.route("**/search.js", lambda route: route.abort())
         page.goto(site_servers["Quiet"])
         expect(page.get_by_role("button", name="Search")).not_to_be_visible()
+        page.locator(".home-intro").get_by_role("link", name="my blog").click()
         expect(
             page.locator("#site-navigation").get_by_role(
                 "link", name="Blog", exact=True
@@ -726,6 +729,7 @@ def test_quiet_mobile_navigation_is_keyboard_operable(
     site_server: str,
 ) -> None:
     page, origin = mobile_page, site_server
+    page.goto(f"{origin}/projects/")
     menu_control = page.get_by_role("button", name="Toggle menu")
     controlled_id = menu_control.get_attribute("aria-controls")
     assert controlled_id
@@ -1034,7 +1038,7 @@ def test_quiet_navigation_is_stable_and_usable_when_initialization_is_unavailabl
         ),
     )
     try:
-        page.goto(site_servers["Quiet"], wait_until="commit")
+        page.goto(f"{site_servers['Quiet']}/projects/", wait_until="commit")
         surface = page.locator(".site-surface")
         expect(surface).to_be_visible()
         # WebKit's fonts.ready can wait for DOMContentLoaded, which is deliberately
@@ -1057,7 +1061,7 @@ def test_quiet_navigation_is_stable_and_usable_when_initialization_is_unavailabl
             expect(menu).to_have_attribute("aria-expanded", "true")
         expect(blog).to_be_visible()
         expect(navigation.locator('[aria-current="page"]')).to_have_attribute(
-            "href", "/"
+            "href", "/projects/"
         )
         blog.focus()
         if initialization == "delayed-site":
@@ -1211,9 +1215,7 @@ def test_quiet_without_javascript_keeps_content_and_navigation(
     try:
         page.goto(site_servers["Quiet"], wait_until="load")
         expect(page.get_by_role("button", name="Toggle menu")).to_be_hidden()
-        page.get_by_role("navigation", name="Main navigation").get_by_role(
-            "link", name="Blog", exact=False
-        ).click()
+        page.locator(".home-intro").get_by_role("link", name="my blog").click()
         page.get_by_role("heading", level=2).first.get_by_role("link").click()
         expect(page.get_by_role("heading", name="Opening Section")).to_be_visible()
         expect(
@@ -1232,7 +1234,7 @@ def test_quiet_mobile_menu_overlays_content_and_dismisses_cleanly(
 ) -> None:
     page = browser.new_page(viewport={"width": viewport[0], "height": viewport[1]})
     try:
-        page.goto(site_servers["Quiet"], wait_until="load")
+        page.goto(f"{site_servers['Quiet']}/blog/", wait_until="load")
         menu = page.get_by_role("button", name="Toggle menu", include_hidden=True)
         panel = page.locator("#" + str(menu.get_attribute("aria-controls")))
         content_box = page.locator("main").bounding_box()
@@ -1258,7 +1260,7 @@ def test_quiet_mobile_menu_overlays_content_and_dismisses_cleanly(
         expect(menu).to_have_attribute("aria-expanded", "false")
         expect(panel).to_be_hidden()
         menu.click()
-        page.get_by_role("link", name="About me").focus()
+        page.locator("main h2 a").first.focus()
         expect(panel).to_be_hidden()
         menu.click()
         page.keyboard.press("Escape")
@@ -1290,7 +1292,7 @@ def test_quiet_navigation_and_appearance_controls_are_unboxed(
         viewport={"width": 1440, "height": 900}, color_scheme="light"
     )
     try:
-        page.goto(site_servers["Quiet"], wait_until="load")
+        page.goto(f"{site_servers['Quiet']}/blog/", wait_until="load")
         current = page.locator('#site-navigation [aria-current="page"]')
         toggle = page.get_by_role("button", name="Dark mode")
         for mode in ("light", "dark"):
@@ -1750,7 +1752,6 @@ def test_quiet_v3_centered_pages_and_compact_navigation(
     page.route("https://**/*", lambda route: route.abort())
     try:
         for path in (
-            "",
             "blog/",
             "blog/page/2/",
             "tags/",
@@ -1836,31 +1837,146 @@ def test_quiet_v3_toc_follows_page_when_taller_than_viewport(
         page.close()
 
 
-def test_quiet_featured_excerpt_is_compact_and_tags_are_keyboard_links(
+@pytest.mark.parametrize("javascript", [True, False])
+def test_quiet_home_is_centered_and_its_introduction_is_keyboard_navigation(
+    comments_browser: Browser, site_servers: dict[str, str], javascript: bool
+) -> None:
+    page = comments_browser.new_page(java_script_enabled=javascript)
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    origin = site_servers["Quiet"]
+    try:
+        page.emulate_media(reduced_motion="reduce")
+        page.goto(origin)
+        expect(page.locator(".site-rail, .menu-toggle")).to_have_count(0)
+        expect(page.locator("main h2")).to_have_text(
+            ["Featured", "Recent Articles", "My Projects"]
+        )
+        expect(page.locator(".home-writing p, .home-writing .tag-links")).to_have_count(
+            0
+        )
+        expect(
+            page.locator(".home-writing").first.get_by_role("link")
+        ).to_have_attribute("href", "/blog/a-blog/")
+        expect(page.locator(".home-writing").last.get_by_role("link")).to_have_count(5)
+        first_title = page.locator(".home-writing a > span").first
+        first_title.evaluate(
+            "el => el.textContent = '很长的中文标题 LongTitle'.repeat(20)"
+        )
+        for width in (1440, 390, 320):
+            page.set_viewport_size({"width": width, "height": 844})
+            bounds = page.locator("main").bounding_box()
+            assert bounds is not None
+            assert bounds["x"] + bounds["width"] / 2 == pytest.approx(width / 2, abs=1)
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+            assert page.locator(".home-writing a").evaluate_all(
+                "els => els.every(e => e.scrollWidth <= e.clientWidth + 1)"
+            )
+            if javascript:
+                expect(page.get_by_role("button", name="Search")).to_be_visible()
+                expect(page.get_by_role("button", name="Dark mode")).to_be_visible()
+        for index, path in enumerate(("blog/", "projects/", "about/")):
+            link = page.locator(".home-intro a").nth(index)
+            if index == 0:
+                link.focus()
+                page.keyboard.press(
+                    "Alt+Tab"
+                    if comments_browser.browser_type.name == "webkit"
+                    else "Tab"
+                )
+                expect(page.locator(".home-intro a").nth(1)).to_be_focused()
+            link.focus()
+            page.keyboard.press("Enter")
+            expect(page).to_have_url(f"{origin}/{path}")
+            expect(page.locator("main h1")).to_be_visible()
+            page.go_back()
+        first_article = page.locator(".home-writing a").first
+        first_article.focus()
+        page.keyboard.press("Enter")
+        expect(page).to_have_url(f"{origin}/blog/a-blog/")
+        assert not errors
+    finally:
+        page.close()
+
+
+def test_quiet_blog_has_compact_descriptions_after_home_and_pagination(
     comments_browser: Browser, site_servers: dict[str, str]
 ) -> None:
     page = comments_browser.new_page()
     try:
+        page.emulate_media(reduced_motion="reduce")
         page.goto(site_servers["Quiet"])
-        entry = page.locator(".featured .recent-entry").first
-        description = entry.locator(".featured-description")
-        text = "记录真实任务中的工具选择、使用限制与搭建工作流的过程。" * 8
-        description.evaluate("(el, text) => el.textContent = text", text)
+        home_title_size = page.locator(".home-writing a").first.evaluate(
+            "el => parseFloat(getComputedStyle(el).fontSize)"
+        )
+        page.locator(".home-intro a").first.focus()
+        page.keyboard.press("Enter")
+        expect(page).to_have_url(f"{site_servers['Quiet']}/blog/")
+        expect(page.locator(".entry-description").first).to_have_text("A blog post.")
         for width in (1440, 390, 320):
             page.set_viewport_size({"width": width, "height": 844})
-            assert description.evaluate(
-                "el => el.getBoundingClientRect().height <= "
-                "2 * parseFloat(getComputedStyle(el).lineHeight) + 1"
+            expect(page.locator("main h1")).to_have_css("font-size", "24px")
+            title_size = page.locator(".entry h2").first.evaluate(
+                "el => parseFloat(getComputedStyle(el).fontSize)"
             )
-            expect(description).to_have_text(text)
-            expect(entry.get_by_role("link", name="pi", exact=True)).to_be_visible()
-        entry.locator("h3 a").focus()
-        page.keyboard.press(
-            "Alt+Tab" if comments_browser.browser_type.name == "webkit" else "Tab"
-        )
-        expect(entry.get_by_role("link", name="pi", exact=True)).to_be_focused()
+            assert home_title_size <= title_size <= home_title_size + 1
+            expect(page.locator(".entry-description").first).to_have_css(
+                "font-size", "14px"
+            )
+            assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        page.get_by_role("link", name="Older →", exact=True).focus()
         page.keyboard.press("Enter")
-        expect(page).to_have_url(f"{site_servers['Quiet']}/tags/pi/")
+        expect(page).to_have_url(f"{site_servers['Quiet']}/blog/page/2/")
+        expect(page.locator(".entry-description").first).to_be_visible()
+        page.locator(".entry-description").first.evaluate(
+            "el => el.textContent = 'LongDescription'.repeat(80)"
+        )
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        page.locator(".entry h2 a").first.focus()
+        page.keyboard.press("Enter")
+        expect(page.locator(".post-content")).to_be_visible()
+    finally:
+        page.close()
+
+
+def test_quiet_home_motion_respects_reduced_motion_and_appearance(
+    comments_browser: Browser, site_servers: dict[str, str]
+) -> None:
+    page = comments_browser.new_page(
+        viewport={"width": 1440, "height": 960}, color_scheme="light"
+    )
+    try:
+        page.emulate_media(reduced_motion="no-preference")
+        page.goto(site_servers["Quiet"])
+        shadow = page.locator(".home-light svg")
+        assert shadow.evaluate(
+            "el => el.getAnimations().some(a => a.playState === 'running')"
+        )
+        card = page.locator(".home-projects .work-card").first
+        card.hover()
+        expect(card).to_have_css("transform", "matrix(1, 0, 0, 1, 0, -3)")
+        page.emulate_media(reduced_motion="reduce")
+        assert (
+            page.locator("main").evaluate(
+                "el => el.getAnimations({subtree: true}).length"
+            )
+            == 0
+        )
+        expect(card).to_have_css("transform", "none")
+        expect(page.locator(".home-heading")).to_have_css("opacity", "1")
+        toggle = page.get_by_role("button", name="Dark mode")
+        toggle.click()
+        expect(page.locator("html")).to_have_attribute("data-theme", "dark")
+        expect(page.locator(".intro-link").first).to_have_css(
+            "color", "rgb(229, 139, 182)"
+        )
+        page.reload()
+        expect(toggle).to_have_attribute("aria-pressed", "true")
+        expect(page.locator(".home-heading")).to_have_css("opacity", "1")
+        page.emulate_media(media="print")
+        expect(page.locator(".home-tools")).to_be_hidden()
+        expect(page.locator(".home-light")).to_be_hidden()
+        expect(page.locator("main h1")).to_be_visible()
     finally:
         page.close()
 
@@ -1875,9 +1991,9 @@ def test_quiet_v3_ordered_featured_cards_and_generic_about(
             page.goto(f"{site_servers['Quiet']}/{path}", wait_until="load")
             cards = page.locator(".work-card")
             expect(cards).to_have_count(count)
-            assert cards.locator("h2").all_text_contents() == [
-                f"Tool {i}" for i in range(6, 6 - count, -1)
-            ]
+            assert cards.locator("h2 a, h3 a").evaluate_all(
+                "els => els.map(e => e.firstChild.textContent.trim())"
+            ) == [f"Tool {i}" for i in range(6, 6 - count, -1)]
             if path == "about/":
                 expect(page.locator(".about-header img")).to_have_count(0)
                 expect(page.locator("main img")).to_have_count(1)
@@ -1901,7 +2017,7 @@ def test_quiet_v3_ordered_featured_cards_and_generic_about(
                 expect(page.locator("#comments-container")).to_have_attribute(
                     "data-issue-number", "10"
                 )
-            else:
+            elif path == "projects/":
                 box = cards.first.bounding_box()
                 assert box is not None and box["width"] / box[
                     "height"

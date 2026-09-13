@@ -15,6 +15,7 @@ class ArchiveEntry:
     created_date: str
     detail_path: str
     tags: tuple[BlogTag, ...]
+    description: str = ""
 
 
 @dataclass(frozen=True)

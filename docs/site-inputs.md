@@ -163,12 +163,23 @@ resolve to allowed, published Blog content; missing, draft, unauthorized, Idea,
 or About selections fail with `FEATURED_POST_INVALID` and preserve old output.
 Titles, summaries, dates and links come from compiled content, not Config copies.
 
-Quiet shows the latest article, then Featured writing when configured, otherwise
-the remaining recent articles. Featured entries keep their configured order even
-if one is also the latest article. The full chronological archive remains at
-`/blog/`. Featured summaries are visually limited to two lines, followed by
-linked Blog tags; the full description remains unchanged in content and metadata.
-The optional Profile `tagline` and `bio` appear in the Home introduction.
+Quiet Home uses a centered column without a sidebar. The optional Profile
+`tagline` and `bio` appear in its introduction, followed by a short sentence
+linking to the registered Blog, Projects and About routes. Search and appearance
+controls sit above the introduction; other pages retain the configured menu.
+
+Featured appears when configured, followed by Recent Articles (up to five,
+newest first) and up to four featured projects in catalog order. Both writing
+lists show titles and dates, without descriptions or tags. Featured entries
+keep their configured order and may also appear in Recent Articles. The full
+chronological archive at `/blog/` shows each article's title, date, description
+and tags, using a compact type scale. Descriptions are escaped plain text and
+are omitted when empty. Tag archives retain title/date/tag lists.
+Projects retain their summaries and configured links in compact cards.
+
+Home includes subtle entrance, link-highlight, background and project-hover
+motion. Reduced-motion preferences disable animations and movement; the
+introduction links and content also work without JavaScript.
 These are additive Theme API 2 fields; local Themes may keep using `recent_posts`
 and ignore the selection. Site Config must only enable the new field after its
 pinned generator supports it.

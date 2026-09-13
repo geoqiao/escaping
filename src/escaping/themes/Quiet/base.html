@@ -37,8 +37,14 @@
   <script src="{{ theme_path }}/static/js/search.js" data-search-index="{{ site_routes.search.canonical_path }}" defer></script>
   {% if structured_data is defined %}<script type="application/ld+json">{{ structured_data|tojson }}</script>{% endif %}
 </head>
-<body id="top">
+<body id="top"{% if home_page is defined %} class="home"{% endif %}>
   <a class="skip-link" href="#main-content" lang="en">{{ skip_link_text }}</a>
+  {% if home_page is defined %}
+  <header class="home-tools" lang="en">
+    <button class="search-toggle" type="button" aria-label="Search" aria-haspopup="dialog" aria-controls="site-search" hidden><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"/><path d="m16 16 5 5"/></svg></button>
+    <button class="theme-toggle" type="button" aria-label="Dark mode" aria-pressed="false" hidden><span aria-hidden="true">◐</span></button>
+  </header>
+  {% else %}
   <header class="site-rail" lang="en">
     <a class="identity" href="{{ home_path }}" aria-label="{{ blog_title }} — Home">
       {% if metadata.profile.avatar %}<img class="identity-avatar" src="{{ metadata.profile.avatar }}" alt="" width="64" height="64">{% else %}<span class="identity-mark" aria-hidden="true">{{ author_initials }}</span>{% endif %}
@@ -59,6 +65,7 @@
     </div>
     </div>
   </header>
+  {% endif %}
   {% include "search.html" %}
   <div class="site-surface">
     <main id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>

@@ -1,49 +1,60 @@
 {% extends 'base.html' %}
 {% block content %}
-{% from 'components.html' import tags, project_entry with context %}
-<div class="home-heading">
-  <p class="eyebrow">A personal website <span aria-hidden="true">/</span> Personal index</p>
-  <h1>{{ blog_title }}</h1>
-  <div class="home-caption"><p>{{ metadata.profile.tagline or 'Writing and things in the making.' }}</p><a href="{{ site_routes.about.canonical_path }}">About me <span aria-hidden="true">↗</span></a></div>
-  {% if metadata.profile.bio %}<p class="home-bio">{{ metadata.profile.bio }}</p>{% endif %}
+{% from 'components.html' import project_entry with context %}
+{% macro writing_list(entries) -%}
+<ul class="home-writing">
+  {% for entry in entries %}
+  <li><a href="{{ entry.detail_path }}"><span>{{ entry.title }}</span><time datetime="{{ entry.created_date }}">{{ entry.created_date }}</time></a></li>
+  {% endfor %}
+</ul>
+{%- endmacro %}
+<div class="home-light" aria-hidden="true">
+  <svg viewBox="0 0 640 480" fill="none" xmlns="http://www.w3.org/2000/svg">
+    <g stroke="currentColor" stroke-width="5" stroke-linecap="round">
+      <path d="M660 20C480 100 470 220 260 350M560 100C490 60 430 70 340 40M480 200C430 160 330 200 230 160M390 280C410 350 320 410 310 470"/>
+    </g>
+    <g fill="currentColor">
+      <ellipse cx="492" cy="88" rx="60" ry="14" transform="rotate(25 492 88)"/>
+      <ellipse cx="407" cy="52" rx="56" ry="13" transform="rotate(-12 407 52)"/>
+      <ellipse cx="540" cy="166" rx="64" ry="16" transform="rotate(-55 540 166)"/>
+      <ellipse cx="411" cy="184" rx="62" ry="15" transform="rotate(18 411 184)"/>
+      <ellipse cx="308" cy="165" rx="60" ry="14" transform="rotate(-15 308 165)"/>
+      <ellipse cx="463" cy="263" rx="66" ry="16" transform="rotate(-48 463 263)"/>
+      <ellipse cx="363" cy="360" rx="62" ry="14" transform="rotate(-60 363 360)"/>
+      <ellipse cx="284" cy="325" rx="56" ry="13" transform="rotate(20 284 325)"/>
+      <ellipse cx="342" cy="425" rx="48" ry="12" transform="rotate(-38 342 425)"/>
+    </g>
+  </svg>
 </div>
+<header class="home-heading">
+  <div class="home-title">
+    <h1>{{ blog_title }}</h1>
+    {% if metadata.profile.avatar %}<img class="home-avatar" src="{{ metadata.profile.avatar }}" alt="" width="64" height="64">{% endif %}
+  </div>
+  <div class="home-intro">
+    {% if metadata.profile.tagline %}<p class="home-tagline">{{ metadata.profile.tagline }}</p>{% endif %}
+    {% if metadata.profile.bio %}<p>{{ metadata.profile.bio }}</p>{% endif %}
+    <p lang="en">I share what I learn on <a class="intro-link" href="{{ site_routes.blog.canonical_path }}">my blog</a> and build <a class="intro-link" href="{{ site_routes.projects.canonical_path }}">small projects</a>. You can read a little more <a class="intro-link" href="{{ site_routes.about.canonical_path }}">about me</a>.</p>
+  </div>
+</header>
+{% if home_page.featured_posts %}
+<section class="home-section" aria-labelledby="featured-title">
+  <div class="section-heading"><h2 id="featured-title">Featured</h2></div>
+  {{ writing_list(home_page.featured_posts) }}
+</section>
+{% endif %}
 {% if home_page.recent_posts %}
-<div class="home-grid">
-  {% set latest = home_page.recent_posts[0] %}
-  <section class="latest" aria-labelledby="latest-title">
-    <div class="latest-meta"><span class="eyebrow">Latest writing</span><time datetime="{{ latest.created_date }}">{{ latest.created_date }}</time></div>
-    <h2 id="latest-title"><a href="{{ latest.detail_path }}">{{ latest.title }}</a></h2>
-    <p class="latest-description">{{ latest.description }}</p>
-    {{ tags(latest.tags) }}
-    <a class="read-link" href="{{ latest.detail_path }}">Start reading <span aria-hidden="true">↗</span></a>
-  </section>
-  {% if home_page.featured_posts %}
-  <section class="recent featured" aria-labelledby="featured-title">
-    <div class="section-heading"><h2 id="featured-title">Featured writing</h2><a href="{{ site_routes.blog.canonical_path }}">All writing ↗</a></div>
-    {% for entry in home_page.featured_posts %}
-    <article class="recent-entry">
-      <h3><a href="{{ entry.detail_path }}">{{ entry.title }}</a></h3>
-      <p class="featured-description">{{ entry.description }}</p>
-      {{ tags(entry.tags) }}
-    </article>
-    {% endfor %}
-  </section>
-  {% else %}
-  <section class="recent" aria-labelledby="recent-title">
-    <div class="section-heading"><h2 id="recent-title">More writing</h2><a href="{{ site_routes.blog.canonical_path }}">All ↗</a></div>
-    {% for entry in home_page.recent_posts[1:] %}
-    <article class="recent-entry"><time datetime="{{ entry.created_date }}">{{ entry.created_date }}</time><h3><a href="{{ entry.detail_path }}">{{ entry.title }}</a></h3></article>
-    {% else %}<p>More writing to come.</p>{% endfor %}
-  </section>
-  {% endif %}
-</div>
+<section class="home-section" aria-labelledby="recent-title">
+  <div class="section-heading"><h2 id="recent-title">Recent Articles</h2><a href="{{ site_routes.blog.canonical_path }}">All articles <span aria-hidden="true">↗</span></a></div>
+  {{ writing_list(home_page.recent_posts) }}
+</section>
 {% else %}
-<section class="empty-state"><h2>The story starts here.</h2><p>No published writing yet.</p><a href="{{ site_routes.about.canonical_path }}">Meet the author ↗</a></section>
+<section class="home-section" aria-labelledby="recent-title"><div class="section-heading"><h2 id="recent-title">Recent Articles</h2></div><p class="muted">No published writing yet.</p></section>
 {% endif %}
 {% if featured_projects %}
-<section class="home-projects" aria-labelledby="projects-title">
-  <div class="section-heading"><h2 id="projects-title">Also building</h2><a class="more-projects" href="{{ site_routes.projects.canonical_path }}">All projects <span aria-hidden="true">↗</span></a></div>
-  <div class="works-grid">{% for project in featured_projects[:4] %}{{ project_entry(project) }}{% endfor %}</div>
+<section class="home-section home-projects" aria-labelledby="projects-title">
+  <div class="section-heading"><h2 id="projects-title">My Projects</h2><a class="more-projects" href="{{ site_routes.projects.canonical_path }}">All projects <span aria-hidden="true">↗</span></a></div>
+  <div class="works-grid">{% for project in featured_projects[:4] %}{{ project_entry(project, compact=true) }}{% endfor %}</div>
 </section>
 {% endif %}
 {% endblock %}

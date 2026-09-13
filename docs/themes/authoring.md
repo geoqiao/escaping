@@ -172,7 +172,8 @@ Dates below are ISO date strings; timestamps are timezone-aware Python datetimes
 | HomePage | `route`, `canonical_url`, `recent_posts` (up to five HomePostEntry, newest first), `featured_posts` (HomePostEntry sequence in configured order, empty by default) |
 | HomePostEntry | `issue_number`, `title`, `description`, `created_date`, `detail_path`, `tags` (BlogTag sequence) |
 | ArchivePage | `route`, `canonical_url`, `page_number`, `total_pages`, `prev_route`, `next_route` (Route or None), `entries` (ArchiveEntry sequence). Empty Blog still has page 1 of 1 |
-| ArchiveEntry / TagArchiveEntry | `issue_number`, `title`, `created_date`, `detail_path`, `tags` (BlogTag sequence); **no description or body** |
+| ArchiveEntry | `issue_number`, `title`, `description` (compiled plain text, possibly empty), `created_date`, `detail_path`, `tags` (BlogTag sequence); **no body** |
+| TagArchiveEntry | `issue_number`, `title`, `created_date`, `detail_path`, `tags` (BlogTag sequence); **no description or body** |
 | BlogPost | `issue_number`, `title`, `slug`, `description`, `created_date`, `published_at`, `updated_at`, `tags` (BlogTag sequence), `body_html`, `route`, `canonical_path`, `canonical_url` |
 | Idea | `issue_number`, `title`, `description`, `created_date`, `published_at`, `updated_at`, `tags` (IdeaTag sequence), `body_html`, `route`, `canonical_path`, `canonical_url`; **no slug** |
 | BlogTag | `name`, `path` (registered Blog tag archive path) |

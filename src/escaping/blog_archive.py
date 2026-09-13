@@ -47,6 +47,7 @@ def build_archives(
                         created_date=post.created_date,
                         detail_path=post.route.canonical_path,
                         tags=post.tags,
+                        description=post.description,
                     )
                     for post in page_posts
                 ),
