@@ -763,7 +763,9 @@ def test_starter_installs_then_runs_real_console_with_original_config_and_safe_t
     home = (default_output / "index.html").read_text()
     assert 'href="/templates/Quiet/static/css/style.css"' in home
     # A single default-delivery smoke, not a second Theme/navigation matrix.
-    menu = re.search(r'<nav id="site-navigation"[^>]*>(.*?)</nav>', home, re.S)
+    assert 'class="site-rail"' not in home and 'href="/blog/"' in home
+    blog = (default_output / "blog/index.html").read_text()
+    menu = re.search(r'<nav id="site-navigation"[^>]*>(.*?)</nav>', blog, re.S)
     assert menu is not None
     links = re.findall(r'<a\b[^>]*href="([^"]+)"[^>]*>\s*([^<]+)', menu[1])
     assert [(url, name.strip()) for url, name in links] == [

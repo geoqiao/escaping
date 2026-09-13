@@ -2,25 +2,29 @@
 {% if items %}<ul class="tag-links" aria-label="Tags">{% for tag in items %}<li>{% if linked %}<a href="{{ tag.path }}">{{ tag.name }}</a>{% else %}<span>{{ tag.name }}</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
 {%- endmacro %}
 
-{% macro entry_list(entries) -%}
-<div class="entry-list">
+{% macro entry_list(entries, show_descriptions=false) -%}
+<div class="entry-list{% if show_descriptions %} entry-list--described{% endif %}">
   {% for entry in entries %}
   <article class="entry">
     <time datetime="{{ entry.created_date }}">{{ entry.created_date }}</time>
-    <div class="entry-copy"><h2><a href="{{ entry.detail_path }}">{{ entry.title }} <span class="entry-arrow" aria-hidden="true">↗</span></a></h2>{{ tags(entry.tags) }}</div>
+    <div class="entry-copy">
+      <h2><a href="{{ entry.detail_path }}">{{ entry.title }} <span class="entry-arrow" aria-hidden="true">↗</span></a></h2>
+      {% if show_descriptions and entry.description %}<p class="entry-description">{{ entry.description }}</p>{% endif %}
+      {{ tags(entry.tags) }}
+    </div>
   </article>
   {% else %}<p class="empty-state">No writing yet. Check back soon.</p>{% endfor %}
 </div>
 {%- endmacro %}
 
-{% macro project_entry(project) -%}
+{% macro project_entry(project, compact=false) -%}
 <article class="work-card" id="{{ project.slug }}">
   <header class="work-heading">
     {% if project.image %}<span class="work-image"><img src="{{ project.image }}" width="44" height="44" alt="" loading="lazy"></span>{% endif %}
-    <div>{% if project.language %}<p class="work-context">{{ project.language }}</p>{% endif %}<h2><a href="{{ project.url }}">{{ project.title }}</a></h2></div>
+    <div>{% if project.language and not compact %}<p class="work-context">{{ project.language }}</p>{% endif %}{% if compact %}<h3><a href="{{ project.url }}">{{ project.title }} <span class="project-arrow" aria-hidden="true">↗</span></a></h3>{% else %}<h2><a href="{{ project.url }}">{{ project.title }}</a></h2>{% endif %}</div>
   </header>
   {% if project.summary %}<p class="work-summary">{{ project.summary }}</p>{% endif %}
-  <footer class="work-footer"><nav aria-label="{{ project.title }} links"><a href="{{ project.url }}">GitHub <span aria-hidden="true">↗</span></a>{% for link in project.links %}<a href="{{ link.url }}">{{ link.name }} <span aria-hidden="true">↗</span></a>{% endfor %}</nav></footer>
+  {% if not compact or project.links %}<footer class="work-footer"><nav aria-label="{{ project.title }} links">{% if not compact %}<a href="{{ project.url }}">GitHub <span aria-hidden="true">↗</span></a>{% endif %}{% for link in project.links %}<a href="{{ link.url }}">{{ link.name }} <span aria-hidden="true">↗</span></a>{% endfor %}</nav></footer>{% endif %}
 </article>
 {%- endmacro %}
 

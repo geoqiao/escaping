@@ -3,6 +3,7 @@ from __future__ import annotations
 import json
 import re
 import struct
+from dataclasses import replace
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from pathlib import Path
@@ -175,6 +176,8 @@ def _local_blog(
 
 def _render_quiet_adjacent_posts(
     featured_posts: list[int] | None = None,
+    *,
+    descriptions: dict[int, str] | None = None,
 ) -> dict[str, str]:
     settings = _settings("Quiet", page_size=2)
     data = settings.model_dump()
@@ -184,6 +187,13 @@ def _render_quiet_adjacent_posts(
     settings = Settings.model_validate(data)
     routes = RouteRegistry(str(settings.site.url))
     posts = tuple(_local_blog(routes, *definition) for definition in _ADJACENT_POSTS)
+    if descriptions is not None:
+        posts = tuple(
+            replace(
+                post, description=descriptions.get(post.issue_number, post.description)
+            )
+            for post in posts
+        )
     supporting_content = ContentCompiler(settings, route_registry=routes).compile(
         [
             _snap(
@@ -315,7 +325,7 @@ def test_quiet_menu_is_a_complete_override_independent_of_brand() -> None:
         [{"name": "Notes", "url": "/ideas/"}],
         [],
     ):
-        html = _render_theme("Quiet", navigation_items=items)["index.html"]
+        html = _render_theme("Quiet", navigation_items=items)["blog/index.html"]
         probe = _MenuProbe()
         probe.feed(html)
         assert probe.links == [(item["name"], item["url"]) for item in items]
@@ -336,8 +346,8 @@ def test_quiet_interface_is_english_without_translating_site_content(
             assert f'<html lang="{language}">' in html
             assert "中文站点" in html
             assert not re.search(r"[\u4e00-\u9fff]", html.replace("中文站点", ""))
-    assert "Site index" in rendered["index.html"]
-    assert "Writing and things in the making." in rendered["index.html"]
+    assert "Site index" in rendered["blog/index.html"]
+    assert "my blog" in rendered["index.html"]
 
 
 def test_quiet_uses_profile_avatar_only_for_identity_and_favicon() -> None:
@@ -346,11 +356,12 @@ def test_quiet_uses_profile_avatar_only_for_identity_and_favicon() -> None:
     for path, html in rendered.items():
         if path.endswith(".html"):
             assert f'<link rel="icon" href="{avatar}">' in html
-            assert f'class="identity-avatar" src="{avatar}" alt=""' in html
+            avatar_class = "home-avatar" if path == "index.html" else "identity-avatar"
+            assert f'class="{avatar_class}" src="{avatar}" alt=""' in html
             assert "identity-mark" not in html
     assert rendered["about/index.html"].count(f'src="{avatar}"') == 1
     assert 'class="about-page"' in rendered["about/index.html"]
-    fallback = _render_theme("Quiet", author="Ada Lovelace")["index.html"]
+    fallback = _render_theme("Quiet", author="Ada Lovelace")["blog/index.html"]
     assert ">AL</span>" in fallback
     assert 'href="/templates/Quiet/static/images/favicon.png"' in fallback
 
@@ -559,30 +570,59 @@ def test_quiet_favicon_is_a_valid_search_eligible_png() -> None:
 
 
 @pytest.mark.parametrize("selection", [None, [], [1, 7, 4]])
-def test_home_featured_selection_or_recent_fallback(
+def test_home_introduction_and_title_lists_keep_featured_and_recent_writing(
     selection: list[int] | None,
 ) -> None:
     artifacts = _render_quiet_adjacent_posts(selection)
     home = artifacts["index.html"]
     assert "Tools for my work." in home
     assert "Experiments &amp; lessons." in home
-    assert 'href="/blog/newest/"' in home
+    assert 'class="site-rail"' not in home
+    assert 'aria-label="Toggle menu"' not in home
+    intro = home.split('class="home-intro"', 1)[1].split("</div>", 1)[0]
+    for path in ("/blog/", "/about/", "/projects/"):
+        assert f'href="{path}"' in intro
+    recent = home.split('aria-labelledby="recent-title"', 1)[1].split("</section>", 1)[
+        0
+    ]
+    assert "Recent Articles" in recent
+    slugs = ["newest", "tie-high", "tie-low", "older", "oldest"]
+    positions = [recent.index(f'href="/blog/{slug}/"') for slug in slugs]
+    assert positions == sorted(positions)
+    assert "Description " not in home
+    assert 'aria-label="Tags"' not in home
     if selection:
-        assert "Featured writing" in home
-        assert "More writing" not in home
-        assert home.index('href="/blog/oldest/"') < home.index('href="/blog/tie-high/"')
-        assert home.index('href="/blog/tie-high/"') < home.index(
-            'href="/blog/tie-low/"'
-        )
-        assert "Description 1" in home
-        assert 'href="/blog/older/"' not in home
+        featured = home.split('aria-labelledby="featured-title"', 1)[1].split(
+            "</section>", 1
+        )[0]
+        assert "Featured" in featured
+        positions = [
+            featured.index(f'href="/blog/{slug}/"')
+            for slug in ("oldest", "tie-high", "tie-low")
+        ]
+        assert positions == sorted(positions)
         assert "Tie &lt;high&gt; &amp; safe" in home
     else:
-        assert "More writing" in home
-        assert "Featured writing" not in home
-        assert 'href="/blog/older/"' in home
+        assert 'id="featured-title"' not in home
     assert 'href="/blog/"' in home
     assert 'href="/blog/older/"' in artifacts["blog/page/2/index.html"]
+
+
+def test_blog_descriptions_survive_pagination_and_remain_plain_text() -> None:
+    artifacts = _render_quiet_adjacent_posts(
+        descriptions={11: "A <button> & its behavior.", 7: ""}
+    )
+    first_page = artifacts["blog/index.html"]
+    assert (
+        '<p class="entry-description">A &lt;button&gt; &amp; its behavior.</p>'
+        in first_page
+    )
+    assert first_page.count('class="entry-description"') == 1
+    second_page = artifacts["blog/page/2/index.html"]
+    assert '<p class="entry-description">Description 4</p>' in second_page
+    assert '<p class="entry-description">Description 12</p>' in second_page
+    for path in ("index.html", "tags/focus/index.html"):
+        assert 'class="entry-description"' not in artifacts[path]
 
 
 def test_configured_site_identity_reaches_homepage_search_signals() -> None:
