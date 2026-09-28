@@ -12,6 +12,11 @@ theme:
 这也是默认值，不写 `theme` 就会用 Quiet。想改 Quiet 的部分模板或样式，见
 [Theme 作者指南](authoring.md#2-extend-quiet)。
 
+Quiet 为每一种页面都准备了模板。在 `config.yaml` 里用 `pages` 关掉某个页面（比如
+`pages.tags: false`）或换地址（比如 `pages.blog: /posts/`）后，Quiet 会自动隐藏
+指向关掉页面的链接，见[页面](../site-inputs.md#pages)。网站放在子路径下（比如
+`https://alice.github.io/notes/`）时，Quiet 也能正常工作。
+
 ## 选项
 
 在 `config.yaml` 的 `theme.options` 下设置：
@@ -49,7 +54,7 @@ Quiet 的界面文字有英文（`en`）和中文（`zh`）。按 `site.language
 Theme 里覆盖对应的 key，比如：
 
 ```yaml
-api: 3
+api: 4
 extends: quiet
 strings:
   zh:

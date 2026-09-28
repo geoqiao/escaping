@@ -19,7 +19,7 @@ github:
 
 site:
   title: "Blog Title"
-  url: https://username.github.io/
+  url: https://username.github.io/ # A project site: https://username.github.io/repo/
   author: Your Name
   description: Short description
   language: en # Also picks the Theme's UI strings, e.g. zh for Chinese.

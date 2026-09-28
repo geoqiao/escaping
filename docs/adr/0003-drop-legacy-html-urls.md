@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0009
 ---
 
 # Drop legacy HTML URLs when adopting canonical routes

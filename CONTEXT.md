@@ -41,7 +41,7 @@ A trusted presentation of the site's pages and content, selected independently f
 _Avoid_: Publishing plugin, content source
 
 **Theme API**:
-The versioned agreement between the Site Compiler and a Theme: the `theme.yaml` manifest, the four template names (`site`, `page`, `theme`, `t`), the page templates the compiler renders and the `/assets/` URL space. Its version is distinct from the Site Compiler's release identity.
+The versioned agreement between the Site Compiler and a Theme: the `theme.yaml` manifest, the four template names (`site`, `page`, `theme`, `t`), the template each page kind uses and its fallback, the `url` filter and the `/assets/` URL space. Its version is distinct from the Site Compiler's release identity.
 _Avoid_: Visual style version, automatic compatibility adapter
 
 **Built-in Theme**:
@@ -52,9 +52,13 @@ _Avoid_: Downloaded theme, compiler cache
 A presentation choice declared with a type and default by a Theme's manifest and set by the site under `theme.options`. It has no meaning after switching to a Theme that does not declare it.
 _Avoid_: Site setting, generator config
 
-**Theme Page**:
-An extra page declared by a Theme, either at one fixed route or once per Project Catalog Entry. Its route is registered with the same registry as compiler pages.
-_Avoid_: Plugin page, site script
+**Site Pages**:
+The pages a site has, chosen in its Site Config under `pages`: each built-in section on, off or moved, plus extra pages at one fixed route or once per Project Catalog Entry, each rendered by a named Theme template. Routes are registered with the same registry as every other page.
+_Avoid_: Theme page, plugin page
+
+**Redirect**:
+An old address of the site listed under `redirects` that sends visitors to a current page. A page always wins over a redirect.
+_Avoid_: Alias, slug history
 
 **Skipped Issue**:
 Published Issue Content whose own content is invalid. It is left out of one build and reported by Issue number while the rest of the site is published.

@@ -2,19 +2,22 @@
 
 本文件是 `escaping` 仓库的 coding-agent 指南。以当前代码、测试和 domain docs 为准。
 架构与完整文档导航见[维护者入口](docs/dual-repo-architecture.md)，主题设计见
-[ADR-0008](docs/adr/0008-theme-api-3-data-presentation-split.md)。
+[ADR-0008](docs/adr/0008-theme-api-3-data-presentation-split.md) 和
+[ADR-0009](docs/adr/0009-site-owned-pages-redirects-and-sub-paths.md)。
 
 ## 产品与边界
 
 `escaping` 把 GitHub Issues 变成个人网站：Home、Blog、Ideas、About、Projects、Tags、
-Atom、sitemap、robots 和搜索索引。
+Atom、sitemap、robots、搜索索引和旧地址跳转页。
 
 核心分工：**生成器只管数据，主题只管呈现。**
 
 - 生成器负责：读取 Issue、净化 HTML、分配唯一网址、生成 Atom/sitemap/搜索索引、
   检查站内链接和资源、安全地替换输出目录。
-- 主题负责：页面长什么样、放哪些 SEO 标签、界面文字、主题自己的选项和额外页面。
-- 站点仓库负责：真实 `config.yaml`、可选的本地主题、Pages workflow 和 `CNAME`。
+- 主题负责：页面长什么样、放哪些 SEO 标签、界面文字、主题自己的选项；只需
+  `blog.html` 和 `post.html`，其余页面按固定规则退回这两个模板。
+- 站点仓库负责：真实 `config.yaml`（包括有哪些页面、地址、额外页面和旧地址跳转）、
+  可选的本地主题、Pages workflow 和 `CNAME`。
 
 仓库职责：
 
@@ -46,7 +49,7 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
 
 1. **Config 分两层。** 判断一个值放哪层，只问一句：换了主题之后它还有意义吗？
    有意义放站点层（`github`、`site`（含 `navigation`）、`profile`、`about`、`paths`、
-   `projects`、`comments`、`seo`、`security`）；没意义放主题层（`theme.options`），由主题的
+   `pages`、`redirects`、`projects`、`comments`、`seo`、`security`）；没意义放主题层（`theme.options`），由主题的
    `theme.yaml` 声明类型和默认值。生成器代码里不得出现只为某个主题服务的字段。
 2. **Quiet 没有特权。** Quiet 是唯一内置和默认主题，但与本地主题走同一套加载、
    选项、页面和字符串机制；编译器不得按主题名分支。
@@ -54,8 +57,9 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
    新数据加进这四个对象，不新增顶层变量。
 4. `Settings` 显式注入；禁止全局配置单例。Renderer 与 artifact validator 只读
    `SiteModel` 和已加载的主题。
-5. `RouteRegistry` 是唯一构造 `Route` 的地方，包括主题通过 `pages` 声明的页面。
-   页面持有完整 Route，不手工拼接输出路径。
+5. `RouteRegistry` 是唯一构造 `Route` 的地方，包括 `pages.extra` 的页面，也负责给
+   子路径站点加前缀。页面持有完整 Route，不手工拼接地址或输出路径；主题自己的
+   地址用 `url` 过滤器。
 6. Config 中的相对路径（主题、输出目录）以 Config 文件所在目录为根，不依赖 CWD。
 7. `ThemeLoader` 只读取包内资源或本地目录：不联网、不缓存、不执行主题代码、
    拒绝符号链接。`extends` 只能指向内置主题。
@@ -82,9 +86,9 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
 ```text
 src/escaping/
 ├── config.py              # 站点层 Config
-├── theme.py               # theme.yaml API 3、extends、选项校验、字符串
+├── theme.py               # theme.yaml API 4、extends、模板回退、选项校验、字符串
 ├── content_compiler.py    # Issue → Blog/Idea/About
-├── site_builder.py        # SiteModel、路由、主题页面
+├── site_builder.py        # SiteModel、路由、额外页面、跳转页
 ├── routes.py
 ├── site_compiler.py       # 预检 → 拉取 → 编译 → 渲染 → 校验 → 发布
 ├── services/render_service.py

@@ -15,7 +15,7 @@
 | 站点仓库 | GitHub Issues、真实 `config.yaml`、调用 Action 的 Pages workflow、`CNAME`、可选本地 Theme 和历史迁移 |
 
 核心分工：**生成器只管数据，Theme 只管呈现**（[ADR-0008](adr/0008-theme-api-3-data-presentation-split.md)）。
-Quiet 是唯一内置 Theme，和本地 Theme 一样使用 Theme API 3，没有特殊待遇。
+Quiet 是唯一内置 Theme，和本地 Theme 一样使用 Theme API 4，没有特殊待遇。
 
 Site Compiler 只读 GitHub；可选 Local Draft authoring 与站点自动化的写入权限独立，
 不属于编译过程。站点 workflow 通过 `uses: geoqiao/escaping@<tag 或完整 SHA>` 调用
@@ -34,7 +34,7 @@ flowchart TD
     RouteRegistry --> ContentCompiler
     RouteRegistry --> ProjectCompiler
     RouteRegistry --> SiteBuilder
-    ContentCompiler --> SiteBuilder["SiteBuilder：固定页面 + Theme pages"]
+    ContentCompiler --> SiteBuilder["SiteBuilder：config.yaml 的 pages、extra 页面、redirects"]
     ProjectCompiler --> SiteBuilder
     SiteBuilder --> SiteModel
     SiteModel --> RenderService["RenderService：site / page / theme / t"]
@@ -51,7 +51,7 @@ flowchart TD
 Config、Theme 和输出目录的问题在访问 GitHub 之前就会报错，不产生半成品。
 单个 Issue 的内容错误只跳过该 Issue，其余照常发布，CLI 以状态码 2 结束。
 Renderer 和 validator 只读 `SiteModel` 与已加载的 Theme，不读 Settings 或原始 Issues。
-`RouteRegistry` 唯一构造完整 Route，包括 Theme 在 `pages` 中声明的页面；
+`RouteRegistry` 唯一构造完整 Route，包括 `config.yaml` 的 `pages.extra` 页面，并给子路径站点加上路径前缀；
 Theme 与输出目录的相对路径以 Config 所在目录为根。
 本地目录发布与线上 Pages artifact 发布是两个独立边界，不承诺跨仓库原子升级。
 
