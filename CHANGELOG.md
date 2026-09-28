@@ -5,7 +5,11 @@ All notable changes to escaping are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) (before 1.0, a minor version may
 break things).
 
-## [Unreleased]
+## [0.4.0] - 2026-09-28
+
+A site can use a Theme straight from a folder of a public GitHub repository,
+with one line in `config.yaml`. Themes are now sandboxed. Sites and Themes that
+work with 0.3.0 keep working unless a template reaches into Python internals.
 
 ### Added
 
@@ -270,7 +274,7 @@ and 0.1 has no Action to pin.
 First release: Blog, Ideas, About, Projects, Tags, Atom, sitemap and search
 from GitHub Issues, with the Quiet Theme and the starter workflow.
 
-[Unreleased]: https://github.com/geoqiao/escaping/compare/v0.3.0...HEAD
+[0.4.0]: https://github.com/geoqiao/escaping/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/geoqiao/escaping/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/geoqiao/escaping/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/geoqiao/escaping/releases/tag/v0.1.0
