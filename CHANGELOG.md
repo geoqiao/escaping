@@ -7,6 +7,14 @@ break things).
 
 ## [Unreleased]
 
+### Changed
+
+- **Quiet's fonts are smaller.** The heading font is now
+  `assets/fonts/manrope-bold.woff2` (31 KB instead of a 95 KB TTF), and the
+  unused Source Serif 4 font (194 KB) and the unused CSS variable `--serif`
+  are gone. A Theme that extends Quiet and links to `manrope-bold.ttf` or
+  `source-serif-4.ttf` must bring its own copy.
+
 ### Fixed
 
 - **One Blog post with a stray control character no longer stops the build.**

@@ -199,7 +199,7 @@ def test_wheel_consumer_builds_site_outside_checkout(
     for asset in (
         "assets/css/style.css",  # from Quiet
         "assets/css/extra.css",  # from the child Theme
-        "assets/fonts/source-serif-4.ttf",
+        "assets/fonts/manrope-bold.woff2",
         "assets/escaping/mermaid/mermaid.min.js",
         "404.html",
     ):
