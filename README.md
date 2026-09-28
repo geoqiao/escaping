@@ -84,7 +84,7 @@ theme:
 | 评论 | 默认关闭；设置 `comments.enabled: true`，并另行完成 [Utterances App 授权](https://github.com/apps/utterances)；Profile About 永远无评论 |
 | 本地构建 | 需要 Python 3.14.x 和 uv；有 Token 时直接读 Issues，没有 Token 可用 `--issues-json` 离线构建，见[本地构建步骤](docs/site-inputs.md#local-build) |
 
-写错字段名会报错并提示正确写法；0.1 的旧字段会告诉你移到了哪里。报错不会回显你填的值。
+写错字段名会报错并提示正确写法；报错不会回显你填的值。
 组织所有的内容仓库须显式配置 `github.allowed_authors`。
 输出目录和本地 Theme 路径以 Config 所在目录为根；预览时把输出目录当作网站根目录，不使用 `/output/` URL 前缀。
 
@@ -105,8 +105,8 @@ theme:
 ## 升级
 
 站点在 workflow 的 `uses:` 一行固定生成器版本（tag 或完整提交 SHA），不会自动升级。
-升级前先读 [CHANGELOG](CHANGELOG.md)；从 0.1 升级的步骤见其中的[升级说明](CHANGELOG.md#upgrading-from-01)，
-本地 Theme 的改法见 [API 2 迁移说明](docs/themes/authoring.md#migrating-from-api-2)。
+升级前先读 [CHANGELOG](CHANGELOG.md)。版本号可以直接改成最新的；从 0.1 升级，依次做 [Upgrading from 0.1](CHANGELOG.md#upgrading-from-01) 和 [Upgrading from 0.2](CHANGELOG.md#upgrading-from-02) 里的步骤，从 0.2 升级只做后者。
+本地 Theme 的改法见 [Theme 迁移说明](docs/themes/authoring.md#migrating-from-api-1-2-or-3)。
 配置评论不等于验证评论写入；真实 App/OAuth 发帖仍需单独验收。
 
 ## 开发与维护

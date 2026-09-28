@@ -81,7 +81,7 @@ theme:
 | Comments | Off by default; set `comments.enabled: true` and separately authorize the [Utterances App](https://github.com/apps/utterances). Profile About never has comments |
 | Local builds | Require Python 3.14.x and uv; read Issues with a token, or build offline with `--issues-json`; see the [local build steps](docs/site-inputs.md#local-build) |
 
-A mistyped field fails the build and suggests the correct spelling; a field from 0.1 tells you where it moved.
+A mistyped field fails the build and suggests the correct spelling.
 Error messages never repeat the values you wrote. Organization-owned content repositories require explicit `github.allowed_authors`.
 Output and local Theme paths are relative to the Config directory. Serve the output as the web root, not under an `/output/` URL prefix.
 
@@ -102,9 +102,9 @@ Then run `escpe theme check --config config.yaml`. It renders every page with sa
 ## Upgrading
 
 A site pins the generator version in the workflow's `uses:` line (a tag or a full commit SHA); it never upgrades by itself.
-Read the [CHANGELOG](CHANGELOG.md) before upgrading. Upgrading from 0.1 is described in
-[Upgrading from 0.1](CHANGELOG.md#upgrading-from-01); for a local Theme, see
-[migrating from API 2](docs/themes/authoring.md#migrating-from-api-2).
+Read the [CHANGELOG](CHANGELOG.md) before upgrading. You can pin the latest version directly: from 0.1, do the steps in
+[Upgrading from 0.1](CHANGELOG.md#upgrading-from-01) and then [Upgrading from 0.2](CHANGELOG.md#upgrading-from-02);
+from 0.2, only the second. For a local Theme, see [Theme migration](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
 Configuring comments is not proof of posting; actual App/OAuth submission still needs separate verification.
 
 ## Development and maintenance

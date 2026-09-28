@@ -23,7 +23,7 @@ what you need:
 To use a Theme someone else made, name it in `config.yaml`; see
 [Using a Theme from GitHub](#using-a-theme-from-github).
 
-Coming from an older Theme? See [Migrating from API 3](#migrating-from-api-3).
+Coming from an older Theme? See [Migrating from API 1, 2 or 3](#migrating-from-api-1-2-or-3).
 
 ## 1. Quiet's options
 
@@ -720,50 +720,35 @@ runs Python from a Theme. escaping reads the built-in Themes, the local folder
 named by `theme.use` and the GitHub folders named by `theme.use` and `extends`,
 and nothing else from a Theme.
 
-## Migrating from API 3
+## Migrating from API 1, 2 or 3
 
-API 3 Themes stop the build with
-`theme.yaml must declare api: 4 (see docs/themes/authoring.md)`.
-Change `api: 3` to `api: 4`, then:
+An older Theme stops the build with
+`theme.yaml must declare api: 4 (see docs/themes/authoring.md)`. There is no
+compatibility layer. If the Theme only changed parts of Quiet, it is usually
+easier to start again with `extends: quiet` and copy over just the changed
+files. Otherwise set `api: 4` and apply these tables; an API 3 Theme needs
+only the rows that name API 3.
 
-| API 3 | API 4 |
+| Old (API 2, or API 3 where named) | API 4 |
 | --- | --- |
-| `pages:` in `theme.yaml` | Stops the build: `theme.yaml pages: unknown field`. Move each entry, unchanged, under `pages.extra` in the site's `config.yaml`, and list them in the Theme's README |
-| All nine page templates required | Only `blog.html` and `post.html`; see [the table](#which-template-renders-a-page) |
-| `page.post`, `page.idea`, `page.about` | `page.item` |
-| `page.archive.posts` | `page.items` |
-| `page.archive.page_number`, `total_pages`, `prev_route`, `next_route` | `page.pagination.number`, `total`, `prev`, `next` |
-| `page.tag.posts` on a tag page | `page.items` (`page.tag` is still the tag) |
-| `site.ideas`, `site.tags`, `site.projects` on their list pages | `page.items` (the `site` fields still exist) |
+| `api_version: "2"`, `capabilities`, `required_templates`, `required_assets`; API 3: `api: 3` | `api: 4`. The other fields are gone |
+| API 3: `pages:` in `theme.yaml` | Stops the build: `theme.yaml pages: unknown field`. Move each entry, unchanged, under `pages.extra` in the site's `config.yaml`, and list them in the Theme's README |
+| Every page template required | Only `blog.html` and `post.html`; see [the table](#which-template-renders-a-page) |
+| `index.html` (Blog archive) | `blog.html` |
+| `{{ theme_path }}/static/…` (`/templates/<name>/static/…`); API 3: `href="/assets/…"` | `href="{{ '/assets/…'\|url }}"`, needed for sites under a path |
+| Shared `…/static/js/comments.js`, `…/static/js/mermaid.js`, `…/static/vendor/mermaid-11.16.1/mermaid.min.js` | `/assets/escaping/comments.js`, `/assets/escaping/mermaid.js`, `/assets/escaping/mermaid/mermaid.min.js`, each through `\|url` |
+| Page variables defined only on some templates | Every page gets the same `page` object; unused fields are `none` |
+| Build failed on canonical, social URL and JSON-LD problems | `escpe theme check` warns; the build checks integrity only |
+| Quiet's interface was English for every language | `site.language: zh` or `zh-CN` switches Quiet to Chinese |
 | `site.routes.<name>` always set | `none` when the site turns that page off; guard links with `{% if site.routes.tags %}` |
 | `site.about` always set | `none` when `pages.about: false` |
 | Profile About had no `body_html` | It has `body_html` (the bio), `issue_number: none`, empty `created_date` and `tags` |
 | Blog tags always had a page | `tag.path` is `none` when `pages.tags: false`; Idea tags have `path: none` too |
-| `href="/assets/…"` | `href="{{ '/assets/…'|url }}"`, needed for sites under a path |
 | `/robots.txt` always written | Only at the root of a host |
-
-## Migrating from API 2
-
-API 2 Themes stop the build with
-`theme.yaml must declare api: 4 (see docs/themes/authoring.md)`.
-There is no compatibility layer. For a Theme that only changed parts of Quiet,
-it is usually easier to start again with `extends: quiet` and copy over just
-the changed files. Otherwise, apply these tables, then
-[Migrating from API 3](#migrating-from-api-3).
-
-| API 2 | API 3 |
-| --- | --- |
-| `api_version: "2"`, `capabilities`, `required_templates`, `required_assets` | `api: 3`. The other fields are gone |
-| `index.html` (Blog archive) | `blog.html` |
-| `{{ theme_path }}/static/…` (`/templates/<name>/static/…`) | `/assets/…` |
-| Shared `…/static/js/comments.js`, `…/static/js/mermaid.js`, `…/static/vendor/mermaid-11.16.1/mermaid.min.js` | `/assets/escaping/comments.js`, `/assets/escaping/mermaid.js`, `/assets/escaping/mermaid/mermaid.min.js` |
-| Page variables defined only on some templates | Every page gets the same `page` object; unused fields are `none` |
-| Build failed on canonical, social URL and JSON-LD problems | `escpe theme check` warns; the build checks integrity only |
-| Quiet's interface was English for every language | `site.language: zh` or `zh-CN` switches Quiet to Chinese |
 
 Template variables:
 
-| API 2 | API 3 |
+| Old (API 2, or API 3 where named) | API 4 |
 | --- | --- |
 | `blog_title`, `author_name`, `language` | `site.title`, `site.author`, `site.language` |
 | `meta_description` | `page.description` (the site's is `site.description`) |
@@ -777,18 +762,19 @@ Template variables:
 | `structured_data` | `page.json_ld` |
 | `home_page.recent_posts` | `site.posts[:5]` |
 | `home_page.featured_posts` | A `posts` option, such as Quiet's `featured_posts` |
-| `archive_page` (`entries`) | `page.archive` (`posts`) |
-| `post`, `prev_post`, `next_post` | `page.post`, `page.newer`, `page.older` |
-| `ideas`, `idea` | `site.ideas`, `page.idea` |
-| `about_page`, `about_is_profile` | `page.about`, `page.about.is_profile` |
-| `projects.projects`, `featured_projects` | `site.projects`, `site.featured_projects` |
-| `tags_index.tags` | `site.tags` |
-| `tag_archive` (`tag_name`, `entries`) | `page.tag` (`name`, `posts`) |
+| `post`, `idea`, `about_page`; API 3: `page.post`, `page.idea`, `page.about` | `page.item` |
+| `about_is_profile` | `page.item.is_profile` |
+| `prev_post`, `next_post` | `page.newer`, `page.older` |
+| `archive_page.entries`; API 3: `page.archive.posts` | `page.items` |
+| API 3: `page.archive.page_number`, `total_pages`, `prev_route`, `next_route` | `page.pagination.number`, `total`, `prev`, `next` |
+| `tag_archive` (`tag_name`, `entries`); API 3: `page.tag.posts` | `page.tag` (`name`) and `page.items` |
+| `ideas`, `tags_index.tags`, `projects.projects`, `featured_projects` | `site.ideas`, `site.tags`, `site.projects`, `site.featured_projects`; on their own list page, `page.items` |
 | `detail_path` | `canonical_path` |
 | `skip_link_text` and other fixed text | Your own `strings` |
 | `theme_path`, `theme_favicon_url`, `author_initials`, `branding`, `metadata.thesis`, `top_projects` | Removed. Use `/assets/…`, compute in the template, or declare an option |
 
-Site Config:
+Site Config fields that moved in 0.2; the build now reports each as an
+unknown field:
 
 | Old field | New place |
 | --- | --- |
@@ -800,14 +786,6 @@ Site Config:
 | `comments.theme`, `comments.theme_mode` | `theme.options.comments_theme`, `theme.options.comments_theme_mode` |
 | `site.thesis` | Removed; declare it as an option of your own Theme |
 
-The build reports each old field as an unknown field.
-
-## Migrating from API 1
-
-API 1 Themes are rejected the same way. Follow
-[Migrating from API 2](#migrating-from-api-2); no API 1 name carries over on
-its own.
-
 ## Migrating removed built-in Themes
 
 `geoqiao.me`, `Escape1` and `Escape2` are no longer shipped, and Quiet is now
@@ -818,7 +796,7 @@ unchanged; it never falls back to Quiet silently.
 | --- | --- |
 | Quiet | `theme: {use: quiet}`, or remove `theme` |
 | To keep an old design | Use its API 4 port: `theme: {use: github.com/geoqiao/escaping-themes/escape1@v1.0.0}`, or `escape2` or `geoqiao-me` in place of `escape1`. Old site settings such as `site.thesis` are options of these Themes now; each Theme's README lists them |
-| To keep your own changes to an old design | Copy its directory from the escaping version you used into the site repository, port it with [Migrating from API 2](#migrating-from-api-2), and select it with `theme: {use: ./that-directory}` |
+| To keep your own changes to an old design | Copy its directory from the escaping version you used into the site repository, port it with [Migrating from API 1, 2 or 3](#migrating-from-api-1-2-or-3), and select it with `theme: {use: ./that-directory}` |
 
 Assets of the copied Theme move from `/templates/<name>/static/` to
 `/assets/`. Upgrade escaping, the Config and the local Theme together, check

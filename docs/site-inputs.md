@@ -54,7 +54,7 @@ text: Quiet shows Chinese for `zh` or `zh-CN`, English otherwise.
 Every section rejects unknown fields and suggests the closest correct name.
 Errors name the field and the reason; they never repeat the value you wrote.
 Fields that moved in 0.2 are listed in the
-[Theme guide](themes/authoring.md#migrating-from-api-2) under Site Config.
+[Theme guide](themes/authoring.md#migrating-from-api-1-2-or-3) under Site Config.
 
 ## CLI inputs
 

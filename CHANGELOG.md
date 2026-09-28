@@ -28,7 +28,7 @@ break things).
 - **Hints for settings that moved in 0.2 and 0.3.** A Config field such as
   `site.featured_posts` or `theme.source`, or `pages:` in a Theme's
   `theme.yaml`, is now reported as an unknown field instead of naming its new
-  place. The [Theme guide](docs/themes/authoring.md#migrating-from-api-2)
+  place. The [Theme guide](docs/themes/authoring.md#migrating-from-api-1-2-or-3)
   still lists where each one went.
 
 ### Fixed
@@ -113,7 +113,7 @@ escaping. Local Themes need a small update: read
   with its new place (`pages.extra` in the site's `config.yaml`).
 - **Breaking:** `page.post`, `page.idea`, `page.about` and `page.archive`
   are replaced; see
-  [Migrating from API 3](docs/themes/authoring.md#migrating-from-api-3).
+  [Migrating from API 1, 2 or 3](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
 - `site.routes.<name>` and `site.about` are `none` for a page that is off, and
   a Blog tag's `path` is `none` when the tag pages are off.
 - The default menu follows `pages`: a moved Blog is linked at its new address;
@@ -145,7 +145,7 @@ escaping. Local Themes need a small update: read
    `@v0.3.0` (or its commit SHA) in the site workflow.
 2. **Quiet only:** nothing else to do.
 3. **A local Theme:** set `api: 4` and follow
-   [Migrating from API 3](docs/themes/authoring.md#migrating-from-api-3).
+   [Migrating from API 1, 2 or 3](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
    Move any `pages:` from `theme.yaml`, unchanged, to `pages.extra` in
    `config.yaml`.
 4. **A site script that wrote redirect pages** after the Action step: move
@@ -237,7 +237,7 @@ Quiet is now an ordinary Theme that ships with the package. Read
 ### Removed
 
 - Theme API 2. A Theme that declares `api_version: "2"` fails with a pointer
-  to the [migration notes](docs/themes/authoring.md#migrating-from-api-2).
+  to the [migration notes](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
 - Config fields `site.featured_posts`, `site.thesis`, `profile.tagline`,
   `branding`, `comments.theme`, `comments.theme_mode`, `theme.source`,
   `theme.name` and `theme.path`. The build names each one and says where it
@@ -268,7 +268,7 @@ Do these steps in the site repository on a branch, build once, then merge.
    over your `.github/workflows/pages.yml` and delete `.github/scripts/`.
    If your Config is not `config.yaml` at the repository root, change
    `config:` under the `uses: geoqiao/escaping@v0.2.0` step.
-2. **Move Config fields.** The build lists every old field it finds:
+2. **Move Config fields.** The build reports any it finds as an error:
 
    | 0.1 | 0.2 |
    | --- | --- |
@@ -285,7 +285,7 @@ Do these steps in the site repository on a branch, build once, then merge.
    `seo.social_image` or project `image` such as
    `/templates/my-theme/static/images/og.png` becomes `/assets/images/og.png`.
 4. **Local Theme.** Follow
-   [Migrating from API 2](docs/themes/authoring.md#migrating-from-api-2). If
+   [Migrating from API 1, 2 or 3](docs/themes/authoring.md#migrating-from-api-1-2-or-3). If
    the Theme only changed a few parts of Quiet, a Theme with
    `extends: quiet` that keeps only those files is usually shorter.
 5. **Projects.** If a Theme builds URLs from project slugs, check them: the
