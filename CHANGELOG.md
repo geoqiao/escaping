@@ -14,6 +14,10 @@ break things).
   unused Source Serif 4 font (194 KB) and the unused CSS variable `--serif`
   are gone. A Theme that extends Quiet and links to `manrope-bold.ttf` or
   `source-serif-4.ttf` must bring its own copy.
+- **A site title, author or description the Atom feed cannot hold is a Config
+  error.** The message names the field, as in `site.title: contains U+0001, a
+  character the Atom feed cannot hold`, and the build stops before it reads
+  any Issue.
 
 ### Removed
 

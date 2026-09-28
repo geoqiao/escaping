@@ -441,6 +441,10 @@ def test_read_issues_json_accepts_gh_slurp_pages_and_a_flat_list(
         ([[_raw_issue(1)], ["secret-text"]], "issues.json: item 1 is not a GitHub"),
         ([{"title": "no number"}], "issues.json: item 0 is not a GitHub Issue"),
         ([_raw_issue(1, created_at="yesterday")], "item 0 is not a GitHub Issue"),
+        (
+            [_raw_issue(1, updated_at="2026-01-02T00:00:00")],
+            "item 0 is not a GitHub Issue",
+        ),
         ([_raw_issue(1, labels=["type:blog"])], "item 0 is not a GitHub Issue"),
     ],
 )

@@ -29,12 +29,12 @@
 | HTML allowlist 与危险 URL | sanitizer（`test_html_sanitizer.py`） |
 | 全站路径、碰撞和 output mapping | RouteRegistry（`test_routes.py`） |
 | 固定页面、`pages.extra`、导航、跳转页、项目 | SiteBuilder / ProjectCompiler（`test_site_builder.py`、`test_projects.py`） |
-| Config 两层、错误信息、字段迁移提示 | Config（`test_config.py`）；随包配置见 `test_shipped_configs.py` |
+| Config 两层、错误信息 | Config（`test_config.py`）；随包配置见 `test_shipped_configs.py` |
 | `theme.yaml`、`extends`、选项、字符串 | ThemeLoader（`test_theme.py`） |
 | `github.com/…` 主题的下载与解压 | remote Theme（`test_remote_theme.py`，本地 HTTP 服务代替 GitHub） |
 | 模板拿到的 `site`/`page`/`theme`/`t` | render context（`test_render_service.py`） |
 | 每个 Theme 渲染每个页面、评论与 404 | theme contract（`test_template_integrity.py`，参数化 quiet、extends、independent） |
-| Atom XML | Atom feed（`test_atom_feed.py`） |
+| Atom XML | Atom feed（`test_site_builder.py`） |
 | 本地草稿检查 | Local Draft（`test_local_draft.py`） |
 | 完整内容到静态文件、产物校验 | SiteCompiler integration tracer（`test_site_integration.py`） |
 | 构建失败保留旧产物、输出目录归属标记 | output staging / safety（`test_output_staging.py`、`test_output_safety.py`） |

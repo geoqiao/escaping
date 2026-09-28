@@ -34,6 +34,7 @@ from pydantic import (
     model_validator,
 )
 
+from .atom_feed import NOT_XML
 from .remote_theme import PREFIX as REMOTE_THEME_PREFIX
 from .remote_theme import RemoteTheme
 from .routes import SITE_PATH, Sections
@@ -208,6 +209,16 @@ class SiteConfig(_Strict):
     description: str = ""
     language: str = "en"
     navigation: NavigationConfig = Field(default_factory=NavigationConfig)
+
+    @field_validator("title", "author", "description")
+    @classmethod
+    def validate_feed_text(cls, v: str) -> str:
+        if match := NOT_XML.search(v):
+            raise ValueError(
+                f"contains U+{ord(match.group()):04X}, a character the Atom feed "
+                "cannot hold"
+            )
+        return v
 
     @field_validator("url", mode="before")
     @classmethod

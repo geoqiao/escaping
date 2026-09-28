@@ -1,10 +1,10 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from ..build_result import Diagnostic
 from ..routes import Route, RouteRegistry
-from .atom_feed import AtomFeed
 from .blog_archive import ArchivePage
 from .blog_post import BlogPost
 from .content import AboutPage, Idea, ProfileAbout
@@ -87,8 +87,8 @@ class SiteModel:
     projects: tuple[Project, ...]
     tags: tuple[Tag, ...]
     extra_pages: tuple[ExtraPage, ...]
-    feed: AtomFeed
     routes: RouteRegistry
+    build_start_time: datetime
     redirects: tuple[Redirect, ...] = field(default_factory=tuple)
     diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)
     skipped_issues: tuple[int, ...] = field(default_factory=tuple)

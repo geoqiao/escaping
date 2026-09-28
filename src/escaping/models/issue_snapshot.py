@@ -32,3 +32,8 @@ class IssueSnapshot:
     created_at: datetime
     updated_at: datetime
     is_pull_request: bool
+
+    def __post_init__(self) -> None:
+        # A time without a zone would be read as the build machine's local time.
+        if self.created_at.utcoffset() is None or self.updated_at.utcoffset() is None:
+            raise ValueError("Issue times must include a time zone")

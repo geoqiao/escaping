@@ -76,6 +76,14 @@ class _NoNetwork:
         ({"sitee": {}}, "sitee: unknown field; did you mean site?"),
         ({"site": {"titel": "x"}}, "site.titel: unknown field; did you mean title?"),
         ({"paths": {"zzz": 1}}, "paths.zzz: unknown field"),
+        (
+            {"site": {"title": "A\x01"}},
+            "site.title: contains U+0001, a character the Atom feed cannot hold",
+        ),
+        (
+            {"site": {"description": "A\ufffe"}},
+            "site.description: contains U+FFFE, a character the Atom feed cannot hold",
+        ),
         ({"about": None}, "about: is empty; remove the line or add values under it"),
         (
             {"site": {"navigation": {"items": [{"name": "Blog"}]}}},

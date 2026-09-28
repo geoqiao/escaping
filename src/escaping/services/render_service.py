@@ -169,9 +169,7 @@ class RenderService:
         if self.theme.has_template(NOT_FOUND_TEMPLATE):
             files[NOT_FOUND_TEMPLATE] = render("404", None, NOT_FOUND_TEMPLATE)
 
-        files[site.feed.route.output_path] = render_atom_xml(
-            site.feed, site.metadata, home.canonical_url
-        )
+        files[routes.route("atom").output_path] = render_atom_xml(site)
         files[routes.route("sitemap").output_path] = self._sitemap(site)
         if (robots := routes.get("robots")) is not None:
             files[robots.output_path] = (

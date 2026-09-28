@@ -6,7 +6,6 @@ from datetime import datetime
 from html import escape
 from urllib.parse import quote
 
-from .atom_feed import AtomFeedBuilder
 from .blog_archive import build_archives
 from .build_result import Diagnostic
 from .config import ExtraPageConfig, Settings
@@ -51,7 +50,7 @@ def register_fixed_routes(routes: RouteRegistry) -> None:
 
 
 class SiteBuilder:
-    """Assemble the SiteModel: fixed routes, extra pages, metadata and feed."""
+    """Assemble the SiteModel: fixed routes, extra pages and metadata."""
 
     def __init__(self, settings: Settings, route_registry: RouteRegistry) -> None:
         self.settings = settings
@@ -92,15 +91,9 @@ class SiteBuilder:
                 )
             )
             navigation = self._navigation(validate=False)
-        metadata = self._metadata(navigation)
         redirects = self._redirects(diagnostics)
-
-        feed = AtomFeedBuilder(
-            metadata, build_start_time=build_start_time, route_registry=self.routes
-        ).build(content.blogs)
-        diagnostics.extend(feed.diagnostics)
         return SiteModel(
-            metadata=metadata,
+            metadata=self._metadata(navigation),
             blogs=content.blogs,
             archives=archives,
             ideas=content.ideas,
@@ -108,8 +101,8 @@ class SiteBuilder:
             projects=project_items,
             tags=tags.tags if tags is not None else (),
             extra_pages=extra_pages,
-            feed=feed.feed,
             routes=self.routes,
+            build_start_time=build_start_time,
             redirects=redirects,
             diagnostics=tuple(diagnostics),
             skipped_issues=content.skipped,
