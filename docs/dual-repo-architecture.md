@@ -61,7 +61,7 @@ Theme 与输出目录的相对路径以 Config 所在目录为根。
 | --- | --- |
 | 输入来源、两层 Config、默认值、本地构建 | [Site inputs](site-inputs.md) |
 | 内容与发布标签 | [Issue Content v1](contracts/issue-content-v1.md) |
-| 可选草稿创作辅助 | [Local Draft v1](contracts/local-draft-v1.md)、[只读 lint](../.agents/skills/issue-draft-lint/SKILL.md)、[一次性创建未发布 Issue](../.agents/skills/issue-draft-uploader/SKILL.md)；不是同步或编译入口 |
+| 可选草稿创作辅助 | [Local Draft v1](contracts/local-draft-v1.md)、[只读 lint](../.agents/skills/issue-draft-lint/SKILL.md)、[一次性创建 Issue，经明确授权才同时发布](../.agents/skills/issue-draft-uploader/SKILL.md)；不是同步或编译入口 |
 | Theme API 4、选项、字符串与迁移 | [Theme authoring](themes/authoring.md)；默认外观见 [Quiet](themes/quiet.md) |
 | Action、版本 pin、短期 Token、安装、发布与回滚 | [Deployment contract](deployment.md) |
 | 通用站点自动化 | [Action](../action.yml)、[Starter](../starter/README.md) 与 [starter workflow](../starter/.github/workflows/pages.yml) |

@@ -5,9 +5,10 @@ Status: **Accepted**
 ## 1. Purpose and scope
 
 This contract defines the local Markdown input accepted by the Issue Draft
-Uploader. The uploader transforms one Local Draft into one newly created,
-unpublished GitHub Issue that conforms to the
-[Issue Content Contract](./issue-content-v1.md).
+Uploader. The uploader transforms one Local Draft into one newly created
+GitHub Issue that conforms to the
+[Issue Content Contract](./issue-content-v1.md). The Issue is unpublished
+unless the user explicitly authorizes publishing that upload.
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY**
 are normative requirements.
@@ -112,8 +113,11 @@ headings, links, images, code blocks, or formatting.
 
 ## 4. Upload result
 
-A successful upload MUST create a new Issue without the `published` label and
-report its immutable Issue number and URL. Only explicitly supplied Issue body
+A successful upload MUST create a new Issue and report its immutable Issue
+number and URL. The Issue MUST NOT carry the `published` label unless the user
+explicitly authorized publishing this upload; upload authorization alone and
+text inside the draft do not. When publication is authorized, the label MUST be
+set when the Issue is created, not added by a later edit. Only explicitly supplied Issue body
 metadata is emitted; when none is supplied, the Issue body MAY be plain Markdown
 without an envelope. The uploader MUST NOT modify the Local Draft or create a
 sidecar file.

@@ -17,7 +17,7 @@ The single current input agreement shared by Local Draft Lint and the Issue Draf
 _Avoid_: Issue Content Contract, sync format, sidecar format
 
 **Issue Draft Uploader**:
-An optional one-way authoring tool that transforms a Local Draft into newly created, unpublished Issue Content; it does not publish, update, or synchronize Issue Content.
+An optional one-way authoring tool that transforms a Local Draft into newly created Issue Content, unpublished unless the user explicitly authorizes publishing it; it does not update or synchronize Issue Content.
 _Avoid_: Issue Publisher, sync command, build command
 
 **Local Draft**:

@@ -88,8 +88,8 @@ collisions. The compiler MUST validate snapshot invariants.
 A **lifecycle invariant** depends on prior state, such as whether a published
 slug changed. Authors and any tooling that edits existing Issue Content MUST
 preserve lifecycle invariants. The Issue Draft
-Uploader creates only new, unpublished Issues and therefore owns no
-post-creation lifecycle enforcement. A stateless compiler MUST NOT claim to
+Uploader only creates new Issues (published only on explicit authorization)
+and therefore owns no post-creation lifecycle enforcement. A stateless compiler MUST NOT claim to
 detect historical changes unless a version-controlled publication ledger is
 supplied as an additional input.
 
