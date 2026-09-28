@@ -4,6 +4,7 @@ import unicodedata
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from html.parser import HTMLParser
+from operator import attrgetter
 from typing import NoReturn
 
 from .build_result import Diagnostic
@@ -125,9 +126,7 @@ def _body_description(body_html: str) -> str:
 def _newest_first[T: BlogPost | Idea](items: Sequence[T]) -> tuple[T, ...]:
     # At the same time, the higher Issue number is the newer.
     return tuple(
-        sorted(
-            items, key=lambda item: (item.published_at, item.issue_number), reverse=True
-        )
+        sorted(items, key=attrgetter("published_at", "issue_number"), reverse=True)
     )
 
 

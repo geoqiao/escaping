@@ -22,6 +22,10 @@ break things).
   downloaded Theme's commit, and the traceback of an unexpected crash, are
   now plain lines on stderr. Log lines that repeated a reported error or
   warning are gone.
+- **Newer versions of what escaping ships and uses.** The Action installs
+  uv 0.12.17 with setup-uv 10.2.0, diagrams use Mermaid 11.17.2, and code is
+  highlighted by Pygments 2.21.0 with the same colors as before. The starter
+  workflow uses deploy-pages 5.0.1.
 
 ### Removed
 

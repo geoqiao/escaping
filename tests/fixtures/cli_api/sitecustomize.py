@@ -70,4 +70,4 @@ def snapshot_response(
     return response
 
 
-requests.sessions.Session.send = snapshot_response  # ty: ignore[invalid-assignment] - intentional HTTP boundary replacement
+requests.sessions.Session.send = snapshot_response
