@@ -17,8 +17,6 @@ from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from jinja2 import Environment
-
 from ..atom_feed import render_atom_xml
 from ..build_result import Diagnostic
 from ..models.blog_archive import ArchivePage
@@ -55,7 +53,6 @@ class RenderService:
     def __init__(self, theme: LoadedTheme, options: SimpleNamespace) -> None:
         self.theme = theme
         self.options = options
-        self.env: Environment = theme.environment()
 
     def copy_assets(self, output_dir: Path) -> None:
         """Theme static files to ``/assets/``, shared scripts to ``/assets/escaping/``."""
@@ -68,6 +65,7 @@ class RenderService:
         )
 
     def render_site(self, site: SiteModel) -> RenderedSite:
+        env = self.theme.environment(site.routes.base)
         diagnostics: list[Diagnostic] = []
         context = {
             "site": self._site_context(site),
@@ -84,7 +82,7 @@ class RenderService:
             for name in _PAGE_FIELDS:
                 page.setdefault(name, None)
             template = template or self.theme.template_for(kind)
-            return self.env.get_template(template).render(
+            return env.get_template(template).render(
                 page=SimpleNamespace(kind=kind, route=route, **page), **context
             )
 
@@ -170,9 +168,11 @@ class RenderService:
             site.feed, site.metadata, home.canonical_url
         )
         files[routes.route("sitemap").output_path] = self._sitemap(site)
-        files[routes.route("robots").output_path] = (
-            f"User-agent: *\nAllow: /\nSitemap: {routes.route('sitemap').canonical_url}\n"
-        )
+        if (robots := routes.get("robots")) is not None:
+            files[robots.output_path] = (
+                "User-agent: *\nAllow: /\n"
+                f"Sitemap: {routes.route('sitemap').canonical_url}\n"
+            )
         files[routes.route("search").output_path] = json.dumps(
             build_search_index(site), ensure_ascii=False, separators=(",", ":")
         )

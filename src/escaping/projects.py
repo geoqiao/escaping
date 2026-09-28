@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from .build_result import Diagnostic
 from .config import ProjectCatalogEntry
 from .models.projects import Project, ProjectCompilationResult, ProjectLink
+from .routes import with_base
 
 
 @dataclass(frozen=True)
@@ -22,9 +23,13 @@ class ProjectCompiler:
     """Compile curated repository-owned project entries with optional enrichment."""
 
     def __init__(
-        self, enrich: Callable[[str], ProjectEnrichment] | None = None
+        self,
+        enrich: Callable[[str], ProjectEnrichment] | None = None,
+        *,
+        base: str = "",
     ) -> None:
         self._enrich = enrich
+        self._base = base
 
     def compile(
         self, entries: Sequence[ProjectCatalogEntry]
@@ -99,9 +104,10 @@ class ProjectCompiler:
                     forks=values.forks,
                     language=values.language,
                     topics=values.topics,
-                    image=entry.image,
+                    image=with_base(self._base, entry.image),
                     links=tuple(
-                        ProjectLink(link.name, link.url) for link in entry.links
+                        ProjectLink(link.name, with_base(self._base, link.url))
+                        for link in entry.links
                     ),
                 )
             )

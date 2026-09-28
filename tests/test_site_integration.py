@@ -500,3 +500,68 @@ def test_redirects_send_old_addresses_to_pages_of_the_site(tmp_path: Path) -> No
     assert "Hello." in (output / "blog/hello/index.html").read_text(encoding="utf-8")
     assert not (output / "blog/gone").exists()
     assert not any("old-hello" in url for url in _sitemap(output))
+
+
+_UNDER_A_PATH = {
+    "title": "Notes",
+    "author": "geoqiao",
+    "url": "https://geoqiao.github.io/notes",
+    "description": "A site under a path.",
+}
+
+
+def test_a_site_under_a_path_keeps_every_address_below_it(tmp_path: Path) -> None:
+    settings = _settings(
+        site=_UNDER_A_PATH,
+        profile={"avatar": "/assets/images/favicon.png"},
+        seo={"social_image": "/assets/images/favicon.png"},
+        redirects={"/old-hello/": "/blog/hello/"},
+    )
+    body = (
+        "---\nslug: hello\n---\n\n"
+        "See [About](/about/), [elsewhere](https://example.com/) and "
+        "![icon](/assets/images/favicon.png)."
+    )
+    content = (_snapshot(1, "blog", body), *_CONTENT[1:])
+
+    result, _ = _generate(tmp_path, content, settings)
+
+    assert result.success, result.diagnostics
+    output = tmp_path / "output"
+    hello = (output / "blog/hello/index.html").read_text(encoding="utf-8")
+    for fragment in (
+        '<link rel="canonical" href="https://geoqiao.github.io/notes/blog/hello/">',
+        '<a href="/notes/about/">About</a>',
+        '<a href="https://example.com/">elsewhere</a>',
+        'src="/notes/assets/images/favicon.png"',
+        'href="/notes/assets/css/style.css"',
+        '<link rel="icon" href="/notes/assets/images/favicon.png">',
+        'content="https://geoqiao.github.io/notes/assets/images/favicon.png"',
+        'data-search-index="/notes/search.json"',
+    ):
+        assert fragment in hello, fragment
+    assert all(
+        url.startswith("https://geoqiao.github.io/notes/") for url in _sitemap(output)
+    )
+    assert not (output / "robots.txt").exists()
+    assert "url=https://geoqiao.github.io/notes/blog/hello/" in (
+        output / "old-hello/index.html"
+    ).read_text(encoding="utf-8")
+
+
+def test_a_theme_address_outside_the_sites_path_names_the_url_filter(
+    tmp_path: Path,
+) -> None:
+    use = _theme(
+        tmp_path, {"head-extra.html": '<link rel="stylesheet" href="/assets/x.css">'}
+    )
+    settings = _settings(site=_UNDER_A_PATH, theme={"use": use})
+
+    result, _ = _generate(tmp_path, _CONTENT, settings)
+
+    assert not result.success
+    problems = {d.message for d in result.diagnostics if d.code == "LINK_OUTSIDE_SITE"}
+    assert (
+        "index.html: link points to /assets/x.css, outside this site at /notes/; "
+        "a Theme writes it as {{ '/assets/x.css'|url }}"
+    ) in problems

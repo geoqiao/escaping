@@ -37,7 +37,6 @@ _CONTEXT = {
     "owner_login": "alice",
     "owner_type": "User",
     "pages_base_url": "https://notes.example/",
-    "pages_base_path": "/",
 }
 
 
@@ -330,12 +329,29 @@ def test_resource_urls_are_https_or_root_relative(image: str, valid: bool) -> No
         "https://example.org\\nested",
         "https://exa\nmple.org/",
         123,
-        "https://example.org/nested/",
+        "https://example.org/a b/",
+        "https://example.org/../x/",
+        "https://example.org/notes/?x=1",
     ],
 )
-def test_site_url_must_be_a_root_https_origin(url: object) -> None:
+def test_site_url_must_be_an_https_url(url: object) -> None:
     with pytest.raises(ValidationError):
         Settings.model_validate({**_BASE, "site": {**_BASE["site"], "url": url}})
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://example.org", "https://example.org/"),
+        ("https://example.org/notes", "https://example.org/notes/"),
+        ("https://alice.github.io/My.Site_2/", "https://alice.github.io/My.Site_2/"),
+    ],
+)
+def test_site_url_may_have_a_path_and_always_ends_with_a_slash(
+    url: str, expected: str
+) -> None:
+    settings = Settings.model_validate({**_BASE, "site": {**_BASE["site"], "url": url}})
+    assert str(settings.site.url) == expected
 
 
 def test_comments_require_an_explicit_boolean_opt_in() -> None:
@@ -426,7 +442,7 @@ def test_invalid_config_fails_before_any_github_access(data: dict, field: str) -
 def test_platform_context_is_validated_without_echoing_values(tmp_path: Path) -> None:
     path = tmp_path / "context.json"
     for patch, problem in (
-        ({"pages_base_url": "https://secret-host.example/blog/"}, "pages_base_url:"),
+        ({"pages_base_url": "https://secret-host.example/a b/"}, "pages_base_url:"),
         ({"owner_login": "secret-login"}, "must identify the same owner"),
         ({"owner_type": "Bot"}, "owner_type:"),
         ({"actor": "secret-actor"}, "actor: unknown field"),

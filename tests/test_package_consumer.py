@@ -214,7 +214,6 @@ def test_wheel_consumer_builds_site_outside_checkout(
                 "owner_login": "alice",
                 "owner_type": "User",
                 "pages_base_url": "https://notes.example/",
-                "pages_base_path": "/",
             }
         )
     )

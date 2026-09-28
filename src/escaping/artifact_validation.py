@@ -97,8 +97,8 @@ class SiteArtifactValidator:
                 )
         pages |= redirects
         if NOT_FOUND_TEMPLATE in files:
-            # Served for any missing path; resolve its relative links at the root.
-            pages[NOT_FOUND_TEMPLATE] = f"{self.site.routes.origin}/"
+            # Served for any missing path; resolve its relative links at Home.
+            pages[NOT_FOUND_TEMPLATE] = self.site.routes.route("home").canonical_url
         for output_path in sorted(
             path for path in files if path.endswith(".html") and path not in pages
         ):
@@ -130,11 +130,28 @@ class SiteArtifactValidator:
         files: set[str],
         diagnostics: list[Diagnostic],
     ) -> None:
+        routes = self.site.routes
         try:
             path = self._internal_path(value, base_url)
-            if path is None or self.site.routes.route_for_path(path) is not None:
+            if path is None:
                 return
-            file = _file_for(path)
+            site_path = routes.site_path(path)
+            if site_path is None:
+                # Only a root-relative address can leave the site by mistake;
+                # a full URL to a neighbour on the same host is external.
+                if value.startswith("/"):
+                    diagnostics.append(
+                        _error(
+                            "LINK_OUTSIDE_SITE",
+                            f"{output_path}: {tag} points to {path}, outside this "
+                            f"site at {routes.base}/; a Theme writes it as "
+                            f"{{{{ '{path}'|url }}}}",
+                        )
+                    )
+                return
+            if routes.route_for_path(site_path) is not None:
+                return
+            file = _file_for(site_path)
         except ValueError, RouteCollisionError:
             diagnostics.append(
                 _error("INVALID_INTERNAL_PATH", f"{output_path}: unsafe {tag} URL")

@@ -59,7 +59,9 @@ def compile_site(
     routes = RouteRegistry(str(settings.site.url), settings.pages.sections())
     register_fixed_routes(routes)  # the sitemap lists them first
     content = ContentCompiler(settings, route_registry=routes).compile(snapshots)
-    projects = ProjectCompiler(project_enricher).compile(settings.projects)
+    projects = ProjectCompiler(project_enricher, base=routes.base).compile(
+        settings.projects
+    )
     return SiteBuilder(settings, route_registry=routes).build(
         content, projects, pages=settings.pages.extra, build_start_time=build_start_time
     )

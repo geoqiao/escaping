@@ -251,7 +251,7 @@ class ContentCompiler:
             snapshot,
             validate_authored_content(snapshot.title, content_type, tags, parsed),
         )
-        body_html, body_errors = render_body(parsed.body)
+        body_html, body_errors = render_body(parsed.body, base=self._routes.base)
         self._check(snapshot, body_errors)
         if body_html is None:
             raise _SkipIssueError

@@ -243,6 +243,22 @@ def test_missing_templates_fall_back_to_blog_and_post() -> None:
     theme.check(PagesConfig.model_validate({"tags": False, "projects": False}))
 
 
+def test_the_url_filter_puts_site_addresses_under_the_sites_path() -> None:
+    theme = ThemeLoader(_ROOT).load("tests/fixtures/minimal_theme")
+    env = theme.environment("/notes")
+
+    def render(source: str, **values: object) -> str:
+        return env.from_string(source).render(**values)
+
+    assert render("{{ '/assets/a.css'|url }}") == "/notes/assets/a.css"
+    # Route paths already include it; full URLs and fragments stay as they are.
+    for value in ("/notes/blog/", "https://x.test/a", "#top", "//cdn.test/a.js"):
+        assert render("{{ value|url }}", value=value) == value
+    assert theme.environment().from_string("{{ '/a'|url }}").render() == "/a"
+    with pytest.raises(TypeError, match="url expects an address string"):
+        render("{{ 3|url }}")
+
+
 def test_a_child_template_wins_over_the_parent_before_falling_back(
     tmp_path: Path,
 ) -> None:

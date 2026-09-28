@@ -38,7 +38,6 @@ _CONTEXT = {
     "owner_login": "alice",
     "owner_type": "User",
     "pages_base_url": "https://notes.example/",
-    "pages_base_path": "/",
 }
 
 
@@ -303,7 +302,7 @@ def test_a_bad_issues_file_builds_nothing(
         (_CONFIG + "security: {token_env: ghp_SECRET-1}\n", None),
         (
             "security: {token_env: CLI_TEST_TOKEN}\n",
-            {**_CONTEXT, "pages_base_url": "https://ghp_SECRET.example/blog/"},
+            {**_CONTEXT, "pages_base_url": "https://ghp_SECRET.example/a b/"},
         ),
         (
             "security: {token_env: CLI_TEST_TOKEN}\n",

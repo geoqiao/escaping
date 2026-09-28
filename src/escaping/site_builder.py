@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime
 from html import escape
-from urllib.parse import quote, urljoin
+from urllib.parse import quote
 
 from .atom_feed import AtomFeedBuilder
 from .blog_archive import build_archives
@@ -22,7 +22,7 @@ from .models.site import (
     SiteModel,
     SiteProfile,
 )
-from .routes import Route, RouteCollisionError, RouteRegistry
+from .routes import Route, RouteCollisionError, RouteRegistry, with_base
 from .tag_taxonomy import build_tag_taxonomy
 
 
@@ -44,7 +44,9 @@ def register_fixed_routes(routes: RouteRegistry) -> None:
             register()
     routes.atom()
     routes.sitemap()
-    routes.robots()
+    if not routes.base:
+        # Crawlers read robots.txt only at the root of a host.
+        routes.robots()
     routes.search()
 
 
@@ -176,7 +178,7 @@ class SiteBuilder:
                     f"points to {configured[path]}, which is not a page of this site"
                 )
             else:
-                url = f"{self.routes.origin}{quote(path, safe='/')}"
+                url = f"{self.routes.origin}{self.routes.base}{quote(path, safe='/')}"
                 redirects.append(Redirect(path, output, url, route))
                 continue
             diagnostics.append(
@@ -201,6 +203,8 @@ class SiteBuilder:
                         f"which is not a page of this site{self._off_hint(url)}"
                     )
                 url = route.canonical_path
+            else:
+                url = with_base(self.routes.base, url)
             links.append(SiteLink(item.name, url))
         return tuple(links)
 
@@ -213,9 +217,10 @@ class SiteBuilder:
 
     def _metadata(self, navigation: tuple[SiteLink, ...]) -> SiteMetadata:
         settings = self.settings
-        social_image = settings.seo.social_image
+        base = self.routes.base
+        social_image = with_base(base, settings.seo.social_image)
         if social_image.startswith("/"):
-            social_image = urljoin(f"{self.routes.origin}/", social_image)
+            social_image = f"{self.routes.origin}{social_image}"
         return SiteMetadata(
             title=settings.site.title,
             author=settings.site.author,
@@ -224,10 +229,11 @@ class SiteBuilder:
             repo=settings.github.repo,
             navigation=navigation,
             profile=SiteProfile(
-                avatar=settings.profile.avatar,
+                avatar=with_base(base, settings.profile.avatar),
                 bio=settings.profile.bio,
                 links=tuple(
-                    SiteLink(link.name, link.url) for link in settings.profile.links
+                    SiteLink(link.name, with_base(base, link.url))
+                    for link in settings.profile.links
                 ),
             ),
             comments=CommentsMetadata(

@@ -96,14 +96,14 @@ be `{}`:
   "repository": "alice/site",
   "owner_login": "alice",
   "owner_type": "User",
-  "pages_base_url": "https://notes.example/",
-  "pages_base_path": "/"
+  "pages_base_url": "https://notes.example/"
 }
 ```
 
-The file has exactly these five fields. Only GitHub.com User or Organization
-owners and HTTPS root Pages URLs are supported; a project-site sub-path such as
-`https://alice.github.io/site/` is rejected. The context never holds a token,
+The file has exactly these four fields. Only GitHub.com User or Organization
+owners and HTTPS Pages URLs are supported. A project site such as
+`https://alice.github.io/site/` works: its path becomes the site's path (see
+[Sites under a path](#sites-under-a-path)). The context never holds a token,
 an actor or Config overrides.
 
 `--repo owner/name` overrides `github.repo`. It, or a Config repository that

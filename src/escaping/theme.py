@@ -12,6 +12,7 @@ import re
 import shutil
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Literal
@@ -35,6 +36,7 @@ from .config import (
     describe_validation_errors,
     validate_safe_href,
 )
+from .routes import with_base
 from .utils.frontmatter import _StrictYAMLLoader
 
 THEME_API = 4
@@ -125,7 +127,8 @@ class LoadedTheme:
             if not layer.root.is_relative_to(BUILTIN_THEMES)
         )
 
-    def environment(self) -> Environment:
+    def environment(self, base: str = "") -> Environment:
+        """The Jinja environment; ``base`` is the site's path for ``url``."""
         loaders: list[BaseLoader] = [
             FileSystemLoader(str(layer.root)) for layer in self.layers
         ]
@@ -133,9 +136,11 @@ class LoadedTheme:
             PrefixLoader({f"@{layer.name}": FileSystemLoader(str(layer.root))})
             for layer in self.layers[1:]
         )
-        return Environment(
+        environment = Environment(
             loader=ChoiceLoader(loaders), autoescape=True, undefined=StrictUndefined
         )
+        environment.filters["url"] = partial(_url, base)
+        return environment
 
     def has_template(self, name: str) -> bool:
         return any((layer.root / name).is_file() for layer in self.layers)
@@ -238,6 +243,19 @@ class LoadedTheme:
             target = assets / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)
+
+
+def _url(base: str, value: str) -> str:
+    """The ``url`` filter: ``'/assets/site.css'|url`` under the site's path.
+
+    Route paths already include it, so an address that starts with the site's
+    path is returned as is; so are full URLs and fragments.
+    """
+    if not isinstance(value, str):
+        raise TypeError(f"url expects an address string, not {type(value).__name__}")
+    if base and (value == base or value.startswith(f"{base}/")):
+        return value
+    return with_base(base, value)
 
 
 def _is_template(name: str) -> bool:

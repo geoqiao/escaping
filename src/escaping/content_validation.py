@@ -198,10 +198,13 @@ def validate_authored_content(
     return tuple(errors)
 
 
-def render_body(markdown: str) -> tuple[str | None, tuple[Diagnostic, ...]]:
+def render_body(
+    markdown: str, *, base: str = ""
+) -> tuple[str | None, tuple[Diagnostic, ...]]:
     """Render the shared GFM subset then apply the existing HTML sanitizer.
 
     The returned HTML is a preview/compiled value, never replacement Markdown.
+    ``base`` is the site's path below its origin (see ``sanitize_html``).
     """
     try:
         rendered = _MARKDOWN.convert(markdown)
@@ -215,7 +218,7 @@ def render_body(markdown: str) -> tuple[str | None, tuple[Diagnostic, ...]]:
             ),
         )
     try:
-        return sanitize_html(rendered), ()
+        return sanitize_html(rendered, base=base), ()
     except Exception as exc:
         # Only our controlled tag/position messages are safe to expose;
         # third-party exceptions may contain authored text or URL values.

@@ -45,8 +45,7 @@ runs:
           repository: $repo.full_name,
           owner_login: $repo.owner.login,
           owner_type: $repo.owner.type,
-          pages_base_url: $pages.html_url,
-          pages_base_path: "/"
+          pages_base_url: $pages.html_url
         }' > "$RUNNER_TEMP/escaping-context.json"
 
     - name: Build the site

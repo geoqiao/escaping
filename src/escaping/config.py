@@ -34,7 +34,7 @@ from pydantic import (
     model_validator,
 )
 
-from .routes import Sections
+from .routes import SITE_PATH, Sections
 from .utils.frontmatter import _StrictYAMLLoader
 
 _ENV_VAR_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
@@ -121,7 +121,8 @@ def validate_safe_resource_url(value: str) -> str:
     return validated
 
 
-def _canonical_origin(value: object) -> str:
+def _site_url(value: object) -> str:
+    """An HTTPS site address, at the root or under a path, ending with /."""
     if isinstance(value, HttpUrl):
         value = str(value)
     if not isinstance(value, str):
@@ -132,14 +133,16 @@ def _canonical_origin(value: object) -> str:
         raise ValueError("site URL must use HTTPS")
     if parsed.username or parsed.password:
         raise ValueError("site URL must not contain userinfo")
-    if parsed.path not in ("", "/"):
-        raise ValueError(
-            "site URL must be a root origin such as https://example.com/ "
-            "(sites under a sub-path are not supported)"
-        )
     if parsed.query or parsed.fragment or parsed.params:
         raise ValueError("site URL must not contain a query or fragment")
-    return urlunparse(("https", parsed.netloc, "/", "", "", ""))
+    path = parsed.path.rstrip("/") + "/"
+    if not SITE_PATH.fullmatch(path):
+        raise ValueError(
+            "site URL must be like https://example.com/ or "
+            "https://example.com/notes/; each part of the path may use "
+            "letters, digits, '.', '_', '~' and '-'"
+        )
+    return urlunparse(("https", parsed.netloc, path, "", "", ""))
 
 
 class _Strict(BaseModel):
@@ -219,8 +222,8 @@ class SiteConfig(_Strict):
 
     @field_validator("url", mode="before")
     @classmethod
-    def validate_canonical_origin(cls, v: object) -> str:
-        return _canonical_origin(v)
+    def validate_site_url(cls, v: object) -> str:
+        return _site_url(v)
 
     @field_validator("language")
     @classmethod
@@ -255,12 +258,11 @@ class PlatformContext(RepositoryIdentity):
     """Non-secret platform snapshot supplied by the Action, not another Config."""
 
     pages_base_url: HttpUrl
-    pages_base_path: Literal["", "/"]
 
     @field_validator("pages_base_url", mode="before")
     @classmethod
-    def validate_pages_origin(cls, value: object) -> str:
-        return _canonical_origin(value)
+    def validate_pages_url(cls, value: object) -> str:
+        return _site_url(value)
 
 
 class ProfileConfig(_Strict):
