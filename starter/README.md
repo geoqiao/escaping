@@ -1,8 +1,8 @@
 # Your Issue-based personal site
 
 **Preview:** [escaping-template](https://github.com/geoqiao/escaping-template) is where this
-template is published. The 0.4.0 workflow has passed local tests; neither an existing site nor a
-brand-new repository has run it on GitHub yet.
+template is published. The 0.4.0 Action builds a live site on GitHub, but a repository made from
+this template, including its step that creates the labels, has not been tried on GitHub yet.
 
 ## Start writing
 

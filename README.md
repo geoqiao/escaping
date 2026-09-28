@@ -30,7 +30,7 @@ Blog、Ideas、Projects、About、Tags 和 RSS，无需另建一套内容管理�
 
 使用 [escaping-template](https://github.com/geoqiao/escaping-template) 的 **Use this template** 创建站点，无需本机 Python、PAT 或手动创建发布标签。
 
-> **公开预览：** 0.4.0 的 Action 和 starter workflow 已在本地测试中运行；在 GitHub 上从模板新建仓库的完整流程尚未验证。
+> **公开预览：** 0.4.0 的 Action 已在 GitHub 上构建一个正式站点；用模板新建仓库的完整流程（包括自动创建标签那一步）还没在 GitHub 上试过。
 
 1. 创建 `username.github.io`（免费账户使用公开仓库），保持 Issues/Actions 开启，在 **Settings → Pages** 把 **Source** 设为 **GitHub Actions**。
 2. 保存一个带标题和 Markdown 正文的 Issue。workflow 的 `labels` 任务会在首次运行时创建发布标签；看不到时刷新 Issue 页面。

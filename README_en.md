@@ -26,8 +26,8 @@ Blog, Ideas, Projects, About, Tags and RSS, without a separate content managemen
 Use **Use this template** at [escaping-template](https://github.com/geoqiao/escaping-template).
 No local Python, PAT, or manually created publishing labels are required.
 
-> **Public preview:** the 0.4.0 Action and starter workflow have run in local tests; creating a new
-> repository from the template on GitHub has not been fully verified yet.
+> **Public preview:** the 0.4.0 Action builds a live site on GitHub; creating a new repository
+> from the template, including the step that creates the labels, has not been tried on GitHub yet.
 
 1. Create `username.github.io` (public for GitHub Free), keep Issues/Actions enabled, and in **Settings → Pages** set **Source** to **GitHub Actions**.
 2. Save an Issue with a title and Markdown body. The workflow's `labels` job creates the publishing labels on its first run; refresh the Issue page if you do not see them.
