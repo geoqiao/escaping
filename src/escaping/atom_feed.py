@@ -7,8 +7,6 @@ import xml.etree.ElementTree as ET
 from datetime import UTC, datetime
 from typing import TYPE_CHECKING
 
-from .models.blog_post import blog_post_sort_key
-
 if TYPE_CHECKING:
     from .models.site import SiteModel
 
@@ -49,10 +47,11 @@ def render_atom_xml(site: SiteModel) -> str:
     _add(_add(feed, "author"), "name", metadata.author)
     if metadata.description:
         _add(feed, "subtitle", metadata.description)
-    posts = sorted(site.blogs, key=blog_post_sort_key, reverse=True)
-    updated = max((post.updated_at for post in posts), default=site.build_start_time)
+    updated = max(
+        (post.updated_at for post in site.blogs), default=site.build_start_time
+    )
     _add(feed, "updated", _time(updated))
-    for post in posts:
+    for post in site.blogs:
         url = post.route.canonical_url
         entry = _add(feed, "entry")
         _add(entry, "id", url)

@@ -99,9 +99,9 @@ src/escaping/              # 按构建顺序
 ├── content_compiler.py    # Issue → Blog/Idea/About，坏 Issue 跳过
 ├── content_validation.py  # Issue 与本地草稿共用的内容规则、Markdown 渲染
 ├── projects.py            # config 里的 Projects
-├── site_builder.py        # SiteModel：固定页面、额外页面、导航、跳转页
+├── site_builder.py        # SiteModel：固定页面、额外页面、导航、跳转页、Blog 分页、标签
 ├── routes.py              # RouteRegistry
-├── blog_archive.py、tag_taxonomy.py、atom_feed.py、search.py
+├── atom_feed.py、search.py
 ├── artifact_validation.py # 替换线上产物前的完整性检查
 ├── output_staging.py      # 先写临时目录，成功后替换
 ├── build_result.py        # Diagnostic 与退出码

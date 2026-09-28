@@ -132,7 +132,7 @@ def _build(
 def test_site_builder_composes_the_site_from_registered_routes() -> None:
     settings = _settings()
     routes = RouteRegistry(str(settings.site.url))
-    blogs = tuple(_blog(routes, number) for number in (2, 6, 1, 5, 3, 4))
+    blogs = tuple(_blog(routes, number) for number in (6, 5, 4, 3, 2, 1))
 
     site = _build(settings, routes, _content(routes, blogs, skipped=(7,)))
 
@@ -167,9 +167,9 @@ def test_tags_group_by_key_and_take_the_newest_spelling() -> None:
     settings = _settings()
     routes = RouteRegistry(str(settings.site.url))
     blogs = (
-        _blog(routes, 1, tags=(("python", "python"), ("示例 标签", "示例-标签"))),
         _blog(routes, 3, tags=(("Python", "python"),)),
         _blog(routes, 2, tags=(("PYTHON", "python"),)),
+        _blog(routes, 1, tags=(("python", "python"), ("示例 标签", "示例-标签"))),
     )
     site = _build(settings, routes, _content(routes, blogs))
     assert [(tag.name, tag.key) for tag in site.tags] == [
@@ -289,9 +289,9 @@ def test_atom_feed_lists_the_blog_newest_first_in_utc() -> None:
     # 08:30 at UTC+8 on Jan 9 is 00:30 UTC, the latest update.
     late = datetime(2026, 1, 9, 8, 30, tzinfo=timezone(timedelta(hours=8)))
     blogs = (
-        _blog(routes, 1),
         replace(_blog(routes, 3), updated_at=late),
         _blog(routes, 2),
+        _blog(routes, 1),
     )
     xml = render_atom_xml(_build(settings, routes, _content(routes, blogs)))
     feed = ET.fromstring(xml)  # noqa: S314

@@ -86,7 +86,10 @@ class ProfileAbout:
 
 @dataclass(frozen=True)
 class ContentCompilationResult:
-    """Compiled content; ``skipped`` Issues are left out but do not stop the build."""
+    """Compiled content, Blog posts and Ideas newest first.
+
+    ``skipped`` Issues are left out but do not stop the build.
+    """
 
     blogs: tuple[BlogPost, ...] = field(default_factory=tuple)
     ideas: tuple[Idea, ...] = field(default_factory=tuple)

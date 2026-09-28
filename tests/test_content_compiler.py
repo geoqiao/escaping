@@ -128,6 +128,21 @@ def test_authored_calendar_dates_compile_to_ascii_without_changing_issue_time(
     assert item.published_at == item.updated_at == _NOW
 
 
+def test_blog_posts_come_out_newest_first() -> None:
+    older = _NOW.replace(day=8)
+    result = _compiler().compile(
+        [
+            _snapshot(2, "blog", metadata="slug: two"),
+            _snapshot(5, "blog", metadata="slug: five", created_at=older),
+            _snapshot(3, "blog", metadata="slug: three"),
+            _snapshot(10, "about"),
+        ]
+    )
+    assert not result.has_errors
+    # At the same time, the higher Issue number is the newer post.
+    assert [post.issue_number for post in result.blogs] == [3, 2, 5]
+
+
 def test_ideas_forbid_slug_sort_and_keep_tags_outside_blog_taxonomy() -> None:
     older = _NOW.replace(day=8)
     result = _compiler().compile(
