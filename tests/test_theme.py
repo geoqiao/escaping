@@ -388,6 +388,14 @@ def test_extending_quiet_merges_options_strings_and_static(
     assert parent.filename == str(theme_module.BUILTIN_THEMES / "quiet" / "base.html")
 
 
+def test_quiet_docs_list_every_option_and_string_key() -> None:
+    quiet = ThemeLoader(_ROOT).load("quiet")
+    docs = (_ROOT / "docs/themes/quiet.md").read_text(encoding="utf-8")
+
+    keys = {*quiet.options, *quiet.strings["en"], *quiet.strings["zh"]}
+    assert {key for key in keys if f"`{key}`" not in docs} == set()
+
+
 def test_the_extends_fixture_is_a_complete_theme() -> None:
     theme = ThemeLoader(_ROOT).load("tests/fixtures/extends_theme")
 

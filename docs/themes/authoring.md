@@ -86,7 +86,7 @@ This replaces Quiet's Home introduction and adds a stylesheet to every page
 `theme/static/css/extra.css` is published at `/assets/css/extra.css`, next to
 Quiet's files. Write it as `{{ '/assets/css/extra.css'|url }}` so it also
 works for a site under a path (see [Addresses](#addresses)).
-[Quiet](quiet.md#可以替换的文件) lists the partials that are meant to be
+[Quiet](quiet.md#files-you-can-replace) lists the partials that are meant to be
 replaced.
 
 ### Reusing the file you replace

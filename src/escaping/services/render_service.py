@@ -337,6 +337,7 @@ def _redirect_page(target: Route, language: str) -> str:
 <html lang="{escape(language)}">
 <head>
 <meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Moved</title>
 <meta name="robots" content="noindex">
 <link rel="canonical" href="{url}">

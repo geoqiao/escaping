@@ -1,4 +1,4 @@
-"""Theme API 3: load a Theme directory, its built-in parent, options and strings.
+"""Theme API 4: load a Theme directory, its built-in parent, options and strings.
 
 A Theme is templates, static files and ``theme.yaml``. Loading never touches
 the network and never executes Theme code. See docs/themes/authoring.md.
