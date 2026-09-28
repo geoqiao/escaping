@@ -87,14 +87,18 @@ class SiteArtifactValidator:
             route.output_path: route.canonical_url
             for route in self.site.routes.routes()
         }
-        for output_path in pages:
+        redirects = {
+            redirect.output_path: redirect.url for redirect in self.site.redirects
+        }
+        for output_path in [*pages, *redirects]:
             if output_path not in files:
                 diagnostics.append(
                     _error("MISSING_ROUTE", f"missing page file: {output_path}")
                 )
+        pages |= redirects
         if NOT_FOUND_TEMPLATE in files:
-            # Served for any missing path; resolve its relative links at the root.
-            pages[NOT_FOUND_TEMPLATE] = f"{self.site.routes.origin}/"
+            # Served for any missing path; resolve its relative links at Home.
+            pages[NOT_FOUND_TEMPLATE] = self.site.routes.route("home").canonical_url
         for output_path in sorted(
             path for path in files if path.endswith(".html") and path not in pages
         ):
@@ -105,6 +109,7 @@ class SiteArtifactValidator:
                 )
             )
 
+        top_level = {path.split("/")[0] for path in files}
         for output_path, base_url in pages.items():
             if output_path not in files or not output_path.endswith(".html"):
                 continue
@@ -113,7 +118,7 @@ class SiteArtifactValidator:
                 continue
             for tag, value in probe.references:
                 self._check_reference(
-                    output_path, tag, value, base_url, files, diagnostics
+                    output_path, tag, value, base_url, files, top_level, diagnostics
                 )
         return diagnostics
 
@@ -124,26 +129,55 @@ class SiteArtifactValidator:
         value: str,
         base_url: str,
         files: set[str],
+        top_level: set[str],
         diagnostics: list[Diagnostic],
     ) -> None:
+        routes = self.site.routes
         try:
             path = self._internal_path(value, base_url)
-            if path is None or self.site.routes.route_for_path(path) is not None:
+            if path is None:
                 return
-            file = _file_for(path)
+            site_path = routes.site_path(path)
+            if site_path is None:
+                # Only a root-relative address can leave the site by mistake;
+                # a full URL to a neighbour on the same host is external.
+                if value.startswith("/"):
+                    diagnostics.append(
+                        _error(
+                            "LINK_OUTSIDE_SITE",
+                            f"{output_path}: {tag} points to {path}, outside this "
+                            f"site at {routes.base}/; a Theme writes it as "
+                            f"{{{{ '{path}'|url }}}}",
+                        )
+                    )
+                return
+            if routes.route_for_path(site_path) is not None:
+                return
+            file = _file_for(site_path)
         except ValueError, RouteCollisionError:
             diagnostics.append(
                 _error("INVALID_INTERNAL_PATH", f"{output_path}: unsafe {tag} URL")
             )
             return
-        if file not in files:
-            diagnostics.append(
-                _error(
-                    "BROKEN_INTERNAL_LINK",
-                    f"{output_path}: {tag} points to {path}, which is not a page "
-                    "or file of this site",
-                )
+        if file in files:
+            return
+        folder, _, rest = file.partition("/")
+        if urlsplit(value).netloc and rest and folder not in top_level:
+            # A full URL into a folder this site does not write may belong to
+            # another site on the host, such as a GitHub project site.
+            return
+        moved = (
+            "; if it moved, add the old address to redirects in config.yaml"
+            if path.endswith(("/", ".html"))
+            else ""
+        )
+        diagnostics.append(
+            _error(
+                "BROKEN_INTERNAL_LINK",
+                f"{output_path}: {tag} points to {path}, which is not a page "
+                f"or file of this site{moved}",
             )
+        )
 
     def _internal_path(self, value: str, base_url: str) -> str | None:
         """Same-origin path for ``value``, or None for fragments and other sites."""

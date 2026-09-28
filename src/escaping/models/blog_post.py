@@ -8,15 +8,15 @@ from ..routes import Route
 
 @dataclass(frozen=True)
 class BlogTag:
-    """A Blog tag as shown on one post: display name plus its archive Route."""
+    """A Blog tag as shown on one post; ``route`` is None when Tags are off."""
 
     name: str
     key: str
-    route: Route
+    route: Route | None
 
     @property
-    def path(self) -> str:
-        return self.route.canonical_path
+    def path(self) -> str | None:
+        return self.route.canonical_path if self.route else None
 
 
 @dataclass(frozen=True)

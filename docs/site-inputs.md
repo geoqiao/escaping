@@ -23,6 +23,8 @@ mean something after switching to another Theme?
   | `profile` | `avatar`, `bio`, `links` |
   | `about` | `issue_number` |
   | `paths` | `output`, `page_size` |
+  | `pages` | which pages exist and where; see [Pages](#pages) |
+  | `redirects` | old addresses and where they went; see [Redirects](#redirects) |
   | `projects` | the curated project list |
   | `comments` | `enabled`, `repo` (Utterances) |
   | `seo` | `google_search_console`, `social_image`, `social_image_alt` |
@@ -75,7 +77,7 @@ problem to its Issue, and the step outputs `output` (the output directory) and
 `skipped-issues` (comma-separated numbers).
 
 Without platform context, the Config needs at least the real content
-repository and the real HTTPS root URL (not a guessed Pages URL):
+repository and the real HTTPS site URL (not a guessed Pages URL):
 
 ```yaml
 github:
@@ -96,14 +98,14 @@ be `{}`:
   "repository": "alice/site",
   "owner_login": "alice",
   "owner_type": "User",
-  "pages_base_url": "https://notes.example/",
-  "pages_base_path": "/"
+  "pages_base_url": "https://notes.example/"
 }
 ```
 
-The file has exactly these five fields. Only GitHub.com User or Organization
-owners and HTTPS root Pages URLs are supported; a project-site sub-path such as
-`https://alice.github.io/site/` is rejected. The context never holds a token,
+The file has exactly these four fields. Only GitHub.com User or Organization
+owners and HTTPS Pages URLs are supported. A project site such as
+`https://alice.github.io/site/` works: its path becomes the site's path (see
+[Sites under a path](#sites-under-a-path)). The context never holds a token,
 an actor or Config overrides.
 
 `--repo owner/name` overrides `github.repo`. It, or a Config repository that
@@ -127,7 +129,7 @@ mkdir -p ../my-site
 ```
 
 Save the minimal YAML from [CLI inputs](#cli-inputs) as
-`../my-site/config.yaml`, with your real repository and root URL.
+`../my-site/config.yaml`, with your real repository and site URL.
 
 **With a token.** A token that can read the repository's Issues lets the CLI
 fill the title, author, avatar and bio from your public profile:
@@ -158,7 +160,16 @@ values in the Config and their `fallback_metadata`.
 uv run python -m http.server 8000 --directory ../my-site/output
 ```
 
-Open <http://localhost:8000>.
+Open <http://localhost:8000>. For a site under a path such as
+`https://alice.github.io/notes/`, the pages link to `/notes/…`; serve a
+directory that holds the output as `notes`:
+
+```bash
+mkdir -p ../preview && ln -sfn "$PWD/../my-site/output" ../preview/notes
+uv run python -m http.server 8000 --directory ../preview
+```
+
+and open <http://localhost:8000/notes/>.
 
 **Check a Theme.** `escpe theme check` renders a few sample Issues (a post
 with a table, code and a Mermaid diagram, an Idea and an About) with your
@@ -184,11 +195,13 @@ has no marker: move out anything you want to keep and delete it once.
 | --- | --- |
 | `github.repo` | The context repository; otherwise required |
 | `github.allowed_authors` | The verified owner login of a User account (never the workflow actor); an Organization must list authors |
-| `site.url` | The Pages root URL from the context; otherwise required |
+| `site.url` | The Pages URL from the context (with its path for a project site); otherwise required |
 | `site.title`, `site.author` | The owner's public name, otherwise the owner login |
 | `site.description` | The owner's public bio, otherwise empty |
 | `site.language` | `en` |
-| `site.navigation.items` | Home `/`, Blog `/blog/`, Projects `/projects/`, Tags `/tags/`, About `/about/`, RSS `/atom.xml` |
+| `site.navigation.items` | Home, Blog, then Projects, Tags and About when they are on, then RSS |
+| `pages` | Every page on at its usual address; no extra pages |
+| `redirects` | None |
 | `profile.avatar`, `profile.bio` | The owner's public avatar and bio, otherwise empty |
 | `about.issue_number` | The oldest published About Issue; without one, a Profile About page |
 | `paths.output`, `paths.page_size` | `output`, `10` |
@@ -200,10 +213,13 @@ has no marker: move out anything you want to keep and delete it once.
 | `seo.social_image`, `seo.social_image_alt` | Empty: no preview image |
 | `security.token_env` | `GITHUB_TOKEN` |
 
-The default menu leaves out Ideas; add `/ideas/` to an explicit
-`site.navigation.items` list to show it. An explicit list replaces the whole
-menu, and `items: []` means no menu. A root-relative menu link must point at a
-page of the site, or the build fails.
+The default menu follows `pages`: a moved Blog is linked at its new address and
+a page that is off is left out. It leaves out Ideas; add `/ideas/` to an
+explicit `site.navigation.items` list to show it. An explicit list replaces the
+whole menu, and `items: []` means no menu. A root-relative menu link must point
+at a page of the site, or the build fails; for a page that is off it says so,
+for example `navigation item Tags points to /tags/, which is not a page of this
+site (pages.tags is false)`.
 
 Only absent fields get defaults. Explicit empty strings, `false` and empty
 lists are kept. Nested sections resolve field by field; lists replace as a
@@ -229,6 +245,106 @@ Quiet puts the image in `og:image` and `twitter:image` and switches the
 Twitter card to `summary_large_image`. The alt tags appear only when the alt
 text is not empty. Without an image, Quiet keeps a `summary` card. Other
 Themes decide for themselves whether to show the image.
+
+## Pages
+
+escaping knows the kinds of pages a blog has. `pages` decides which of them
+the site has and at which address. Each section takes `true` (on, at its usual
+address), `false` (off) or a path:
+
+```yaml
+pages:
+  blog: /posts/        # the Blog cannot be turned off; move it with a path
+  ideas: false
+  tags: true
+  projects: true
+  about: /me/
+  extra:
+    - path: /now/
+      template: now.html
+    - path: /projects/{slug}/
+      template: project.html
+      for_each: projects
+```
+
+| Key | Usual address | When it is off |
+| --- | --- | --- |
+| `blog` | `/blog/` (posts at `/blog/<slug>/`, older pages at `/blog/page/2/`) | cannot be off |
+| `ideas` | `/ideas/` (each at `/ideas/<Issue number>/`) | `type:idea` Issues are not published; each gets the warning `PAGE_OFF` |
+| `tags` | `/tags/` (each at `/tags/<tag key>/`) | tags still show on posts, without links |
+| `projects` | `/projects/` | the `projects` list can still feed Home or extra pages |
+| `about` | `/about/` | an About Issue is not published and gets `PAGE_OFF`; `about.issue_number` must not be set |
+
+Moving a section does not change links already written in Issues: after
+`blog: /posts/`, an Issue that links to `/blog/hello/` fails the build with
+`BROKEN_INTERNAL_LINK` until you add the old addresses to
+[redirects](#redirects) (`/blog/: /posts/` and one line per post) or edit
+the Issue.
+
+Home is always `/`. A path is lowercase segments ending with `/`. Two pages
+cannot share an address, one section cannot sit inside another, and nothing can
+start with `/assets/`, where static files live. The Blog, Ideas and Tags own
+every address below them, so an extra page cannot be at `/blog/now/`.
+
+`extra` adds pages that are not part of a blog. Each names a `path` and the
+Theme `template` that renders it; the Theme must have that template, or the
+build stops before reading any Issue. `for_each: projects` renders one page per
+project; its path contains `{slug}` once, and the template name may too
+(`projects/{slug}.html`). A Theme's README lists the extra pages it has
+templates for. See the [Theme guide](themes/authoring.md#extra-pages).
+
+The Theme must have a template for every page that is on. Quiet has all of
+them. A small Theme may have only `blog.html` and `post.html`; then the build
+names what to add, or which page to turn off:
+
+```text
+error: theme: has no tags.html for the tags page /tags/; add tags.html to the Theme, or set pages.tags: false in config.yaml
+```
+
+## Redirects
+
+When an address changes, keep the old one working:
+
+```yaml
+redirects:
+  /blog/old-slug/: /blog/new-slug/
+  /old-about.html: /about/
+```
+
+Each old address becomes a small page that sends visitors and search engines
+to the new one at once (`<meta http-equiv="refresh">` plus a canonical link;
+GitHub Pages cannot send real HTTP redirects). It is not in the sitemap.
+
+- The old address is a path of this site ending with `/` (it then answers
+  `/old` and `/old/`) or `.html`. `/`, `/index.html`, `/404.html` and
+  `/assets/…` cannot redirect. Non-ASCII paths may be written plainly or
+  %-encoded.
+- The new address is a path of this site. It may be another old address;
+  every old address in such a chain sends visitors straight to the page at
+  its end. A circle fails the build.
+- The same old address twice (ignoring case) fails the build.
+- A page always wins: if the old address is a page again, or the new address
+  is no page (for example its Issue was unpublished), that redirect is left
+  out with the warning `REDIRECT_LEFT_OUT` and the rest of the site still
+  publishes.
+
+## Sites under a path
+
+A site can live at the root of a host (`https://notes.example/`) or under a
+path (`https://alice.github.io/notes/`, a GitHub project site). On GitHub
+Actions the path comes from the Pages settings; without context, write it in
+`site.url`. Nothing else changes in the Config: addresses in `pages`,
+`redirects`, `site.navigation`, `profile`, `seo.social_image` and `projects`
+are written from the site's own root (`/about/`), and escaping puts them under
+the path. Links in Issues work the same way, so `[About](/about/)` in an Issue
+links to `/notes/about/`.
+
+`robots.txt` is not written for a site under a path, because crawlers read it
+only at the root of a host. The sitemap is still at `/notes/sitemap.xml`.
+
+A Theme must write its own static files as `{{ '/assets/…'|url }}`. Quiet
+does. A Theme that writes `/assets/…` directly fails the build with
+`LINK_OUTSIDE_SITE`, which names the fix.
 
 ## Featured writing on Home
 
@@ -269,8 +385,9 @@ other published About Issue is skipped and reported.
 
 With no About Issue, the About page shows the profile: the author name and
 the bio (or the site description). This Profile About has no Issue number, no
-date, no body and no comments. Themes tell the two apart with
-`about.is_profile`; see the [Theme guide](themes/authoring.md).
+date and no comments; its body is the bio. Themes tell the two apart with
+`is_profile`; see the [Theme guide](themes/authoring.md#content-models).
+`pages.about: false` removes the About page.
 
 ## Selected Projects
 
@@ -291,9 +408,9 @@ projects:
 
 Each project needs a `repository`, a `website`, or both. `slug` defaults to the
 repository name in kebab case (`alice/My_Tool` → `my-tool`); a project without
-a repository must set `slug` and `title`. Slugs must be unique. A Theme can use
-the slug in page paths, for example Theme pages declared with
-`for_each: projects` at `/projects/{slug}/`.
+a repository must set `slug` and `title`. Slugs must be unique. The slug can
+name one page per project, for example `pages.extra` with
+`for_each: projects` at `/projects/{slug}/` (see [Pages](#pages)).
 
 Only the listed repositories are read from GitHub. A missing title or summary
 uses the repository's name or description; values you set win, including an

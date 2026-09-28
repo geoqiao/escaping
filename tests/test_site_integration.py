@@ -112,7 +112,7 @@ def _theme(
     theme = root / where
     theme.mkdir(parents=True)
     (theme / "theme.yaml").write_text(
-        manifest or "api: 3\nextends: quiet\n", encoding="utf-8"
+        manifest or "api: 4\nextends: quiet\n", encoding="utf-8"
     )
     for name, text in files.items():
         (theme / name).write_text(text, encoding="utf-8")
@@ -201,9 +201,9 @@ def _theme_in_output(root: Path) -> dict[str, Any]:
             "theme.options.taglin",
         ),
         (
-            lambda root: {"theme": {"use": _theme(root, {}, "api: 3\n")}},
+            lambda root: {"theme": {"use": _theme(root, {}, "api: 4\n")}},
             "THEME_INVALID",
-            "missing template home.html",
+            "missing template blog.html",
         ),
         (lambda root: {"paths": {"output": ".."}}, "OUTPUT_UNSAFE", "(..)"),
         (_unowned_output, "OUTPUT_UNSAFE", "did not create"),
@@ -228,24 +228,28 @@ def test_local_problems_fail_before_any_issue_is_read(
     assert sorted(tmp_path.rglob("*")) == before
 
 
-def test_theme_pages_and_navigation_reach_the_output(tmp_path: Path) -> None:
+def test_extra_pages_and_navigation_reach_the_output(tmp_path: Path) -> None:
     template = (
         '{% extends "base.html" %}{% block content %}'
         '<h1>{{ page.project.title if page.project else "Now" }}</h1>'
         "{% endblock %}"
     )
-    use = _theme(
-        tmp_path,
-        {"now.html": template, "work.html": template},
-        "api: 3\nextends: quiet\npages:\n"
-        "  - path: /now/\n    template: now.html\n"
-        "  - path: /work/{slug}/\n    template: work.html\n    for_each: projects\n",
-    )
+    use = _theme(tmp_path, {"now.html": template, "work.html": template})
     site = _settings().model_dump()["site"]
     site["navigation"] = {"items": [{"name": "Now", "url": "/now/"}]}
     settings = _settings(
         site=site,
         theme={"use": use},
+        pages={
+            "extra": [
+                {"path": "/now/", "template": "now.html"},
+                {
+                    "path": "/work/{slug}/",
+                    "template": "work.html",
+                    "for_each": "projects",
+                },
+            ]
+        },
         projects=[
             {"repository": "geoqiao/escaping"},
             {"website": "https://example.org/", "slug": "site", "title": "Site"},
@@ -323,7 +327,7 @@ def test_validator_requires_every_route_file_and_no_stray_pages(
     ("reference", "broken"),
     [
         ('<a href="/Blog/">', "/Blog/"),
-        ('<a href="https://geoqiao.me/missing/">', "/missing/"),
+        ('<a href="https://geoqiao.me/blog/missing/">', "/blog/missing/"),
         ('<a href="missing/">', "/blog/hello/missing/"),
         ('<img src="pic.png">', "/blog/hello/pic.png"),
         ('<link rel="stylesheet" href="/assets/css/missing.css">', "missing.css"),
@@ -336,6 +340,8 @@ def test_validator_requires_every_route_file_and_no_stray_pages(
         ('<a href="/tags/示例-标签/">', None),
         ('<img src="/assets/images/favicon.png?v=1#icon">', None),
         ('<a href="https://example.org/missing/">', None),
+        # A folder this site does not write may be a project site on the host.
+        ('<a href="https://geoqiao.me/tool/">', None),
         ('<img src="//cdn.example.org/missing.png">', None),
         ('<a href="mailto:me@example.org">', None),
         ('<a href="#missing">', None),
@@ -460,3 +466,104 @@ def test_theme_check_reports_seo_gaps_as_warnings(tmp_path: Path) -> None:
         ("warning", "SEO_URL"),
     ]
     assert all(d.message.startswith("ideas/index.html: ") for d in result.diagnostics)
+
+
+def test_redirects_send_old_addresses_to_pages_of_the_site(tmp_path: Path) -> None:
+    settings = _settings(
+        redirects={
+            "/blog/old-hello/": "/blog/older-hello/",  # follows the next one
+            "/blog/older-hello/": "/blog/hello/",
+            "/posts/%E4%BD%A0%E5%A5%BD.html": "/about/",
+            "/blog/gone/": "/blog/missing/",
+            "/blog/hello/": "/about/",
+        }
+    )
+
+    result, _ = _generate(tmp_path, _CONTENT, settings)
+
+    assert result.success, result.diagnostics
+    assert [d.message for d in result.diagnostics if d.code == "REDIRECT_LEFT_OUT"] == [
+        "redirects: /blog/gone/ points to /blog/missing/, which is not a page of "
+        "this site; the redirect is left out",
+        "redirects: /blog/hello/ is a page of this site now; the redirect is left out",
+    ]
+    output = tmp_path / "output"
+    old = (output / "blog/old-hello/index.html").read_text(encoding="utf-8")
+    assert '<link rel="canonical" href="https://geoqiao.me/blog/hello/">' in old
+    assert (
+        '<meta http-equiv="refresh" content="0; url=https://geoqiao.me/blog/hello/">'
+        in old
+    )
+    assert '<meta name="robots" content="noindex">' in old
+    assert (output / "blog/older-hello/index.html").read_text(encoding="utf-8") == old
+    assert "https://geoqiao.me/about/" in (output / "posts/你好.html").read_text(
+        encoding="utf-8"
+    )
+    assert "Hello." in (output / "blog/hello/index.html").read_text(encoding="utf-8")
+    assert not (output / "blog/gone").exists()
+    assert not any("old-hello" in url for url in _sitemap(output))
+
+
+_UNDER_A_PATH = {
+    "title": "Notes",
+    "author": "geoqiao",
+    "url": "https://geoqiao.github.io/notes",
+    "description": "A site under a path.",
+}
+
+
+def test_a_site_under_a_path_keeps_every_address_below_it(tmp_path: Path) -> None:
+    settings = _settings(
+        site=_UNDER_A_PATH,
+        profile={"avatar": "/assets/images/favicon.png"},
+        seo={"social_image": "/assets/images/favicon.png"},
+        redirects={"/old-hello/": "/blog/hello/"},
+    )
+    body = (
+        "---\nslug: hello\n---\n\n"
+        "See [About](/about/), [elsewhere](https://example.com/) and "
+        "![icon](/assets/images/favicon.png)."
+    )
+    content = (_snapshot(1, "blog", body), *_CONTENT[1:])
+
+    result, _ = _generate(tmp_path, content, settings)
+
+    assert result.success, result.diagnostics
+    output = tmp_path / "output"
+    hello = (output / "blog/hello/index.html").read_text(encoding="utf-8")
+    for fragment in (
+        '<link rel="canonical" href="https://geoqiao.github.io/notes/blog/hello/">',
+        '<a href="/notes/about/">About</a>',
+        '<a href="https://example.com/">elsewhere</a>',
+        'src="/notes/assets/images/favicon.png"',
+        'href="/notes/assets/css/style.css"',
+        '<link rel="icon" href="/notes/assets/images/favicon.png">',
+        'content="https://geoqiao.github.io/notes/assets/images/favicon.png"',
+        'data-search-index="/notes/search.json"',
+    ):
+        assert fragment in hello, fragment
+    assert all(
+        url.startswith("https://geoqiao.github.io/notes/") for url in _sitemap(output)
+    )
+    assert not (output / "robots.txt").exists()
+    assert "url=https://geoqiao.github.io/notes/blog/hello/" in (
+        output / "old-hello/index.html"
+    ).read_text(encoding="utf-8")
+
+
+def test_a_theme_address_outside_the_sites_path_names_the_url_filter(
+    tmp_path: Path,
+) -> None:
+    use = _theme(
+        tmp_path, {"head-extra.html": '<link rel="stylesheet" href="/assets/x.css">'}
+    )
+    settings = _settings(site=_UNDER_A_PATH, theme={"use": use})
+
+    result, _ = _generate(tmp_path, _CONTENT, settings)
+
+    assert not result.success
+    problems = {d.message for d in result.diagnostics if d.code == "LINK_OUTSIDE_SITE"}
+    assert (
+        "index.html: link points to /assets/x.css, outside this site at /notes/; "
+        "a Theme writes it as {{ '/assets/x.css'|url }}"
+    ) in problems

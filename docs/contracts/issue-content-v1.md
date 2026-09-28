@@ -245,8 +245,8 @@ A length of 80–160 code points is recommended for an authored override.
 When omitted, the compiler MUST derive the description from the sanitized
 rendered body's visible text, trim its ends, collapse whitespace runs to one
 space, and take the first 50 Unicode code points. It MUST NOT append an ellipsis,
-include front matter or image URLs, invent a title-based summary, or rewrite the
-text. Inline text adjacency is preserved; block and line breaks separate words.
+include front matter, image URLs or Mermaid diagram source, invent a
+title-based summary, or rewrite the text. Inline text adjacency is preserved; block and line breaks separate words.
 Image-only content has an empty derived description, not a fabricated caption.
 
 The derived value is plain text, not a new authored field: code literals such as

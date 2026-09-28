@@ -7,11 +7,19 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from escaping.artifact_validation import SiteArtifactValidator
 from escaping.config import Settings
 from escaping.models.issue_snapshot import IssueSnapshot
 from escaping.services.render_service import RenderedSite
-from escaping.site_compiler import check_theme, compile_site, prepare_theme, render_site
+from escaping.site_compiler import (
+    _sample_content,
+    check_theme,
+    compile_site,
+    prepare_theme,
+    render_site,
+)
 
 _ROOT = Path(__file__).parent.parent.absolute()
 _NOW = datetime(2026, 1, 20, tzinfo=UTC)
@@ -74,11 +82,24 @@ def _extends_fixture(root: Path) -> str:
     return "./theme"
 
 
+#: The extra pages the extends fixture has templates for.
+_EXTRA_PAGES = {
+    "extra": [
+        {"path": "/now/", "template": "now.html"},
+        {
+            "path": "/projects/{slug}/",
+            "template": "project.html",
+            "for_each": "projects",
+        },
+    ]
+}
+
+
 def _home_probe(root: Path, home: str, manifest: str = "") -> str:
     """A Theme that extends Quiet and replaces only home.html."""
     theme = root / "theme"
     theme.mkdir()
-    (theme / "theme.yaml").write_text(f"api: 3\nextends: quiet\n{manifest}")
+    (theme / "theme.yaml").write_text(f"api: 4\nextends: quiet\n{manifest}")
     (theme / "home.html").write_text(home)
     return "./theme"
 
@@ -169,7 +190,7 @@ def test_a_theme_without_404_html_publishes_none(tmp_path: Path) -> None:
     assert "index.html" in rendered.files
 
 
-def test_theme_pages_render_once_and_once_per_project(tmp_path: Path) -> None:
+def test_extra_pages_render_once_and_once_per_project(tmp_path: Path) -> None:
     projects = [
         {
             "repository": "geoqiao/alpha",
@@ -179,7 +200,9 @@ def test_theme_pages_render_once_and_once_per_project(tmp_path: Path) -> None:
         },
         {"website": "https://beta.example.com/", "slug": "beta", "title": "Beta"},
     ]
-    settings = _settings(_extends_fixture(tmp_path), projects=projects)
+    settings = _settings(
+        _extends_fixture(tmp_path), projects=projects, pages=_EXTRA_PAGES
+    )
 
     files = _render(tmp_path, settings, [_ABOUT]).files
 
@@ -213,11 +236,12 @@ def test_theme_pages_render_once_and_once_per_project(tmp_path: Path) -> None:
         assert f"<loc>https://geoqiao.me/{url}</loc>" in files["sitemap.xml"]
 
 
-def test_theme_pages_use_strings_from_every_layer(tmp_path: Path) -> None:
+def test_extra_pages_use_strings_from_every_layer(tmp_path: Path) -> None:
     settings = _settings(
         _extends_fixture(tmp_path),
         site={"language": "zh"},
         projects=[{"repository": "geoqiao/alpha", "title": "Alpha"}],
+        pages=_EXTRA_PAGES,
     )
 
     files = _render(tmp_path, settings, [_ABOUT]).files
@@ -226,10 +250,36 @@ def test_theme_pages_use_strings_from_every_layer(tmp_path: Path) -> None:
     assert '<a href="/projects/">全部项目</a>' in files["projects/alpha/index.html"]
 
 
-def test_theme_check_reports_a_template_that_fails_while_rendering(
+def test_theme_check_samples_fill_two_blog_pages_and_skip_real_issue_warnings(
     tmp_path: Path,
 ) -> None:
-    use = _home_probe(tmp_path, "<p>\n{{ t.no_such_key }}</p>")
+    settings = _settings(
+        "quiet",
+        paths={"page_size": 3},
+        redirects={"/old/": "/blog/a-real-post/"},
+        theme={"use": "quiet", "options": {"featured_posts": [41]}},
+    )
+
+    _, issues = _sample_content(settings)
+    result = check_theme(settings, config_root=tmp_path)
+
+    assert sum("type:blog" in issue.labels for issue in issues) == 4
+    # The redirect and the featured post name real Issues the samples lack.
+    assert result.success and result.diagnostics == ()
+
+
+@pytest.mark.parametrize(
+    ("expression", "reason"),
+    [
+        ("t.no_such_key", "no_such_key"),
+        # A missing value would otherwise print as the word None.
+        ("page.item", "this value is none"),
+    ],
+)
+def test_theme_check_reports_a_template_that_fails_while_rendering(
+    tmp_path: Path, expression: str, reason: str
+) -> None:
+    use = _home_probe(tmp_path, f"<p>\n{{{{ {expression} }}}}</p>")
 
     result = check_theme(_settings(use), config_root=tmp_path)
 
@@ -237,4 +287,78 @@ def test_theme_check_reports_a_template_that_fails_while_rendering(
     assert [d.code for d in result.diagnostics] == ["TEMPLATE_RENDER_FAILED"]
     # The author learns which file and line to fix.
     assert result.diagnostics[0].message.startswith("./theme/home.html line 2: ")
-    assert "no_such_key" in result.diagnostics[0].message
+    assert reason in result.diagnostics[0].message
+
+
+def test_a_theme_with_only_blog_and_post_renders_every_page(tmp_path: Path) -> None:
+    shutil.copytree(_ROOT / "tests/fixtures/minimal_theme", tmp_path / "theme")
+    settings = _settings(
+        "./theme",
+        pages={"tags": False, "projects": False},
+        paths={"page_size": 1},
+    )
+    content = [
+        _issue(1, "blog", "First"),
+        _issue(2, "blog", "Second"),
+        _issue(3, "idea", "Old idea"),
+        _issue(4, "idea", "New idea"),
+        _ABOUT,
+    ]
+
+    files = _render(tmp_path, settings, content).files
+
+    home = files["index.html"]
+    assert 'data-kind="home"' in home and '<a href="/blog/second/">' not in home
+    assert '<a href="/blog/2/">Second</a>' in home
+    assert '<a rel="next" href="/blog/page/2/">Older</a>' in home
+    assert 'data-kind="ideas"' in files["ideas/index.html"]
+    assert '<a href="/ideas/4/">New idea</a>' in files["ideas/index.html"]
+    idea = files["ideas/3/index.html"]
+    assert 'data-kind="idea"' in idea and '<a href="/ideas/4/">New idea</a>' in idea
+    about = files["about/index.html"]
+    # About shows no date (Issue Content v1, section 8.1).
+    assert 'data-kind="about"' in about and "<time>" not in about
+    assert "tags/index.html" not in files and "projects/index.html" not in files
+
+
+def test_pages_that_are_off_have_no_route_and_no_file(tmp_path: Path) -> None:
+    use = _home_probe(
+        tmp_path,
+        "{{ site.routes.ideas is none }}|{{ site.routes.about is none }}|"
+        "{{ site.about is none }}|"
+        "{{ site.routes.blog.canonical_path }}",
+    )
+    settings = _settings(
+        use,
+        about={},
+        pages={"blog": "/notes/", "ideas": False, "about": False},
+        site={"navigation": {"items": [{"name": "Notes", "url": "/notes/"}]}},
+    )
+
+    files = _render(tmp_path, settings, [_issue(1, "blog", "First")]).files
+
+    assert files["index.html"] == "True|True|True|/notes/"
+    assert "notes/1/index.html" in files and "about/index.html" not in files
+    assert not any(path.startswith(("ideas/", "blog/")) for path in files)
+
+
+def test_assets_from_a_read_only_install_can_be_replaced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from escaping.services import render_service
+
+    shared = tmp_path / "shared"
+    shutil.copytree(render_service.SHARED_STATIC, shared)
+    shutil.copytree(_ROOT / "tests/fixtures/extends_theme", tmp_path / "theme")
+    for root in (shared, tmp_path / "theme"):
+        for path in sorted(root.rglob("*"), reverse=True):
+            path.chmod(0o555 if path.is_dir() else 0o444)
+    monkeypatch.setattr(render_service, "SHARED_STATIC", shared)
+    theme, options = prepare_theme(_settings("./theme"), tmp_path)
+    output = tmp_path / "output"
+
+    render_service.RenderService(theme, options).copy_assets(output)
+
+    assert (output / "assets/escaping/comments.js").is_file()
+    assert (output / "assets/css/extra.css").is_file()
+    shutil.rmtree(output)  # the next build replaces the output

@@ -50,7 +50,7 @@
 {% endif %}
 {% if site.featured_projects %}
 <section class="home-section home-projects" aria-labelledby="projects-title">
-  <div class="section-heading"><h2 id="projects-title">{{ t.my_projects }}</h2><a class="more-projects" href="{{ site.routes.projects.canonical_path }}">{{ t.all_projects }} <span aria-hidden="true">↗</span></a></div>
+  <div class="section-heading"><h2 id="projects-title">{{ t.my_projects }}</h2>{% if site.routes.projects %}<a class="more-projects" href="{{ site.routes.projects.canonical_path }}">{{ t.all_projects }} <span aria-hidden="true">↗</span></a>{% endif %}</div>
   <div class="works-grid">{% for project in site.featured_projects[:4] %}{{ project_entry(project, compact=true) }}{% endfor %}</div>
 </section>
 {% endif %}

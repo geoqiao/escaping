@@ -22,6 +22,7 @@ from escaping.config import (
     security_from_config,
     validate_config_overrides,
 )
+from escaping.routes import Sections
 from escaping.services.github_service import PublicProfile
 from escaping.site_inputs import resolve_settings
 
@@ -36,7 +37,6 @@ _CONTEXT = {
     "owner_login": "alice",
     "owner_type": "User",
     "pages_base_url": "https://notes.example/",
-    "pages_base_path": "/",
 }
 
 
@@ -93,6 +93,64 @@ class _NoNetwork:
         (
             {"site": {"navigation": {"items": [{"name": "Blog"}]}}},
             "items.0.url: required",
+        ),
+        ({"pages": {"blog": False}}, "pages.blog: the Blog cannot be turned off"),
+        (
+            {"pages": {"tags": "tags"}},
+            "pages.tags: use a path of lowercase segments ending with /, like "
+            "/tags/, or false to turn the page off",
+        ),
+        ({"pages": {"ideas": "/assets/x/"}}, "pages.ideas: /assets/ is reserved"),
+        (
+            {"pages": {"blog": "/notes/", "ideas": "/notes/"}},
+            "pages: blog and ideas use the same path /notes/",
+        ),
+        (
+            {"pages": {"tags": "/blog/tags/"}},
+            "pages: blog (/blog/) and tags (/blog/tags/) must not be inside each other",
+        ),
+        (
+            {"pages": {"extra": [{"path": "/blog/x/", "template": "x.html"}]}},
+            "extra.0.path /blog/x/ is inside blog (/blog/), which owns every address",
+        ),
+        (
+            {"pages": {"extra": [{"path": "/about/", "template": "x.html"}]}},
+            "extra.0.path /about/ is already the about page",
+        ),
+        (
+            {"pages": {"extra": [{"path": "/Now/", "template": "now.html"}]}},
+            "pages.extra.0.path: use lowercase segments ending with /",
+        ),
+        (
+            {"pages": {"extra": [{"path": "/now/", "template": "../now.html"}]}},
+            "pages.extra.0.template: use a template file name in the Theme",
+        ),
+        (
+            {"pages": {"extra": [{"path": "/w/{slug}/", "template": "w.html"}]}},
+            "pages.extra.0: use {slug} in path exactly once with for_each: projects",
+        ),
+        (
+            {**_BASE, "pages": {"about": False}},
+            "about.issue_number is set but pages.about is false",
+        ),
+        (
+            {"redirects": {"/blog/old": "/blog/new/"}},
+            "redirects: end the old address with / (it then covers /old and /old/)",
+        ),
+        ({"redirects": {"/assets/a/": "/"}}, "redirects: /assets/ is reserved"),
+        ({"redirects": {"/404.html": "/"}}, "redirects: /404.html cannot redirect"),
+        ({"redirects": {"/a b/": "/"}}, "redirects: use a path of this site"),
+        ({"redirects": {"/a/?x=1": "/"}}, "redirects: use a path of this site"),
+        ({"redirects": {"/a/": "https://x.example/"}}, "use a path of this site"),
+        ({"redirects": {"/a/../b/": "/"}}, "redirects: use a path of this site"),
+        ({"redirects": {"/%ff/": "/"}}, "redirects: a redirect address has an invalid"),
+        (
+            {"redirects": {"/Old/": "/", "/old/": "/"}},
+            "redirects: /old/ is listed twice (addresses ignore case here)",
+        ),
+        (
+            {"redirects": {"/a/": "/b/", "/b/": "/a/"}},
+            "redirects: /a/ redirects in a circle",
         ),
     ],
 )
@@ -271,12 +329,29 @@ def test_resource_urls_are_https_or_root_relative(image: str, valid: bool) -> No
         "https://example.org\\nested",
         "https://exa\nmple.org/",
         123,
-        "https://example.org/nested/",
+        "https://example.org/a b/",
+        "https://example.org/../x/",
+        "https://example.org/notes/?x=1",
     ],
 )
-def test_site_url_must_be_a_root_https_origin(url: object) -> None:
+def test_site_url_must_be_an_https_url(url: object) -> None:
     with pytest.raises(ValidationError):
         Settings.model_validate({**_BASE, "site": {**_BASE["site"], "url": url}})
+
+
+@pytest.mark.parametrize(
+    ("url", "expected"),
+    [
+        ("https://example.org", "https://example.org/"),
+        ("https://example.org/notes", "https://example.org/notes/"),
+        ("https://alice.github.io/My.Site_2/", "https://alice.github.io/My.Site_2/"),
+    ],
+)
+def test_site_url_may_have_a_path_and_always_ends_with_a_slash(
+    url: str, expected: str
+) -> None:
+    settings = Settings.model_validate({**_BASE, "site": {**_BASE["site"], "url": url}})
+    assert str(settings.site.url) == expected
 
 
 def test_comments_require_an_explicit_boolean_opt_in() -> None:
@@ -367,7 +442,7 @@ def test_invalid_config_fails_before_any_github_access(data: dict, field: str) -
 def test_platform_context_is_validated_without_echoing_values(tmp_path: Path) -> None:
     path = tmp_path / "context.json"
     for patch, problem in (
-        ({"pages_base_url": "https://secret-host.example/blog/"}, "pages_base_url:"),
+        ({"pages_base_url": "https://secret-host.example/a b/"}, "pages_base_url:"),
         ({"owner_login": "secret-login"}, "must identify the same owner"),
         ({"owner_type": "Bot"}, "owner_type:"),
         ({"actor": "secret-actor"}, "actor: unknown field"),
@@ -383,3 +458,41 @@ def test_platform_context_is_validated_without_echoing_values(tmp_path: Path) ->
     path.write_text("{not json", encoding="utf-8")
     with pytest.raises(ConfigError, match=r"context\.json:"):
         read_platform_context(path)
+
+
+def test_pages_default_to_every_section_and_accept_true_false_or_a_path() -> None:
+    default = Settings.model_validate(_BASE).pages
+    assert default.sections() == Sections()
+    assert default.extra == []
+
+    data = {
+        **_BASE,
+        "about": {},
+        "pages": {
+            "blog": "/posts/",
+            "ideas": True,
+            "tags": False,
+            "about": False,
+            "extra": [
+                {"path": "/tags/", "template": "topics.html"},
+                {
+                    "path": "/projects/{slug}/",
+                    "template": "projects/{slug}.html",
+                    "for_each": "projects",
+                },
+            ],
+        },
+    }
+    settings = Settings.model_validate(data)
+    assert settings.pages.sections() == Sections(
+        blog="/posts/", ideas="/ideas/", tags=None, about=None
+    )
+    # An address a section no longer uses is free for another page.
+    assert settings.pages.extra[0].path == "/tags/"
+    assert settings.pages.extra[1].template_for("tool") == "projects/tool.html"
+    assert [link.url for link in settings.navigation] == [
+        "/",
+        "/posts/",
+        "/projects/",
+        "/atom.xml",
+    ]

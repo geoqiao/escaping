@@ -307,7 +307,7 @@ def _broken_theme(tmp_path: Path) -> dict[str, Any]:
     """A Theme that extends Quiet and fails only while rendering."""
     theme = tmp_path / "theme"
     theme.mkdir()
-    (theme / "theme.yaml").write_text("api: 3\nextends: quiet\n", encoding="utf-8")
+    (theme / "theme.yaml").write_text("api: 4\nextends: quiet\n", encoding="utf-8")
     (theme / "about.html").write_text("{{ page.no_such_field }}", encoding="utf-8")
     return {"theme": {"use": "./theme"}}
 

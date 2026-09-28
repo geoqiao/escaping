@@ -1,13 +1,13 @@
 # Your Issue-based personal site
 
 **Preview:** [escaping-template](https://github.com/geoqiao/escaping-template) is where this
-template is published. The 0.2.0 workflow has passed local tests; neither an existing site nor a
+template is published. The 0.3.0 workflow has passed local tests; neither an existing site nor a
 brand-new repository has run it on GitHub yet.
 
 ## Start writing
 
-1. Create your repository with **Use this template**. Name it `username.github.io`, or use a
-   custom domain at its root (sites under a sub-path such as `/my-project/` are not supported).
+1. Create your repository with **Use this template**. Name it `username.github.io`, or give it
+   another name and the site lives at `username.github.io/<name>/`; a custom domain also works.
    On GitHub Free, keep it public. In **Settings → Pages**, set **Source: GitHub Actions**.
 2. Write an Issue: a title and a Markdown body; image uploads work as usual.
 3. Add exactly one of `type:blog`, `type:idea` or `type:about`, and `published` when it is ready.
@@ -41,13 +41,13 @@ for every field. A mistyped field fails the build with a message that names it a
 correct spelling.
 
 To change the look, start with the built-in Theme's options. To change one part of it, create a
-`theme/` directory with a `theme.yaml` containing `api: 3` and `extends: quiet`, add only the
+`theme/` directory with a `theme.yaml` containing `api: 4` and `extends: quiet`, add only the
 template you want to replace, and set `theme: {use: ./theme}`. See the
 [Theme guide](https://github.com/geoqiao/escaping/blob/main/docs/themes/authoring.md).
 
 ## Versions
 
-The workflow runs `geoqiao/escaping@v0.2.0`. To update, change that tag after reading the
+The workflow runs `geoqiao/escaping@v0.3.0`. To update, change that tag after reading the
 [CHANGELOG](https://github.com/geoqiao/escaping/blob/main/CHANGELOG.md); a full commit SHA also
 works. Each job gets only the short-lived `GITHUB_TOKEN` permissions it needs; never put a token
 in `config.yaml`. A failed build leaves the previously deployed site in place.

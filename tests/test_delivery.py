@@ -192,7 +192,6 @@ def test_context_step_reads_repository_and_requires_actions_pages(
     assert platform.repository == "alice/site" and platform.owner_login == "alice"
     assert platform.owner_type == "User"
     assert str(platform.pages_base_url) == "https://notes.example/"
-    assert platform.pages_base_path == "/"
 
 
 @pytest.mark.parametrize(("status", "expected"), [(0, 0), (2, 0), (1, 1)])

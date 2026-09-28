@@ -6,14 +6,13 @@ from typing import Any
 
 import pytest
 
-from escaping.config import Settings
+from escaping.config import ExtraPageConfig, Settings
 from escaping.models.blog_post import BlogPost, BlogTag
 from escaping.models.content import AboutPage, ContentCompilationResult, Idea
 from escaping.models.site import SiteModel
 from escaping.projects import ProjectCompiler
 from escaping.routes import RouteRegistry
 from escaping.site_builder import SiteBuilder
-from escaping.theme import PageSpec
 
 _BUILD_START = datetime(2026, 2, 1, tzinfo=UTC)
 
@@ -42,6 +41,12 @@ def _settings(**overrides: object) -> Settings:
     return Settings.model_validate(data)
 
 
+def _extra(path: str, template: str, for_each: str | None = None) -> ExtraPageConfig:
+    return ExtraPageConfig.model_validate(
+        {"path": path, "template": template, "for_each": for_each}
+    )
+
+
 def _blog(
     routes: RouteRegistry,
     number: int,
@@ -58,7 +63,10 @@ def _blog(
         created_date=f"2026-01-{number:02d}",
         published_at=published,
         updated_at=published,
-        tags=tuple(BlogTag(name, key, routes.tag(key)) for name, key in tags),
+        tags=tuple(
+            BlogTag(name, key, routes.tag(key) if routes.sections.tags else None)
+            for name, key in tags
+        ),
         body_html="<p>Body.</p>",
         route=routes.blog_detail(f"post-{number}"),
     )
@@ -71,26 +79,38 @@ def _content(
     about: bool = True,
     skipped: tuple[int, ...] = (),
 ) -> ContentCompilationResult:
-    idea = Idea(
-        issue_number=20,
-        title="Idea",
-        description="Idea description",
-        created_date="2026-01-02",
-        published_at=datetime(2026, 1, 2, tzinfo=UTC),
-        updated_at=datetime(2026, 1, 2, tzinfo=UTC),
-        tags=(),
-        body_html="<p>Idea.</p>",
-        route=routes.idea(20),
+    """One Idea and an About Issue, for the sections that are on."""
+    date = datetime(2026, 1, 2, tzinfo=UTC)
+    ideas = (
+        (
+            Idea(
+                issue_number=20,
+                title="Idea",
+                description="Idea description",
+                created_date="2026-01-02",
+                published_at=date,
+                updated_at=date,
+                tags=(),
+                body_html="<p>Idea.</p>",
+                route=routes.idea(20),
+            ),
+        )
+        if routes.sections.ideas
+        else ()
     )
-    page = AboutPage(
-        issue_number=10,
-        title="About",
-        description="About description",
-        body_html="<p>About.</p>",
-        route=routes.about(),
+    page = (
+        AboutPage(
+            issue_number=10,
+            title="About",
+            description="About description",
+            body_html="<p>About.</p>",
+            route=routes.about(),
+        )
+        if about and routes.sections.about
+        else None
     )
     return ContentCompilationResult(
-        blogs=blogs, ideas=(idea,), about=page if about else None, skipped=skipped
+        blogs=blogs, ideas=ideas, about=page, skipped=skipped
     )
 
 
@@ -98,7 +118,7 @@ def _build(
     settings: Settings,
     routes: RouteRegistry,
     content: ContentCompilationResult,
-    pages: Sequence[PageSpec] = (),
+    pages: Sequence[ExtraPageConfig] = (),
 ) -> SiteModel:
     projects = ProjectCompiler().compile(settings.projects)
     return SiteBuilder(settings, route_registry=routes).build(
@@ -127,7 +147,8 @@ def test_site_builder_composes_the_site_from_registered_routes() -> None:
     assert [(tag.name, tag.count) for tag in site.tags] == [("Python", 6)]
     assert site.tags[0].route is routes.route("tag-python")
     assert [entry.title for entry in site.feed.entries][:2] == ["Post 6", "Post 5"]
-    assert site.about.route is routes.route("about") and not site.about.is_profile
+    assert site.about is not None and not site.about.is_profile
+    assert site.about.route is routes.route("about")
     metadata = site.metadata
     assert metadata.comments.enabled and metadata.comments.repo == "owner/site"
     assert metadata.seo.social_image == "https://example.com/assets/images/og.png"
@@ -163,21 +184,21 @@ def test_profile_about_stands_in_when_there_is_no_about_issue() -> None:
         routes = RouteRegistry(str(settings.site.url))
         site = _build(settings, routes, _content(routes, about=False))
         assert not site.has_errors
-        assert site.about.is_profile
+        assert site.about is not None and site.about.is_profile
         assert (site.about.title, site.about.description) == ("Owner", expected)
         assert site.about.route is routes.route("about")
 
 
-def test_theme_pages_get_routes_and_projects_link_their_first_detail_page() -> None:
+def test_extra_pages_get_routes_and_projects_link_their_first_detail_page() -> None:
     settings = _settings(
         projects=[{"repository": "owner/alpha"}, {"repository": "owner/beta"}],
         site__navigation={"items": [{"name": "Now", "url": "/now/"}]},
     )
     routes = RouteRegistry(str(settings.site.url))
     pages = (
-        PageSpec("/now/", "now.html"),
-        PageSpec("/work/{slug}/", "work.html", "projects"),
-        PageSpec("/code/{slug}/", "code/{slug}.html", "projects"),
+        _extra("/now/", "now.html"),
+        _extra("/work/{slug}/", "work.html", "projects"),
+        _extra("/code/{slug}/", "code/{slug}.html", "projects"),
     )
 
     site = _build(settings, routes, _content(routes), pages)
@@ -185,7 +206,7 @@ def test_theme_pages_get_routes_and_projects_link_their_first_detail_page() -> N
     assert not site.has_errors, site.diagnostics
     assert [
         (page.route.output_path, page.template, page.project and page.project.slug)
-        for page in site.theme_pages
+        for page in site.extra_pages
     ] == [
         ("now/index.html", "now.html", None),
         ("work/alpha/index.html", "work.html", "alpha"),
@@ -197,7 +218,7 @@ def test_theme_pages_get_routes_and_projects_link_their_first_detail_page() -> N
         routes.route("page-/work/alpha/"),
         routes.route("page-/work/beta/"),
     ]
-    assert site.theme_pages[4].project == site.projects[1]
+    assert site.extra_pages[4].project == site.projects[1]
     assert site.metadata.navigation[0].url == "/now/"
     assert routes.route("page-/now/") in routes.sitemap_routes()
 
@@ -206,15 +227,17 @@ def test_theme_pages_get_routes_and_projects_link_their_first_detail_page() -> N
     "pages",
     [
         # A project named "blog" would take the Blog archive's address.
-        (PageSpec("/{slug}/", "project.html", "projects"),),
+        (_extra("/{slug}/", "project.html", "projects"),),
         # A fixed page at a path that a project detail page also uses.
         (
-            PageSpec("/work/{slug}/", "work.html", "projects"),
-            PageSpec("/work/escaping/", "special.html"),
+            _extra("/work/{slug}/", "work.html", "projects"),
+            _extra("/work/escaping/", "special.html"),
         ),
     ],
 )
-def test_theme_pages_cannot_share_an_address(pages: tuple[PageSpec, ...]) -> None:
+def test_extra_pages_cannot_share_an_address(
+    pages: tuple[ExtraPageConfig, ...],
+) -> None:
     settings = _settings(
         projects=[{"repository": "owner/blog"}, {"repository": "owner/escaping"}]
     )
@@ -224,7 +247,7 @@ def test_theme_pages_cannot_share_an_address(pages: tuple[PageSpec, ...]) -> Non
 
     assert site.has_errors
     assert [(d.code, d.field) for d in site.diagnostics if d.severity == "error"] == [
-        ("ROUTE_COLLISION", "theme.pages")
+        ("ROUTE_COLLISION", "pages.extra")
     ]
 
 
@@ -269,3 +292,59 @@ def test_invalid_feed_text_and_naive_timestamps_stop_the_build() -> None:
         "ATOM_NAIVE_PUBLISHED_AT",
         "ATOM_NAIVE_UPDATED_AT",
     } <= codes
+
+
+def test_profile_about_body_is_the_escaped_bio() -> None:
+    settings = _settings(profile__bio="Tea & <code>")
+    routes = RouteRegistry(str(settings.site.url))
+    site = _build(settings, routes, _content(routes, about=False))
+    assert site.about is not None
+    assert site.about.body_html == "<p>Tea &amp; &lt;code&gt;</p>"
+    assert site.about.issue_number is None and site.about.tags == ()
+
+
+def test_sections_can_move_or_be_turned_off() -> None:
+    settings = _settings(
+        pages={"blog": "/posts/", "ideas": False, "tags": False, "about": "/me/"},
+        site__navigation={},
+    )
+    routes = RouteRegistry(str(settings.site.url), settings.pages.sections())
+    blogs = tuple(_blog(routes, number) for number in (1, 2, 3))
+
+    site = _build(settings, routes, _content(routes, blogs))
+
+    assert not site.has_errors, site.diagnostics
+    assert sorted(route.canonical_path for route in routes.sitemap_routes()) == [
+        "/",
+        "/me/",
+        "/posts/",
+        "/posts/page/2/",
+        "/posts/post-1/",
+        "/posts/post-2/",
+        "/posts/post-3/",
+        "/projects/",
+    ]
+    assert routes.get("ideas") is None and routes.get("tags") is None
+    assert site.tags == () and site.ideas == ()
+    assert [tag.path for tag in site.blogs[0].tags] == [None]
+    assert site.about is not None and site.about.canonical_path == "/me/"
+    assert [(link.name, link.url) for link in site.metadata.navigation] == [
+        ("Home", "/"),
+        ("Blog", "/posts/"),
+        ("Projects", "/projects/"),
+        ("About", "/me/"),
+        ("RSS", "/atom.xml"),
+    ]
+
+
+def test_navigation_to_a_page_that_is_off_says_so() -> None:
+    settings = _settings(
+        pages={"tags": False},
+        site__navigation={"items": [{"name": "Tags", "url": "/tags/"}]},
+    )
+    routes = RouteRegistry(str(settings.site.url), settings.pages.sections())
+    site = _build(settings, routes, _content(routes))
+    assert [d.message for d in site.diagnostics] == [
+        "navigation item Tags points to /tags/, which is not a page of this site "
+        "(pages.tags is false)"
+    ]

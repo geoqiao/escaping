@@ -1,6 +1,6 @@
 # Quiet — neutral surfaces and restrained avatar-magenta accents.
 # Set these under theme.options in config.yaml; see docs/themes/quiet.md.
-api: 3
+api: 4
 
 options:
   tagline:

@@ -4,5 +4,5 @@
 {% block content %}
 {% from 'components.html' import project_entry with context %}
 <div class="page-heading works-intro"><p class="eyebrow">{{ t.projects_eyebrow }}</p><h1>{{ t.projects }}<span class="heading-dot" aria-hidden="true">.</span></h1><p>{{ t.projects_caption }}</p></div>
-<div class="works-grid">{% for project in site.projects %}{{ project_entry(project) }}{% else %}<p class="empty-state">{{ t.projects_empty }}</p>{% endfor %}</div>
+<div class="works-grid">{% for project in page.items %}{{ project_entry(project) }}{% else %}<p class="empty-state">{{ t.projects_empty }}</p>{% endfor %}</div>
 {% endblock %}

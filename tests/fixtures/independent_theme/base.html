@@ -21,9 +21,9 @@
     <meta name="twitter:title" content="{{ page_title }}">
     <meta name="twitter:description" content="{{ page.description }}">
     <link rel="alternate" type="application/atom+xml" href="{{ site.routes.atom.canonical_url }}">
-    <link rel="icon" href="/assets/images/favicon.png">
-    <link rel="stylesheet" href="/assets/css/style.css">
-    <script src="/assets/js/site.js" defer></script>
+    <link rel="icon" href="{{ '/assets/images/favicon.png'|url }}">
+    <link rel="stylesheet" href="{{ '/assets/css/style.css'|url }}">
+    <script src="{{ '/assets/js/site.js'|url }}" defer></script>
     {% if page.json_ld %}
     <script type="application/ld+json">{{ page.json_ld|tojson }}</script>
     {% endif %}

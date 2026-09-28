@@ -10,14 +10,14 @@
     <p>{{ site.description }}</p>
   </header>
 
-  {% set posts = page.archive.posts %}{% set show_descriptions = false %}
+  {% set posts = page.items %}{% set show_descriptions = false %}
   {% include "_post_list.html" %}
 
-  {% if page.archive.total_pages > 1 %}
+  {% if page.pagination.total > 1 %}
   <nav class="pagination" aria-label="Blog pages">
-    {% if page.archive.prev_route %}<a href="{{ page.archive.prev_route.canonical_path }}">Newer posts</a>{% endif %}
-    <span>Page {{ page.archive.page_number }} of {{ page.archive.total_pages }}</span>
-    {% if page.archive.next_route %}<a href="{{ page.archive.next_route.canonical_path }}">Older posts</a>{% endif %}
+    {% if page.pagination.prev %}<a href="{{ page.pagination.prev.canonical_path }}">Newer posts</a>{% endif %}
+    <span>Page {{ page.pagination.number }} of {{ page.pagination.total }}</span>
+    {% if page.pagination.next %}<a href="{{ page.pagination.next.canonical_path }}">Older posts</a>{% endif %}
   </nav>
   {% endif %}
 </div>

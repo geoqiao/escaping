@@ -38,7 +38,6 @@ _CONTEXT = {
     "owner_login": "alice",
     "owner_type": "User",
     "pages_base_url": "https://notes.example/",
-    "pages_base_path": "/",
 }
 
 
@@ -231,8 +230,8 @@ def test_github_actions_get_annotations_a_job_summary_and_step_outputs(
         ),
         (
             "theme: {use: ./my-theme}\n",
-            {"theme.yaml": "api: 2\n"},
-            "my-theme: theme.yaml must declare api: 3",
+            {"theme.yaml": "api: 3\n"},
+            "my-theme: theme.yaml must declare api: 4",
         ),
     ],
 )
@@ -247,7 +246,7 @@ def test_theme_check_renders_sample_content_offline(
     if files:
         theme = site / "my-theme"
         theme.mkdir()
-        (theme / "theme.yaml").write_text("api: 3\nextends: quiet\n")
+        (theme / "theme.yaml").write_text("api: 4\nextends: quiet\n")
         for name, text in files.items():
             (theme / name).write_text(text, encoding="utf-8")
 
@@ -303,7 +302,7 @@ def test_a_bad_issues_file_builds_nothing(
         (_CONFIG + "security: {token_env: ghp_SECRET-1}\n", None),
         (
             "security: {token_env: CLI_TEST_TOKEN}\n",
-            {**_CONTEXT, "pages_base_url": "https://ghp_SECRET.example/blog/"},
+            {**_CONTEXT, "pages_base_url": "https://ghp_SECRET.example/a b/"},
         ),
         (
             "security: {token_env: CLI_TEST_TOKEN}\n",

@@ -1,5 +1,5 @@
-{% macro tags(items, linked=true) -%}
-{% if items %}<ul class="tag-links" aria-label="{{ t.tags_label }}">{% for tag in items %}<li>{% if linked %}<a href="{{ tag.path }}">{{ tag.name }}</a>{% else %}<span>{{ tag.name }}</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
+{% macro tags(items) -%}
+{% if items %}<ul class="tag-links" aria-label="{{ t.tags_label }}">{% for tag in items %}<li>{% if tag.path %}<a href="{{ tag.path }}">{{ tag.name }}</a>{% else %}<span>{{ tag.name }}</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
 {%- endmacro %}
 
 {% macro entry_list(posts, show_descriptions=false) -%}
@@ -39,9 +39,9 @@
   </div>
   <noscript><p>{{ t.comments_noscript }}</p></noscript>
 </section>
-<script src="/assets/escaping/comments.js" defer></script>
+<script src="{{ '/assets/escaping/comments.js'|url }}" defer></script>
 {%- endmacro %}
 
 {% macro mermaid() -%}
-<script src="/assets/escaping/mermaid.js" data-runtime-src="/assets/escaping/mermaid/mermaid.min.js" data-mermaid-theme="neutral" defer></script>
+<script src="{{ '/assets/escaping/mermaid.js'|url }}" data-runtime-src="{{ '/assets/escaping/mermaid/mermaid.min.js'|url }}" data-mermaid-theme="neutral" defer></script>
 {%- endmacro %}

@@ -94,7 +94,6 @@ def test_starter_config_builds_from_the_platform_context_alone() -> None:
             "owner_login": "alice",
             "owner_type": "User",
             "pages_base_url": "https://alice.github.io/",
-            "pages_base_path": "/",
         }
     )
     settings, _ = resolve_settings(

@@ -54,12 +54,25 @@ class SiteMetadata:
 
 
 @dataclass(frozen=True)
-class ThemePage:
-    """An extra page declared by the Theme; ``project`` is set for ``for_each``."""
+class ExtraPage:
+    """A page from ``pages.extra``; ``project`` is set for ``for_each``."""
 
     route: Route
     template: str
     project: Project | None = None
+
+
+@dataclass(frozen=True)
+class Redirect:
+    """An old address, from ``redirects`` in the Config, and where it went.
+
+    ``path`` is the decoded site path; ``url`` is its full, encoded address.
+    """
+
+    path: str
+    output_path: str
+    url: str
+    target: Route
 
 
 @dataclass(frozen=True)
@@ -70,12 +83,13 @@ class SiteModel:
     blogs: tuple[BlogPost, ...]
     archives: tuple[ArchivePage, ...]
     ideas: tuple[Idea, ...]
-    about: AboutPage | ProfileAbout
+    about: AboutPage | ProfileAbout | None
     projects: tuple[Project, ...]
     tags: tuple[Tag, ...]
-    theme_pages: tuple[ThemePage, ...]
+    extra_pages: tuple[ExtraPage, ...]
     feed: AtomFeed
     routes: RouteRegistry
+    redirects: tuple[Redirect, ...] = field(default_factory=tuple)
     diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)
     skipped_issues: tuple[int, ...] = field(default_factory=tuple)
 

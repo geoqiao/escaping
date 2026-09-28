@@ -368,3 +368,18 @@ def test_mixed_safe_and_unsafe() -> None:
     assert 'src="https://example.com/img.png"' in result
     assert "javascript:" not in result.lower()
     assert "<blockquote>" in result
+
+
+def test_root_relative_links_and_images_move_under_the_sites_path() -> None:
+    html = (
+        '<p><a href="/about/">a</a> <a href="https://x.test/">b</a> '
+        '<a href="#top">c</a> <img src="/assets/i.png" alt=""></p>'
+    )
+
+    cleaned = sanitize_html(html, base="/notes")
+
+    assert '<a href="/notes/about/">a</a>' in cleaned
+    assert '<a href="https://x.test/">b</a>' in cleaned
+    assert '<a href="#top">c</a>' in cleaned
+    assert 'src="/notes/assets/i.png"' in cleaned
+    assert sanitize_html(html) == sanitize_html(html, base="")

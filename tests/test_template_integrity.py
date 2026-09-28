@@ -206,9 +206,13 @@ def test_theme_contract_renders_every_page_with_valid_links(
     assert "404" not in files["sitemap.xml"]
 
 
+@pytest.mark.parametrize("pages", [{}, {"ideas": False, "tags": False}])
 @pytest.mark.parametrize("theme", list(_THEMES))
-def test_theme_check_passes_with_sample_content(theme: str) -> None:
-    result = check_theme(_settings(theme), config_root=_ROOT)
+def test_theme_check_passes_with_sample_content(
+    theme: str, pages: dict[str, bool]
+) -> None:
+    # With the tags pages off, tags have no path and show as text.
+    result = check_theme(_settings(theme, pages=pages), config_root=_ROOT)
 
     assert result.success, result.diagnostics
     assert result.diagnostics == ()
@@ -261,7 +265,11 @@ def test_profile_about_is_escaped_and_has_no_issue_features(
 def test_a_theme_extending_quiet_overrides_partials_strings_and_assets(
     tmp_path: Path,
 ) -> None:
-    settings = _settings("extends", options={"now_text": "Reading <books>."})
+    settings = _settings(
+        "extends",
+        options={"now_text": "Reading <books>."},
+        pages={"extra": [{"path": "/now/", "template": "now.html"}]},
+    )
 
     pages = _pages(tmp_path, settings)
 

@@ -1,4 +1,4 @@
-"""Theme API 3: load a Theme directory, its built-in parent, options and strings.
+"""Theme API 4: load a Theme directory, its built-in parent, options and strings.
 
 A Theme is templates, static files and ``theme.yaml``. Loading never touches
 the network and never executes Theme code. See docs/themes/authoring.md.
@@ -12,7 +12,8 @@ import re
 import shutil
 from collections.abc import Iterable, Mapping
 from dataclasses import dataclass
-from pathlib import Path, PurePosixPath
+from functools import partial
+from pathlib import Path
 from types import SimpleNamespace
 from typing import Any, Literal
 
@@ -25,28 +26,40 @@ from jinja2 import (
     PrefixLoader,
     StrictUndefined,
     TemplateError,
+    TemplateRuntimeError,
     TemplateSyntaxError,
 )
 from pydantic import BaseModel, ConfigDict, StrictInt, ValidationError
 
-from .config import ConfigError, describe_validation_errors, validate_safe_href
+from .config import (
+    ConfigError,
+    PagesConfig,
+    describe_validation_errors,
+    validate_safe_href,
+)
+from .routes import with_base
 from .utils.frontmatter import _StrictYAMLLoader
 
-THEME_API = 3
+THEME_API = 4
 BUILTIN_THEMES = Path(__file__).parent / "themes"
 
-#: Templates the compiler renders; every Theme (or its parent) provides them.
-PAGE_TEMPLATES = (
-    "home.html",
-    "blog.html",
-    "post.html",
-    "ideas.html",
-    "idea.html",
-    "about.html",
-    "projects.html",
-    "tags.html",
-    "tag.html",
-)
+#: Page kind -> templates tried in order; the first one the Theme has is used.
+#: List pages fall back to ``blog.html``, single pages to ``post.html``.
+TEMPLATE_CHAINS: dict[str, tuple[str, ...]] = {
+    "home": ("home.html", "blog.html"),
+    "blog": ("blog.html",),
+    "ideas": ("ideas.html", "blog.html"),
+    "tag": ("tag.html", "blog.html"),
+    "post": ("post.html",),
+    "idea": ("idea.html", "post.html"),
+    "about": ("about.html", "post.html"),
+    "tags": ("tags.html",),
+    "projects": ("projects.html",),
+}
+#: Every Theme (or its parent) has these.
+REQUIRED_TEMPLATES = ("blog.html", "post.html")
+#: Pages with no fallback: the Theme needs the template while the page is on.
+_OWN_TEMPLATE_PAGES = ("tags", "projects")
 #: Rendered to ``404.html`` when present.
 NOT_FOUND_TEMPLATE = "404.html"
 #: Static files under this directory name are published by the compiler.
@@ -55,9 +68,6 @@ SHARED_ASSET_DIR = "escaping"
 _OPTION_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 _STRING_KEY = re.compile(r"^[a-z][a-z0-9_]*$")
 _COLOR = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
-_PAGE_PATH = re.compile(r"^/(?:[a-z0-9-]+/|\{slug\}/)+$")
-_COMPILER_PATHS = ("/", "/blog/", "/ideas/", "/about/", "/projects/", "/tags/")
-_COMPILER_PREFIXES = ("/blog/", "/ideas/", "/tags/", "/assets/")
 _RESERVED_STRING_KEYS = frozenset({"language"})
 
 OptionType = Literal[
@@ -78,21 +88,12 @@ class _OptionModel(BaseModel):
     description: str = ""
 
 
-class _PageModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
-
-    path: str
-    template: str
-    for_each: Literal["projects"] | None = None
-
-
 class _ManifestModel(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
     api: StrictInt
     extends: str | None = None
     options: dict[str, _OptionModel] = {}
-    pages: list[_PageModel] = []
     strings: dict[str, dict[str, str]] = {}
 
 
@@ -102,19 +103,6 @@ class OptionSpec:
     default: object
     values: tuple[str, ...] = ()
     description: str = ""
-
-
-@dataclass(frozen=True)
-class PageSpec:
-    path: str
-    template: str
-    for_each: Literal["projects"] | None = None
-
-    def template_for(self, slug: str | None) -> str:
-        return self.template.replace("{slug}", slug) if slug else self.template
-
-    def path_for(self, slug: str | None) -> str:
-        return self.path.replace("{slug}", slug) if slug else self.path
 
 
 @dataclass(frozen=True)
@@ -130,7 +118,6 @@ class LoadedTheme:
     name: str
     layers: tuple[ThemeLayer, ...]
     options: Mapping[str, OptionSpec]
-    pages: tuple[PageSpec, ...]
     strings: Mapping[str, Mapping[str, str]]
 
     @property
@@ -141,7 +128,8 @@ class LoadedTheme:
             if not layer.root.is_relative_to(BUILTIN_THEMES)
         )
 
-    def environment(self) -> Environment:
+    def environment(self, base: str = "") -> Environment:
+        """The Jinja environment; ``base`` is the site's path for ``url``."""
         loaders: list[BaseLoader] = [
             FileSystemLoader(str(layer.root)) for layer in self.layers
         ]
@@ -149,28 +137,50 @@ class LoadedTheme:
             PrefixLoader({f"@{layer.name}": FileSystemLoader(str(layer.root))})
             for layer in self.layers[1:]
         )
-        return Environment(
-            loader=ChoiceLoader(loaders), autoescape=True, undefined=StrictUndefined
+        environment = Environment(
+            loader=ChoiceLoader(loaders),
+            autoescape=True,
+            undefined=StrictUndefined,
+            finalize=_printable,
         )
+        environment.filters["url"] = partial(_url, base)
+        return environment
 
     def has_template(self, name: str) -> bool:
         return any((layer.root / name).is_file() for layer in self.layers)
 
-    def check(self, project_slugs: Iterable[str] = ()) -> None:
+    def template_for(self, kind: str) -> str:
+        """The template that renders ``kind``, following ``TEMPLATE_CHAINS``."""
+        chain = TEMPLATE_CHAINS[kind]
+        return next((name for name in chain if self.has_template(name)), chain[-1])
+
+    def check(
+        self, pages: PagesConfig | None = None, project_slugs: Iterable[str] = ()
+    ) -> None:
         """Fail before any network access if a template is missing or invalid."""
+        pages = pages or PagesConfig()
         problems = [
-            f"{self.name}: missing template {name}"
-            for name in PAGE_TEMPLATES
+            f"{self.name}: missing template {name} (every Theme needs "
+            f"{' and '.join(REQUIRED_TEMPLATES)})"
+            for name in REQUIRED_TEMPLATES
             if not self.has_template(name)
         ]
+        for kind in _OWN_TEMPLATE_PAGES:
+            path = getattr(pages, kind)
+            if path and not self.has_template(f"{kind}.html"):
+                problems.append(
+                    f"{self.name}: has no {kind}.html for the {kind} page {path}; "
+                    f"add {kind}.html to the Theme, or set pages.{kind}: false "
+                    "in config.yaml"
+                )
         slugs = tuple(project_slugs)
-        for page in self.pages:
+        for page in pages.extra:
             for slug in slugs if page.for_each else (None,):
                 template = page.template_for(slug)
                 if not self.has_template(template):
                     problems.append(
-                        f"{self.name}: page {page.path_for(slug)} needs template "
-                        f"{template}"
+                        f"pages.extra: {page.path_for(slug)} needs template "
+                        f"{template}, which {self.name} does not have"
                     )
         environment = self.environment()
         for name in environment.list_templates(filter_func=_is_template):
@@ -237,6 +247,29 @@ class LoadedTheme:
             target = assets / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)
+
+
+def _printable(value: object) -> object:
+    """Fail on ``{{ none }}`` rather than writing the word None into a page."""
+    if value is None:
+        raise TemplateRuntimeError(
+            "this value is none, so it cannot be printed; check it first with "
+            "{% if … %} (tag.path, for example, is none when the tags pages are off)"
+        )
+    return value
+
+
+def _url(base: str, value: str) -> str:
+    """The ``url`` filter: ``'/assets/site.css'|url`` under the site's path.
+
+    Route paths already include it, so an address that starts with the site's
+    path is returned as is; so are full URLs and fragments.
+    """
+    if not isinstance(value, str):
+        raise TypeError(f"url expects an address string, not {type(value).__name__}")
+    if base and (value == base or value.startswith(f"{base}/")):
+        return value
+    return with_base(base, value)
 
 
 def _is_template(name: str) -> bool:
@@ -332,10 +365,18 @@ def _read_manifest(name: str, root: Path) -> _ManifestModel:
     if not isinstance(data, dict):
         raise ThemeError([f"{name}: theme.yaml must be a mapping"])
     if "api_version" in data or data.get("api") != THEME_API:
+        old = 2 if "api_version" in data else 3
         raise ThemeError(
             [
                 f"{name}: theme.yaml must declare api: {THEME_API} "
-                "(see docs/themes/authoring.md#migrating-from-api-2)"
+                f"(see docs/themes/authoring.md#migrating-from-api-{old})"
+            ]
+        )
+    if "pages" in data:
+        raise ThemeError(
+            [
+                f"{name}: theme.yaml pages: moved to pages.extra in the site's "
+                "config.yaml; the site decides which pages exist"
             ]
         )
     try:
@@ -364,28 +405,6 @@ def _manifest_problems(manifest: _ManifestModel) -> list[str]:
             _check_value(_spec(spec), spec.default)
         except ValueError as exc:
             problems.append(f"options.{option}.default: {exc}")
-    for index, page in enumerate(manifest.pages):
-        where = f"pages.{index}"
-        placeholders = page.path.count("{slug}")
-        if not _PAGE_PATH.fullmatch(page.path):
-            problems.append(
-                f"{where}.path: use lowercase segments ending with /, like /now/"
-            )
-        elif page.path in _COMPILER_PATHS or page.path.startswith(_COMPILER_PREFIXES):
-            problems.append(f"{where}.path: {page.path} belongs to the compiler")
-        if (placeholders == 1) != (page.for_each == "projects"):
-            problems.append(
-                f"{where}.path: use {{slug}} exactly once with for_each: projects, "
-                "and not otherwise"
-            )
-        template = PurePosixPath(page.template)
-        if (
-            template.is_absolute()
-            or ".." in template.parts
-            or template.suffix != ".html"
-            or ("{slug}" in page.template and page.for_each is None)
-        ):
-            problems.append(f"{where}.template: use a relative .html template name")
     for language, table in manifest.strings.items():
         for key in table:
             if not _STRING_KEY.fullmatch(key) or key in _RESERVED_STRING_KEYS:
@@ -433,16 +452,9 @@ def _check_value(spec: OptionSpec, value: object) -> object:
 
 def _merge(name: str, layers: list[tuple[ThemeLayer, _ManifestModel]]) -> LoadedTheme:
     options: dict[str, OptionSpec] = {}
-    pages: dict[str, PageSpec] = {}
     strings: dict[str, dict[str, str]] = {}
     for _, manifest in reversed(layers):  # parent first, the child overrides
         options.update({key: _spec(model) for key, model in manifest.options.items()})
-        pages.update(
-            {
-                page.path: PageSpec(page.path, page.template, page.for_each)
-                for page in manifest.pages
-            }
-        )
         for language, table in manifest.strings.items():
             strings.setdefault(language.casefold(), {}).update(table)
     static_reserved = [
@@ -461,6 +473,5 @@ def _merge(name: str, layers: list[tuple[ThemeLayer, _ManifestModel]]) -> Loaded
         name=name,
         layers=tuple(layer for layer, _ in layers),
         options=options,
-        pages=tuple(pages.values()),
         strings=strings,
     )

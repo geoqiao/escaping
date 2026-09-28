@@ -26,15 +26,15 @@ Blog, Ideas, Projects, About, Tags and RSS, without a separate content managemen
 Use **Use this template** at [escaping-template](https://github.com/geoqiao/escaping-template).
 No local Python, PAT, or manually created publishing labels are required.
 
-> **Public preview:** the 0.2.0 Action and starter workflow have run in local tests; creating a new
+> **Public preview:** the 0.3.0 Action and starter workflow have run in local tests; creating a new
 > repository from the template on GitHub has not been fully verified yet.
 
 1. Create `username.github.io` (public for GitHub Free), keep Issues/Actions enabled, and in **Settings → Pages** set **Source** to **GitHub Actions**.
 2. Save an Issue with a title and Markdown body. The workflow's `labels` job creates the publishing labels on its first run; refresh the Issue page if you do not see them.
 3. Add one of `type:blog`, `type:idea`, or `type:about`, plus `published` when ready, and check the deployment in Actions.
 
-The workflow runs the generator with `uses: geoqiao/escaping@v0.2.0`; the site repository needs no scripts.
-Project-site sub-paths (such as `username.github.io/blog/`) are unsupported; a custom domain must serve an HTTPS root URL.
+The workflow runs the generator with `uses: geoqiao/escaping@v0.3.0`; the site repository needs no scripts.
+A repository with another name works too: the site then lives at `username.github.io/<repository>/`, and escaping handles that path.
 The [starter instructions](starter/README.md) cover the full setup, versions and failure recovery.
 
 ## Everyday writing
@@ -90,8 +90,10 @@ Output and local Theme paths are relative to the Config directory. Serve the out
 Three ways, from simplest to most complete:
 
 1. **Change Quiet's options** under `theme.options`, such as `tagline`, `featured_posts` or `accent_color`. See [Quiet](docs/themes/quiet.md) for all of them.
-2. **Override one file.** Create a `theme/` directory with a `theme.yaml` containing `api: 3` and `extends: quiet`, add only the template or static file you want to replace, and set `theme: {use: ./theme}`. Everything else still comes from Quiet.
-3. **Write a complete Theme.** See the [Theme guide](docs/themes/authoring.md). A Theme can also declare its own options, interface text and extra pages (for example one page per project).
+2. **Override one file.** Create a `theme/` directory with a `theme.yaml` containing `api: 4` and `extends: quiet`, add only the template or static file you want to replace, and set `theme: {use: ./theme}`. Everything else still comes from Quiet.
+3. **Write your own Theme.** It needs only `blog.html` and `post.html`; see the [Theme guide](docs/themes/authoring.md). A Theme can also declare its own options and interface text.
+
+Which pages the site has, and where, is up to your `config.yaml`: `pages` turns a page off, moves it or adds one such as `/now/`, and `redirects` keeps old addresses working. See [Pages](docs/site-inputs.md#pages).
 
 Then run `escpe theme check --config config.yaml`. It renders every page with sample content, offline and without a token, and reports Theme problems.
 

@@ -9,37 +9,34 @@ from __future__ import annotations
 import json
 import shutil
 import xml.etree.ElementTree as ET
+from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC
+from html import escape
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
 
-from jinja2 import Environment
-
 from ..atom_feed import render_atom_xml
 from ..build_result import Diagnostic
+from ..models.blog_archive import ArchivePage
 from ..models.blog_post import BlogPost, blog_post_sort_key
 from ..models.content import AboutPage, Idea, ProfileAbout
 from ..models.site import SiteModel
 from ..routes import Route
 from ..search import build_search_index
-from ..theme import NOT_FOUND_TEMPLATE, SHARED_ASSET_DIR, LoadedTheme
+from ..theme import (
+    NOT_FOUND_TEMPLATE,
+    SHARED_ASSET_DIR,
+    LoadedTheme,
+)
 
 #: Scripts shared by every Theme, published at ``/assets/escaping/``.
 SHARED_STATIC = Path(__file__).resolve().parent.parent / "static"
 
 _SITE_ROUTES = ("home", "blog", "ideas", "about", "projects", "tags", "atom", "search")
-_PAGE_FIELDS = (
-    "post",
-    "newer",
-    "older",
-    "idea",
-    "archive",
-    "tag",
-    "about",
-    "project",
-)
+#: Every page has these names; the ones that do not apply are None.
+_PAGE_FIELDS = ("item", "items", "pagination", "newer", "older", "tag", "project")
 
 
 @dataclass(frozen=True)
@@ -56,19 +53,24 @@ class RenderService:
     def __init__(self, theme: LoadedTheme, options: SimpleNamespace) -> None:
         self.theme = theme
         self.options = options
-        self.env: Environment = theme.environment()
 
     def copy_assets(self, output_dir: Path) -> None:
         """Theme static files to ``/assets/``, shared scripts to ``/assets/escaping/``."""
         self.theme.copy_static(output_dir)
-        shutil.copytree(
-            SHARED_STATIC,
-            output_dir / "assets" / SHARED_ASSET_DIR,
-            ignore=shutil.ignore_patterns(".*", "__pycache__"),
-            dirs_exist_ok=True,
-        )
+        # Contents only, not modes: an installed package may be read-only, and
+        # read-only output could not be replaced by the next build.
+        shared = output_dir / "assets" / SHARED_ASSET_DIR
+        for source in sorted(SHARED_STATIC.rglob("*")):
+            relative = source.relative_to(SHARED_STATIC)
+            if source.is_file() and not any(
+                part.startswith(".") or part == "__pycache__" for part in relative.parts
+            ):
+                target = shared / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source, target)
 
     def render_site(self, site: SiteModel) -> RenderedSite:
+        env = self.theme.environment(site.routes.base)
         diagnostics: list[Diagnostic] = []
         context = {
             "site": self._site_context(site),
@@ -78,83 +80,104 @@ class RenderService:
         description = site.metadata.description
 
         def render(
-            template: str, kind: str, route: Route | None, **page: object
+            kind: str, route: Route | None, template: str = "", /, **page: object
         ) -> str:
             page.setdefault("description", description)
             page.setdefault("json_ld", None)
             for name in _PAGE_FIELDS:
                 page.setdefault(name, None)
-            return self.env.get_template(template).render(
+            template = template or self.theme.template_for(kind)
+            return env.get_template(template).render(
                 page=SimpleNamespace(kind=kind, route=route, **page), **context
             )
 
         routes = site.routes
         home = routes.route("home")
+        first = site.archives[0]
         files = {
             home.output_path: render(
-                "home.html", "home", home, json_ld=self._home_json_ld(site, home)
+                "home",
+                home,
+                json_ld=self._home_json_ld(site, home),
+                items=first.posts,
+                pagination=_pagination(first),
             )
         }
         for archive in site.archives:
             files[archive.route.output_path] = render(
-                "blog.html", "blog", archive.route, archive=archive
+                "blog",
+                archive.route,
+                items=archive.posts,
+                pagination=_pagination(archive),
             )
         posts: tuple[BlogPost, ...] = context["site"].posts
         for index, post in enumerate(posts):
             files[post.route.output_path] = render(
-                "post.html",
                 "post",
                 post.route,
                 description=post.description,
                 json_ld=self._blog_json_ld(site, post),
-                post=post,
-                newer=posts[index - 1] if index else None,
-                older=posts[index + 1] if index + 1 < len(posts) else None,
+                item=post,
+                **_neighbours(posts, index),
             )
-        ideas = routes.route("ideas")
-        files[ideas.output_path] = render("ideas.html", "ideas", ideas)
-        for idea in site.ideas:
+        if ideas := routes.get("ideas"):
+            files[ideas.output_path] = render(
+                "ideas", ideas, items=site.ideas, pagination=_single()
+            )
+        for index, idea in enumerate(site.ideas):
             files[idea.route.output_path] = render(
-                "idea.html",
                 "idea",
                 idea.route,
                 description=idea.description,
                 json_ld=self._idea_json_ld(idea),
-                idea=idea,
+                item=idea,
+                **_neighbours(site.ideas, index),
             )
-        about = site.about
-        files[about.route.output_path] = render(
-            "about.html",
-            "about",
-            about.route,
-            description=about.description,
-            json_ld=self._about_json_ld(site, about),
-            about=about,
-        )
-        for name in ("projects", "tags"):
-            route = routes.route(name)
-            files[route.output_path] = render(f"{name}.html", name, route)
+        if (about := site.about) is not None:
+            files[about.route.output_path] = render(
+                "about",
+                about.route,
+                description=about.description,
+                json_ld=self._about_json_ld(site, about),
+                item=about,
+            )
+        if projects := routes.get("projects"):
+            files[projects.output_path] = render(
+                "projects", projects, items=site.projects, pagination=_single()
+            )
+        if tags := routes.get("tags"):
+            files[tags.output_path] = render(
+                "tags", tags, items=site.tags, pagination=_single()
+            )
         for tag in site.tags:
-            files[tag.route.output_path] = render("tag.html", "tag", tag.route, tag=tag)
-        for theme_page in site.theme_pages:
-            project = theme_page.project
-            files[theme_page.route.output_path] = render(
-                theme_page.template,
+            files[tag.route.output_path] = render(
+                "tag", tag.route, items=tag.posts, tag=tag, pagination=_single()
+            )
+        for extra in site.extra_pages:
+            project = extra.project
+            files[extra.route.output_path] = render(
                 "page",
-                theme_page.route,
+                extra.route,
+                extra.template,
                 description=(project.summary if project else "") or description,
                 project=project,
             )
+        for redirect in site.redirects:
+            files[redirect.output_path] = _redirect_page(
+                redirect.target, site.metadata.language
+            )
         if self.theme.has_template(NOT_FOUND_TEMPLATE):
-            files[NOT_FOUND_TEMPLATE] = render(NOT_FOUND_TEMPLATE, "404", None)
+            files[NOT_FOUND_TEMPLATE] = render("404", None, NOT_FOUND_TEMPLATE)
 
         files[site.feed.route.output_path] = render_atom_xml(
             site.feed, site.metadata, home.canonical_url
         )
         files[routes.route("sitemap").output_path] = self._sitemap(site)
-        files[routes.route("robots").output_path] = (
-            f"User-agent: *\nAllow: /\nSitemap: {routes.route('sitemap').canonical_url}\n"
-        )
+        if (robots := routes.get("robots")) is not None:
+            files[robots.output_path] = (
+                "User-agent: *\nAllow: /\n"
+                f"Sitemap: {routes.route('sitemap').canonical_url}\n"
+            )
         files[routes.route("search").output_path] = json.dumps(
             build_search_index(site), ensure_ascii=False, separators=(",", ":")
         )
@@ -164,7 +187,7 @@ class RenderService:
     def _site_context(site: SiteModel) -> SimpleNamespace:
         metadata = site.metadata
         routes = SimpleNamespace(
-            **{name: site.routes.route(name) for name in _SITE_ROUTES}
+            **{name: site.routes.get(name) for name in _SITE_ROUTES}
         )
         return SimpleNamespace(
             title=metadata.title,
@@ -283,3 +306,45 @@ class RenderService:
             "description": idea.description,
             "url": idea.canonical_url,
         }
+
+
+def _pagination(archive: ArchivePage) -> SimpleNamespace:
+    return SimpleNamespace(
+        number=archive.page_number,
+        total=archive.total_pages,
+        prev=archive.prev_route,
+        next=archive.next_route,
+    )
+
+
+def _single() -> SimpleNamespace:
+    """A list shown on one page."""
+    return SimpleNamespace(number=1, total=1, prev=None, next=None)
+
+
+def _neighbours(items: Sequence[object], index: int) -> dict[str, object]:
+    """The newer and older item, for a list sorted newest first."""
+    return {
+        "newer": items[index - 1] if index else None,
+        "older": items[index + 1] if index + 1 < len(items) else None,
+    }
+
+
+def _redirect_page(target: Route, language: str) -> str:
+    """A page that sends visitors and search engines to ``target`` at once."""
+    url = escape(target.canonical_url)
+    return f"""<!DOCTYPE html>
+<html lang="{escape(language)}">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Moved</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="{url}">
+<meta http-equiv="refresh" content="0; url={url}">
+</head>
+<body>
+<p>This page moved to <a href="{url}">{url}</a>.</p>
+</body>
+</html>
+"""

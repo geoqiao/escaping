@@ -5,6 +5,91 @@ All notable changes to escaping are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) (before 1.0, a minor version may
 break things).
 
+## [0.3.0] - 2026-09-28
+
+The site now decides which pages it has and where they live; a Theme only
+supplies templates. Old addresses and sites under a path are handled by
+escaping. Local Themes need a small update: read
+[Upgrading from 0.2](#upgrading-from-02).
+
+### Added
+
+- **`pages` in `config.yaml`.** Each section (`blog`, `ideas`, `tags`,
+  `projects`, `about`) takes `true`, `false` or a path, such as
+  `blog: /posts/` or `tags: false`. The Blog cannot be turned off. `extra`
+  adds pages such as `/now/` or one page per project, each rendered by a
+  named Theme template. See [Pages](docs/site-inputs.md#pages).
+- **`redirects` in `config.yaml`.** Old addresses (ending in `/` or `.html`)
+  become pages that send visitors on to a current page. Chains are followed;
+  circles and duplicates fail the build. A redirect whose target is no page,
+  or whose source is a page again, is left out with the warning
+  `REDIRECT_LEFT_OUT`. See [Redirects](docs/site-inputs.md#redirects).
+- **Sites under a path**, such as a GitHub project site at
+  `https://alice.github.io/notes/`. `site.url` and the Pages URL may carry a
+  path. Page addresses, links in Issues and root-relative Config values move
+  under it. See [Sites under a path](docs/site-inputs.md#sites-under-a-path).
+- **Theme API 4.**
+  - Only `blog.html` and `post.html` are required. Home, Ideas and tag pages
+    fall back to `blog.html`; Ideas and About fall back to `post.html`.
+    `tags.html` and `projects.html` are needed only when those pages are on,
+    and the error names both fixes.
+  - Every page has the same fields: `page.item`, `page.items`,
+    `page.pagination`, `page.newer`, `page.older`, `page.tag`,
+    `page.project`, `none` when unused. Posts, Ideas and About share the
+    fields a single page shows.
+  - The `url` filter: `{{ '/assets/site.css'|url }}` works at the root of a
+    host and under a path.
+- The Theme guide explains how to [share a Theme](docs/themes/authoring.md#sharing-a-theme).
+
+### Changed
+
+- **Breaking:** Themes declare `api: 4`. `pages` in `theme.yaml` is rejected
+  with its new place (`pages.extra` in the site's `config.yaml`).
+- **Breaking:** `page.post`, `page.idea`, `page.about` and `page.archive`
+  are replaced; see
+  [Migrating from API 3](docs/themes/authoring.md#migrating-from-api-3).
+- `site.routes.<name>` and `site.about` are `none` for a page that is off, and
+  a Blog tag's `path` is `none` when the tag pages are off.
+- The default menu follows `pages`: a moved Blog is linked at its new address;
+  a page that is off is left out.
+- A menu link to a page that is off says so, for example
+  `(pages.tags is false)`.
+- Issues of a section that is off are not published and get the warning
+  `PAGE_OFF`.
+- A profile About (no About Issue) has `body_html` with the bio.
+- The output check reports `LINK_OUTSIDE_SITE` for a Theme address that
+  leaves a site under a path, and names the `url` filter.
+- `robots.txt` is written only for a site at the root of a host.
+- A template that prints `none` fails with its file and line instead of
+  writing the word None into the page.
+- An About page from an Issue has an empty `created_date`: About shows no
+  date.
+- A description taken from the body leaves out Mermaid diagram source.
+- A full URL into a folder the site does not write, such as a GitHub project
+  site on the same host, is not checked as a page of this site. A broken link
+  to a page suggests adding the old address to `redirects`.
+- `escpe theme check` renders enough sample posts for a second Blog page and
+  leaves out warnings about Issues that the Config names.
+- The platform context written by the Action loses `pages_base_path`.
+- Quiet uses the `url` filter and hides links to pages that are off.
+
+### Upgrading from 0.2
+
+1. **Pin the new version.** Change `uses: geoqiao/escaping@v0.2.0` to
+   `@v0.3.0` (or its commit SHA) in the site workflow.
+2. **Quiet only:** nothing else to do.
+3. **A local Theme:** set `api: 4` and follow
+   [Migrating from API 3](docs/themes/authoring.md#migrating-from-api-3).
+   Move any `pages:` from `theme.yaml`, unchanged, to `pages.extra` in
+   `config.yaml`.
+4. **A site script that wrote redirect pages** after the Action step: move
+   its map into `redirects` and delete the script and its workflow step.
+5. **Check locally (optional).** `escpe theme check --config config.yaml`.
+
+To roll back, pin 0.2.0 again and restore the Theme's `api: 3` and `pages`
+together with the old Config; 0.2 rejects `pages` and `redirects` in
+`config.yaml`.
+
 ## [0.2.0] - 2026-09-28
 
 This release separates data from presentation. The generator turns Issues and
@@ -160,5 +245,6 @@ and 0.1 has no Action to pin.
 First release: Blog, Ideas, About, Projects, Tags, Atom, sitemap and search
 from GitHub Issues, with the Quiet Theme and the starter workflow.
 
+[0.3.0]: https://github.com/geoqiao/escaping/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/geoqiao/escaping/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/geoqiao/escaping/releases/tag/v0.1.0

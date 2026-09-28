@@ -1,105 +1,137 @@
 # Quiet
 
-Quiet 是内置 Theme：以中性黑白为主，只用少量头像洋红点缀。
+Quiet is the built-in Theme: neutral black and white with a few avatar-magenta
+accents.
 
-## 选择 Quiet
+## Using Quiet
 
 ```yaml
 theme:
   use: quiet
 ```
 
-这也是默认值，不写 `theme` 就会用 Quiet。想改 Quiet 的部分模板或样式，见
-[Theme 作者指南](authoring.md#2-extend-quiet)。
+This is the default; a Config without `theme` uses Quiet. To change some of
+Quiet's templates or styles, see [Extend Quiet](authoring.md#2-extend-quiet).
 
-## 选项
+Quiet has a template for every kind of page. When `pages` in `config.yaml`
+turns a page off (`pages.tags: false`) or moves it (`pages.blog: /posts/`),
+Quiet hides links to pages that are off; see [Pages](../site-inputs.md#pages).
+Quiet also works for a site under a path, such as
+`https://alice.github.io/notes/`.
 
-在 `config.yaml` 的 `theme.options` 下设置：
+## Options
+
+Set them under `theme.options` in `config.yaml`:
 
 ```yaml
 theme:
   options:
-    tagline: 研究者 / 工具作者
+    tagline: Researcher / tool builder
     featured_posts: [41, 62]
     accent_color: "#2f6aa7"
 ```
 
-| 选项 | 类型 | 默认值 | 作用 |
+| Option | Type | Default | What it does |
 | --- | --- | --- | --- |
-| `tagline` | string | 空 | 首页简介上方的一行字 |
-| `featured_posts` | posts | `[]` | 首页“精选”列出的 Blog Issue 编号，按填写顺序显示。不存在的编号会被跳过，并给出 `THEME_OPTION_POST_MISSING` 警告 |
-| `footer_text` | string | 空 | 页脚作者名旁的文字；为空时显示“感谢阅读。”（按站点语言） |
-| `show_powered_by` | boolean | `true` | 是否显示页脚的 “Powered by escaping” 链接 |
-| `accent_color` | color | 空 | 浅色模式的点缀色，如 `"#a72f6a"`；为空时用 Quiet 自带的颜色 |
-| `accent_color_dark` | color | 空 | 深色模式的点缀色，如 `"#e58bb6"`；为空时用 Quiet 自带的颜色 |
-| `comments_theme` | choice | `github-light` | `comments_theme_mode: fixed` 时使用的 Utterances 配色。可选 `github-light`、`github-dark`、`preferred-color-scheme`、`github-dark-orange`、`icy-dark`、`dark-blue`、`photon-dark`、`boxy-light`、`gruvbox-dark` |
-| `comments_theme_mode` | choice | `auto` | `auto` 跟随 Quiet 的浅色/深色模式；`fixed` 始终使用 `comments_theme` |
+| `tagline` | string | empty | One line above the bio on Home |
+| `featured_posts` | posts | `[]` | Blog Issue numbers listed under Featured on Home, in this order. A number that is not a published Blog post is left out with the warning `THEME_OPTION_POST_MISSING` |
+| `footer_text` | string | empty | Footer text next to the author name; empty shows "Thanks for reading." in the site's language |
+| `show_powered_by` | boolean | `true` | Show the "Powered by escaping" footer link |
+| `accent_color` | color | empty | Accent color in light mode, such as `"#a72f6a"`; empty keeps Quiet's |
+| `accent_color_dark` | color | empty | Accent color in dark mode, such as `"#e58bb6"`; empty keeps Quiet's |
+| `comments_theme` | choice | `github-light` | Utterances colors used when `comments_theme_mode` is `fixed`: `github-light`, `github-dark`, `preferred-color-scheme`, `github-dark-orange`, `icy-dark`, `dark-blue`, `photon-dark`, `boxy-light` or `gruvbox-dark` |
+| `comments_theme_mode` | choice | `auto` | `auto` follows Quiet's light or dark mode; `fixed` always uses `comments_theme` |
 
-颜色值要加引号，否则 YAML 会把 `#` 之后当成注释。选项名写错或值不合法时，构建会失败并指出是哪个选项。
-评论默认关闭，开启方法见[评论](authoring.md#comments)。
+Quote colors: YAML treats everything after an unquoted `#` as a comment. A
+misspelt option name or an invalid value fails the build and names the option.
+Comments are off by default; see [Comments](authoring.md#comments) to turn
+them on.
 
-## 界面语言
+## Interface language
 
-Quiet 的界面文字有英文（`en`）和中文（`zh`）。按 `site.language` 选择：
+Quiet's interface text comes in English (`en`) and Chinese (`zh`), chosen by
+`site.language`: `zh`, `zh-CN`, `zh-TW` and any other language starting with
+`zh` get Chinese; every other language gets English. Titles and text of posts
+are shown as written in the Issues.
 
-- `zh`、`zh-CN`、`zh-TW` 等以 `zh` 开头的语言使用中文；
-- 其他语言使用英文。
-
-文章标题和正文不受影响，照 Issue 原文显示。想改某一句界面文字，可以在扩展 Quiet 的
-Theme 里覆盖对应的 key，比如：
+To change one piece of interface text, override its key in a Theme that
+extends Quiet:
 
 ```yaml
-api: 3
+api: 4
 extends: quiet
 strings:
+  en:
+    search_placeholder: Search the notes…
   zh:
-    footer_thanks: 谢谢来访。
+    search_placeholder: 搜索笔记…
 ```
 
-全部 key 见 [`src/escaping/themes/quiet/theme.yaml`](../../src/escaping/themes/quiet/theme.yaml)。
+Keep any `{name}` placeholder in the text, such as `{count}` in
+`search_count`; Quiet fills it in. The English and Chinese wording of every
+key is in Quiet's
+[`theme.yaml`](../../src/escaping/themes/quiet/theme.yaml). The keys, by
+where they appear:
 
-## 可以替换的文件
-
-在扩展 Quiet 的 Theme 里放一个同名文件，就会替换 Quiet 的那个文件。下面这些文件就是为此拆出来的：
-
-| 文件 | 内容 |
+| Where | Keys |
 | --- | --- |
-| `head-extra.html` | 空文件，放在每页 `<head>` 末尾。适合加统计代码、字体或额外样式表 |
-| `home-intro.html` | 首页标题下的简介：`tagline`、`profile.bio` 和指向 Blog、Projects、About 的一句话 |
-| `header.html` | 首页右上角的按钮，以及其他页面的侧栏（头像、菜单、搜索、深色模式开关） |
-| `footer.html` | 页脚：作者名、`footer_text`、`profile.links`、RSS 和 “Powered by” |
-| `search.html` | 搜索对话框 |
-| `components.html` | 共用宏：标签、文章列表、项目卡片、评论区、Mermaid 加载 |
-| `base.html` | 所有页面的外框和 `<head>`。替换它会影响每一页 |
-| `static/css/style.css` 等 | 静态文件同样按路径替换，比如 `static/images/favicon.png` |
+| Page frame and menu | `skip_to_content`, `home`, `menu`, `toggle_menu`, `dark_mode`, `site_index`, `main_navigation`, `rail_note`, `back_home`, `back_to_section`, `back_to_top` |
+| Search | `search`, `search_placeholder`, `search_label`, `search_scope`, `search_close`, `search_retry`, `search_results`, `search_select_hint`, `search_close_hint`, `browse_blog`, `browse_tags`, `search_loading`, `search_failed`, `search_empty`, `search_no_results`, `search_browse`, `search_count_one`, `search_count`, `search_truncated` |
+| Footer | `footer_thanks`, `footer_links`, `powered_by` |
+| Home | `featured`, `recent_articles`, `all_articles`, `no_writing_yet`, `my_projects`, `all_projects`, `home_intro`, `home_intro_blog`, `home_intro_projects`, `home_intro_about` |
+| Blog and Tags | `blog`, `blog_eyebrow`, `blog_caption`, `explore_by_topic`, `blog_pagination`, `newer`, `older`, `empty_writing`, `tags`, `tags_eyebrow`, `tags_caption`, `tags_empty`, `tags_label`, `related_articles` |
+| Ideas | `ideas`, `ideas_eyebrow`, `ideas_caption`, `ideas_empty_title`, `ideas_empty_body`, `explore_writing` |
+| About and Projects | `about`, `also_building`, `projects`, `projects_eyebrow`, `projects_caption`, `projects_empty`, `website`, `links_for` |
+| Articles | `discuss`, `article_navigation`, `previous`, `next`, `on_this_page`, `copy_code`, `copied`, `copy_failed` |
+| Comments | `conversation`, `comments_intro`, `comments_loading`, `comments_noscript`, `comments_unavailable`, `comments_view_on_github` |
+| Not found | `not_found`, `not_found_body` |
 
-用 `@quiet/` 可以在自己的文件里复用 Quiet 的原版，例如
-`{% extends "@quiet/home.html" %}`。页面模板可以设置 `page_title`、`page_description`
-和 `active_section`，`base.html` 会用它们生成标题、描述和当前菜单项，见
-[Theme 作者指南](authoring.md#reusing-the-file-you-replace)。
+## Files you can replace
 
-## 设计说明
+A file with the same name in a Theme that extends Quiet replaces Quiet's. These
+files are split out for that purpose:
 
-| 项目 | 约定 |
+| File | Contents |
 | --- | --- |
-| 浅色 | 白色画布、近黑正文、中性灰侧栏和面板；链接 `#a72f6a`（可用 `accent_color` 修改） |
-| 深色 | 中性近黑画布、近白正文；链接 `#e58bb6`（可用 `accent_color_dark` 修改） |
-| 点缀色 | 洋红以 `#D2428A` 为参考，调整明度以满足 AA 对比度。首页显示 `profile.avatar`；其他页面的侧栏在没有头像时显示作者姓名首字母 |
-| 首页 | 居中单栏，没有侧栏。简介里有指向 Blog、Projects、About 的链接。下面依次是精选文章（`featured_posts`，未设置时不显示）、最近 5 篇文章，以及最多 4 个 `featured: true` 的项目。文章列表只有标题和日期，详见[首页精选](../site-inputs.md#featured-writing-on-home) |
-| 动效 | 首页入场、文字链接、背景树影和项目悬停用轻量 CSS。系统开启“减少动态效果”时停用动画和位移。禁用 JS 时内容和链接照常可用 |
-| Blog | 归档页标题 16px、摘要 14px，保留日期和标签；没有摘要时不留空段落。Tag 页只显示标题、日期和标签 |
-| 阅读 | 其他页面有固定侧栏、长文目录、代码复制按钮、移动菜单、键盘导航和评论加载失败时的替代链接 |
-| 搜索 | 首页在右上角显示搜索和外观按钮；其他页面的搜索在菜单上方，手机上在 Menu 里。第一次打开时加载 `/search.json`，搜索已发布的 Blog、Idea 和项目的标题、摘要和标签（不搜全文）。标题匹配优先于标签和摘要；多个词须全部匹配；最多显示 20 条。支持 Ctrl/⌘ K、方向键、Tab 和 Esc，关闭后焦点回到打开它的按钮。加载失败时可以重试或去 Blog、Tags。禁用 JS、脚本缺失或浏览器不支持 `<dialog>` 时不显示搜索入口，其他导航照常可用 |
-| 社交预览 | 设置了 `seo.social_image` 时，每页输出 `og:image`、`twitter:image`，卡片类型为 `summary_large_image`；`seo.social_image_alt` 不为空时再输出两个 `*:image:alt`。没设置时卡片类型为 `summary`，不输出图片标签 |
-| 导航 | 默认菜单见[缺省值](../site-inputs.md#missing-field-sources)，Ideas 需要手动加入。自定义菜单会整体替换默认菜单；菜单为空时不显示 Menu 按钮，头像和外观开关仍在 |
-| 评论 | 默认关闭。开启需要在配置里设置 `comments.enabled: true`，并给仓库安装 Utterances App。配色由 `comments_theme` 和 `comments_theme_mode` 决定。由个人资料生成的 About 页没有评论 |
-| Idea 标签 | 显示为普通文字，不是链接，因为 Idea 没有标签页；Blog 标签仍链接到标签页 |
-| 文章页尾 | Blog 文章底部显示“上一篇”（较新）和“下一篇”（较旧），范围是全部已发布的 Blog 文章；第一篇和最后一篇只显示一侧。Idea 和 About 没有这组链接 |
-| Mermaid | 使用 `neutral` 配色。深色模式下只反相 SVG，打印时还原，不重新渲染；节点边框对比度至少 3:1 |
-| 移动菜单 | 菜单不依赖正文增强脚本，也不会在首屏之后移出页面。禁用 JS 或 `appearance.js` 加载失败时菜单保持展开；`site.js` 加载失败时菜单仍能打开，按 Esc 关闭并回到按钮 |
-| 紧凑目录 | 宽度 ≤1160px、启用 JS 且正文有 h1–h3 时，为目录预留空间；没有标题、禁用 JS 或打印时不预留。已知限制：脚本失败会留下一块空白（但不会出现点不了的按钮）；分段加载的 HTML 仍可能跳动；不支持 `:has()` 或 `scripting` 的浏览器会晚一点显示目录 |
-| 外观偏好 | 读者手动选的浅色或深色保存在 `localStorage` 的 `quiet-theme` 里 |
-| 打印 | 白底黑字；内容图片保留原色，SVG 用中性浅色 |
+| `head-extra.html` | Empty; placed at the end of every page's `<head>`. For analytics, fonts or another stylesheet |
+| `home-intro.html` | The introduction under the title on Home: `tagline`, `profile.bio` and one sentence linking the Blog, Projects and About |
+| `header.html` | The buttons at the top right of Home and the sidebar of other pages (avatar, menu, search, dark mode switch) |
+| `footer.html` | The footer: author name, `footer_text`, `profile.links`, RSS and "Powered by" |
+| `search.html` | The search dialog |
+| `components.html` | Shared macros: tags, post lists, project cards, comments, Mermaid loading |
+| `base.html` | The frame and `<head>` of every page. Replacing it affects every page |
+| `static/css/style.css` and others | Static files are replaced by path too, such as `static/images/favicon.png` |
 
-Mermaid 的配色适合 Quiet 自带的中性图表。作者自己写的 `classDef`、彩色图片和第三方内容，需要自行检查颜色含义和对比度。评论和 Mermaid 脚本由生成器统一提供，见
-[静态文件与共享脚本](authoring.md#static-and-shared-assets)。
+`@quiet/` reuses Quiet's original in your own file, for example
+`{% extends "@quiet/home.html" %}`. A page template can set `page_title`,
+`page_description` and `active_section`; `base.html` uses them for the title,
+the description and the current menu item. See
+[Reusing the file you replace](authoring.md#reusing-the-file-you-replace).
+
+## Design notes
+
+| Area | Behavior |
+| --- | --- |
+| Light | White canvas, near-black text, neutral gray sidebar and panels; links `#a72f6a` (change with `accent_color`) |
+| Dark | Neutral near-black canvas, near-white text; links `#e58bb6` (change with `accent_color_dark`) |
+| Accent | Magenta based on `#D2428A`, with lightness adjusted for AA contrast. Home shows `profile.avatar`; the sidebar on other pages shows the author's initials when there is no avatar |
+| Home | One centered column, no sidebar. The introduction links the Blog, Projects and About. Below it: featured posts (`featured_posts`; hidden when not set), the 5 newest posts and up to 4 projects with `featured: true`. Post lists show title and date only; see [Featured writing on Home](../site-inputs.md#featured-writing-on-home) |
+| Motion | Light CSS for the Home entrance, text links, the background tree shadows and project hover. With "reduce motion" set in the system, animation and movement stop. Without JavaScript, content and links work as usual |
+| Blog | Archive titles 16px, summaries 14px, with dates and tags; no empty paragraph when a post has no summary. Tag pages show title, date and tags only |
+| Reading | Other pages have a fixed sidebar, a table of contents for long posts, code copy buttons, a mobile menu, keyboard navigation and a fallback link when comments fail to load |
+| Search | Home shows search and appearance buttons at the top right; other pages put search above the menu, and inside Menu on phones. The first open loads `search.json` and searches the titles, summaries and tags of published Blog posts, Ideas and projects (not the full text). Title matches rank above tags and summaries; every word must match; at most 20 results. Supports Ctrl/⌘ K, arrow keys, Tab and Esc, and returns focus to the button that opened it. If loading fails, readers can retry or go to the Blog or Tags. Without JavaScript, without the script, or without `<dialog>` support, the search button is hidden and the rest of the navigation works |
+| Social preview | With `seo.social_image`, every page has `og:image` and `twitter:image` with the card type `summary_large_image`; a non-empty `seo.social_image_alt` adds both `*:image:alt` tags. Without it the card type is `summary` and there are no image tags |
+| Navigation | The default menu is in [Missing-field sources](../site-inputs.md#missing-field-sources); Ideas has to be added. A custom menu replaces the default one; with an empty menu there is no Menu button, and the avatar and appearance switch stay |
+| Comments | Off by default. Turn them on with `comments.enabled: true` and install the Utterances app on the repository. `comments_theme` and `comments_theme_mode` pick the colors. An About page made from the profile has no comments |
+| Idea tags | Plain text, not links, because Ideas have no tag pages; Blog tags link to their tag page |
+| End of a post | Blog posts end with "Previous" (newer) and "Next" (older) across all published Blog posts; the first and last show one side only. Ideas and About have none |
+| Mermaid | Uses the `neutral` colors. Dark mode inverts the SVG only and print restores it, without rendering again; node borders have at least 3:1 contrast |
+| Mobile menu | The menu does not depend on the reading scripts and does not move off the page after the first screen. Without JavaScript, or when `appearance.js` fails, the menu stays open; when `site.js` fails, the menu still opens and Esc closes it and returns focus to the button |
+| Compact contents | At widths up to 1160px, with JavaScript on and h1–h3 in the post, space is kept for the table of contents; none without headings, without JavaScript, or in print. Known limits: a failed script leaves an empty space (but no button that cannot be clicked); HTML that loads in parts may still shift; browsers without `:has()` or `scripting` show the contents a little later |
+| Appearance choice | A reader's light or dark choice is kept in `localStorage` under `quiet-theme` |
+| Print | Black on white; content images keep their colors, SVGs use neutral light colors |
+
+Quiet's Mermaid colors suit its neutral diagrams. Check the meaning and
+contrast of your own `classDef` colors, color images and third-party content.
+The comments and Mermaid scripts are shared by every Theme; see
+[Static and shared assets](authoring.md#static-and-shared-assets).

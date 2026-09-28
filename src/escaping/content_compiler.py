@@ -47,7 +47,10 @@ def _tag_names(labels: tuple[str, ...]) -> list[str]:
 
 
 class _VisibleBodyText(HTMLParser):
-    """Extract text from sanitized HTML, preserving inline adjacency."""
+    """Extract text from sanitized HTML, preserving inline adjacency.
+
+    Mermaid source is left out: readers see the diagram, not its source.
+    """
 
     _BREAKS = frozenset(
         [
@@ -94,17 +97,23 @@ class _VisibleBodyText(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
+        self._in_diagram = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "code" and "language-mermaid" in (dict(attrs).get("class") or ""):
+            self._in_diagram = True
         if tag in self._BREAKS:
             self.parts.append(" ")
 
     def handle_endtag(self, tag: str) -> None:
+        if tag == "code":
+            self._in_diagram = False
         if tag in self._BREAKS:
             self.parts.append(" ")
 
     def handle_data(self, data: str) -> None:
-        self.parts.append(data)
+        if not self._in_diagram:
+            self.parts.append(data)
 
 
 def _body_description(body_html: str) -> str:
@@ -221,6 +230,19 @@ class ContentCompiler:
             return None
 
         content_type = self._content_type(snapshot)
+        section = "ideas" if content_type == "idea" else content_type
+        if section != "blog" and getattr(self._routes.sections, section) is None:
+            self._diagnostics.append(
+                Diagnostic(
+                    "warning",
+                    "PAGE_OFF",
+                    f"Issue #{snapshot.number}: is type:{content_type} but "
+                    f"pages.{section} is false; it is not published",
+                    snapshot.number,
+                    "labels",
+                )
+            )
+            return None
         if is_about and content_type != "about":
             self._fail(snapshot, "ABOUT_TYPE_INVALID", "must use the type:about label")
         if not is_about and content_type == "about":
@@ -238,7 +260,7 @@ class ContentCompiler:
             snapshot,
             validate_authored_content(snapshot.title, content_type, tags, parsed),
         )
-        body_html, body_errors = render_body(parsed.body)
+        body_html, body_errors = render_body(parsed.body, base=self._routes.base)
         self._check(snapshot, body_errors)
         if body_html is None:
             raise _SkipIssueError
@@ -257,6 +279,7 @@ class ContentCompiler:
             if "created_date" in parsed.fields
             else snapshot.created_at.astimezone(UTC).date().isoformat()
         )
+        tags_on = self._routes.sections.tags is not None
         try:
             if content_type == "blog":
                 return BlogPost(
@@ -268,7 +291,11 @@ class ContentCompiler:
                     published_at=snapshot.created_at,
                     updated_at=snapshot.updated_at,
                     tags=tuple(
-                        BlogTag(name, tag_key(name), self._routes.tag(tag_key(name)))
+                        BlogTag(
+                            name,
+                            tag_key(name),
+                            self._routes.tag(tag_key(name)) if tags_on else None,
+                        )
                         for name in tags
                     ),
                     body_html=body_html,

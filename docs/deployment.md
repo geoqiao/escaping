@@ -31,7 +31,7 @@ A site workflow calls the generator as a GitHub Action:
 
 ```yaml
 - id: site
-  uses: geoqiao/escaping@v0.2.0   # or a full commit SHA
+  uses: geoqiao/escaping@v0.3.0   # or a full commit SHA
   with:
     config: config.yaml
 - uses: actions/upload-pages-artifact@<sha>
@@ -57,7 +57,7 @@ The Action runs three steps:
    annotation *"In Settings → Pages, set Source to GitHub Actions, then run the
    workflow again."* Otherwise it writes the
    [platform context](site-inputs.md#cli-inputs) (repository, owner, Pages
-   root URL) to `$RUNNER_TEMP/escaping-context.json`.
+   URL) to `$RUNNER_TEMP/escaping-context.json`.
 3. **Build the site** with
    `uv run --project "$GITHUB_ACTION_PATH" --locked --python 3.14 … escpe build --config … --context … --token-env ESCAPING_TOKEN`.
    uv installs the generator's locked dependencies into a fresh environment
@@ -99,7 +99,7 @@ prove GitHub's event delivery, permissions or Pages publication.
 ## Versions
 
 A site pins the generator in the `uses:` line: a release tag such as
-`@v0.2.0`, or a full 40-character commit SHA. A SHA is the strongest pin,
+`@v0.3.0`, or a full 40-character commit SHA. A SHA is the strongest pin,
 because a tag can be moved. There is no automatic "latest" lookup: a site
 changes version only when someone edits that line, after reading the
 [CHANGELOG](../CHANGELOG.md).
@@ -184,21 +184,14 @@ and re-read each Issue right before editing it. A body edit changes
 `updated_at`, so Atom dates change, and Issue edits can trigger a production
 deployment.
 
-## Site-owned slug migration post-processing
+## Old addresses
 
-The compiler owns the current routes. A site may keep a temporary map such as
-`/blog/old-slug/` → `/blog/new-slug/` and add redirect pages to the built
-output after the Action step and before the upload step. The map, the script
-and when to retire it belong to that site; neither the compiler nor the starter
-ships them.
-
-Such a step must accept only slash-form Blog routes (no `.html`), check that
-each target exists, skip a source that is still a real page, and fail on
-missing or ambiguous entries. Check the result before uploading. Do not guess
-slugs from titles or weaken the compiler's checks.
-[ADR-0003](adr/0003-drop-legacy-html-urls.md) still rejects `.html` aliases;
-[ADR-0005](adr/0005-site-owned-blog-slug-migration-redirects.md) records the
-site-owned boundary.
+List old addresses under `redirects` in `config.yaml` (see
+[Redirects](site-inputs.md#redirects)); escaping writes the redirect pages and
+checks their targets. A site that added redirect pages with its own script
+after the Action step, as 0.2 required, moves the map into `redirects` and
+removes the script and its workflow step
+([ADR-0009](adr/0009-site-owned-pages-redirects-and-sub-paths.md)).
 
 ## Publication safety boundaries
 
@@ -231,11 +224,12 @@ Before switching a production site to a new generator version, check at least:
   (`comments.js`, `mermaid.js`, `mermaid/mermaid.min.js`);
 - canonical, Open Graph, Twitter and JSON-LD URLs;
 - Atom entry and self links, sitemap entries and the sitemap URL in
-  `robots.txt`;
+  `robots.txt` (only at the root of a host);
 - no comment widget by default; when comments are enabled, the widget is bound
   to the Issue number and follows light/dark mode;
-- redirect pages from a site-owned slug map, if the site has one;
+- redirect pages for the site's `redirects`, if it has any;
 - a failed build leaves the deployed site and the local output unchanged.
 
 Serve the output directory as the web root. `output/` is a directory on disk,
-not a URL prefix.
+not a URL prefix. For a site under a path, serve it under that path (see
+[Local build](site-inputs.md#local-build)).

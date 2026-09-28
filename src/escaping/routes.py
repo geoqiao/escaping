@@ -6,13 +6,39 @@ from dataclasses import dataclass
 from urllib.parse import quote, unquote, urlsplit
 
 _KEBAB = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+#: The path of a site below its origin, such as ``/`` or ``/notes/``.
+SITE_PATH = re.compile(r"^/(?:(?!\.\.?/)[A-Za-z0-9._~-]+/)*$")
 #: Tag keys may use any Unicode letters or digits, joined by single hyphens.
 TAG_KEY = re.compile(r"^[^\W_]+(?:-[^\W_]+)*$")
 TAG_KEY_MAX_LENGTH = 50
 
 
+def with_base(base: str, value: str) -> str:
+    """A root-relative address under the site's path: ``/x`` -> ``{base}/x``.
+
+    Anything else (a full URL, a fragment, ``//host``) is returned as is.
+    """
+    if base and value.startswith("/") and not value.startswith("//"):
+        return f"{base}{value}"
+    return value
+
+
 class RouteCollisionError(ValueError):
     """Raised when a canonical route or output mapping is unsafe or collides."""
+
+
+@dataclass(frozen=True)
+class Sections:
+    """Where each section lives, from ``pages`` in the Config.
+
+    ``None`` turns a section off. The Blog is always on; Home is always ``/``.
+    """
+
+    blog: str = "/blog/"
+    ideas: str | None = "/ideas/"
+    tags: str | None = "/tags/"
+    projects: str | None = "/projects/"
+    about: str | None = "/about/"
 
 
 @dataclass(frozen=True)
@@ -27,21 +53,30 @@ class Route:
 
 
 class RouteRegistry:
-    """The single route/origin registry used by pages, links, and SEO outputs."""
+    """The single route registry used by pages, links, and SEO outputs.
 
-    def __init__(self, origin: str) -> None:
-        parsed = urlsplit(origin)
+    Paths given to it are site paths: ``/blog/`` is the Blog wherever the site
+    lives. ``canonical_path`` and ``canonical_url`` add the site's own path,
+    ``base``, so a site at ``https://alice.github.io/notes/`` publishes its
+    Blog at ``/notes/blog/``. Output paths never include ``base``.
+    """
+
+    def __init__(self, site_url: str, sections: Sections | None = None) -> None:
+        parsed = urlsplit(site_url)
         if (
             parsed.scheme != "https"
             or not parsed.netloc
-            or parsed.path not in ("", "/")
+            or not SITE_PATH.fullmatch(parsed.path or "/")
             or parsed.username is not None
             or parsed.password is not None
             or parsed.query
             or parsed.fragment
         ):
-            raise ValueError("RouteRegistry origin must be an HTTPS origin")
+            raise ValueError("RouteRegistry site URL must be an HTTPS URL ending in /")
         self.origin = f"https://{parsed.netloc}"
+        #: The site's path below the origin without the final /; "" at the root.
+        self.base = (parsed.path or "/").removesuffix("/")
+        self.sections = sections or Sections()
         self._routes: dict[str, Route] = {}
         self._canonical_keys: dict[str, Route] = {}
         self._output_paths: dict[str, Route] = {}
@@ -62,6 +97,7 @@ class RouteRegistry:
         ):
             raise RouteCollisionError(f"unsafe output path: {output_path!r}")
         canonical_key = unquote(path).casefold()
+        path = f"{self.base}{path}"
         existing = self._canonical_keys.get(canonical_key)
         if existing is not None:
             if (
@@ -90,58 +126,54 @@ class RouteRegistry:
     def blog_archive(self, page_number: int = 1) -> Route:
         if page_number < 1:
             raise ValueError("blog archive page number must be positive")
+        blog = self.sections.blog
         if page_number == 1:
-            return self.register("blog", "/blog/", "blog/index.html")
-        return self.register(
-            f"blog-page-{page_number}",
-            f"/blog/page/{page_number}/",
-            f"blog/page/{page_number}/index.html",
-        )
+            return self._page("blog", blog)
+        return self._page(f"blog-page-{page_number}", f"{blog}page/{page_number}/")
 
     def blog_detail(self, slug: str) -> Route:
         if not _KEBAB.fullmatch(slug) or slug == "page":
             raise RouteCollisionError(f"reserved or invalid Blog slug: {slug!r}")
-        return self.register(
-            f"blog-detail-{slug}",
-            f"/blog/{slug}/",
-            f"blog/{slug}/index.html",
-        )
+        return self._page(f"blog-detail-{slug}", f"{self.sections.blog}{slug}/")
 
     def ideas(self) -> Route:
-        return self.register("ideas", "/ideas/", "ideas/index.html")
+        return self._page("ideas", self._section("ideas"))
 
     def idea(self, issue_number: int) -> Route:
         if issue_number <= 0:
             raise ValueError("Idea Issue number must be positive")
-        return self.register(
-            f"idea-{issue_number}",
-            f"/ideas/{issue_number}/",
-            f"ideas/{issue_number}/index.html",
+        return self._page(
+            f"idea-{issue_number}", f"{self._section('ideas')}{issue_number}/"
         )
 
     def about(self) -> Route:
-        return self.register("about", "/about/", "about/index.html")
+        return self._page("about", self._section("about"))
 
     def projects(self) -> Route:
-        return self.register("projects", "/projects/", "projects/index.html")
+        return self._page("projects", self._section("projects"))
 
     def tags(self) -> Route:
-        return self.register("tags", "/tags/", "tags/index.html")
+        return self._page("tags", self._section("tags"))
 
     def tag(self, tag_key: str) -> Route:
         if not TAG_KEY.fullmatch(tag_key) or len(tag_key) > TAG_KEY_MAX_LENGTH:
             raise RouteCollisionError(f"invalid tag key: {tag_key!r}")
-        return self.register(
-            f"tag-{tag_key}",
-            f"/tags/{tag_key}/",
-            f"tags/{tag_key}/index.html",
-        )
+        return self._page(f"tag-{tag_key}", f"{self._section('tags')}{tag_key}/")
 
-    def theme_page(self, path: str) -> Route:
-        """Register a page declared by the Theme at a directory-style path."""
+    def extra_page(self, path: str) -> Route:
+        """Register a page from ``pages.extra`` at a directory-style path."""
         if not path.startswith("/") or not path.endswith("/"):
-            raise RouteCollisionError(f"Theme page path must end with '/': {path!r}")
-        return self.register(f"page-{path}", path, f"{path[1:]}index.html")
+            raise RouteCollisionError(f"page path must end with '/': {path!r}")
+        return self._page(f"page-{path}", path)
+
+    def _section(self, name: str) -> str:
+        path = getattr(self.sections, name)
+        if path is None:
+            raise RouteCollisionError(f"pages.{name} is off")
+        return path
+
+    def _page(self, name: str, path: str) -> Route:
+        return self.register(name, path, f"{path[1:]}index.html")
 
     def atom(self) -> Route:
         return self.register("atom", "/atom.xml", "atom.xml")
@@ -158,12 +190,16 @@ class RouteRegistry:
     def route(self, name: str) -> Route:
         return self._routes[name]
 
+    def get(self, name: str) -> Route | None:
+        """The Route called ``name``, or None when that page is off."""
+        return self._routes.get(name)
+
     def route_for_path(self, path: str) -> Route | None:
-        """Look up an emitted URL path (raw or percent-encoded), case-sensitively."""
+        """Look up a site path (raw or percent-encoded), case-sensitively."""
         decoded = unicodedata.normalize("NFC", unquote(path))
         self._normalize_path(decoded)
         route = self._canonical_keys.get(decoded.casefold())
-        if route is None or unquote(route.canonical_path) != decoded:
+        if route is None or unquote(route.canonical_path) != f"{self.base}{decoded}":
             return None
         return route
 
@@ -171,7 +207,16 @@ class RouteRegistry:
         parsed = urlsplit(url)
         if f"{parsed.scheme}://{parsed.netloc}" != self.origin:
             return None
-        return self.route_for_path(parsed.path)
+        path = self.site_path(parsed.path)
+        return self.route_for_path(path) if path is not None else None
+
+    def site_path(self, url_path: str) -> str | None:
+        """The site path of a URL path on this origin; None outside the site."""
+        if not self.base:
+            return url_path or "/"
+        if url_path.startswith(f"{self.base}/"):
+            return url_path.removeprefix(self.base)
+        return None
 
     def routes(self) -> tuple[Route, ...]:
         return tuple(self._routes.values())
