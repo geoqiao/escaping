@@ -57,12 +57,17 @@ class RenderService:
     def copy_assets(self, output_dir: Path) -> None:
         """Theme static files to ``/assets/``, shared scripts to ``/assets/escaping/``."""
         self.theme.copy_static(output_dir)
-        shutil.copytree(
-            SHARED_STATIC,
-            output_dir / "assets" / SHARED_ASSET_DIR,
-            ignore=shutil.ignore_patterns(".*", "__pycache__"),
-            dirs_exist_ok=True,
-        )
+        # Contents only, not modes: an installed package may be read-only, and
+        # read-only output could not be replaced by the next build.
+        shared = output_dir / "assets" / SHARED_ASSET_DIR
+        for source in sorted(SHARED_STATIC.rglob("*")):
+            relative = source.relative_to(SHARED_STATIC)
+            if source.is_file() and not any(
+                part.startswith(".") or part == "__pycache__" for part in relative.parts
+            ):
+                target = shared / relative
+                target.parent.mkdir(parents=True, exist_ok=True)
+                shutil.copyfile(source, target)
 
     def render_site(self, site: SiteModel) -> RenderedSite:
         env = self.theme.environment(site.routes.base)

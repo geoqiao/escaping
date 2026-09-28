@@ -7,6 +7,8 @@ import shutil
 from datetime import UTC, datetime
 from pathlib import Path
 
+import pytest
+
 from escaping.artifact_validation import SiteArtifactValidator
 from escaping.config import Settings
 from escaping.models.issue_snapshot import IssueSnapshot
@@ -304,3 +306,25 @@ def test_pages_that_are_off_have_no_route_and_no_file(tmp_path: Path) -> None:
     assert files["index.html"] == "None|None|None|/notes/"
     assert "notes/1/index.html" in files and "about/index.html" not in files
     assert not any(path.startswith(("ideas/", "blog/")) for path in files)
+
+
+def test_assets_from_a_read_only_install_can_be_replaced(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from escaping.services import render_service
+
+    shared = tmp_path / "shared"
+    shutil.copytree(render_service.SHARED_STATIC, shared)
+    shutil.copytree(_ROOT / "tests/fixtures/extends_theme", tmp_path / "theme")
+    for root in (shared, tmp_path / "theme"):
+        for path in sorted(root.rglob("*"), reverse=True):
+            path.chmod(0o555 if path.is_dir() else 0o444)
+    monkeypatch.setattr(render_service, "SHARED_STATIC", shared)
+    theme, options = prepare_theme(_settings("./theme"), tmp_path)
+    output = tmp_path / "output"
+
+    render_service.RenderService(theme, options).copy_assets(output)
+
+    assert (output / "assets/escaping/comments.js").is_file()
+    assert (output / "assets/css/extra.css").is_file()
+    shutil.rmtree(output)  # the next build replaces the output
