@@ -470,6 +470,11 @@ until a site under a path uses the Theme. The build then fails with
 `LINK_OUTSIDE_SITE` and names the fix. Test your Theme with a site under a
 path before sharing it (see [Checks](#checks)).
 
+Some tags need a full URL, such as `og:image`. `site.url` is the full URL of
+Home and always ends in `/`, so add the address without its first `/`:
+`{{ site.url ~ 'assets/images/og.png' }}` gives
+`https://alice.github.io/notes/assets/images/og.png` under a path.
+
 ## Static and shared assets
 
 Everything under your Theme's `static/` is published under `/assets/`:
