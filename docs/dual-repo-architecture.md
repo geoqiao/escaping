@@ -15,7 +15,7 @@
 | 站点仓库 | GitHub Issues、真实 `config.yaml`、调用 Action 的 Pages workflow、`CNAME`、可选本地 Theme 和历史迁移 |
 
 核心分工：**生成器只管数据，Theme 只管呈现**（[ADR-0008](adr/0008-theme-api-3-data-presentation-split.md)）。
-Quiet 是唯一内置 Theme，和本地 Theme 一样使用 Theme API 4，没有特殊待遇。
+Quiet 是唯一内置 Theme，和本地 Theme 一样使用 Theme API 4，没有特殊待遇。站点也可以用 `github.com/OWNER/REPOSITORY/FOLDER@VERSION` 选用公开 GitHub 仓库里的 Theme，每次构建按这个版本下载，构建结束即删除。
 
 Site Compiler 只读 GitHub；可选 Local Draft authoring 与站点自动化的写入权限独立，
 不属于编译过程。站点 workflow 通过 `uses: geoqiao/escaping@<tag 或完整 SHA>` 调用
@@ -61,12 +61,13 @@ Theme 与输出目录的相对路径以 Config 所在目录为根。
 | --- | --- |
 | 输入来源、两层 Config、默认值、本地构建 | [Site inputs](site-inputs.md) |
 | 内容与发布标签 | [Issue Content v1](contracts/issue-content-v1.md) |
-| 可选草稿创作辅助 | [Local Draft v1](contracts/local-draft-v1.md)、[只读 lint](../.agents/skills/issue-draft-lint/SKILL.md)、[一次性创建未发布 Issue](../.agents/skills/issue-draft-uploader/SKILL.md)；不是同步或编译入口 |
+| 可选草稿创作辅助 | [Local Draft v1](contracts/local-draft-v1.md)、[只读 lint](../.agents/skills/issue-draft-lint/SKILL.md)、[一次性创建 Issue，经明确授权才同时发布](../.agents/skills/issue-draft-uploader/SKILL.md)；不是同步或编译入口 |
 | Theme API 4、选项、字符串与迁移 | [Theme authoring](themes/authoring.md)；默认外观见 [Quiet](themes/quiet.md) |
 | Action、版本 pin、短期 Token、安装、发布与回滚 | [Deployment contract](deployment.md) |
 | 通用站点自动化 | [Action](../action.yml)、[Starter](../starter/README.md) 与 [starter workflow](../starter/.github/workflows/pages.yml) |
 | 版本变化与升级步骤 | [CHANGELOG](../CHANGELOG.md) |
 | 页面、旧地址跳转与子路径 | [Site inputs](site-inputs.md#pages)、[ADR-0009](adr/0009-site-owned-pages-redirects-and-sub-paths.md) |
+| GitHub 上的 Theme 与 Theme 列表 | [Theme guide](themes/authoring.md#using-a-theme-from-github)、[Theme 列表](themes/catalog.md)、[ADR-0010](adr/0010-themes-from-github-repositories.md) |
 | 环境、局部检查与合并前验证 | [测试指南](agents/testing.md)、[CI](../.github/workflows/ci.yml)、[PR 模板](../.github/pull_request_template.md) |
 | 术语与架构取舍 | [CONTEXT.md](../CONTEXT.md)、[ADR 目录](adr/)、[domain 文档约定](agents/domain.md) |
 | 维护任务与标签 | [GitHub tracker](agents/issue-tracker.md)、[triage 标签约定](agents/triage-labels.md) |

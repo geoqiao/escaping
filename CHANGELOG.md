@@ -5,6 +5,35 @@ All notable changes to escaping are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) (before 1.0, a minor version may
 break things).
 
+## [0.4.0] - 2026-09-28
+
+A site can use a Theme straight from a folder of a public GitHub repository,
+with one line in `config.yaml`. Themes are now sandboxed. Sites and Themes that
+work with 0.3.0 keep working unless a template reaches into Python internals.
+
+### Added
+
+- **Themes from GitHub.** `theme.use: github.com/OWNER/REPOSITORY/FOLDER@VERSION`
+  uses a Theme in a folder of a public GitHub repository; one repository can
+  hold many Themes. The version (a tag, a branch or a commit SHA) is required.
+  Each build and `escpe theme check` downloads that version without a token
+  and deletes it afterwards; to update, change the version. `extends:` takes
+  the same address, so a site can replace a few files of such a Theme and
+  still update it by changing one line. See
+  [Using a Theme from GitHub](docs/themes/authoring.md#using-a-theme-from-github).
+- **A list of Themes** in [docs/themes/catalog.md](docs/themes/catalog.md).
+  Add yours with a pull request.
+- **The draft uploader skill can publish.** When the user explicitly
+  authorizes publishing a draft, the new Issue gets the `published` label when
+  it is created. Without that, it is created unpublished as before.
+
+### Changed
+
+- **Templates run in Jinja's sandbox**, so a Theme cannot reach Python
+  internals, files or environment variables such as the token. A template
+  that tries fails with `TEMPLATE_RENDER_FAILED` and the word "unsafe". Quiet
+  and ordinary templates are unaffected.
+
 ## [0.3.0] - 2026-09-28
 
 The site now decides which pages it has and where they live; a Theme only
@@ -245,6 +274,7 @@ and 0.1 has no Action to pin.
 First release: Blog, Ideas, About, Projects, Tags, Atom, sitemap and search
 from GitHub Issues, with the Quiet Theme and the starter workflow.
 
+[0.4.0]: https://github.com/geoqiao/escaping/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/geoqiao/escaping/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/geoqiao/escaping/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/geoqiao/escaping/releases/tag/v0.1.0

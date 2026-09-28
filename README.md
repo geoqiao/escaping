@@ -30,13 +30,13 @@ Blog、Ideas、Projects、About、Tags 和 RSS，无需另建一套内容管理�
 
 使用 [escaping-template](https://github.com/geoqiao/escaping-template) 的 **Use this template** 创建站点，无需本机 Python、PAT 或手动创建发布标签。
 
-> **公开预览：** 0.3.0 的 Action 和 starter workflow 已在本地测试中运行；在 GitHub 上从模板新建仓库的完整流程尚未验证。
+> **公开预览：** 0.4.0 的 Action 和 starter workflow 已在本地测试中运行；在 GitHub 上从模板新建仓库的完整流程尚未验证。
 
 1. 创建 `username.github.io`（免费账户使用公开仓库），保持 Issues/Actions 开启，在 **Settings → Pages** 把 **Source** 设为 **GitHub Actions**。
 2. 保存一个带标题和 Markdown 正文的 Issue。workflow 的 `labels` 任务会在首次运行时创建发布标签；看不到时刷新 Issue 页面。
 3. 添加一个 `type:blog`、`type:idea` 或 `type:about`，准备好后添加 `published`，在 Actions 中查看部署结果。
 
-workflow 通过 `uses: geoqiao/escaping@v0.3.0` 调用生成器，站点仓库里不需要任何脚本。
+workflow 通过 `uses: geoqiao/escaping@v0.4.0` 调用生成器，站点仓库里不需要任何脚本。
 仓库也可以不叫 `username.github.io`：这时网站在 `username.github.io/仓库名/` 下，escaping 会自动处理这个子路径。
 详细操作、版本与失败恢复以[模板说明](starter/README.md)为准。
 
@@ -95,6 +95,8 @@ theme:
 1. **改 Quiet 的选项**：在 `theme.options` 里设置，例如 `tagline`、`featured_posts`、`accent_color`。全部选项见 [Quiet](docs/themes/quiet.md)。
 2. **只覆盖一个文件**：建一个 `theme/` 目录，放一个 `theme.yaml`（`api: 4` 和 `extends: quiet`）和你想替换的那个模板或静态文件，再设置 `theme: {use: ./theme}`。其余部分仍来自 Quiet。
 3. **写一个自己的 Theme**：最少只要 `blog.html` 和 `post.html` 两个模板，见 [Theme 编写指南](docs/themes/authoring.md)。Theme 还可以声明自己的选项和界面文字。
+
+也可以直接用别人放在 GitHub 上的 Theme：在 `config.yaml` 写 `theme: {use: github.com/作者/仓库/文件夹@v1.0.0}`，构建时自动下载这个版本，升级就改版本号。现有的 Theme 见 [Theme 列表](docs/themes/catalog.md)，用法见 [使用 GitHub 上的 Theme](docs/themes/authoring.md#using-a-theme-from-github)。
 
 网站有哪些页面、地址是什么，由你博客仓库里的 `config.yaml` 决定：`pages` 可以关掉或挪动某个页面、加上 `/now/` 这样的额外页面，`redirects` 让旧地址跳到新地址。见 [页面](docs/site-inputs.md#pages)。
 

@@ -20,6 +20,9 @@ what you need:
    the files you want to replace.
 3. **Write your own Theme** that does not depend on Quiet.
 
+To use a Theme someone else made, name it in `config.yaml`; see
+[Using a Theme from GitHub](#using-a-theme-from-github).
+
 Coming from an older Theme? See [Migrating from API 3](#migrating-from-api-3).
 
 ## 1. Quiet's options
@@ -104,7 +107,9 @@ template. Use it to add to a page instead of rewriting it:
 ```
 
 Without the prefix, `home.html` would load your own file again. `@quiet/` is
-only available when `theme.yaml` says `extends: quiet`.
+only available when `theme.yaml` says `extends: quiet`. For a parent on
+GitHub the prefix is its folder name: `extends: github.com/alice/themes/paper@v1.0.0`
+gives `@paper/`.
 
 Quiet's `base.html` reads three optional variables. Set them at the top of a
 page template, outside any block:
@@ -196,13 +201,15 @@ complete Theme written only against this document.
 
 ```yaml
 api: 4              # required
-extends: quiet      # optional: a built-in Theme name
+extends: quiet      # optional: a built-in Theme or a Theme on GitHub
 options: {}         # optional: settings a site can change
 strings: {}         # optional: interface text per language
 ```
 
-Unknown fields fail. `extends` can only name a built-in Theme; a local Theme
-cannot extend another local Theme. When a Theme extends another, its `options`
+Unknown fields fail. `extends` names a built-in Theme or a Theme on GitHub
+(`github.com/OWNER/REPOSITORY/FOLDER@VERSION`, see
+[Using a Theme from GitHub](#using-a-theme-from-github)); a Theme cannot extend
+a local folder. When a Theme extends another, its `options`
 and `strings` (by language and key) are merged over the parent's, and the
 child wins.
 
@@ -463,6 +470,11 @@ until a site under a path uses the Theme. The build then fails with
 `LINK_OUTSIDE_SITE` and names the fix. Test your Theme with a site under a
 path before sharing it (see [Checks](#checks)).
 
+Some tags need a full URL, such as `og:image`. `site.url` is the full URL of
+Home and always ends in `/`, so add the address without its first `/`:
+`{{ site.url ~ 'assets/images/og.png' }}` gives
+`https://alice.github.io/notes/assets/images/og.png` under a path.
+
 ## Static and shared assets
 
 Everything under your Theme's `static/` is published under `/assets/`:
@@ -623,39 +635,90 @@ About variants, and comments on and off.
 
 ## Sharing a Theme
 
-A Theme is a folder. To let other people use yours, publish that folder, for
-example as its own Git repository, with:
+A Theme is a folder, so one public GitHub repository can hold several Themes,
+one per folder:
+
+```text
+alice/themes
+├── README.md
+├── paper/
+│   ├── theme.yaml
+│   ├── README.md
+│   ├── screenshot.png
+│   └── …
+└── ledger/
+    └── …
+```
+
+A Theme can also be the whole repository, with `theme.yaml` at its root. Give
+each Theme folder:
 
 - `theme.yaml` (`api: 4`) and the templates and `static/` files;
 - a README that says which escaping version it was made for, which pages it
   has templates for (and which `pages.*: false` a site needs otherwise), its
   options, and the `pages.extra` lines for any extra-page templates it ships;
-- a license.
+- a license in the folder itself, since people may copy just that folder.
 
 Before you publish, run `escpe theme check` with at least two configs, each
 with every page your Theme has templates for turned on and the rest off: one at
 the root of a host, and one under a path
 (`site.url: https://example.github.io/demo/`).
 
-Someone who wants the Theme copies the folder into their site repository and
-selects it:
+To publish a version, push a Git tag such as `v1.0.0`. A tag covers every Theme
+in the repository; a Theme that did not change stays the same under the new
+tag. Do not move a tag once people use it.
+
+To list your Theme where others look for one, add it to the
+[Theme list](catalog.md).
+
+## Using a Theme from GitHub
+
+Name the repository, the folder and the version in `config.yaml`:
 
 ```yaml
 theme:
-  use: ./themes/paper
+  use: github.com/alice/themes/paper@v1.0.0
 ```
 
-escaping never downloads a Theme, so updating is replacing the folder with the
-new version (copying over it would keep files the new version removed). A Git submodule also works; then the site's workflow must check it
-out (`actions/checkout` with `submodules: true`). Only Quiet ships with
-escaping; there is no Theme registry.
+Leave out `/paper` when the Theme is the whole repository. The version after
+`@` is a tag, a branch or a full commit SHA; it is required. At the start of
+every build and `escpe theme check`, escaping downloads the repository at that
+version from GitHub, without a token, and uses only that folder; the download
+is deleted when the build ends. Only public repositories work. Set the options
+from the Theme's README under `theme.options` as usual.
+
+To update, change the version and push. A branch such as `@main` follows
+every change the author makes, including ones that break your site; a tag
+changes only when the author moves it; a commit SHA never changes.
+
+To change a few files of such a Theme, extend it with a folder of your own:
+
+```yaml
+# theme/theme.yaml;  config.yaml: theme: {use: ./theme}
+api: 4
+extends: github.com/alice/themes/paper@v1.0.0
+```
+
+Your files replace the Theme's files with the same name, as with
+[Extend Quiet](#2-extend-quiet), and `@paper/` reaches the originals. Updating
+is still one version number.
+
+To keep a copy instead, copy the folder into your site repository and select it
+with `use: ./themes/paper`. Updating is then replacing the folder (copying
+over it would keep files the new version removed).
 
 ## Security
 
-A Theme is trusted code: its templates and JavaScript run on your site. Review a
-Theme before using it. escaping never runs Python from a Theme and never
-downloads one; it reads only the built-in Themes and the local directory named
-by `theme.use`. Autoescape is not a sandbox for untrusted templates.
+A Theme is trusted code: its HTML and JavaScript run in your readers'
+browsers, and it can put anything on your pages. Read a Theme before using it,
+and pin a Theme from someone you do not know to a commit SHA, which its author
+cannot change later.
+
+Templates run in Jinja's sandbox. A template cannot reach Python internals,
+files or environment variables (so not the build's token), and escaping never
+runs Python from a Theme. escaping reads the built-in Themes, the local folder
+named by `theme.use` and the GitHub folders named by `theme.use` and `extends`,
+and nothing else from a Theme.
 
 ## Migrating from API 3
 
@@ -754,7 +817,8 @@ unchanged; it never falls back to Quiet silently.
 | You want | Do this |
 | --- | --- |
 | Quiet | `theme: {use: quiet}`, or remove `theme` |
-| To keep an old design | Copy its directory from the escaping version you used into the site repository, port it with [Migrating from API 2](#migrating-from-api-2), and select it with `theme: {use: ./that-directory}` |
+| To keep an old design | Use its API 4 port: `theme: {use: github.com/geoqiao/escaping-themes/escape1@v1.0.0}`, or `escape2` or `geoqiao-me` in place of `escape1`. Old site settings such as `site.thesis` are options of these Themes now; each Theme's README lists them |
+| To keep your own changes to an old design | Copy its directory from the escaping version you used into the site repository, port it with [Migrating from API 2](#migrating-from-api-2), and select it with `theme: {use: ./that-directory}` |
 
 Assets of the copied Theme move from `/templates/<name>/static/` to
 `/assets/`. Upgrade escaping, the Config and the local Theme together, check

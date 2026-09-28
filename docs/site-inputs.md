@@ -36,7 +36,8 @@ mean something after switching to another Theme?
 
   ```yaml
   theme:
-    use: quiet          # a built-in Theme, or a directory next to the Config: ./theme
+    use: quiet          # a built-in Theme, a directory next to the Config (./theme),
+                        # or a Theme on GitHub: github.com/alice/themes/paper@v1.0.0
     options:
       tagline: Researcher / tool builder
       featured_posts: [41, 62, 49]

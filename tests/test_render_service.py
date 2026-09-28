@@ -274,6 +274,8 @@ def test_theme_check_samples_fill_two_blog_pages_and_skip_real_issue_warnings(
         ("t.no_such_key", "no_such_key"),
         # A missing value would otherwise print as the word None.
         ("page.item", "this value is none"),
+        # Templates run in the sandbox: no way to Python internals or the token.
+        ("''.__class__.__mro__", "unsafe"),
     ],
 )
 def test_theme_check_reports_a_template_that_fails_while_rendering(

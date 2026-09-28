@@ -26,14 +26,14 @@ Blog, Ideas, Projects, About, Tags and RSS, without a separate content managemen
 Use **Use this template** at [escaping-template](https://github.com/geoqiao/escaping-template).
 No local Python, PAT, or manually created publishing labels are required.
 
-> **Public preview:** the 0.3.0 Action and starter workflow have run in local tests; creating a new
+> **Public preview:** the 0.4.0 Action and starter workflow have run in local tests; creating a new
 > repository from the template on GitHub has not been fully verified yet.
 
 1. Create `username.github.io` (public for GitHub Free), keep Issues/Actions enabled, and in **Settings → Pages** set **Source** to **GitHub Actions**.
 2. Save an Issue with a title and Markdown body. The workflow's `labels` job creates the publishing labels on its first run; refresh the Issue page if you do not see them.
 3. Add one of `type:blog`, `type:idea`, or `type:about`, plus `published` when ready, and check the deployment in Actions.
 
-The workflow runs the generator with `uses: geoqiao/escaping@v0.3.0`; the site repository needs no scripts.
+The workflow runs the generator with `uses: geoqiao/escaping@v0.4.0`; the site repository needs no scripts.
 A repository with another name works too: the site then lives at `username.github.io/<repository>/`, and escaping handles that path.
 The [starter instructions](starter/README.md) cover the full setup, versions and failure recovery.
 
@@ -92,6 +92,8 @@ Three ways, from simplest to most complete:
 1. **Change Quiet's options** under `theme.options`, such as `tagline`, `featured_posts` or `accent_color`. See [Quiet](docs/themes/quiet.md) for all of them.
 2. **Override one file.** Create a `theme/` directory with a `theme.yaml` containing `api: 4` and `extends: quiet`, add only the template or static file you want to replace, and set `theme: {use: ./theme}`. Everything else still comes from Quiet.
 3. **Write your own Theme.** It needs only `blog.html` and `post.html`; see the [Theme guide](docs/themes/authoring.md). A Theme can also declare its own options and interface text.
+
+You can also use a Theme someone put on GitHub: write `theme: {use: github.com/OWNER/REPOSITORY/FOLDER@v1.0.0}` in `config.yaml`. Each build downloads that version; to update, change the version. See the [Theme list](docs/themes/catalog.md) and [Using a Theme from GitHub](docs/themes/authoring.md#using-a-theme-from-github).
 
 Which pages the site has, and where, is up to your `config.yaml`: `pages` turns a page off, moves it or adds one such as `/now/`, and `redirects` keeps old addresses working. See [Pages](docs/site-inputs.md#pages).
 

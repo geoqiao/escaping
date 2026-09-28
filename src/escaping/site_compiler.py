@@ -1,13 +1,16 @@
 """Build pipeline: check local inputs -> fetch Issues -> compile -> render ->
-validate -> publish. Nothing reaches GitHub until the Config, the Theme and the
-output directory have passed their checks.
+validate -> publish. The token is not used until the Config, the Theme and the
+output directory have passed their checks; a Theme on GitHub is downloaded
+without it.
 """
 
 from __future__ import annotations
 
 import tempfile
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
+from contextlib import contextmanager
 from datetime import UTC, datetime
+from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 
@@ -23,10 +26,11 @@ from .models.site import SiteModel
 from .output_safety import OutputContainmentError
 from .output_staging import OutputStagingError, OutputStagingService
 from .projects import ProjectCompiler, ProjectEnrichment
+from .remote_theme import download
 from .routes import RouteRegistry
 from .services.render_service import RenderedSite, RenderService
 from .site_builder import SiteBuilder, register_fixed_routes
-from .theme import LoadedTheme, ThemeLoader
+from .theme import Fetch, LoadedTheme, ThemeLoader
 
 logger = structlog.get_logger()
 
@@ -37,15 +41,22 @@ ProjectEnricher = Callable[[str], ProjectEnrichment]
 _NEEDS_REAL_ISSUES = frozenset({"THEME_OPTION_POST_MISSING", "REDIRECT_LEFT_OUT"})
 
 
+@contextmanager
+def theme_downloads() -> Iterator[Fetch]:
+    """Download GitHub Themes into a directory that lasts until the build ends."""
+    with tempfile.TemporaryDirectory(prefix="escaping-themes-") as directory:
+        yield partial(download, into=Path(directory))
+
+
 def prepare_theme(
-    settings: Settings, config_root: Path
+    settings: Settings, config_root: Path, fetch: Fetch | None = None
 ) -> tuple[LoadedTheme, SimpleNamespace]:
     """Load the Theme, resolve its options and compile every template.
 
     Raises:
-        ThemeError: With every problem found, before any network access.
+        ThemeError: With every problem found, before the token is used.
     """
-    theme = ThemeLoader(config_root).load(settings.theme.use)
+    theme = ThemeLoader(config_root, fetch).load(settings.theme.use)
     options = theme.resolve_options(settings.theme.options)
     theme.check(settings.pages, (project.slug for project in settings.projects))
     return theme, options
@@ -107,9 +118,13 @@ class SiteCompiler:
         self.output_staging = output_staging
 
     def generate(self) -> BuildResult:
+        with theme_downloads() as fetch:
+            return self._generate(fetch)
+
+    def _generate(self, fetch: Fetch) -> BuildResult:
         build_start = datetime.now(UTC)
         try:
-            theme, options = prepare_theme(self.settings, self.config_root)
+            theme, options = prepare_theme(self.settings, self.config_root, fetch)
             staging = self.output_staging or OutputStagingService(
                 self.settings.paths.output, self.config_root
             )
@@ -180,10 +195,20 @@ def check_theme(
     """Render the site into a temporary directory and report problems.
 
     Without ``snapshots`` a few sample Issues stand in for real content, so
-    no network access is needed. SEO findings are warnings.
+    only a Theme on GitHub needs the network. SEO findings are warnings.
     """
+    with theme_downloads() as fetch:
+        return _check_theme(settings, config_root, snapshots, fetch)
+
+
+def _check_theme(
+    settings: Settings,
+    config_root: Path,
+    snapshots: Sequence[IssueSnapshot] | None,
+    fetch: Fetch,
+) -> BuildResult:
     try:
-        theme, options = prepare_theme(settings, config_root)
+        theme, options = prepare_theme(settings, config_root, fetch)
     except ConfigError as exc:
         return _failed("THEME_INVALID", *exc.problems)
     sample = snapshots is None
