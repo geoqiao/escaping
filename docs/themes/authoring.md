@@ -817,7 +817,8 @@ unchanged; it never falls back to Quiet silently.
 | You want | Do this |
 | --- | --- |
 | Quiet | `theme: {use: quiet}`, or remove `theme` |
-| To keep an old design | Copy its directory from the escaping version you used into the site repository, port it with [Migrating from API 2](#migrating-from-api-2), and select it with `theme: {use: ./that-directory}` |
+| To keep an old design | Use its API 4 port: `theme: {use: github.com/geoqiao/escaping-themes/escape1@v1.0.0}`, or `escape2` or `geoqiao-me` in place of `escape1`. Old site settings such as `site.thesis` are options of these Themes now; each Theme's README lists them |
+| To keep your own changes to an old design | Copy its directory from the escaping version you used into the site repository, port it with [Migrating from API 2](#migrating-from-api-2), and select it with `theme: {use: ./that-directory}` |
 
 Assets of the copied Theme move from `/templates/<name>/static/` to
 `/assets/`. Upgrade escaping, the Config and the local Theme together, check
