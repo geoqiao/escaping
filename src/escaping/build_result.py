@@ -49,7 +49,10 @@ class BuildResult:
         success: Whether the build completed and output was published.
         diagnostics: Tuple of diagnostic messages accumulated during the
             build.  Empty when the build succeeds without warnings.
+        skipped_issues: Issues left out because of their own content errors;
+            the rest of the site was still published.
     """
 
     success: bool
     diagnostics: tuple[Diagnostic, ...] = ()
+    skipped_issues: tuple[int, ...] = ()

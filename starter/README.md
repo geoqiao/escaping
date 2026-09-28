@@ -1,85 +1,55 @@
 # Your Issue-based personal site
 
-**Public preview:** [escaping-template](https://github.com/geoqiao/escaping-template) is the template destination.
-An existing production site's build and deployment have been verified; first-time template
-creation, automatic label initialization and the complete new-user journey have not been fully
-verified on GitHub. This preview is not a claim that those platform checks are complete.
-Use a reviewed migration rather than replacing a live site's workflow without compatibility
-and deployment verification.
+**Preview:** [escaping-template](https://github.com/geoqiao/escaping-template) is where this
+template is published. The 0.2.0 workflow has passed local tests; neither an existing site nor a
+brand-new repository has run it on GitHub yet.
 
 ## Start writing
 
-1. Create your site repository with **Use this template**. Use `username.github.io`, or a site with an
-   already-configured custom domain at its root. On GitHub Free, use a public repository. Keep Issues and Actions enabled. In repository
-   **Settings → Pages**, select **Source: GitHub Actions**.
-2. Save an Issue with a title and Markdown body; GitHub's normal image upload works. The workflow
-   automatically prepares missing publishing labels. Wait for **Prepare missing labels only**
-   to succeed, then refresh the saved Issue's label selector.
-3. Add exactly one of `type:blog`, `type:idea`, or `type:about`, and add `published` when ready.
-   Your label change starts the build. Check the Actions run for success and the deployed URL.
+1. Create your repository with **Use this template**. Name it `username.github.io`, or use a
+   custom domain at its root (sites under a sub-path such as `/my-project/` are not supported).
+   On GitHub Free, keep it public. In **Settings → Pages**, set **Source: GitHub Actions**.
+2. Write an Issue: a title and a Markdown body; image uploads work as usual.
+3. Add exactly one of `type:blog`, `type:idea` or `type:about`, and `published` when it is ready.
+   The workflow creates these labels on its first run; refresh the Issue page if you do not see
+   them yet. The label change starts a build.
 
-No local Python, front matter, personal access token, manually created labels, or required
-“Run workflow” step is part of this path. Label preparation never edits your Issue or publishes
-it for you; existing label colors and descriptions are preserved.
+Remove `published` to take an Issue down on the next build. Closing an Issue does not unpublish
+it. Without an About Issue, the About page shows your GitHub profile bio. Only Issues by the
+repository owner (or `github.allowed_authors`) are published.
 
-Remove `published` to unpublish on the next successful build. Closing an Issue does not unpublish
-it. No About Issue is required: the generator can use the owner's public profile. Only selected,
-authorized content is published; the workflow actor is not an author-permission default.
+If one Issue has a problem, for example an invalid tag, the rest of the site is still published.
+The run is marked failed, and its summary names the Issue and what to fix.
 
-## Customize when needed
+## Customize
 
-`config.yaml` starts as `{}`. The current generator defaults to Quiet, with Home, Blog,
-Projects, Tags, About and RSS in the menu. Ideas remains available at `/ideas/` and can be added
-through `site.navigation.items`. Comments are off; enabling them requires the YAML boolean
-`true` for `comments.enabled`, not quoted text. Local Themes use Theme API `"2"`.
-
-This is the only Site Config; the workflow supplies non-secret, verified repository and Pages
-identity separately. You may override individual fields, for example:
+`config.yaml` starts as `{}`; your repository and GitHub profile fill in the title, author, URL,
+avatar and bio. Override what you like:
 
 ```yaml
 site:
   title: My notes
+  language: zh # Also switches the built-in Theme's interface text to Chinese.
+theme:
+  options:
+    tagline: Writing about tools and learning
+    featured_posts: [12, 7]
 ```
 
-Missing values use generator defaults; invalid explicit values fail instead of being ignored.
-For an organization-owned content repository, explicitly configure `github.allowed_authors`.
-Projects are opt-in; repositories are not automatically listed.
+See the generator's [config.example.yaml](https://github.com/geoqiao/escaping/blob/main/config.example.yaml)
+for every field. A mistyped field fails the build with a message that names it and suggests the
+correct spelling.
 
-For a local Theme, keep its templates, manifest and assets in your site repository and select
-it with `theme.source: local`, `theme.name`, and `theme.path`. The path is relative to your Config,
-not the workflow's working directory. Use a Theme compatible with your selected generator release.
-Every default-branch push triggers a build, including changes outside a conventional `theme/`
-directory. If moving/renaming Config, also change `SITE_CONFIG` in `.github/workflows/pages.yml`.
-Output paths remain relative to that original Config directory.
+To change the look, start with the built-in Theme's options. To change one part of it, create a
+`theme/` directory with a `theme.yaml` containing `api: 3` and `extends: quiet`, add only the
+template you want to replace, and set `theme: {use: ./theme}`. See the
+[Theme guide](https://github.com/geoqiao/escaping/blob/main/docs/themes/authoring.md).
 
-The workflow requires an existing GitHub Actions Pages source and a real HTTPS root URL. It only
-reads Pages settings; it does not enable Pages, create a custom domain, edit DNS, or install Apps.
-Project-site subpaths such as `/my-project/` are unsupported even if Config specifies a root URL.
+## Versions
 
-## Versions, credentials and failures
+The workflow runs `geoqiao/escaping@v0.2.0`. To update, change that tag after reading the
+[CHANGELOG](https://github.com/geoqiao/escaping/blob/main/CHANGELOG.md); a full commit SHA also
+works. Each job gets only the short-lived `GITHUB_TOKEN` permissions it needs; never put a token
+in `config.yaml`. A failed build leaves the previously deployed site in place.
 
-| Setting or behavior | Meaning |
-| --- | --- |
-| `ESCAPING_VERSION: stable` | Each normal build resolves the official latest non-draft, non-prerelease release once, then installs its full commit SHA and dependency lock. Idle sites do not poll for releases. |
-| Advanced fixed version | Replace `stable` in the workflow with a full lowercase 40-character commit SHA, or a formal release tag confirmed immutable by GitHub. Fixed versions do not chase latest. |
-| Build summary | Records release/tag/commit, Python 3.14.x, uv, lock and project hashes, actual wheel builder and installed dependency versions. Keep this identity when reporting problems. |
-| Token | Each job receives only its required short-lived `GITHUB_TOKEN` permissions. The compile step maps it to the Config-selected `security.token_env`; reserved process variables and collisions are rejected. Never put a token value in Config. |
-| Failure | No release, failed API/identity/lock checks, or compiler errors stop upload/deployment. No fallback to `main`, empty content, or a different generator is performed. The previous deployed site remains in place. |
-
-To recover from an incompatible release, choose a previously verified full SHA and revert any
-incompatible Config/local Theme changes with it. The optional manual workflow trigger is for
-recovery, not first-time label initialization. Following stable updates the generator, not this
-workflow or your repository files; breaking changes still need a reviewed migration.
-
-## For maintainers
-
-Publish this exact directory, including hidden files, as the template tree after verification.
-Do not add a generator checkout, personal Config, attachment history, migration scripts or site
-output. Tests consume these same workflow/scripts; there is no second generated template copy.
-
-Before removing the preview status, verify a fresh site with a fixed candidate, real repository
-event/permission behavior, Linux installation and Pages publication. Verify actual stable-release
-resolution and installation; controlled HTTP fixtures alone do not establish those platform guarantees.
-The root default appearance and optional integrations must also match the selected release.
-
-Bundled automation is MIT-licensed. Choose a license for your own written content separately.
+Bundled automation is MIT-licensed. Choose a license for your own writing separately.

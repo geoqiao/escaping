@@ -1,7 +1,8 @@
 from __future__ import annotations
 
-from dataclasses import replace
+from collections.abc import Sequence
 from datetime import UTC, datetime
+from typing import Any
 
 import pytest
 
@@ -12,42 +13,43 @@ from escaping.models.site import SiteModel
 from escaping.projects import ProjectCompiler
 from escaping.routes import RouteRegistry
 from escaping.site_builder import SiteBuilder
+from escaping.theme import PageSpec
 
 _BUILD_START = datetime(2026, 2, 1, tzinfo=UTC)
 
 
-def _settings(*, navigation_url: str = "/blog/", title: str = "Site") -> Settings:
-    return Settings.model_validate(
-        {
-            "github": {"repo": "owner/site", "allowed_authors": ["owner"]},
-            "site": {
-                "title": title,
-                "author": "Owner",
-                "url": "https://example.com/",
-                "description": "Description",
-                "language": "en",
-                "thesis": ["Question assumptions.", "Build useful tools."],
-                "navigation": {"items": [{"name": "Blog", "url": navigation_url}]},
-            },
-            "profile": {
-                "avatar": "/avatar.png",
-                "tagline": "Analyst / tool builder",
-                "bio": "Bio",
-                "links": [{"name": "GitHub", "url": "https://github.com/owner"}],
-            },
-            "about": {"issue_number": 10},
-            "paths": {"page_size": 2},
-            "comments": {"theme": "github-light", "theme_mode": "auto"},
-            "security": {"token_env": "TOKEN"},
-        }
-    )
+def _settings(**overrides: object) -> Settings:
+    data: dict[str, Any] = {
+        "github": {"repo": "owner/site", "allowed_authors": ["owner"]},
+        "site": {
+            "title": "Site",
+            "author": "Owner",
+            "url": "https://example.com/",
+            "description": "Description",
+            "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
+        },
+        "profile": {"avatar": "/avatar.png", "bio": "Bio"},
+        "paths": {"page_size": 2},
+        "comments": {"enabled": True},
+        "seo": {"social_image": "/assets/images/og.png"},
+    }
+    for key, value in overrides.items():
+        section, _, name = key.partition("__")
+        if name:
+            data[section] = {**data.get(section, {}), name: value}
+        else:
+            data[section] = value
+    return Settings.model_validate(data)
 
 
-def _blog(routes: RouteRegistry, number: int, *, naive: bool = False) -> BlogPost:
-    published = datetime(2026, 1, number)
-    if not naive:
-        published = published.replace(tzinfo=UTC)
-    tag_route = routes.tag("python")
+def _blog(
+    routes: RouteRegistry,
+    number: int,
+    *,
+    tags: Sequence[tuple[str, str]] = (("Python", "python"),),
+    naive: bool = False,
+) -> BlogPost:
+    published = datetime(2026, 1, number, tzinfo=None if naive else UTC)
     return BlogPost(
         issue_number=number,
         title=f"Post {number}",
@@ -56,17 +58,21 @@ def _blog(routes: RouteRegistry, number: int, *, naive: bool = False) -> BlogPos
         created_date=f"2026-01-{number:02d}",
         published_at=published,
         updated_at=published,
-        tags=(BlogTag("python", tag_route.canonical_path),),
+        tags=tuple(BlogTag(name, key, routes.tag(key)) for name, key in tags),
         body_html="<p>Body.</p>",
         route=routes.blog_detail(f"post-{number}"),
     )
 
 
 def _content(
-    routes: RouteRegistry, blogs: tuple[BlogPost, ...] = ()
+    routes: RouteRegistry,
+    blogs: tuple[BlogPost, ...] = (),
+    *,
+    about: bool = True,
+    skipped: tuple[int, ...] = (),
 ) -> ContentCompilationResult:
     idea = Idea(
-        issue_number=2,
+        issue_number=20,
         title="Idea",
         description="Idea description",
         created_date="2026-01-02",
@@ -74,219 +80,192 @@ def _content(
         updated_at=datetime(2026, 1, 2, tzinfo=UTC),
         tags=(),
         body_html="<p>Idea.</p>",
-        route=routes.idea(2),
+        route=routes.idea(20),
     )
-    about = AboutPage(
+    page = AboutPage(
         issue_number=10,
         title="About",
         description="About description",
         body_html="<p>About.</p>",
         route=routes.about(),
     )
-    return ContentCompilationResult(blogs=blogs, ideas=(idea,), about=about)
+    return ContentCompilationResult(
+        blogs=blogs, ideas=(idea,), about=page if about else None, skipped=skipped
+    )
 
 
 def _build(
     settings: Settings,
     routes: RouteRegistry,
     content: ContentCompilationResult,
+    pages: Sequence[PageSpec] = (),
 ) -> SiteModel:
-    projects = ProjectCompiler().compile([], route=routes.projects())
+    projects = ProjectCompiler().compile(settings.projects)
     return SiteBuilder(settings, route_registry=routes).build(
-        content, projects, build_start_time=_BUILD_START
+        content, projects, pages=pages, build_start_time=_BUILD_START
     )
 
 
-def test_site_builder_composes_metadata_routes_and_internal_page_models() -> None:
+def test_site_builder_composes_the_site_from_registered_routes() -> None:
     settings = _settings()
     routes = RouteRegistry(str(settings.site.url))
     blogs = tuple(_blog(routes, number) for number in (2, 6, 1, 5, 3, 4))
 
-    site = _build(settings, routes, _content(routes, blogs))
+    site = _build(settings, routes, _content(routes, blogs, skipped=(7,)))
 
-    assert not site.has_errors
-    assert site.metadata.title == "Site"
-    assert site.metadata.navigation[0].url == "/blog/"
-    assert site.metadata.thesis == ("Question assumptions.", "Build useful tools.")
-    assert site.metadata.profile.tagline == "Analyst / tool builder"
-    assert site.metadata.profile.bio == "Bio"
-    assert site.metadata.comments.repo == "owner/site"
-    assert site.metadata.theme.name == "Quiet"
-    assert site.metadata.theme.asset_path == "/templates/Quiet"
-
-    assert site.home.route is routes.route("home")
-    assert [post.issue_number for post in site.home.recent_posts] == [6, 5, 4, 3, 2]
-    assert [post.description for post in site.home.recent_posts] == [
-        "Description 6",
-        "Description 5",
-        "Description 4",
-        "Description 3",
-        "Description 2",
+    assert not site.has_errors, site.diagnostics
+    assert site.skipped_issues == (7,)
+    assert [[post.issue_number for post in page.posts] for page in site.archives] == [
+        [6, 5],
+        [4, 3],
+        [2, 1],
     ]
-    assert [len(page.entries) for page in site.archives] == [2, 2, 2]
     assert site.archives[0].route is routes.route("blog")
     assert site.archives[0].next_route is site.archives[1].route
-    assert site.archives[1].prev_route is site.archives[0].route
-
-    assert site.ideas_page.route is routes.route("ideas")
-    assert site.ideas[0].route is routes.route("idea-2")
-    assert site.about is not None and site.about.route is routes.route("about")
-    assert site.projects.route is routes.route("projects")
-    assert site.tags.route is routes.route("tags")
-    assert site.tags.tags[0].count == 6
-    assert site.tag_archives[0].route is routes.route("tag-python")
-    assert site.feed.route is routes.route("atom")
-    assert [entry.title for entry in site.feed.entries] == [
-        "Post 6",
-        "Post 5",
-        "Post 4",
-        "Post 3",
-        "Post 2",
-        "Post 1",
+    assert site.archives[2].prev_route is site.archives[1].route
+    assert site.archives[2].next_route is None
+    assert [(tag.name, tag.count) for tag in site.tags] == [("Python", 6)]
+    assert site.tags[0].route is routes.route("tag-python")
+    assert [entry.title for entry in site.feed.entries][:2] == ["Post 6", "Post 5"]
+    assert site.about.route is routes.route("about") and not site.about.is_profile
+    metadata = site.metadata
+    assert metadata.comments.enabled and metadata.comments.repo == "owner/site"
+    assert metadata.seo.social_image == "https://example.com/assets/images/og.png"
+    assert [(link.name, link.url) for link in metadata.navigation] == [
+        ("Blog", "/blog/")
     ]
 
+    empty = _build(settings, RouteRegistry("https://example.com/"), _content(routes))
+    assert len(empty.archives) == 1 and empty.archives[0].posts == ()
+    assert empty.tags == () and empty.feed.updated == _BUILD_START
 
-def test_featured_posts_follow_editorial_order_without_changing_chronology() -> None:
-    data = _settings().model_dump()
-    data["site"]["featured_posts"] = [1, 3, 6]
-    settings = Settings.model_validate(data)
+
+def test_tags_group_by_key_and_take_the_newest_spelling() -> None:
+    settings = _settings()
     routes = RouteRegistry(str(settings.site.url))
-    blogs = tuple(_blog(routes, number) for number in range(1, 7))
+    blogs = (
+        _blog(routes, 1, tags=(("python", "python"), ("示例 标签", "示例-标签"))),
+        _blog(routes, 3, tags=(("Python", "python"),)),
+        _blog(routes, 2, tags=(("PYTHON", "python"),)),
+    )
     site = _build(settings, routes, _content(routes, blogs))
-
-    assert not site.has_errors
-    assert [post.issue_number for post in site.home.featured_posts] == [1, 3, 6]
-    assert site.home.featured_posts[0].detail_path == blogs[0].route.canonical_path
-    assert site.home.featured_posts[0].description == blogs[0].description
-    assert [post.issue_number for post in site.home.recent_posts] == [6, 5, 4, 3, 2]
-    assert [post.title for post in site.feed.entries] == [
-        f"Post {number}" for number in range(6, 0, -1)
+    assert [(tag.name, tag.key) for tag in site.tags] == [
+        ("Python", "python"),
+        ("示例 标签", "示例-标签"),
     ]
+    assert [post.issue_number for post in site.tags[0].posts] == [3, 2, 1]
+    assert site.tags[1].canonical_path == "/tags/%E7%A4%BA%E4%BE%8B-%E6%A0%87%E7%AD%BE/"
 
 
-@pytest.mark.parametrize("number", [2, 10, 99])
-def test_featured_posts_must_reference_published_blog_content(number: int) -> None:
-    data = _settings().model_dump()
-    data["site"]["featured_posts"] = [number]
-    settings = Settings.model_validate(data)
+def test_profile_about_stands_in_when_there_is_no_about_issue() -> None:
+    for bio, expected in (("Bio", "Bio"), ("", "Description")):
+        settings = _settings(profile__bio=bio)
+        routes = RouteRegistry(str(settings.site.url))
+        site = _build(settings, routes, _content(routes, about=False))
+        assert not site.has_errors
+        assert site.about.is_profile
+        assert (site.about.title, site.about.description) == ("Owner", expected)
+        assert site.about.route is routes.route("about")
+
+
+def test_theme_pages_get_routes_and_projects_link_their_first_detail_page() -> None:
+    settings = _settings(
+        projects=[{"repository": "owner/alpha"}, {"repository": "owner/beta"}],
+        site__navigation={"items": [{"name": "Now", "url": "/now/"}]},
+    )
     routes = RouteRegistry(str(settings.site.url))
-    site = _build(settings, routes, _content(routes, (_blog(routes, 1),)))
+    pages = (
+        PageSpec("/now/", "now.html"),
+        PageSpec("/work/{slug}/", "work.html", "projects"),
+        PageSpec("/code/{slug}/", "code/{slug}.html", "projects"),
+    )
+
+    site = _build(settings, routes, _content(routes), pages)
+
+    assert not site.has_errors, site.diagnostics
+    assert [
+        (page.route.output_path, page.template, page.project and page.project.slug)
+        for page in site.theme_pages
+    ] == [
+        ("now/index.html", "now.html", None),
+        ("work/alpha/index.html", "work.html", "alpha"),
+        ("work/beta/index.html", "work.html", "beta"),
+        ("code/alpha/index.html", "code/alpha.html", "alpha"),
+        ("code/beta/index.html", "code/beta.html", "beta"),
+    ]
+    assert [project.page for project in site.projects] == [
+        routes.route("page-/work/alpha/"),
+        routes.route("page-/work/beta/"),
+    ]
+    assert site.theme_pages[4].project == site.projects[1]
+    assert site.metadata.navigation[0].url == "/now/"
+    assert routes.route("page-/now/") in routes.sitemap_routes()
+
+
+@pytest.mark.parametrize(
+    "pages",
+    [
+        # A project named "blog" would take the Blog archive's address.
+        (PageSpec("/{slug}/", "project.html", "projects"),),
+        # A fixed page at a path that a project detail page also uses.
+        (
+            PageSpec("/work/{slug}/", "work.html", "projects"),
+            PageSpec("/work/escaping/", "special.html"),
+        ),
+    ],
+)
+def test_theme_pages_cannot_share_an_address(pages: tuple[PageSpec, ...]) -> None:
+    settings = _settings(
+        projects=[{"repository": "owner/blog"}, {"repository": "owner/escaping"}]
+    )
+    routes = RouteRegistry(str(settings.site.url))
+
+    site = _build(settings, routes, _content(routes), pages)
 
     assert site.has_errors
-    assert any(d.code == "FEATURED_POST_INVALID" for d in site.diagnostics)
-
-
-def test_default_navigation_uses_registered_routes_and_explicit_lists_replace_it() -> (
-    None
-):
-    data = _settings().model_dump()
-    del data["site"]["navigation"]
-    defaults = Settings.model_validate(data)
-    expected = [
-        ("Home", "/"),
-        ("Blog", "/blog/"),
-        ("Projects", "/projects/"),
-        ("Tags", "/tags/"),
-        ("About", "/about/"),
-        ("RSS", "/atom.xml"),
+    assert [(d.code, d.field) for d in site.diagnostics if d.severity == "error"] == [
+        ("ROUTE_COLLISION", "theme.pages")
     ]
+
+
+@pytest.mark.parametrize("url", ["/missing/", "/Blog/", "/now/"])
+def test_navigation_must_point_at_pages_of_the_site(url: str) -> None:
+    settings = _settings(
+        site__navigation={
+            "items": [
+                {"name": "Page", "url": url},
+                {"name": "Elsewhere", "url": "https://example.org/"},
+            ]
+        }
+    )
+    routes = RouteRegistry(str(settings.site.url))
+    site = _build(settings, routes, _content(routes))
+    assert [(d.code, d.field) for d in site.diagnostics] == [
+        ("ROUTE_COLLISION", "site.navigation")
+    ]
+
+    defaults = _settings(site__navigation={})
     routes = RouteRegistry(str(defaults.site.url))
     site = _build(defaults, routes, _content(routes))
-    assert [(link.name, link.url) for link in site.metadata.navigation] == expected
-    assert all(routes.route_for_path(link.url) for link in site.metadata.navigation)
-    for items in ([{"name": "Notes", "url": "/ideas/"}], []):
-        data["site"]["navigation"] = {"items": items}
-        settings = Settings.model_validate(data)
-        routes = RouteRegistry(str(settings.site.url))
-        site = _build(settings, routes, _content(routes))
-        assert [(link.name, link.url) for link in site.metadata.navigation] == [
-            (item["name"], item["url"]) for item in items
-        ]
-        assert all(routes.route_for_path(url) for _, url in expected)
+    assert not site.diagnostics
+    assert [link.url for link in site.metadata.navigation] == [
+        "/",
+        "/blog/",
+        "/projects/",
+        "/tags/",
+        "/about/",
+        "/atom.xml",
+    ]
 
 
-def test_tag_archives_normalize_deduplicate_and_order_by_publication() -> None:
-    settings = _settings()
+def test_invalid_feed_text_and_naive_timestamps_stop_the_build() -> None:
+    settings = _settings(site__title="Bad\x01Title")
     routes = RouteRegistry(str(settings.site.url))
-    posts = tuple(
-        replace(
-            _blog(routes, number),
-            published_at=_BUILD_START,
-            tags=(
-                BlogTag("Python", "/tags/python/"),
-                BlogTag("PYTHON", "/tags/python/"),
-            ),
-        )
-        for number in (2, 1, 3)
-    )
-    posts = (
-        replace(
-            posts[0],
-            tags=(
-                *posts[0].tags,
-                BlogTag("\N{KELVIN SIGN}", "/tags/k/"),
-                BlogTag("K", "/tags/k/"),
-            ),
-        ),
-        *posts[1:],
-    )
-    for ordered in (posts, tuple(reversed(posts))):
-        site = _build(settings, routes, _content(routes, ordered))
-        assert not site.has_errors
-        assert [(tag.name, tag.count) for tag in site.tags.tags] == [
-            ("k", 1),
-            ("python", 3),
-        ]
-        assert [archive.tag_name for archive in site.tag_archives] == ["k", "python"]
-        assert [
-            [entry.issue_number for entry in archive.entries]
-            for archive in site.tag_archives
-        ] == [[2], [3, 2, 1]]
-        for summary, archive in zip(site.tags.tags, site.tag_archives, strict=True):
-            assert (
-                summary.route
-                is archive.route
-                is routes.route_for_path(f"/tags/{summary.name}/")
-            )
-            assert archive.index_route is site.tags.route
-
-
-def test_invalid_tag_route_prevents_a_publishable_site() -> None:
-    settings = _settings()
-    routes = RouteRegistry(str(settings.site.url))
-    post = replace(_blog(routes, 1), tags=(BlogTag("bad tag", "/tags/bad/"),))
-    site = _build(settings, routes, _content(routes, (post,)))
+    site = _build(settings, routes, _content(routes, (_blog(routes, 1, naive=True),)))
+    codes = {d.code for d in site.diagnostics if d.severity == "error"}
     assert site.has_errors
-    assert any(d.code == "TAG_ROUTE_COLLISION" for d in site.diagnostics)
-    assert site.tags.tags == () and site.tag_archives == ()
-
-
-def test_site_builder_has_intentional_empty_blog_models() -> None:
-    settings = _settings()
-    routes = RouteRegistry(str(settings.site.url))
-
-    site = _build(settings, routes, _content(routes))
-
-    assert not site.has_errors
-    assert len(site.archives) == 1 and site.archives[0].entries == ()
-    assert site.home.recent_posts == ()
-    assert site.tags.tags == () and site.tag_archives == ()
-    assert site.feed.entries == () and site.feed.updated == _BUILD_START
-
-
-@pytest.mark.parametrize("navigation_url", ["/missing/", "/Blog/"])
-def test_site_builder_reports_navigation_and_atom_safety_errors(
-    navigation_url: str,
-) -> None:
-    settings = _settings(navigation_url=navigation_url, title="Bad\x01Title")
-    routes = RouteRegistry(str(settings.site.url))
-    naive = _blog(routes, 1, naive=True)
-
-    site = _build(settings, routes, _content(routes, (naive,)))
-
-    codes = {diagnostic.code for diagnostic in site.diagnostics}
-    assert site.has_errors
-    assert "ROUTE_COLLISION" in codes
-    assert "ATOM_XML_INVALID_CHAR" in codes
-    assert "ATOM_NAIVE_PUBLISHED_AT" in codes
-    assert "ATOM_NAIVE_UPDATED_AT" in codes
+    assert {
+        "ATOM_XML_INVALID_CHAR",
+        "ATOM_NAIVE_PUBLISHED_AT",
+        "ATOM_NAIVE_UPDATED_AT",
+    } <= codes

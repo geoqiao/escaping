@@ -4,45 +4,35 @@ from __future__ import annotations
 
 import os
 import shutil
-from dataclasses import replace
+from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
 
-from escaping.config import LocalThemeConfig, Settings
+from escaping.config import Settings
 from escaping.models.issue_snapshot import IssueSnapshot
-from escaping.output_staging import OutputStagingError, OutputStagingService
+from escaping.output_staging import (
+    OUTPUT_MARKER,
+    OutputStagingError,
+    OutputStagingService,
+)
 from escaping.site_compiler import SiteCompiler
 
 
 def _snapshot(number: int, body: str, *, kind: str = "blog") -> IssueSnapshot:
     now = datetime(2026, 1, number, tzinfo=UTC)
     return IssueSnapshot(
-        number,
-        "Post",
-        "geoqiao",
-        body,
-        (f"type:{kind}", "published"),
-        now,
-        now,
-        False,
+        number, "Post", "geoqiao", body, (f"type:{kind}", "published"), now, now, False
     )
 
 
-class _FakeGitHub:
-    def __init__(self, snapshots: list[IssueSnapshot]) -> None:
-        self.snapshots = snapshots
-
-    def get_repo(self, name: str) -> object:
-        return object()
-
-    def fetch_issue_snapshots(self, repo: object) -> list[IssueSnapshot]:
-        return self.snapshots
+_ABOUT = _snapshot(1, "About.", kind="about")
 
 
-def _settings() -> Settings:
+def _settings(**overrides: object) -> Settings:
     return Settings.model_validate(
         {
             "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
@@ -52,20 +42,48 @@ def _settings() -> Settings:
                 "url": "https://geoqiao.me/",
             },
             "about": {"issue_number": 1},
-            "paths": {"output": "output"},
-            "security": {"token_env": "TOKEN"},
+            **overrides,
         }
     )
 
 
-def test_publish_replaces_existing_tree_without_partial_output(tmp_path: Path) -> None:
+def _compiler(
+    tmp_path: Path, snapshots: list[IssueSnapshot], settings: Settings | None = None
+) -> SiteCompiler:
+    return SiteCompiler(
+        settings or _settings(), config_root=tmp_path, issues=lambda: snapshots
+    )
+
+
+def _tree(root: Path) -> dict[str, bytes]:
+    return {
+        path.relative_to(root).as_posix(): path.read_bytes()
+        for path in root.rglob("*")
+        if path.is_file()
+    }
+
+
+def _owned_output(tmp_path: Path, text: str = "old") -> Path:
+    """An output directory an earlier build published."""
+    output = tmp_path / "output"
+    output.mkdir()
+    (output / OUTPUT_MARKER).write_text("", encoding="utf-8")
+    (output / "index.html").write_text(text, encoding="utf-8")
+    return output
+
+
+def test_publish_marks_its_output_and_replaces_only_its_own_tree(
+    tmp_path: Path,
+) -> None:
     service = OutputStagingService("output", tmp_path)
     staging = service.create_staging_directory()
+    assert (staging / OUTPUT_MARKER).is_file()
     (staging / "index.html").write_text("new", encoding="utf-8")
     service.publish(staging)
 
     final = tmp_path / "output"
     assert (final / "index.html").read_text(encoding="utf-8") == "new"
+    assert (final / OUTPUT_MARKER).is_file()
 
     (final / "stale.txt").write_text("old", encoding="utf-8")
     replacement = service.create_staging_directory()
@@ -74,13 +92,49 @@ def test_publish_replaces_existing_tree_without_partial_output(tmp_path: Path) -
 
     assert (final / "index.html").read_text(encoding="utf-8") == "newer"
     assert not (final / "stale.txt").exists()
+    assert not list(tmp_path.glob(".output.*"))
+
+
+@pytest.mark.parametrize(
+    ("prepare", "problem"),
+    [
+        (lambda output: None, None),
+        (lambda output: output.mkdir(), None),
+        (lambda output: _owned_output(output.parent), None),
+        (
+            lambda output: (output.mkdir(), (output / "notes.md").write_text("mine")),
+            "contains files escaping did not create",
+        ),
+        (lambda output: output.write_text("mine"), "is a file"),
+    ],
+    ids=["missing", "empty", "owned", "unowned", "file"],
+)
+def test_only_missing_empty_or_owned_output_can_be_replaced(
+    tmp_path: Path, prepare: Callable[[Path], object], problem: str | None
+) -> None:
+    output = tmp_path / "output"
+    prepare(output)
+    before = _tree(output) if output.is_dir() else None
+    service = OutputStagingService("output", tmp_path)
+    staging = service.create_staging_directory()
+    if problem is None:
+        service.check_replaceable()
+        service.publish(staging)
+        assert (output / OUTPUT_MARKER).is_file()
+        return
+    with pytest.raises(OutputStagingError, match=problem):
+        service.check_replaceable()
+    with pytest.raises(OutputStagingError, match=problem):
+        service.publish(staging)
+    if before is not None:
+        assert _tree(output) == before
+    else:
+        assert output.read_text(encoding="utf-8") == "mine"
 
 
 def test_failed_promotion_restores_previous_output(tmp_path: Path) -> None:
     service = OutputStagingService("output", tmp_path)
-    final = tmp_path / "output"
-    final.mkdir()
-    (final / "index.html").write_text("old", encoding="utf-8")
+    final = _owned_output(tmp_path)
     staging = service.create_staging_directory()
     (staging / "index.html").write_text("new", encoding="utf-8")
 
@@ -108,9 +162,7 @@ def test_failed_promotion_restores_previous_output(tmp_path: Path) -> None:
 def test_failed_rollback_preserves_recovery_trees_and_reports_paths(
     tmp_path: Path,
 ) -> None:
-    output = tmp_path / "output"
-    output.mkdir()
-    (output / "index.html").write_text("old", encoding="utf-8")
+    output = _owned_output(tmp_path)
     real_rename = os.rename
 
     def fail_publication_and_rollback(source: Path, destination: Path) -> None:
@@ -130,22 +182,7 @@ def test_failed_rollback_preserves_recovery_trees_and_reports_paths(
         "escaping.output_staging.os.rename",
         side_effect=fail_publication_and_rollback,
     ):
-        result = SiteCompiler(
-            "unused",
-            "geoqiao/site",
-            _settings(),
-            config_root=tmp_path,
-            github_service=_FakeGitHub(
-                [
-                    _snapshot(
-                        1,
-                        '---\ndescription: About.\ncreated_date: "2026-01-01"'
-                        "\n---\n\nAbout.",
-                        kind="about",
-                    )
-                ]
-            ),
-        ).generate()
+        result = _compiler(tmp_path, [_ABOUT]).generate()
 
     assert not result.success
     staging = next(tmp_path.glob(".output.staging.*"))
@@ -156,7 +193,7 @@ def test_failed_rollback_preserves_recovery_trees_and_reports_paths(
     diagnostic = next(
         item
         for item in result.diagnostics
-        if item.code == "BUILD_FAILED" and "rollback" in item.message.lower()
+        if item.code == "PUBLISH_FAILED" and "rollback" in item.message.lower()
     )
     assert str(output) in diagnostic.message
     assert str(staging) in diagnostic.message
@@ -167,9 +204,7 @@ def test_backup_cleanup_failure_warns_after_successful_publication(
     tmp_path: Path,
 ) -> None:
     service = OutputStagingService("output", tmp_path)
-    final = tmp_path / "output"
-    final.mkdir()
-    (final / "index.html").write_text("old", encoding="utf-8")
+    final = _owned_output(tmp_path)
     staging = service.create_staging_directory()
     (staging / "index.html").write_text("new", encoding="utf-8")
 
@@ -227,7 +262,7 @@ def test_publish_and_cleanup_reject_staging_replaced_by_symlink(
     (output / "sentinel.txt").write_text("final", encoding="utf-8")
 
     staging = service.create_staging_directory()
-    staging.rmdir()
+    shutil.rmtree(staging)
     decoy = tmp_path / "decoy"
     decoy.mkdir()
     (decoy / "sentinel.txt").write_text("decoy", encoding="utf-8")
@@ -268,168 +303,54 @@ def test_publish_reports_concurrent_disappearance_during_backup_reservation(
     assert not output.exists()
 
 
+def _broken_theme(tmp_path: Path) -> dict[str, Any]:
+    """A Theme that extends Quiet and fails only while rendering."""
+    theme = tmp_path / "theme"
+    theme.mkdir()
+    (theme / "theme.yaml").write_text("api: 3\nextends: quiet\n", encoding="utf-8")
+    (theme / "about.html").write_text("{{ page.no_such_field }}", encoding="utf-8")
+    return {"theme": {"use": "./theme"}}
+
+
 @pytest.mark.parametrize(
-    "bad_body,code",
+    ("change", "code"),
     [
-        ("---\ndescription: [broken", "FRONT_MATTER_UNCLOSED"),
-        ("---\ndescription: null\n---\nBody.", "DESCRIPTION_INVALID"),
-        ("Safe start.\n\n<div><button>Broken end.", "SANITIZER_FAILED"),
+        # A broken configured About stops the build.
+        (
+            lambda: ([_snapshot(1, "---\nslug: x\n---\nAbout.", kind="about")], {}),
+            "SLUG_FORBIDDEN",
+        ),
+        # Content that renders but links to a file that does not exist.
+        (
+            lambda: ([_snapshot(1, "[CV](/cv.pdf)", kind="about")], {}),
+            "BROKEN_INTERNAL_LINK",
+        ),
+        (lambda: ([_ABOUT], None), "TEMPLATE_RENDER_FAILED"),
+        (lambda: (None, {}), "FETCH_FAILED"),
     ],
+    ids=["content", "validation", "template", "fetch"],
 )
-def test_strict_compiler_failure_preserves_existing_output(
-    tmp_path: Path, bad_body: str, code: str
-) -> None:
-    source = _FakeGitHub(
-        [_snapshot(1, "About.", kind="about"), _snapshot(2, "Plain body.")]
-    )
-    compiler = SiteCompiler(
-        "unused",
-        "geoqiao/site",
-        _settings(),
-        config_root=tmp_path,
-        github_service=source,
-    )
-    assert compiler.generate().success
-    output = tmp_path / "output"
-    before = {
-        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
-    }
-    source.snapshots.append(_snapshot(3, bad_body))
-    result = compiler.generate()
-    assert not result.success
-    assert any(d.code == code and d.issue_number == 3 for d in result.diagnostics)
-    assert {
-        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
-    } == before
-    assert not list(tmp_path.glob(".output.staging.*"))
-
-
-def test_wrong_case_body_link_fails_validation_without_replacing_output(
+def test_a_failed_build_leaves_the_previous_output_unchanged(
     tmp_path: Path,
+    change: Callable[[], tuple[list[IssueSnapshot] | None, dict[str, Any] | None]],
+    code: str,
 ) -> None:
-    about = _snapshot(
-        1,
-        '---\ndescription: About.\ncreated_date: "2026-01-01"\n---\n\n[Blog](/blog/)',
-        kind="about",
-    )
-    source = _FakeGitHub([about])
-    compiler = SiteCompiler(
-        "unused",
-        "geoqiao/site",
-        _settings(),
-        config_root=tmp_path,
-        github_service=source,
-    )
-    assert compiler.generate().success
+    assert _compiler(tmp_path, [_ABOUT, _snapshot(2, "Post.")]).generate().success
     output = tmp_path / "output"
-    before = {
-        str(p.relative_to(output)): p.read_bytes()
-        for p in output.rglob("*")
-        if p.is_file()
-    }
-    source.snapshots = [replace(about, body=about.body.replace("/blog/", "/Blog/"))]
-    result = compiler.generate()
-    assert not result.success
-    assert any(d.code == "BROKEN_INTERNAL_LINK" for d in result.diagnostics)
-    assert {
-        str(p.relative_to(output)): p.read_bytes()
-        for p in output.rglob("*")
-        if p.is_file()
-    } == before
-    assert not list(tmp_path.glob(".output.staging.*"))
-
-
-@pytest.mark.parametrize("kind", ["blog", "idea", "about"])
-def test_sanitizer_failure_preserves_the_complete_previous_site(
-    kind: str, tmp_path: Path
-) -> None:
-    metadata = 'description: Description.\ncreated_date: "2026-01-01"\n'
-    about = _snapshot(1, f"---\n{metadata}---\n\nAbout.", kind="about")
-    slug = "slug: post\n" if kind == "blog" else ""
-    target = _snapshot(
-        1 if kind == "about" else 2, f"---\n{slug}{metadata}---\n\nSafe.", kind=kind
-    )
-    source = _FakeGitHub([target] if kind == "about" else [about, target])
-    compiler = SiteCompiler(
-        "unused",
-        "geoqiao/site",
-        _settings(),
-        config_root=tmp_path,
-        github_service=source,
-    )
-    assert compiler.generate().success
-    output = tmp_path / "output"
-    before = {
-        str(p.relative_to(output)): p.read_bytes()
-        for p in output.rglob("*")
-        if p.is_file()
-    }
-    source.snapshots[-1] = replace(
-        target,
-        body=target.body
-        + "\n\nUse the <button> element. SECRET-SENTINEL\n\nSecond paragraph.\n\n## Section\n\nMore text.",
-    )
-    result = compiler.generate()
-    assert not result.success
-    diagnostic = next(d for d in result.diagnostics if d.code == "SANITIZER_FAILED")
-    assert diagnostic.issue_number == target.number and diagnostic.field == "body"
-    assert "<button> at HTML line" in diagnostic.message
-    assert "column" in diagnostic.message
-    assert "SECRET-SENTINEL" not in diagnostic.message
-    assert before == {
-        str(p.relative_to(output)): p.read_bytes()
-        for p in output.rglob("*")
-        if p.is_file()
-    }
-    assert not list(tmp_path.glob(".output.staging.*"))
-
-
-def test_template_error_preserves_existing_output_and_cleans_staging(
-    tmp_path: Path,
-) -> None:
-    output = tmp_path / "output"
-    output.mkdir()
-    sentinel = output / "index.html"
-    sentinel.write_text("old", encoding="utf-8")
-
-    local_theme = tmp_path / "broken-theme"
-    shutil.copytree(
-        Path(__file__).parent.parent / "tests/fixtures/independent_theme",
-        local_theme,
-    )
-    home_template = local_theme / "home.html"
-    home_template.write_text(
-        home_template.read_text(encoding="utf-8").replace(
-            "{% endblock %}", "{{ missing_template_value }}\n{% endblock %}", 1
-        ),
-        encoding="utf-8",
-    )
-    settings = _settings().model_copy(
-        update={
-            "theme": LocalThemeConfig(name="broken-theme", path=Path("broken-theme"))
-        }
+    before = _tree(output)
+    snapshots, overrides = change()
+    settings = _settings(
+        **(_broken_theme(tmp_path) if overrides is None else overrides)
     )
 
-    result = SiteCompiler(
-        "unused",
-        "geoqiao/site",
-        settings,
-        config_root=tmp_path,
-        github_service=_FakeGitHub(
-            [
-                _snapshot(
-                    1,
-                    '---\ndescription: About.\ncreated_date: "2026-01-01"'
-                    "\n---\n\nAbout.",
-                    kind="about",
-                )
-            ]
-        ),
-    ).generate()
+    def issues() -> list[IssueSnapshot]:
+        if snapshots is None:
+            raise RuntimeError("network down")
+        return snapshots
+
+    result = SiteCompiler(settings, config_root=tmp_path, issues=issues).generate()
 
     assert not result.success
-    assert any(
-        diagnostic.code == "TEMPLATE_RENDER_FAILED" for diagnostic in result.diagnostics
-    )
-    assert sentinel.read_text(encoding="utf-8") == "old"
-    assert list(tmp_path.glob(".output.staging.*")) == []
+    assert code in {d.code for d in result.diagnostics if d.severity == "error"}
+    assert _tree(output) == before
+    assert not list(tmp_path.glob(".output.*"))

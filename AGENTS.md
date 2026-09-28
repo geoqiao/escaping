@@ -1,21 +1,31 @@
 # AGENTS.md
 
 本文件是 `escaping` 仓库的 coding-agent 指南。以当前代码、测试和 domain docs 为准。
-架构与完整文档导航见[维护者入口](docs/dual-repo-architecture.md)。
+架构与完整文档导航见[维护者入口](docs/dual-repo-architecture.md)，主题设计见
+[ADR-0008](docs/adr/0008-theme-api-3-data-presentation-split.md)。
 
 ## 产品与边界
 
-`escaping` 是基于 GitHub Issues 的 opinionated personal-site generator。它生成 Home、
-Blog、Ideas、About、Projects、Tags、Atom、sitemap 和 robots。
+`escaping` 把 GitHub Issues 变成个人网站：Home、Blog、Ideas、About、Projects、Tags、
+Atom、sitemap、robots 和搜索索引。
+
+核心分工：**生成器只管数据，主题只管呈现。**
+
+- 生成器负责：读取 Issue、净化 HTML、分配唯一网址、生成 Atom/sitemap/搜索索引、
+  检查站内链接和资源、安全地替换输出目录。
+- 主题负责：页面长什么样、放哪些 SEO 标签、界面文字、主题自己的选项和额外页面。
+- 站点仓库负责：真实 `config.yaml`、可选的本地主题、Pages workflow 和 `CNAME`。
 
 仓库职责：
 
-- 生成器拥有 compiler、models、validators、`config.example.yaml` 和内置 Themes；
-- 站点仓库拥有真实 `config.yaml`、Pages workflow、`CNAME` 和可选本地 Theme；
-- Site Orchestrator pin 生成器 release/完整 SHA；生产 workflow 使用短期
+- 生成器拥有 compiler、models、`config.example.yaml`、内置主题 Quiet 和可复用
+  Action（`action.yml`）；
+- 站点仓库 pin 生成器的 release tag 或完整 SHA；生产 workflow 使用短期
   `GITHUB_TOKEN`，不得硬编码 PAT。
 
-保留 Ideas 和 Projects，不引入 plugin system；改变这些产品边界需单独确认。
+Issue 是唯一内容来源，`published` 标签控制发布，内容类型只有 Blog、Idea、About。
+主题只能是模板、静态文件和 `theme.yaml`，不执行主题提供的 Python 代码。改变这些
+边界需单独确认。
 
 ## 按任务读取
 
@@ -24,47 +34,70 @@ Blog、Ideas、About、Projects、Tags、Atom、sitemap 和 robots。
 | 任务 | 文档 |
 | --- | --- |
 | 内容与发布规则 | [Issue Content v1](docs/contracts/issue-content-v1.md) |
+| 主题与主题选项 | [主题编写指南](docs/themes/authoring.md)、[Quiet](docs/themes/quiet.md) |
+| Config 字段 | [Site inputs](docs/site-inputs.md) |
 | 可选草稿创作辅助 | [Local Draft v1](docs/contracts/local-draft-v1.md)，不用于同步或发布 |
 | 开发与验证 | [测试策略](docs/agents/testing.md) |
-| 版本、安装与部署 | [Deployment contract](docs/deployment.md) |
+| 版本、Action 与部署 | [Deployment contract](docs/deployment.md) |
 | Issues 与 specs | [GitHub tracker](docs/agents/issue-tracker.md)、[triage 标签约定](docs/agents/triage-labels.md)；使用前检查标签是否存在 |
 | Domain 文档维护 | [single-context 约定](docs/agents/domain.md) |
 
 ## 关键实现约束
 
-1. `Settings` 显式注入 compilation 和 `SiteBuilder`；禁止全局配置单例。
-2. Renderer 和 artifact validator 只读取 `SiteModel`；Theme 作为已加载依赖注入。
-3. `RouteRegistry` 构造唯一的 `Route`；页面直接持有完整 Route，不手工拼接输出路径。
-4. Config-relative Theme/output 路径以 Config 文件目录为根，不能依赖 process CWD。
-5. `ThemeLoader` 只加载 package resources 或本地目录；不得加入 Git/HTTP
-   fetch、cache、update 或 `theme_lock`。
-6. Quiet 是唯一内置及默认 Theme；保留本地 Theme API 2。已移除的内置名称必须明确失败，不得静默回退。
-7. Theme 静态 URL 使用以 `/` 开头的 `{{ theme_path }}`。
-8. Utterances 行为位于共享 `src/escaping/static/comments.js`。必须保留：
+1. **Config 分两层。** 判断一个值放哪层，只问一句：换了主题之后它还有意义吗？
+   有意义放站点层（`github`、`site`（含 `navigation`）、`profile`、`about`、`paths`、
+   `projects`、`comments`、`seo`、`security`）；没意义放主题层（`theme.options`），由主题的
+   `theme.yaml` 声明类型和默认值。生成器代码里不得出现只为某个主题服务的字段。
+2. **Quiet 没有特权。** Quiet 是唯一内置和默认主题，但与本地主题走同一套加载、
+   选项、页面和字符串机制；编译器不得按主题名分支。
+3. **模板只拿到四个变量**：`site`、`page`、`theme`（选项最终值）、`t`（界面文字）。
+   新数据加进这四个对象，不新增顶层变量。
+4. `Settings` 显式注入；禁止全局配置单例。Renderer 与 artifact validator 只读
+   `SiteModel` 和已加载的主题。
+5. `RouteRegistry` 是唯一构造 `Route` 的地方，包括主题通过 `pages` 声明的页面。
+   页面持有完整 Route，不手工拼接输出路径。
+6. Config 中的相对路径（主题、输出目录）以 Config 文件所在目录为根，不依赖 CWD。
+7. `ThemeLoader` 只读取包内资源或本地目录：不联网、不缓存、不执行主题代码、
+   拒绝符号链接。`extends` 只能指向内置主题。
+8. 主题静态文件发布在 `/assets/`，生成器共享脚本（评论、Mermaid）在
+   `/assets/escaping/`；主题不得占用 `static/escaping/`。
+9. Utterances 行为位于共享 `src/escaping/static/comments.js`。必须保留：
    - immutable Issue number binding；
    - `postMessage` + `MutationObserver` 自动主题同步；
    - message origin/source 校验；
    - Safari 注入 iframe `loading="lazy"` 移除兼容。
-9. 不得弱化 HTML sanitizer、output containment、artifact validator 或 staged output
-   publication。
-10. GitHub Token 环境变量名由 `settings.security.token_env` 决定。
+10. **构建前先检查本地输入。** Config、主题加载、全部模板编译、输出目录安全在访问
+    GitHub 之前完成；这些错误让构建直接失败，不产生半成品。
+11. **错误按范围处理。** 单个 Blog/Idea Issue 的内容错误只跳过该 Issue，报告 Issue
+    编号，照常发布其余内容，CLI 以状态码 2 结束。Config、主题、About 选择、站点级
+    路由冲突属于整站错误，不发布。
+12. 构建时检查只管完整性：每个路由都有文件、站内链接和资源不断、输出不越界。
+    SEO 标签是否规范由主题自己的测试和 `escpe theme check` 负责，不在每次构建拦截。
+13. 不得弱化 HTML sanitizer、output containment、输出目录归属检查或 staged output
+    publication；输出目录里不是本工具生成的文件时拒绝覆盖。
+14. GitHub Token 环境变量名由 `security.token_env` 决定。
 
 ## 当前结构
 
 ```text
 src/escaping/
-├── content_compiler.py
-├── site_builder.py
+├── config.py              # 站点层 Config
+├── theme.py               # theme.yaml API 3、extends、选项校验、字符串
+├── content_compiler.py    # Issue → Blog/Idea/About
+├── site_builder.py        # SiteModel、路由、主题页面
 ├── routes.py
-├── site_compiler.py
+├── site_compiler.py       # 预检 → 拉取 → 编译 → 渲染 → 校验 → 发布
+├── services/render_service.py
 ├── artifact_validation.py
 ├── output_staging.py
-├── theme.py
-├── static/comments.js
-├── themes/Quiet/
+├── cli.py                 # escpe build / escpe theme check
+├── static/                # comments.js、mermaid.js、mermaid/（发布到 /assets/escaping/）
+├── themes/quiet/
 ├── models/
 └── services/
+action.yml                 # 站点仓库使用的可复用 Action
 config.example.yaml
+starter/
 tests/
 ```
 
@@ -88,38 +121,37 @@ tests/
 
 - 每个 Ticket 默认 3–6 个高信号逻辑测试；
 - 一个行为只有一个主要 owner；上层只保留真实 tracer；
-- 多 Theme 使用参数化 contract，禁止复制测试矩阵；
+- 多个主题使用参数化 contract（Quiet、继承 Quiet 的主题、独立 fixture 主题）；
 - 不测试 private helper、mock 调用形状或 getter；
 - 优先完整静态站点、真实链接、wheel consumer 和浏览器行为；
-- 重构测试本身无需先制造失败，但必须先记录通过基线。
+- 重构测试本身无需先制造失败，但必须先记录通过基线；
 - 纯文档改动验证链接、路径和示例，不为制造红灯添加行为无关的测试。
 
 ## 验证与本地构建
 
 环境准备、局部检查和完整验证统一见[验证命令](docs/agents/testing.md#验证命令)，与
-[CI](.github/workflows/ci.yml) 对齐；不要遗漏 `starter/.github/scripts`。
-本地生成见[本地构建步骤](docs/site-inputs.md#local-build)。
+[CI](.github/workflows/ci.yml) 对齐。本地生成见[本地构建步骤](docs/site-inputs.md#local-build)。
 `output/` 必须作为 HTTP document root；不要使用 `/output/` URL 前缀。
 
 ## Config 与安全
 
-- Pydantic models 使用 `extra="forbid"`；未知字段应失败。
+- Pydantic models 使用 `extra="forbid"`；未知字段报错并给出最接近的正确写法。
+- 错误信息说明位置和原因，不回显字段值（可能含敏感信息）。
 - URL link 只允许 HTTPS、`mailto:`、root-relative 或 fragment；资源 URL 只允许
   HTTPS/root-relative。
 - repository 使用 `owner/repo` 格式。
 - Jinja 使用 autoescape + `StrictUndefined`。
 - Markdown body 进入模板前必须经过 sanitizer。
-- 禁止通过删除校验或错误处理来简化代码。
+- 删除防御代码前先确认它防的情况在新结构下确实不会发生；安全边界（第 13 条）不在此列。
 
 ## Themes
 
-内置 Theme 位于 `src/escaping/themes/<name>/`，每个 Theme 包含 `theme.yaml`、页面
-模板和 `static/`。共享评论逻辑不复制进 Theme source；构建时复制到所选 Theme 的
-输出 asset directory。
+内置主题位于 `src/escaping/themes/<name>/`，每个主题包含 `theme.yaml`、页面模板和
+`static/`。Quiet 拆分为小的 partial 模板，方便站点用 `extends: quiet` 只覆盖一个文件；
+重命名或删除 Quiet 的 partial、选项或字符串 key 属于破坏性变更，需写入 CHANGELOG。
 
-修改 Theme 后运行[局部验证中的 Theme 检查](docs/agents/testing.md#局部验证)。
-Theme contract 必须同时覆盖模板渲染、keyboard navigation、本地 overflow、comments
-container/script 和 package assets。
+修改主题后运行[局部验证中的 Theme 检查](docs/agents/testing.md#局部验证)。
+主题 contract 覆盖模板渲染、键盘导航、本地 overflow、评论容器/脚本和包内资源。
 
 ## Scratch 材料
 
@@ -132,6 +164,6 @@ container/script 和 package assets。
 - `geoqiao.github.io` 的发布源是 GitHub Pages artifact，不是 `main` 根目录。
 - 跨仓库迁移分支可以 push；未经单独确认不得 merge `main`、运行生产 deploy 或改变
   Pages 设置。
-- workflow 必须 pin 完整 generator SHA/release，显式传入站点 Config，并上传站点仓库
-  Config-relative `output/`。
+- 站点 workflow 通过 `uses: geoqiao/escaping@<tag 或完整 SHA>` 调用 Action，显式传入
+  站点 Config，并上传 Config-relative `output/`。
 - 生成器与站点不能原子变更；先验证兼容 consumer，再更新站点 pin，最后部署。

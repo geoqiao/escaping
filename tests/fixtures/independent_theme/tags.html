@@ -1,20 +1,19 @@
 {% extends "base.html" %}
 {% set page_title = "Tags" %}
-{% set page_description = meta_description %}
-{% set active_destination = site_routes.tags.canonical_path %}
+{% set active_destination = site.routes.tags.canonical_path %}
 
 {% block content %}
 <div class="page-shell">
   <header class="page-heading">
     <p class="eyebrow">Index</p>
     <h1>Tags</h1>
-    <p>{{ meta_description }}</p>
+    <p>{{ site.description }}</p>
   </header>
 
-  {% if tags_index.tags %}
+  {% if site.tags %}
   <ul class="index-list">
-    {% for tag in tags_index.tags %}
-    <li><a href="{{ tag.route.canonical_path }}">{{ tag.name }}</a><span>{{ tag.count }}</span></li>
+    {% for tag in site.tags %}
+    <li><a href="{{ tag.canonical_path }}">{{ tag.name }}</a><span>{{ tag.count }}</span></li>
     {% endfor %}
   </ul>
   {% else %}

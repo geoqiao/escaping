@@ -1,810 +1,337 @@
+"""Delivery: the reusable Action and the starter workflow, run as GitHub runs them.
+
+Step scripts are taken from the YAML and executed with ``bash --noprofile
+--norc -eo pipefail``; ``gh`` and (except in the end-to-end test) ``uv`` are
+stand-ins on PATH.
+"""
+
 from __future__ import annotations
 
-import copy
-import io
 import json
 import os
 import re
-import runpy
 import shutil
 import subprocess
-import sys
-import threading
-from email.message import Message
-from http.server import BaseHTTPRequestHandler, HTTPServer
+import tomllib
 from pathlib import Path
-from types import SimpleNamespace
-from urllib.error import HTTPError
-from urllib.parse import unquote, urlsplit
-from urllib.request import Request, build_opener
 
 import pytest
 import yaml
 
+from escaping.config import read_platform_context
+
 _ROOT = Path(__file__).parent.parent.absolute()
 _STARTER = _ROOT / "starter"
-_SCRIPTS = _STARTER / ".github/scripts"
-_API = "https://api.github.com/repos/geoqiao/escaping"
-_COMMIT = "a" * 40
-_TAG = "b" * 40
-_REPOSITORY = "alice/site"
+_ACTION = yaml.safe_load((_ROOT / "action.yml").read_text())
+_WORKFLOW = yaml.safe_load((_STARTER / ".github/workflows/pages.yml").read_text())
+_TOKEN = "consumer-fixture"  # noqa: S105 - HTTP fixture credential
+_BASH = shutil.which("bash") or "bash"
+
+_FAKE_GH = r"""#!/usr/bin/env bash
+# Stand-in for the GitHub CLI; answers from files under $FAKE_GH.
+echo "$* token=${GH_TOKEN:+set}" >> "$FAKE_GH/calls"
+if [ "$1" = api ]; then
+  file="$FAKE_GH/api/$2.json"
+  [ -f "$file" ] || { echo "gh: Not Found (HTTP 404)" >&2; exit 1; }
+  cat "$file"
+elif [ "$1 $2" = "label list" ]; then
+  cat "$FAKE_GH/labels"
+elif [ "$1 $2" = "label create" ]; then
+  # race: another run created it first; deny: creation fails outright.
+  if grep -qxF "$3" "$FAKE_GH/race"; then echo "$3" >> "$FAKE_GH/labels"; exit 1; fi
+  if grep -qxF "$3" "$FAKE_GH/deny"; then exit 1; fi
+  echo "$3" >> "$FAKE_GH/labels"
+else
+  echo "unexpected gh call: $*" >&2
+  exit 64
+fi
+"""
+
+_FAKE_UV = r"""#!/usr/bin/env bash
+printf '%s\n' "$@" > "$FAKE_UV/args"
+echo "venv=$UV_PROJECT_ENVIRONMENT token=${ESCAPING_TOKEN:+set}" > "$FAKE_UV/env"
+exit "$FAKE_UV_STATUS"
+"""
 
 
-def release_responses(commit: str = _COMMIT, version: str = "v1.0.0") -> dict:
-    return {
-        _API + "/releases/latest": {
-            "id": 7,
-            "url": _API + "/releases/7",
-            "draft": False,
-            "prerelease": False,
-            "published_at": "2026-01-01T00:00:00Z",
-            "tag_name": version,
-            "target_commitish": "main",
-            "immutable": True,
-        },
-        _API + "/git/ref/tags/" + version: {
-            "ref": "refs/tags/" + version,
-            "url": _API + "/git/refs/tags/" + version,
-            "object": {
-                "type": "commit",
-                "sha": commit,
-                "url": _API + "/git/commits/" + commit,
-            },
-        },
-        _API + "/git/commits/" + commit: {
-            "sha": commit,
-            "url": _API + "/git/commits/" + commit,
-        },
-        _API + "/commits/" + commit: {
-            "sha": commit,
-            "url": _API + "/commits/" + commit,
-        },
-    }
+def _step(steps: list[dict], name: str) -> dict:
+    return next(step for step in steps if step.get("name") == name)
 
 
-@pytest.fixture
-def api_transport(monkeypatch: pytest.MonkeyPatch) -> tuple[dict, list]:
-    responses: dict = {}
-    calls: list = []
-
-    class Response(io.BytesIO):
-        status: int = 200
-
-    def open_request(request: Request, timeout: int) -> io.BytesIO:
-        assert urlsplit(request.full_url).hostname == "api.github.com"
-        token = "label-fixture" if "/labels" in request.full_url else "platform-fixture"
-        assert request.get_header("Authorization") == "Bearer " + token
-        assert timeout == 30
-        calls.append((request.get_method(), request.full_url, request.data))
-        value = responses[request.full_url]
-        if callable(value):
-            value = value(request)
-        if isinstance(value, int) and value >= 300:
-            raise HTTPError(
-                request.full_url, value, "private API body", Message(), None
-            )
-        result = Response(json.dumps(value).encode())
-        result.status = value if isinstance(value, int) else 200
-        return result
-
-    monkeypatch.setattr(
-        "urllib.request.build_opener", lambda *args: SimpleNamespace(open=open_request)
-    )
-    monkeypatch.setenv("PLATFORM_TOKEN", "platform-fixture")
-    monkeypatch.setenv("GITHUB_REPOSITORY", _REPOSITORY)
-    return responses, calls
-
-
-def run_platform(
-    command: str,
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-    selection: str = "stable",
-) -> dict:
-    monkeypatch.setenv("ESCAPING_VERSION", selection)
-    monkeypatch.setattr("sys.argv", ["github_platform.py", command])
-    runpy.run_path(str(_SCRIPTS / "github_platform.py"), run_name="__main__")
-    return json.loads(capsys.readouterr().out)
-
-
-def test_version_selection_is_run_local_and_fixed_identity(
-    api_transport: tuple[dict, list],
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    responses, calls = api_transport
-    responses.update(release_responses())
-    first = run_platform("version", monkeypatch, capsys)
-    assert first["commit"] == _COMMIT
-    assert sum(url.endswith("/releases/latest") for _, url, _ in calls) == 1
-    responses.update(release_responses("c" * 40, "v2.0.0"))
-    second = run_platform("version", monkeypatch, capsys)
-    assert second["commit"] == "c" * 40 and first["commit"] == _COMMIT
-
-    calls.clear()
-    assert run_platform("version", monkeypatch, capsys, _COMMIT)["commit"] == _COMMIT
-    assert calls == [("GET", _API + "/commits/" + _COMMIT, None)]
-    responses[_API + "/releases/tags/v1.0.0"] = release_responses()[
-        _API + "/releases/latest"
-    ]
-    responses[_API + "/git/ref/tags/v1.0.0"]["object"] = {
-        "type": "tag",
-        "sha": _TAG,
-        "url": _API + "/git/tags/" + _TAG,
-    }
-    responses[_API + "/git/tags/" + _TAG] = {
-        "sha": _TAG,
-        "url": _API + "/git/tags/" + _TAG,
-        "object": {
-            "type": "commit",
-            "sha": _COMMIT,
-            "url": _API + "/git/commits/" + _COMMIT,
-        },
-    }
-    calls.clear()
-    assert run_platform("version", monkeypatch, capsys, "v1.0.0")["commit"] == _COMMIT
-    assert not any(url.endswith("/latest") for _, url, _ in calls)
-
-
-@pytest.mark.parametrize(
-    "failure",
-    [
-        "prerelease",
-        "draft",
-        "foreign-release",
-        "foreign-object",
-        "wrong-ref",
-        "cycle",
-        "depth",
-        "mutable-tag",
-        "missing-release",
-        "http-error",
-    ],
-)
-def test_version_failures_never_fall_back(
-    failure: str,
-    api_transport: tuple[dict, list],
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    responses, calls = api_transport
-    responses.update(release_responses())
-    release = responses[_API + "/releases/latest"]
-    reference = responses[_API + "/git/ref/tags/v1.0.0"]
-    selection = "stable"
-    if failure in {"prerelease", "draft"}:
-        release[failure] = True
-    elif failure == "foreign-release":
-        release["url"] = "https://evil.example/releases/7"
-    elif failure == "foreign-object":
-        reference["object"]["url"] = "https://evil.example/commit"
-    elif failure == "wrong-ref":
-        reference["ref"] = "refs/heads/main"
-    elif failure in {"cycle", "depth"}:
-        target = {"type": "tag", "sha": _TAG, "url": _API + "/git/tags/" + _TAG}
-        reference["object"] = target
-        for index in range(9):
-            following = {
-                "type": "tag",
-                "sha": f"{index:040x}",
-                "url": _API + f"/git/tags/{index:040x}",
-            }
-            responses[target["url"]] = {
-                **target,
-                "object": target if failure == "cycle" else following,
-            }
-            target = following
-    elif failure == "mutable-tag":
-        selection = "v1.0.0"
-        release["immutable"] = False
-        responses[_API + "/releases/tags/v1.0.0"] = release
-    else:
-        responses[_API + "/releases/latest"] = (
-            404 if failure == "missing-release" else 503
-        )
-    with pytest.raises(SystemExit) as error:
-        run_platform("version", monkeypatch, capsys, selection)
-    assert error.value.code == 1
-    output = capsys.readouterr()
-    assert not output.out
-    assert "platform-fixture" not in output.err and "private API body" not in output.err
-    assert all(
-        method == "GET" and not url.endswith("/commits/main")
-        for method, url, _ in calls
-    )
-    assert len(calls) <= 10
-
-
-def test_context_is_trusted_pages_root_even_when_config_could_override_it(
-    api_transport: tuple[dict, list],
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    responses, calls = api_transport
-    prefix = "https://api.github.com/repos/" + _REPOSITORY
-    responses[prefix] = {
-        "full_name": _REPOSITORY,
-        "owner": {"login": "alice", "type": "User"},
-    }
-    responses[prefix + "/pages"] = {
-        "html_url": "https://notes.example/",
-        "build_type": "workflow",
-    }
-    monkeypatch.setenv("GITHUB_ACTOR", "mallory")
-    context = run_platform("context", monkeypatch, capsys)
-    assert context == {
-        "repository": _REPOSITORY,
-        "owner_login": "alice",
-        "owner_type": "User",
-        "pages_base_url": "https://notes.example/",
-        "pages_base_path": "/",
-    }
-    for patch in (
-        {"html_url": "https://notes.example/project/"},
-        {"html_url": "http://notes.example/"},
-        {"html_url": "https://user@notes.example/"},
-        {"html_url": "https://notes.example/?x=1"},
-        {"build_type": "legacy"},
-    ):
-        original = responses[prefix + "/pages"]
-        responses[prefix + "/pages"] = {**original, **patch}
-        with pytest.raises(SystemExit):
-            run_platform("context", monkeypatch, capsys)
-        capsys.readouterr()
-        responses[prefix + "/pages"] = original
-    responses[prefix]["owner"]["login"] = "mallory"
-    with pytest.raises(SystemExit):
-        run_platform("context", monkeypatch, capsys)
-    capsys.readouterr()
-    assert all(method == "GET" for method, _, _ in calls)
-
-
-def test_inline_label_initializer_preserves_user_labels_and_verifies_races(
-    api_transport: tuple[dict, list], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    responses, calls = api_transport
-    workflow = yaml.safe_load((_STARTER / ".github/workflows/pages.yml").read_text())
-    script = next(
-        step["run"] for step in workflow["jobs"]["labels"]["steps"] if "run" in step
-    )
-    state = {
-        "published": {
-            "name": "published",
-            "color": "abcdef",
-            "description": "User-owned",
-        }
-    }
-    before = copy.deepcopy(state["published"])
-    prefix = "https://api.github.com/repos/" + _REPOSITORY
-    mode = "create"
-
-    def transport(request: Request) -> int:
-        name = unquote(request.full_url.rsplit("/", 1)[-1])
-        if request.get_method() == "GET":
-            return 200 if name in state else 404
-        assert request.get_method() == "POST" and request.full_url == prefix + "/labels"
-        assert isinstance(request.data, bytes)
-        data = json.loads(request.data)
-        if mode != "failed-race":
-            state[data["name"]] = data
-        return 201 if mode == "create" else 422
-
-    for name in ("published", "type:blog", "type:idea", "type:about"):
-        responses[prefix + "/labels/" + name.replace(":", "%3A")] = transport
-    responses[prefix + "/labels"] = transport
-    monkeypatch.setenv("LABEL_TOKEN", "label-fixture")
-    summary = tmp_path / "summary"
-    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(summary))
-    for _ in range(2):
-        exec(compile(script, "pages.yml:labels", "exec"), {"__name__": "__main__"})  # noqa: S102 - checked-in canonical workflow only
-    assert state["published"] == before
-    assert set(state) == {"published", "type:blog", "type:idea", "type:about"}
-    assert sum(method == "POST" for method, _, _ in calls) == 3
-    assert "Refresh" in summary.read_text()
-    state.pop("type:blog")
-    mode = "race"
-    exec(compile(script, "pages.yml:labels", "exec"), {"__name__": "__main__"})  # noqa: S102
-    state.pop("type:blog")
-    mode = "failed-race"
-    before_summary = summary.read_bytes()
-    with pytest.raises(SystemExit):
-        exec(compile(script, "pages.yml:labels", "exec"), {"__name__": "__main__"})  # noqa: S102
-    assert summary.read_bytes() == before_summary
-    responses[prefix + "/labels/published"] = 403
-    with pytest.raises(SystemExit):
-        exec(compile(script, "pages.yml:labels", "exec"), {"__name__": "__main__"})  # noqa: S102
-    assert summary.read_bytes() == before_summary
-
-
-def test_http_redirects_do_not_forward_platform_or_label_credentials(
-    api_transport: tuple[dict, list], monkeypatch: pytest.MonkeyPatch, tmp_path: Path
-) -> None:
-    responses, _ = api_transport
-    for name in ("published", "type:blog", "type:idea", "type:about"):
-        responses[
-            "https://api.github.com/repos/"
-            + _REPOSITORY
-            + "/labels/"
-            + name.replace(":", "%3A")
-        ] = 200
-    monkeypatch.setenv("LABEL_TOKEN", "label-fixture")
-    monkeypatch.setenv("GITHUB_STEP_SUMMARY", str(tmp_path / "summary"))
-    workflow = yaml.safe_load((_STARTER / ".github/workflows/pages.yml").read_text())
-    labels: dict = {"__name__": "__main__"}
-    exec(  # noqa: S102 - checked-in canonical workflow only
-        compile(
-            next(
-                step["run"]
-                for step in workflow["jobs"]["labels"]["steps"]
-                if "run" in step
-            ),
-            "pages.yml:labels",
-            "exec",
-        ),
-        labels,
-    )
-    platform = runpy.run_path(str(_SCRIPTS / "github_platform.py"))
-    received: list[str] = []
-
-    class Redirect(BaseHTTPRequestHandler):
-        def do_GET(self) -> None:
-            received.append(self.path)
-            self.send_response(302)
-            self.send_header("Location", "/credential-sink")
-            self.end_headers()
-
-        def log_message(self, format: str, *args: object) -> None:  # noqa: A002
-            pass
-
-    with HTTPServer(("127.0.0.1", 0), Redirect) as server:
-        thread = threading.Thread(target=server.serve_forever, daemon=True)
-        thread.start()
-        try:
-            for namespace in (platform, labels):
-                request = Request(
-                    f"http://127.0.0.1:{server.server_port}/start",
-                    headers={"Authorization": "Bearer redirect-fixture"},
-                )
-                with pytest.raises(HTTPError) as error:
-                    build_opener(namespace["NoRedirect"]).open(request, timeout=3)
-                assert error.value.code == 302
-        finally:
-            server.shutdown()
-            thread.join()
-    assert received == ["/start", "/start"]
-
-
-def test_token_mapping_rejects_startup_controls_and_existing_names() -> None:
-    adapter = runpy.run_path(str(_SCRIPTS / "run_configured.py"))
-    inherited = {
-        "PATH": "/bin",
-        "COMPILER_TOKEN": "fixture",
-        "PLATFORM_TOKEN": "other",
-        "LABEL_TOKEN": "labels",
-        "GH_TOKEN": "gh",
-        "GITHUB_TOKEN": "old",
-    }
-    mapped = adapter["compiler_env"]("READ_TOKEN", "fixture", inherited)
-    assert mapped == {"PATH": "/bin", "READ_TOKEN": "fixture"}
-    assert adapter["compiler_env"]("GITHUB_TOKEN", "fixture", inherited) == {
-        "PATH": "/bin",
-        "GITHUB_TOKEN": "fixture",
-    }
-    for name in (
-        "PATH",
-        "HOME",
-        "PYTHONPATH",
-        "pythonwarnings",
-        "LD_PRELOAD",
-        "DYLD_INSERT_LIBRARIES",
-        "BASH_ENV",
-        "ENV",
-        "IFS",
-        "GIT_CONFIG_COUNT",
-        "UV_INDEX",
-        "GITHUB_OUTPUT",
-        "RUNNER_TEMP",
-        "NODE_OPTIONS",
-        "HTTPS_PROXY",
-        "SSLKEYLOGFILE",
-        "OPENSSL_CONF",
-        "OPENSSL_MODULES",
-        "CUSTOM",
-    ):
-        with pytest.raises(ValueError):
-            adapter["compiler_env"](name, "fixture", {"CUSTOM": "existing"})
-
-
-def test_workflow_uses_only_reviewed_code_and_separates_permissions() -> None:
-    text = (_STARTER / ".github/workflows/pages.yml").read_text()
-    workflow = yaml.safe_load(text)
-    assert set(workflow["on"]) == {"issues", "push", "workflow_dispatch"}
-    assert workflow["on"]["push"] is None
-    assert {"opened", "edited", "labeled", "unlabeled"} <= set(
-        workflow["on"]["issues"]["types"]
-    )
-    assert workflow["permissions"] == {}
-    assert "github.ref" in workflow["concurrency"]["group"]
-    assert workflow["concurrency"]["cancel-in-progress"] is False
-    jobs = workflow["jobs"]
-    assert {name: job["permissions"] for name, job in jobs.items()} == {
-        "labels": {"issues": "write"},
-        "context": {"contents": "read", "pages": "read"},
-        "build": {"contents": "read", "issues": "read"},
-        "deploy": {"pages": "write", "id-token": "write"},
-    }
-    assert jobs["build"]["needs"] == ["labels", "context"]
-    assert jobs["deploy"]["needs"] == "build"
-    setup_python = "actions/setup-python@a26af69be951a213d495a4c3e4e4022e16d87065"
-    for job_name in ("labels", "context", "build"):
-        setup_steps = [
-            step for step in jobs[job_name]["steps"] if step.get("uses") == setup_python
-        ]
-        assert len(setup_steps) == 1
-        assert setup_steps[0]["with"] == {"python-version": "3.14"}
-    label_step = next(step for step in jobs["labels"]["steps"] if "run" in step)
-    assert label_step["shell"] == "python3.14 {0}"
-    assert ".github/scripts" not in label_step["run"]
-    assert "python3.14" in next(
-        step["run"] for step in jobs["context"]["steps"] if "run" in step
-    )
-    assert "python3.14" in next(
-        step["run"] for step in jobs["build"]["steps"] if step.get("id") == "version"
-    )
-    install_step = next(
-        step for step in jobs["build"]["steps"] if "install.sh" in step.get("run", "")
-    )
-    assert '"$RESOLVED_SHA" 3.14' in install_step["run"]
-    for job in jobs.values():
-        assert "repository.default_branch" in job["if"]
-        for step in job["steps"]:
-            assert "continue-on-error" not in step
-            if "uses" in step:
-                assert re.fullmatch(r"[\w/-]+@[0-9a-f]{40}", step["uses"])
-                if step["uses"].startswith("actions/checkout@"):
-                    assert step["with"]["persist-credentials"] is False
-                    assert step["with"]["ref"] in {
-                        "${{ github.sha }}",
-                        "${{ steps.version.outputs.sha }}",
-                    }
-    assert "github.event.issue." not in text and "configure-pages" not in text
-    assert "render_slug_redirects" not in text and "build-requirements.txt" not in text
-    build_steps = jobs["build"]["steps"]
-    assert build_steps[-1]["with"]["path"] == "${{ steps.compile.outputs.output }}"
-    assert build_steps[-2]["id"] == "compile"
-    assert build_steps[-2]["env"]["COMPILER_TOKEN"] == "${{ github.token }}"  # noqa: S105 - Actions expression, not a credential
-    assert jobs["build"]["env"]["ESCAPING_VERSION"] == "stable"
-    assert jobs["build"]["env"]["SITE_CONFIG"] == "config.yaml"
-    assert "runner." not in json.dumps(jobs["build"]["env"])
-    assert (
-        install_step["env"]["UV_PROJECT_ENVIRONMENT"]
-        == "${{ runner.temp }}/compiler-venv"
-    )
-    assert install_step["env"]["UV_CACHE_DIR"] == "${{ runner.temp }}/compiler-cache"
-    assert '"UV_PROJECT_ENVIRONMENT=$UV_PROJECT_ENVIRONMENT"' in install_step["run"]
-    assert '"UV_CACHE_DIR=$UV_CACHE_DIR"' in install_step["run"]
-    assert '>> "$GITHUB_ENV"' in install_step["run"]
-    assert yaml.safe_load((_STARTER / "config.yaml").read_text()) == {}
-    writing = (_STARTER / ".github/ISSUE_TEMPLATE/write.md").read_text().split("---")[1]
-    assert "labels" not in yaml.safe_load(writing)
-
-
-def test_starter_installs_then_runs_real_console_with_original_config_and_safe_token(
-    tmp_path: Path,
-    api_transport: tuple[dict, list],
-    monkeypatch: pytest.MonkeyPatch,
-    capsys: pytest.CaptureFixture[str],
-) -> None:
-    uv = shutil.which("uv")
-    git = shutil.which("git")
-    bash = shutil.which("bash")
-    assert uv and git and bash
-    env = {
-        k: v
-        for k, v in os.environ.items()
-        if not k.startswith(("UV_", "PYTHON"))
-        and k
-        not in {
-            "VIRTUAL_ENV",
-            "GITHUB_TOKEN",
-            "GH_TOKEN",
-            "PLATFORM_TOKEN",
-            "COMPILER_TOKEN",
-            "READ_TOKEN",
-            "CONSUMER_FAIL_ISSUES",
-        }
-    }
-    site = tmp_path / "site"
-    shutil.copytree(_STARTER, site)
-    source = tmp_path / "compiler"
-    source.mkdir()
-    # Snapshot the working tree, including pending additions/deletions, not HEAD.
-    # Ignore caches/build output; only this disposable repository gets a commit.
-    names = subprocess.check_output(  # noqa: S603 - local file inventory
-        [
-            git,
-            "-C",
-            str(_ROOT),
-            "ls-files",
-            "--cached",
-            "--others",
-            "--exclude-standard",
-            "-z",
-        ],
-        text=True,
-    ).split("\0")
-    for name in names:
-        original = _ROOT / name
-        if name and original.is_file():
-            destination = source / name
-            destination.parent.mkdir(parents=True, exist_ok=True)
-            shutil.copy2(original, destination)
-    for arguments in (
-        ["init"],
-        ["add", "."],
-        [
-            "-c",
-            "user.name=Test",
-            "-c",
-            "user.email=test@example.org",
-            "-c",
-            "commit.gpgsign=false",
-            "-c",
-            "core.hooksPath=/dev/null",
-            "commit",
-            "-m",
-            "Working-tree test snapshot",
-        ],
-    ):
-        subprocess.run(  # noqa: S603 - disposable test repository only
-            [git, "-C", str(source), *arguments],
+def _run(
+    step: dict, env: dict[str, str], cwd: Path
+) -> subprocess.CompletedProcess[str]:
+    """Run a ``bash`` step with the flags GitHub uses for ``shell: bash``."""
+    script = cwd / ".step.sh"
+    script.write_text(step["run"])
+    try:
+        return subprocess.run(  # noqa: S603 - repository step script, fake tools
+            [_BASH, "--noprofile", "--norc", "-eo", "pipefail", str(script)],
             env=env,
-            check=True,
-            capture_output=True,
-        )
-    sha = subprocess.check_output(  # noqa: S603
-        [git, "-C", str(source), "rev-parse", "HEAD"], text=True
-    ).strip()
-    venv = tmp_path / "compiler-env"
-    env.update(UV_PROJECT_ENVIRONMENT=str(venv), UV_CACHE_DIR=str(tmp_path / "cache"))
-    responses, calls = api_transport
-    responses.update(release_responses(sha))
-    selected = run_platform("version", monkeypatch, capsys)
-    assert selected["commit"] == sha
-    assert sum(url.endswith("/releases/latest") for _, url, _ in calls) == 1
-    install = [
-        bash,
-        str(site / ".github/scripts/install.sh"),
-        str(source),
-        selected["commit"],
-        sys.executable,
-    ]
-    mismatch = subprocess.run(  # noqa: S603
-        [*install[:3], "0" * 40, sys.executable],
-        env=env,
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
-    assert mismatch.returncode != 0 and not venv.exists()
-    rejected_inputs = []
-    for name in ("untracked-source-probe.txt", "ignored-source-probe.log"):
-        probe = source / "src/escaping/themes/Quiet/static" / name
-        probe.write_text("benign source identity probe\n")
-        ignored = subprocess.run(  # noqa: S603 - verify the ignored-input counterexample
-            [git, "-C", str(source), "check-ignore", "--quiet", str(probe)],
-            env=env,
-            capture_output=True,
-        )
-        assert ignored.returncode == (0 if name.endswith(".log") else 1)
-        before_source = {
-            p.relative_to(source): p.read_bytes()
-            for p in source.rglob("*")
-            if p.is_file() and ".git" not in p.relative_to(source).parts
-        }
-        rejected_venv = tmp_path / (name + "-env")
-        untracked = subprocess.run(  # noqa: S603 - real installer and real filesystem
-            install,
-            env={
-                **env,
-                "UV_PROJECT_ENVIRONMENT": str(rejected_venv),
-                "UV_CACHE_DIR": str(tmp_path / (name + "-cache")),
-            },
-            cwd=tmp_path,
+            cwd=cwd,
             capture_output=True,
             text=True,
         )
-        unchanged = before_source == {
-            p.relative_to(source): p.read_bytes()
-            for p in source.rglob("*")
-            if p.is_file() and ".git" not in p.relative_to(source).parts
-        }
-        rejected_inputs.append(
-            {
-                "name": name,
-                "exit_code": untracked.returncode,
-                "venv_created": rejected_venv.exists(),
-                "source_unchanged": unchanged,
-                "safe_diagnostic": "source contains untracked or ignored files"
-                in untracked.stderr,
-            }
-        )
-        (tmp_path / (name + "-install.log")).write_text(
-            untracked.stdout + untracked.stderr
-        )
-        probe.unlink()  # Remove only this test's own sentinel, never git clean.
-    (tmp_path / "source-guard.json").write_text(json.dumps(rejected_inputs, indent=2))
-    assert all(
-        result["exit_code"] != 0
-        and not result["venv_created"]
-        and result["source_unchanged"]
-        and result["safe_diagnostic"]
-        for result in rejected_inputs
-    ), rejected_inputs
-    installed = subprocess.run(  # noqa: S603
-        install, env=env, cwd=tmp_path, capture_output=True, text=True
-    )
-    assert installed.returncode == 0, installed.stdout + installed.stderr
-    assert sha in installed.stdout and sys.version.split()[0] in installed.stdout
-    assert "lock_sha256" in installed.stdout and "Generator:" in installed.stdout
-    source.rename(tmp_path / "source-unavailable")
-    python = venv / ("Scripts" if sys.platform == "win32" else "bin") / "python"
-    manifest = subprocess.check_output(  # noqa: S603 - installed resources, source hidden
-        [
-            str(python),
-            "-I",
-            "-c",
-            "from importlib.resources import files; "
-            "print(files('escaping').joinpath('themes/Quiet/theme.yaml').read_text(), end='')",
-        ],
-        env=env,
-        cwd=tmp_path,
-        text=True,
-    )
-    assert manifest == (_ROOT / "src/escaping/themes/Quiet/theme.yaml").read_text()
-    # Reuse the existing HTTP-only boundary, not its wheel/Theme/config matrix.
-    boundary = tmp_path / "http-boundary"
-    shutil.copytree(_ROOT / "tests/fixtures/cli_api", boundary)
-    config_root = site / "nested site"
-    config_root.mkdir()
-    config = config_root / "site.yaml"
-    config.write_text("security:\n  token_env: READ_TOKEN\npaths:\n  output: public\n")
-    context = tmp_path / "context.json"
-    prefix = "https://api.github.com/repos/" + _REPOSITORY
-    responses[prefix] = {
-        "full_name": _REPOSITORY,
-        "owner": {"login": "alice", "type": "User"},
+    finally:
+        script.unlink()
+
+
+def _fake_tools(tmp_path: Path, **files: str) -> dict[str, str]:
+    """A PATH with fake ``gh``/``uv`` in front, and their state directories."""
+    bin_dir = tmp_path / "fake-bin"
+    bin_dir.mkdir()
+    for name, body in (("gh", _FAKE_GH), ("uv", _FAKE_UV)):
+        tool = bin_dir / name
+        tool.write_text(body)
+        tool.chmod(0o755)
+    gh = tmp_path / "gh"
+    for name in ("calls", "labels", "race", "deny"):
+        (gh / name).parent.mkdir(parents=True, exist_ok=True)
+        (gh / name).write_text(files.pop(name, ""))
+    for name, body in files.items():
+        (gh / "api" / name).parent.mkdir(parents=True, exist_ok=True)
+        (gh / "api" / name).write_text(body)
+    (tmp_path / "uv").mkdir()
+    runner_temp = tmp_path / "runner-temp"
+    runner_temp.mkdir()
+    return {
+        "PATH": f"{bin_dir}{os.pathsep}{os.environ['PATH']}",
+        "HOME": str(tmp_path),
+        "FAKE_GH": str(gh),
+        "FAKE_UV": str(tmp_path / "uv"),
+        "RUNNER_TEMP": str(runner_temp),
+        "GITHUB_REPOSITORY": "alice/site",
     }
-    responses[prefix + "/pages"] = {
-        "html_url": "https://notes.example/",
-        "build_type": "workflow",
-    }
-    context.write_text(json.dumps(run_platform("context", monkeypatch, capsys)))
-    request_log = tmp_path / "requests.log"
-    step_output = tmp_path / "step-output"
-    step_output.write_text("")
-    env.update(
-        PYTHONPATH=str(boundary),
-        COMPILER_TOKEN="consumer-fixture",  # noqa: S106 - HTTP fixture credential
-        CONSUMER_REQUEST_LOG=str(request_log),
-        GITHUB_OUTPUT=str(step_output),
-        GITHUB_ACTOR="mallory",
-    )
-    command = [
-        str(python),
-        str(site / ".github/scripts/run_configured.py"),
-        str(config),
-        str(context),
-    ]
-    built = subprocess.run(  # noqa: S603
-        command, env=env, cwd=tmp_path, capture_output=True, text=True
-    )
-    assert built.returncode == 0, built.stdout + built.stderr
-    output = config_root / "public"
-    assert (output / "blog/128/index.html").is_file()
-    assert "Public profile." in (output / "about/index.html").read_text()
-    assert step_output.read_text() == f"output={output}\n"
-    assert request_log.read_text().splitlines().count("/users/alice") == 1
-    before = {
-        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
-    }
-    step_output.write_text("")
-    failed = subprocess.run(  # noqa: S603
-        command,
-        env={**env, "CONSUMER_FAIL_ISSUES": "1"},
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
-    assert failed.returncode != 0 and "FETCH_FAILED" in failed.stdout
-    assert step_output.read_text() == ""
-    assert before == {
-        p.relative_to(output): p.read_bytes() for p in output.rglob("*") if p.is_file()
+
+
+def _api(pages: dict | None) -> dict[str, str]:
+    repo = {"full_name": "alice/site", "owner": {"login": "alice", "type": "User"}}
+    files = {"repos/alice/site.json": json.dumps(repo)}
+    if pages is not None:
+        files["repos/alice/site/pages.json"] = json.dumps(pages)
+    return files
+
+
+def test_action_and_starter_pin_code_and_scope_permissions() -> None:
+    pinned = re.compile(r"[\w-]+/[\w-]+@[0-9a-f]{40}")
+    assert _ACTION["runs"]["using"] == "composite"
+    assert set(_ACTION["inputs"]) == {"config", "token"}
+    assert set(_ACTION["outputs"]) == {"output", "skipped-issues"}
+    for step in _ACTION["runs"]["steps"]:
+        if "uses" in step:
+            assert pinned.fullmatch(step["uses"]), step["uses"]
+        else:
+            # Inputs reach scripts only through env, never by interpolation.
+            assert step["shell"] == "bash" and "${{" not in step["run"]
+    build = _step(_ACTION["runs"]["steps"], "Build the site")
+    assert build["id"] == "build"
+    assert build["env"]["ESCAPING_TOKEN"] == "${{ inputs.token }}"  # noqa: S105 - Actions expression
+
+    workflow = _WORKFLOW
+    assert workflow["permissions"] == {}
+    assert workflow["concurrency"] == {"group": "pages", "cancel-in-progress": False}
+    jobs = workflow["jobs"]
+    assert {name: job["permissions"] for name, job in jobs.items()} == {
+        "labels": {"issues": "write"},
+        "build": {"contents": "read", "issues": "read", "pages": "read"},
+        "deploy": {"pages": "write", "id-token": "write"},
     }
     assert (
-        "consumer-fixture"
-        not in installed.stdout
-        + built.stdout
-        + built.stderr
-        + failed.stdout
-        + failed.stderr
+        "default_branch" in jobs["labels"]["if"] and jobs["deploy"]["needs"] == "build"
     )
-    assert all(b"consumer-fixture" not in value for value in before.values())
-    # Transport and filesystem stay real for adapter rejection paths too.
-    for overrides, environment in (
-        ("security:\n  token_env: PYTHONPATH\n", env),
-        ("security:\n  token_env: READ_TOKEN\n", {**env, "READ_TOKEN": "existing"}),
-        ("paths:\n  output: ../escape\n", env),
-        ("security:\n  token_enf: READ_TOKEN\n", env),
-    ):
-        config.write_text(overrides)
-        request_log.write_text("")
-        rejected = subprocess.run(  # noqa: S603
-            command, env=environment, cwd=tmp_path, capture_output=True, text=True
-        )
-        assert rejected.returncode != 0 and not request_log.read_text()
-        assert (
-            step_output.read_text() == ""
-            and "consumer-fixture" not in rejected.stdout + rejected.stderr
-        )
-    # The shipped {} Config also takes this adapter and the installed CLI path.
-    command[-2] = str(site / "config.yaml")
-    minimal = subprocess.run(  # noqa: S603
-        command,
-        env={**env, "GITHUB_TOKEN": "old-value"},
-        cwd=tmp_path,
-        capture_output=True,
-        text=True,
-    )
-    assert minimal.returncode == 0, minimal.stdout + minimal.stderr
-    default_output = site / "output"
-    assert (default_output / "blog/128/index.html").is_file()
-    assert (default_output / "templates/Quiet/static/css/style.css").is_file()
-    home = (default_output / "index.html").read_text()
-    assert 'href="/templates/Quiet/static/css/style.css"' in home
-    # A single default-delivery smoke, not a second Theme/navigation matrix.
-    assert 'class="site-rail"' not in home and 'href="/blog/"' in home
-    blog = (default_output / "blog/index.html").read_text()
-    menu = re.search(r'<nav id="site-navigation"[^>]*>(.*?)</nav>', blog, re.S)
-    assert menu is not None
-    links = re.findall(r'<a\b[^>]*href="([^"]+)"[^>]*>\s*([^<]+)', menu[1])
-    assert [(url, name.strip()) for url, name in links] == [
-        ("/", "Home"),
-        ("/blog/", "Blog"),
-        ("/projects/", "Projects"),
-        ("/tags/", "Tags"),
-        ("/about/", "About"),
-        ("/atom.xml", "RSS"),
+    assert jobs["build"]["if"] == jobs["labels"]["if"]
+    version = tomllib.loads((_ROOT / "pyproject.toml").read_text())["project"][
+        "version"
     ]
-    for url, _ in links:
-        route = url.lstrip("/") + ("index.html" if url.endswith("/") else "")
-        assert (default_output / route).is_file()
-    default_files = {
-        p.relative_to(default_output): p.read_bytes()
-        for p in default_output.rglob("*")
-        if p.is_file()
-    }
-    for path, body in default_files.items():
-        assert b"consumer-fixture" not in body
-        if path.suffix == ".html":
-            assert all(
-                marker not in body
-                for marker in (
-                    b"comments.js",
-                    b"data-issue-number",
-                    b"utteranc.es",
-                    b'id="comments"',
-                )
-            )
-    assert "consumer-fixture" not in minimal.stdout + minimal.stderr
-    assert step_output.read_text() == f"output={default_output}\n"
-    (tmp_path / "delivery.log").write_text(
-        installed.stdout
-        + installed.stderr
-        + "Installed Quiet manifest:\n"
-        + manifest
-        + built.stdout
-        + failed.stdout
-        + minimal.stdout
-        + "Verified default delivery: Quiet / Theme API 2 / comments off / seven menu targets exist.\n"
+    for job in jobs.values():
+        for step in job["steps"]:
+            assert "continue-on-error" not in step
+            if "run" in step:
+                assert "${{" not in step["run"]
+            uses = step.get("uses", "")
+            if uses.startswith("geoqiao/escaping@"):
+                assert uses == f"geoqiao/escaping@v{version}"
+            elif uses:
+                assert pinned.fullmatch(uses), uses
+            if uses.startswith("actions/checkout@"):
+                assert step["with"]["persist-credentials"] is False
+    upload = jobs["build"]["steps"][-1]
+    assert upload["with"]["path"] == "${{ steps.site.outputs.output }}"
+    assert yaml.safe_load((_STARTER / "config.yaml").read_text()) == {}
+    template = (_STARTER / ".github/ISSUE_TEMPLATE/write.md").read_text()
+    assert "labels" not in yaml.safe_load(template.split("---")[1])
+
+
+@pytest.mark.parametrize(
+    "pages",
+    [
+        {"html_url": "https://notes.example/", "build_type": "workflow"},
+        None,  # Pages not enabled
+        {"html_url": "https://alice.github.io/", "build_type": "legacy"},
+    ],
+    ids=["actions-pages", "no-pages", "branch-pages"],
+)
+def test_context_step_reads_repository_and_requires_actions_pages(
+    tmp_path: Path, pages: dict | None
+) -> None:
+    env = _fake_tools(tmp_path, **_api(pages))
+    env["GH_TOKEN"] = _TOKEN
+    step = _step(_ACTION["runs"]["steps"], "Read the repository and Pages settings")
+    result = _run(step, env, tmp_path)
+    context = Path(env["RUNNER_TEMP"]) / "escaping-context.json"
+    calls = Path(env["FAKE_GH"], "calls").read_text()
+    assert _TOKEN not in result.stdout + result.stderr + calls
+    assert "token=set" in calls
+    if pages is None or pages["build_type"] != "workflow":
+        assert result.returncode == 1 and not context.exists()
+        assert "::error title=GitHub Pages::" in result.stdout
+        assert "Source to GitHub Actions" in result.stdout
+        return
+    assert result.returncode == 0, result.stderr
+    platform = read_platform_context(context)
+    assert platform.repository == "alice/site" and platform.owner_login == "alice"
+    assert platform.owner_type == "User"
+    assert str(platform.pages_base_url) == "https://notes.example/"
+    assert platform.pages_base_path == "/"
+
+
+@pytest.mark.parametrize(("status", "expected"), [(0, 0), (2, 0), (1, 1)])
+def test_build_step_passes_inputs_as_arguments_and_maps_skipped_to_success(
+    tmp_path: Path, status: int, expected: int
+) -> None:
+    env = _fake_tools(tmp_path)
+    runner_temp = env["RUNNER_TEMP"]
+    env.update(
+        FAKE_UV_STATUS=str(status),
+        GITHUB_ACTION_PATH="/actions/escaping",
+        ESCAPING_CONFIG="my site/config.yaml",
+        ESCAPING_TOKEN=_TOKEN,
+        UV_PROJECT_ENVIRONMENT=f"{runner_temp}/escaping-venv",
     )
+    result = _run(_step(_ACTION["runs"]["steps"], "Build the site"), env, tmp_path)
+    assert result.returncode == expected, result.stderr
+    args = Path(env["FAKE_UV"], "args").read_text().splitlines()
+    assert args == [
+        "run",
+        "--project",
+        "/actions/escaping",
+        "--locked",
+        "--python",
+        "3.14",
+        "--no-default-groups",
+        "--group",
+        "build",
+        "--no-build-isolation-package",
+        "escpe",
+        "escpe",
+        "build",
+        "--config",
+        "my site/config.yaml",
+        "--context",
+        f"{runner_temp}/escaping-context.json",
+        "--token-env",
+        "ESCAPING_TOKEN",
+    ]
+    assert Path(env["FAKE_UV"], "env").read_text() == (
+        f"venv={runner_temp}/escaping-venv token=set\n"
+    )
+
+
+def test_label_job_creates_only_missing_labels_and_tolerates_races(
+    tmp_path: Path,
+) -> None:
+    step = _step(
+        _WORKFLOW["jobs"]["labels"]["steps"], "Create missing publishing labels"
+    )
+    env = _fake_tools(tmp_path, labels="Published\nbug\n", race="type:idea\n")
+    env["GITHUB_STEP_SUMMARY"] = str(tmp_path / "summary.md")
+    result = _run(step, env, tmp_path)
+    assert result.returncode == 0, result.stderr
+    labels = Path(env["FAKE_GH"], "labels").read_text().splitlines()
+    assert labels == ["Published", "bug", "type:blog", "type:idea", "type:about"]
+    assert "Publishing labels are ready" in (tmp_path / "summary.md").read_text()
+
+    (tmp_path / "denied").mkdir()
+    denied = _fake_tools(tmp_path / "denied", deny="type:blog\n")
+    denied["GITHUB_STEP_SUMMARY"] = str(tmp_path / "denied-summary.md")
+    result = _run(step, denied, tmp_path / "denied")
+    assert result.returncode != 0
+    assert not (tmp_path / "denied-summary.md").exists()
+
+
+def test_action_builds_the_starter_site_end_to_end(
+    tmp_path: Path, source_snapshot: Path
+) -> None:
+    """Real uv installs this checkout as the Action and builds via the HTTP fixture."""
+    uv = shutil.which("uv")
+    assert uv and shutil.which("jq")
+    site = tmp_path / "site"
+    shutil.copytree(_STARTER, site)
+    fakes = _fake_tools(
+        tmp_path,
+        **_api({"html_url": "https://notes.example/", "build_type": "workflow"}),
+    )
+    # A clean runner-like environment: nothing from the outer uv, pytest or CI job.
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith(("UV_", "PYTHON", "GITHUB_", "RUNNER_", "CONSUMER_"))
+        and key not in {"VIRTUAL_ENV", "GH_TOKEN", "GITHUB_TOKEN"}
+    }
+    if "UV_CACHE_DIR" in os.environ:
+        env["UV_CACHE_DIR"] = os.environ["UV_CACHE_DIR"]
+    runner_temp = fakes["RUNNER_TEMP"]
+    output_file, summary = tmp_path / "github-output", tmp_path / "summary.md"
+    request_log = tmp_path / "requests.log"
+    env.update(
+        PATH=f"{Path(uv).parent}{os.pathsep}{env['PATH']}",
+        FAKE_GH=fakes["FAKE_GH"],
+        RUNNER_TEMP=runner_temp,
+        GITHUB_REPOSITORY="alice/site",
+        GITHUB_ACTIONS="true",
+        GITHUB_ACTOR="mallory",
+        GITHUB_ACTION_PATH=str(source_snapshot),
+        GITHUB_OUTPUT=str(output_file),
+        GITHUB_STEP_SUMMARY=str(summary),
+        GH_TOKEN=_TOKEN,
+        ESCAPING_CONFIG="config.yaml",
+        ESCAPING_TOKEN=_TOKEN,
+        UV_PROJECT_ENVIRONMENT=f"{runner_temp}/escaping-venv",
+        PYTHONPATH=str(_ROOT / "tests/fixtures/cli_api"),
+        CONSUMER_REQUEST_LOG=str(request_log),
+    )
+    steps = _ACTION["runs"]["steps"]
+    context_env = {**env, "PATH": fakes["PATH"]}
+    context = _run(
+        _step(steps, "Read the repository and Pages settings"), context_env, site
+    )
+    assert context.returncode == 0, context.stderr
+    built = _run(_step(steps, "Build the site"), env, site)
+    assert built.returncode == 0, built.stdout + built.stderr
+
+    output = site / "output"
+    assert output_file.read_text() == f"output={output}\nskipped-issues=\n"
+    assert (output / ".escaping-output").is_file()
+    post = (output / "blog/128/index.html").read_text()
+    assert '<link rel="canonical" href="https://notes.example/blog/128/"' in post
+    assert not (output / "blog/129").exists()  # mallory is not an allowed author
+    assert "Public profile." in (output / "about/index.html").read_text()
+    assert (output / "assets/css/style.css").is_file()
+    assert (output / "assets/escaping/mermaid/mermaid.min.js").is_file()
+    assert "Published output/." in summary.read_text()
+    assert request_log.read_text().splitlines().count("/users/alice") == 1
+
+    before = {p: p.read_bytes() for p in output.rglob("*") if p.is_file()}
+    output_file.write_text("")
+    failed = _run(
+        _step(steps, "Build the site"), {**env, "CONSUMER_FAIL_ISSUES": "1"}, site
+    )
+    assert failed.returncode == 1
+    assert "::error title=FETCH_FAILED::" in failed.stdout
+    assert output_file.read_text() == ""
+    assert before == {p: p.read_bytes() for p in output.rglob("*") if p.is_file()}
+
+    logs = context.stdout + context.stderr + built.stdout + built.stderr
+    logs += failed.stdout + failed.stderr + summary.read_text()
+    assert _TOKEN not in logs
+    assert all(_TOKEN.encode() not in body for body in before.values())

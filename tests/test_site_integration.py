@@ -1,638 +1,364 @@
+"""SiteCompiler end-to-end tracers and the rendered-artifact validator."""
+
 from __future__ import annotations
 
-import json
-import re
-import shutil
 import xml.etree.ElementTree as ET
-from dataclasses import replace
+from collections.abc import Callable, Sequence
 from datetime import UTC, datetime
 from functools import partial
-from html import unescape
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from threading import Thread
+from typing import Any
 from urllib.error import HTTPError
 from urllib.request import urlopen
 
 import pytest
-from jinja2 import ChoiceLoader, DictLoader, UndefinedError
 
 from escaping.artifact_validation import SiteArtifactValidator
-from escaping.config import LocalThemeConfig, Settings
-from escaping.content_compiler import ContentCompiler
-from escaping.models.content import AboutPage
+from escaping.build_result import BuildResult
+from escaping.config import Settings
 from escaping.models.issue_snapshot import IssueSnapshot
 from escaping.models.site import SiteModel
-from escaping.projects import ProjectCompiler
-from escaping.routes import RouteRegistry
-from escaping.services.render_service import RenderService
-from escaping.site_builder import SiteBuilder
-from escaping.site_compiler import SiteCompiler
-from escaping.theme import ThemeLoader
+from escaping.output_staging import OUTPUT_MARKER
+from escaping.site_compiler import (
+    SiteCompiler,
+    check_theme,
+    compile_site,
+    prepare_theme,
+    render_site,
+)
 
-_ROOT = Path(__file__).parent.parent.absolute()
+_SITEMAP_LOC = "{http://www.sitemaps.org/schemas/sitemap/0.9}loc"
+_ATOM_ID = "{http://www.w3.org/2005/Atom}entry/{http://www.w3.org/2005/Atom}id"
+_UNICODE_TAG = "/tags/%E7%A4%BA%E4%BE%8B-%E6%A0%87%E7%AD%BE/"
 
 
-@pytest.mark.parametrize("theme", ["Quiet", "independent"])
-def test_search_artifact_indexes_only_public_content_with_canonical_destinations(
-    tmp_path: Path, theme: str
-) -> None:
-    settings = _settings(theme)
-    public = replace(
-        _snapshot(1, "blog", "", labels=("tag:python",)),
-        title="中文 Python <img src=x onerror=alert(1)>",
-        body='A `<button>` & "quoted" summary.',
-    )
-    snapshots = [
-        public,
-        replace(public, number=3, labels=("type:blog",), title="PRIVATE DRAFT"),
-        replace(public, number=4, author="stranger", title="UNTRUSTED AUTHOR"),
-        _snapshot(2, "idea", "", labels=("tag:tools",)),
-        _snapshot(10, "about", ""),
-    ]
-    routes = RouteRegistry(str(settings.site.url))
-    content = ContentCompiler(settings, route_registry=routes).compile(snapshots)
-    site = SiteBuilder(settings, routes).build(
-        content,
-        ProjectCompiler().compile(settings.projects, route=routes.projects()),
-        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
-    )
-    assert not site.has_errors
-    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
-    renderer.copy_theme_assets(tmp_path)
-    artifacts = renderer.render_site(site)
-    for name, text in artifacts.items():
-        path = tmp_path / name
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(text, encoding="utf-8")
-    index = json.loads((tmp_path / "search.json").read_text())
-    assert index["version"] == 1
-    assert index["items"] == [
+def _settings(**overrides: object) -> Settings:
+    return Settings.model_validate(
         {
-            "title": public.title,
-            "description": site.blogs[0].description,
-            "tags": ["python"],
-            "type": "Blog",
-            "url": site.blogs[0].route.canonical_path,
-        },
-        {
-            "title": "An Idea",
-            "description": site.ideas[0].description,
-            "tags": ["tools"],
-            "type": "Idea",
-            "url": site.ideas[0].route.canonical_path,
-        },
-        {
-            "title": "Escaping",
-            "description": "A strict static site compiler.",
-            "tags": [],
-            "type": "Project",
-            "url": "https://github.com/geoqiao/escaping",
-        },
-    ]
-    assert "search.json" not in artifacts["sitemap.xml"]
-    assert not SiteArtifactValidator(site).validate(tmp_path)
-    # An injected draft / modified destination cannot pass staged publication.
-    index["items"][0]["url"] = "javascript:alert(1)"
-    (tmp_path / "search.json").write_text(json.dumps(index))
-    assert "SEARCH_INDEX_MISMATCH" in {
-        d.code for d in SiteArtifactValidator(site).validate(tmp_path)
-    }
-    (tmp_path / "search.json").write_text("not json")
-    assert "INVALID_SEARCH_INDEX" in {
-        d.code for d in SiteArtifactValidator(site).validate(tmp_path)
-    }
-
-
-def _settings(
-    theme: str = "Quiet",
-    *,
-    profile_avatar: str = "",
-    social_image: str | None = None,
-    social_image_alt: str | None = None,
-) -> Settings:
-    data: dict[str, object] = {
-        "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
-        "site": {
-            "title": "geoqiao.me",
-            "author": "geoqiao",
-            "url": "https://geoqiao.me/",
-            "description": "A strict personal site.",
-            "navigation": {
-                "items": [
-                    {"name": "Blog", "url": "/blog/"},
-                    {"name": "Ideas", "url": "/ideas/"},
-                    {"name": "Projects", "url": "/projects/"},
-                    {"name": "Tags", "url": "/tags/"},
-                    {"name": "About", "url": "/about/"},
-                ]
+            "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
+            "site": {
+                "title": "geoqiao.me",
+                "author": "geoqiao",
+                "url": "https://geoqiao.me/",
+                "description": "A strict personal site.",
             },
-        },
-        "about": {"issue_number": 10},
-        "security": {"token_env": "TEST_TOKEN"},
-        "comments": {"enabled": True},
-        "theme": {
-            "source": "local",
-            "name": theme,
-            "path": "tests/fixtures/independent_theme",
+            "about": {"issue_number": 10},
+            "comments": {"enabled": True},
+            "projects": [{"repository": "geoqiao/escaping", "summary": "A compiler."}],
+            **overrides,
         }
-        if theme == "independent"
-        else {"source": "builtin", "name": theme},
-        "projects": [
-            {
-                "slug": "escaping",
-                "title": "Escaping",
-                "repository": "geoqiao/escaping",
-                "summary": "A strict static site compiler.",
-                "featured": True,
-            }
-        ],
-    }
-    if profile_avatar:
-        data["profile"] = {"avatar": profile_avatar}
-    if social_image is not None or social_image_alt is not None:
-        data["seo"] = {
-            "social_image": social_image or "",
-            "social_image_alt": social_image_alt or "",
-        }
-    return Settings.model_validate(data)
+    )
 
 
 def _snapshot(
-    number: int, kind: str, metadata: str, *, labels: tuple[str, ...] = ()
+    number: int,
+    kind: str,
+    body: str = "A **safe** body.",
+    *,
+    labels: tuple[str, ...] = (),
+    title: str | None = None,
 ) -> IssueSnapshot:
     created = datetime(2026, 1, number, 12, tzinfo=UTC)
     return IssueSnapshot(
-        number=number,
-        title={"blog": "A Blog", "idea": "An Idea", "about": "About"}[kind],
-        author="geoqiao",
-        body=(
-            f"---\n{metadata}\n---\n\n# Content\n\nA **safe** body."
-            + ("\n\n```yaml\n---\nslug: example\n---\n```" if kind == "blog" else "")
-        ),
-        labels=(f"type:{kind}", "published", *labels),
-        created_at=created,
-        updated_at=created,
-        is_pull_request=False,
+        number,
+        title or f"{kind.title()} {number}",
+        "geoqiao",
+        body,
+        (f"type:{kind}", "published", *labels),
+        created,
+        created,
+        False,
     )
 
 
-def _render_representative_site(
-    settings: Settings, tmp_path: Path, *, body: str | None = None
-) -> SiteModel:
+_CONTENT = (
+    _snapshot(
+        1,
+        "blog",
+        "---\nslug: hello\n---\n\nHello.",
+        labels=("tag:Python", "tag:示例 标签"),
+    ),
+    _snapshot(5, "idea", "An idea."),
+    _snapshot(10, "about", "About me."),
+)
+
+
+class _Issues:
+    """An Issue source that records whether the build asked for Issues."""
+
+    def __init__(self, snapshots: Sequence[IssueSnapshot]) -> None:
+        self.snapshots = list(snapshots)
+        self.calls = 0
+
+    def __call__(self) -> list[IssueSnapshot]:
+        self.calls += 1
+        return self.snapshots
+
+
+def _generate(
+    root: Path, snapshots: Sequence[IssueSnapshot], settings: Settings | None = None
+) -> tuple[BuildResult, _Issues]:
+    issues = _Issues(snapshots)
+    compiler = SiteCompiler(settings or _settings(), config_root=root, issues=issues)
+    return compiler.generate(), issues
+
+
+def _theme(
+    root: Path, files: dict[str, str], manifest: str = "", where: str = "theme"
+) -> str:
+    """Write a local Theme next to the Config; returns its ``theme.use``."""
+    theme = root / where
+    theme.mkdir(parents=True)
+    (theme / "theme.yaml").write_text(
+        manifest or "api: 3\nextends: quiet\n", encoding="utf-8"
+    )
+    for name, text in files.items():
+        (theme / name).write_text(text, encoding="utf-8")
+    return f"./{where}"
+
+
+def _sitemap(output: Path) -> list[str]:
+    root = ET.fromstring((output / "sitemap.xml").read_bytes())  # noqa: S314
+    return [loc.text or "" for loc in root.iter(_SITEMAP_LOC)]
+
+
+def test_build_publishes_the_site_and_skips_only_broken_issues(
+    tmp_path: Path,
+) -> None:
     snapshots = [
-        _snapshot(
-            1,
-            "blog",
-            'slug: a-blog\ndescription: A blog description.\ncreated_date: "2026-01-01"',
-            labels=("tag:python",),
-        ),
-        _snapshot(
-            2,
-            "idea",
-            'description: An idea description.\ncreated_date: "2026-01-02"',
-            labels=("tag:tools",),
-        ),
-        _snapshot(
-            10,
-            "about",
-            'description: About description.\ncreated_date: "2026-01-03"',
-        ),
+        *_CONTENT,
+        _snapshot(2, "blog", "---\nslug: hello\n---\n\nImpostor.", title="Impostor"),
+        _snapshot(3, "idea", "---\nunknown: x\n---\n\nIdea."),
+        _snapshot(4, "blog", "Bad tag.", labels=("tag:C++",)),
     ]
-    if body is not None:
-        snapshots = [
-            replace(
-                snapshot, body=snapshot.body.split("\n---\n", 1)[0] + "\n---\n\n" + body
-            )
-            for snapshot in snapshots
-        ]
-    routes = RouteRegistry(str(settings.site.url))
-    content = ContentCompiler(settings, route_registry=routes).compile(snapshots)
-    site = SiteBuilder(settings, route_registry=routes).build(
-        content,
-        ProjectCompiler().compile(settings.projects, route=routes.projects()),
+
+    result, _ = _generate(tmp_path, snapshots)
+
+    assert result.success, result.diagnostics
+    assert result.skipped_issues == (2, 3, 4)
+    assert {
+        (d.code, d.issue_number) for d in result.diagnostics if d.severity == "error"
+    } == {
+        ("SLUG_DUPLICATE", 2),
+        ("FRONT_MATTER_UNKNOWN_FIELD", 3),
+        ("TAG_INVALID", 4),
+    }
+    output = tmp_path / "output"
+    for name in (
+        OUTPUT_MARKER,
+        "index.html",
+        "blog/index.html",
+        "blog/hello/index.html",
+        "ideas/index.html",
+        "ideas/5/index.html",
+        "about/index.html",
+        "projects/index.html",
+        "tags/index.html",
+        "tags/python/index.html",
+        "tags/示例-标签/index.html",
+        "404.html",
+        "atom.xml",
+        "robots.txt",
+        "search.json",
+        "assets/css/style.css",
+        "assets/escaping/comments.js",
+    ):
+        assert (output / name).is_file(), name
+    assert not (output / "ideas/3").exists()
+    post = (output / "blog/hello/index.html").read_text(encoding="utf-8")
+    assert "Hello." in post and "Impostor" not in post
+    assert f'href="{_UNICODE_TAG}"' in post
+    locs = _sitemap(output)
+    assert locs[0] == "https://geoqiao.me/" and len(locs) == len(set(locs))
+    assert f"https://geoqiao.me{_UNICODE_TAG}" in locs
+    assert not [loc for loc in locs if loc.endswith((".xml", ".txt", ".json"))]
+    feed = ET.fromstring((output / "atom.xml").read_bytes())  # noqa: S314
+    assert [e.text for e in feed.findall(_ATOM_ID)] == [
+        "https://geoqiao.me/blog/hello/"
+    ]
+
+
+def _unowned_output(root: Path) -> dict[str, Any]:
+    (root / "output").mkdir()
+    (root / "output" / "notes.md").write_text("mine", encoding="utf-8")
+    return {}
+
+
+def _theme_in_output(root: Path) -> dict[str, Any]:
+    use = _theme(root, {}, where="public/theme")
+    (root / "public" / OUTPUT_MARKER).write_text("", encoding="utf-8")
+    return {"theme": {"use": use}, "paths": {"output": "public"}}
+
+
+@pytest.mark.parametrize(
+    ("prepare", "code", "problem"),
+    [
+        (
+            lambda root: {"theme": {"use": "quiet", "options": {"taglin": "x"}}},
+            "THEME_INVALID",
+            "theme.options.taglin",
+        ),
+        (
+            lambda root: {"theme": {"use": _theme(root, {}, "api: 3\n")}},
+            "THEME_INVALID",
+            "missing template home.html",
+        ),
+        (lambda root: {"paths": {"output": ".."}}, "OUTPUT_UNSAFE", "(..)"),
+        (_unowned_output, "OUTPUT_UNSAFE", "did not create"),
+        (_theme_in_output, "OUTPUT_UNSAFE", "would delete the Theme"),
+    ],
+    ids=["option", "template", "outside", "unowned", "theme-in-output"],
+)
+def test_local_problems_fail_before_any_issue_is_read(
+    tmp_path: Path,
+    prepare: Callable[[Path], dict[str, Any]],
+    code: str,
+    problem: str,
+) -> None:
+    settings = _settings(**prepare(tmp_path))
+    before = sorted(tmp_path.rglob("*"))
+
+    result, issues = _generate(tmp_path, _CONTENT, settings)
+
+    assert not result.success and issues.calls == 0
+    assert {d.code for d in result.diagnostics} == {code}
+    assert any(problem in d.message for d in result.diagnostics)
+    assert sorted(tmp_path.rglob("*")) == before
+
+
+def test_theme_pages_and_navigation_reach_the_output(tmp_path: Path) -> None:
+    template = (
+        '{% extends "base.html" %}{% block content %}'
+        '<h1>{{ page.project.title if page.project else "Now" }}</h1>'
+        "{% endblock %}"
+    )
+    use = _theme(
+        tmp_path,
+        {"now.html": template, "work.html": template},
+        "api: 3\nextends: quiet\npages:\n"
+        "  - path: /now/\n    template: now.html\n"
+        "  - path: /work/{slug}/\n    template: work.html\n    for_each: projects\n",
+    )
+    site = _settings().model_dump()["site"]
+    site["navigation"] = {"items": [{"name": "Now", "url": "/now/"}]}
+    settings = _settings(
+        site=site,
+        theme={"use": use},
+        projects=[
+            {"repository": "geoqiao/escaping"},
+            {"website": "https://example.org/", "slug": "site", "title": "Site"},
+        ],
+    )
+
+    result, _ = _generate(tmp_path, _CONTENT, settings)
+
+    assert result.success, result.diagnostics
+    output = tmp_path / "output"
+    assert "<h1>Now</h1>" in (output / "now/index.html").read_text(encoding="utf-8")
+    assert "<h1>Site</h1>" in (output / "work/site/index.html").read_text(
+        encoding="utf-8"
+    )
+    projects = (output / "projects/index.html").read_text(encoding="utf-8")
+    assert 'href="/work/escaping/"' in projects and 'href="/work/site/"' in projects
+    assert 'href="/now/"' in (output / "blog/index.html").read_text(encoding="utf-8")
+    assert {"https://geoqiao.me/now/", "https://geoqiao.me/work/site/"} <= set(
+        _sitemap(output)
+    )
+
+
+def _rendered(root: Path) -> tuple[SiteModel, Path]:
+    """A valid Quiet site rendered into ``root/candidate``."""
+    settings = _settings()
+    theme, options = prepare_theme(settings, root)
+    site = compile_site(
+        settings,
+        _CONTENT,
+        theme,
+        project_enricher=None,
         build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
     )
-    assert not site.has_errors
-    assert site.home.route is site.routes.route("home")
-    assert site.blogs[0].route is site.routes.route("blog-detail-a-blog")
-    assert site.archives[0].route is site.routes.route("blog")
-    assert site.ideas[0].route is site.routes.route("idea-2")
-    assert site.about is not None
-    assert site.about.route is site.routes.route("about")
-    assert site.projects.route is site.routes.route("projects")
-    assert site.tags.route is site.routes.route("tags")
-    assert site.tag_archives[0].route is site.routes.route("tag-python")
-    assert site.feed.route is site.routes.route("atom")
-    assert site.metadata.title == settings.site.title
-    assert site.metadata.comments.repo == settings.github.repo
-    assert site.metadata.theme.name == settings.theme.name
-
-    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
-    renderer.copy_theme_assets(tmp_path)
-    for output_path, html in renderer.render_site(site).items():
-        path = tmp_path / output_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(html, encoding="utf-8")
-    return site
+    assert not site.has_errors, site.diagnostics
+    candidate = root / "candidate"
+    candidate.mkdir()
+    render_site(candidate, site, theme, options)
+    assert SiteArtifactValidator(site).validate(candidate) == []
+    return site, candidate
 
 
-@pytest.mark.parametrize(
-    "about_body", ["About body.", "![Picture](https://example.org/p.png)"]
-)
-def test_defaults_reach_complete_artifacts_with_safe_summaries_and_native_times(
-    tmp_path: Path, about_body: str
-) -> None:
-    created = datetime.fromisoformat("2026-01-02T00:30:00+02:00")
-    updated = datetime(2026, 2, 1, tzinfo=UTC)
-    summary = 'Use <button> & "</script><script>x".'
-    snapshots = [
-        replace(
-            _snapshot(1, "blog", ""),
-            body='Use `<button>` & "`</script><script>x`".',
-            created_at=created,
-            updated_at=updated,
-        ),
-        replace(
-            _snapshot(3, "blog", ""),
-            body='---\ncreated_date: "2000-02-29"\n---\n\nNewer post.',
-        ),
-        replace(_snapshot(2, "idea", "", labels=("tag:idea-only",)), body="Idea body."),
-        replace(_snapshot(10, "about", ""), body=about_body),
-    ]
-
-    class Source:
-        def get_repo(self, name: str) -> object:
-            return object()
-
-        def fetch_issue_snapshots(self, repo: object) -> list[IssueSnapshot]:
-            return snapshots
-
-    settings = _settings().model_copy(update={"projects": []})
-    result = SiteCompiler(
-        "unused",
-        settings.github.repo,
-        settings,
-        config_root=tmp_path,
-        github_service=Source(),
-    ).generate()
-    assert result.success, result.diagnostics
-    output = tmp_path / settings.paths.output
-    blog = (output / "blog/1/index.html").read_text()
-    for key in (
-        'name="description"',
-        'property="og:description"',
-        'name="twitter:description"',
-    ):
-        meta = re.search(rf'<meta {key} content="([^"]*)">', blog)
-        assert meta is not None and unescape(meta[1]) == summary
-    assert '<time datetime="2026-01-01">' in blog
-    assert 'data-issue-number="1"' in blog
-    script = re.search(
-        r'<script type="application/ld\+json">(.*?)</script>', blog, re.DOTALL
-    )
-    assert script is not None and json.loads(script[1])["description"] == summary
-    assert "</script><script>x" not in blog
-    feed = ET.fromstring((output / "atom.xml").read_bytes())  # noqa: S314 - locally generated XML
-    ns = {"a": "http://www.w3.org/2005/Atom"}
-    entries = feed.findall("a:entry", ns)
-    assert [entry.findtext("a:id", namespaces=ns) for entry in entries] == [
-        "https://geoqiao.me/blog/3/",
-        "https://geoqiao.me/blog/1/",
-    ]
-    assert entries[1].findtext("a:summary", namespaces=ns) == summary
-    assert entries[1].findtext("a:published", namespaces=ns) == "2026-01-01T22:30:00Z"
-    assert entries[1].findtext("a:updated", namespaces=ns) == "2026-02-01T00:00:00Z"
-    assert feed.findtext("a:updated", namespaces=ns) == "2026-02-01T00:00:00Z"
-    archive = (output / "blog/index.html").read_text()
-    assert archive.index('href="/blog/3/"') < archive.index('href="/blog/1/"')
-    assert '<time datetime="2000-02-29">' in (output / "blog/3/index.html").read_text()
-    assert (output / "ideas/2/index.html").exists()
-    assert not (output / "tags/idea-only").exists()
-    about = (output / "about/index.html").read_text()
-    expected_about = "About body." if about_body == "About body." else ""
-    assert f'<meta name="description" content="{expected_about}">' in about
-
-
-def test_representative_content_compiles_to_valid_complete_artifact(
-    tmp_path: Path,
-) -> None:
-    settings = _settings()
-    site = _render_representative_site(settings, tmp_path)
-    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
-    assert diagnostics == []
-    assert (tmp_path / "blog" / "a-blog" / "index.html").exists()
-    assert (tmp_path / "ideas" / "2" / "index.html").exists()
-    assert (tmp_path / "about" / "index.html").exists()
-    assert (tmp_path / "projects" / "index.html").exists()
-    assert not (tmp_path / "blog" / "a-blog.html").exists()
-    for output_path, destination in (
-        ("index.html", "/blog/"),
-        ("blog/index.html", "/"),
-    ):
-        rendered = (tmp_path / output_path).read_text(encoding="utf-8")
-        assert re.search(rf'<a\b[^>]*\bhref="{destination}"', rendered)
-        assert not re.search(r'<a\b[^>]*\bhref="https://geoqiao.me/"', rendered)
-
-
-def test_root_relative_social_image_is_normalized_and_missing_resource_fails(
-    tmp_path: Path,
-) -> None:
-    settings = _settings(
-        social_image="/templates/Quiet/static/images/og.png",
-        social_image_alt="Site preview",
-    )
-    site = _render_representative_site(settings, tmp_path)
-
-    assert site.metadata.social_image == (
-        "https://geoqiao.me/templates/Quiet/static/images/og.png"
-    )
-    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
-    assert any(
-        diagnostic.code == "MISSING_ASSET" and "og.png" in diagnostic.message
-        for diagnostic in diagnostics
-    )
-
-
-def test_local_api2_theme_may_ignore_social_image_fields(tmp_path: Path) -> None:
-    site = _render_representative_site(
-        _settings(
-            "independent",
-            social_image="https://raw.githubusercontent.com/owner/site/abc/og.png",
-            social_image_alt="Site preview",
-        ),
-        tmp_path,
-    )
-    combined = "\n".join(
-        path.read_text(encoding="utf-8") for path in tmp_path.rglob("*.html")
-    )
-
-    assert 'property="og:image"' not in combined
-    assert 'name="twitter:image"' not in combined
-    assert SiteArtifactValidator(site).validate(tmp_path) == []
-
-
-@pytest.mark.parametrize("theme", ["Quiet", "independent"])
-def test_front_matter_source_is_separate_from_rendered_body(
-    theme: str, tmp_path: Path
-) -> None:
-    body = "Body sentinel.\n\n```yaml\n---\nslug: literal\n---\n```"
-    site = _render_representative_site(_settings(theme), tmp_path, body=body)
-    assert isinstance(site.about, AboutPage)
-    for page in (*site.blogs, *site.ideas, site.about):
-        body_tree = ET.fromstring(f"<div>{page.body_html}</div>")  # noqa: S314
-        assert body_tree.findtext("p") == "Body sentinel."
-        code = body_tree.find("pre/code")
-        assert code is not None
-        assert "".join(code.itertext()) == "---\nslug: literal\n---\n"
-        rendered = (tmp_path / page.route.output_path).read_text(encoding="utf-8")
-        assert page.body_html in rendered
-        assert "created_date:" not in rendered
-        assert "description:" not in rendered
-    assert SiteArtifactValidator(site).validate(tmp_path) == []
-
-    # A Theme cannot accidentally select the original Issue envelope: its only
-    # body input is compiled body_html, not an IssueSnapshot or raw Markdown.
-    renderer = RenderService(ThemeLoader(_ROOT).load(_settings(theme).theme))
-    assert renderer.env.loader is not None
-    renderer.env.loader = ChoiceLoader(
-        [DictLoader({"post.html": "{{ post.body | safe }}"}), renderer.env.loader]
-    )
-    with pytest.raises(UndefinedError, match="body"):
-        renderer.render_site(site)
-
-
-@pytest.mark.parametrize(
-    "body",
-    [
-        "slug: is the URL identifier, explained here.",
-        "created_date: is the original writing date.",
-        "Before.\n\n---\n\nAfter.",
-        "<p>---</p>",
-    ],
-)
-def test_authored_metadata_terms_and_separators_are_not_leaks(
-    body: str, tmp_path: Path
-) -> None:
-    site = _render_representative_site(_settings(), tmp_path, body=body)
-    assert SiteArtifactValidator(site).validate(tmp_path) == []
-
-
-def _replace_json_ld(path: Path, value: object) -> None:
-    html = path.read_text(encoding="utf-8")
-    updated, count = re.subn(
-        r'(<script type="application/ld\+json">).*?(</script>)',
-        lambda match: match[1] + json.dumps(value) + match[2],
-        html,
-        count=1,
-        flags=re.DOTALL,
-    )
-    assert count == 1
-    path.write_text(updated, encoding="utf-8")
-
-
-@pytest.mark.parametrize("graph", [False, True])
-def test_json_ld_page_url_is_distinct_from_referenced_entity_urls(
-    graph: bool, tmp_path: Path
-) -> None:
-    site = _render_representative_site(_settings(), tmp_path)
-    post = site.blogs[0]
-    path = tmp_path / post.route.output_path
-    author = {"@type": "Person", "@id": "#author", "url": "https://geoqiao.me/about/"}
-    website = {"@type": "WebSite", "url": "https://geoqiao.me/"}
-    related = {
-        "@type": "BlogPosting",
-        "@id": "#related",
-        "url": "https://other.example/post/",
-        "mainEntityOfPage": "https://other.example/post/",
-    }
-    article = {
-        "@id": post.route.canonical_url,
-        "@type": "BlogPosting",
-        "url": post.route.canonical_url,
-        "author": author,
-        "isPartOf": website,
-        "citation": {"@id": "#related"} if graph else related,
-    }
-    document = {"@graph": [author, website, article, related]} if graph else article
-    _replace_json_ld(path, document)
-    assert SiteArtifactValidator(site).validate(tmp_path) == []
-    article["url"] = "https://geoqiao.me/blog/wrong/"
-    _replace_json_ld(path, document)
-    assert any(
-        d.code == "JSON_LD_URL_MISMATCH"
-        for d in SiteArtifactValidator(site).validate(tmp_path)
-    )
-
-
-def test_json_ld_checks_provided_root_and_explicit_page_urls(tmp_path: Path) -> None:
-    site = _render_representative_site(_settings(), tmp_path)
-    path = tmp_path / site.blogs[0].route.output_path
-    canonical = site.blogs[0].route.canonical_url
-    page: dict[str, object] = {"@id": canonical}
-    document: dict[str, object] = {"@graph": [page]}
-    # URL is optional, but any supplied URL must be a canonical string.
-    _replace_json_ld(path, document)
-    assert SiteArtifactValidator(site).validate(tmp_path) == []
-    for target in (document, page):
-        for url in ("https://wrong.example/", None, {"@id": canonical}, [canonical]):
-            target["url"] = url
-            _replace_json_ld(path, document)
-            assert any(
-                d.code == "JSON_LD_URL_MISMATCH"
-                for d in SiteArtifactValidator(site).validate(tmp_path)
-            ), (target, url)
-        target["url"] = canonical
-
-
-@pytest.mark.parametrize("identity", ["missing", "wrong", "author", "duplicate"])
-def test_json_ld_graph_requires_one_exact_page_id(
-    identity: str, tmp_path: Path
-) -> None:
-    site = _render_representative_site(_settings(), tmp_path)
-    canonical = site.blogs[0].route.canonical_url
-    page = {"@id": canonical, "url": canonical}
-    nodes = [page]
-    if identity == "missing":
-        del page["@id"]
-    elif identity == "wrong":
-        page.update({"@id": "https://wrong.example/", "url": "https://wrong.example/"})
-    elif identity == "author":
-        page["@id"] += "#author"
-    else:
-        nodes.append(dict(page))
-    _replace_json_ld(tmp_path / site.blogs[0].route.output_path, {"@graph": nodes})
-    assert any(
-        d.code == "JSON_LD_PAGE_IDENTITY"
-        for d in SiteArtifactValidator(site).validate(tmp_path)
-    )
-
-
-@pytest.mark.parametrize("value", [[], {"@graph": {}}, {"@graph": [None]}])
-def test_json_ld_unsupported_shapes_fail_explicitly(
-    value: object, tmp_path: Path
-) -> None:
-    site = _render_representative_site(_settings(), tmp_path)
-    _replace_json_ld(tmp_path / site.blogs[0].route.output_path, value)
-    assert any(
-        d.code == "INVALID_JSON_LD"
-        for d in SiteArtifactValidator(site).validate(tmp_path)
-    )
-
-
-def test_local_theme_json_ld_extension_uses_tojson_without_script_breakout(
-    tmp_path: Path,
-) -> None:
-    settings = _settings()
-    site = _render_representative_site(settings, tmp_path / "builtin")
-    theme_path = tmp_path / "theme"
-    shutil.copytree(_ROOT / "src/escaping/themes/Quiet", theme_path)
-    template = theme_path / "base.html"
-    original = template.read_text(encoding="utf-8")
-    template.write_text(
-        original.replace(
-            "{{ structured_data|tojson }}",
-            "{% if post is defined %}{% set _ = structured_data.update(author={'@type': 'Person', 'name': post.title, 'url': 'https://geoqiao.me/about/'}) %}{% endif %}{{ structured_data|tojson }}",
-        ),
+def _inject(page: Path, html: str) -> None:
+    page.write_text(
+        page.read_text(encoding="utf-8").replace("</body>", f"{html}</body>", 1),
         encoding="utf-8",
     )
-    assert template.read_text(encoding="utf-8") != original
-    malicious = '</script><script>alert("title")</script>&'
-    site = replace(site, blogs=(replace(site.blogs[0], title=malicious),))
-    theme = ThemeLoader(tmp_path).load(
-        LocalThemeConfig(name="Quiet", path=Path("theme"))
-    )
-    renderer = RenderService(theme)
-    output = tmp_path / "local-output"
-    renderer.copy_theme_assets(output)
-    for output_path, html in renderer.render_site(site).items():
-        path = output / output_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(html, encoding="utf-8")
-    assert SiteArtifactValidator(site).validate(output) == []
-    html = (output / site.blogs[0].route.output_path).read_text(encoding="utf-8")
-    assert malicious not in html
-    script = re.search(
-        r'<script type="application/ld\+json">(.*?)</script>', html, re.DOTALL
-    )
-    assert script is not None
-    assert "\\u003c/script\\u003e" in script[1]
-    assert json.loads(script[1])["author"]["name"] == malicious
-    assert json.loads(script[1])["url"] == site.blogs[0].route.canonical_url
 
 
-def test_json_ld_home_and_about_identity_and_json_parsing_remain_checked(
+def test_validator_requires_every_route_file_and_no_stray_pages(
     tmp_path: Path,
 ) -> None:
-    site = _render_representative_site(_settings(), tmp_path)
-    home_path = tmp_path / "index.html"
-    script = re.search(
-        r'<script type="application/ld\+json">(.*?)</script>',
-        home_path.read_text(),
-        re.DOTALL,
-    )
-    assert script is not None
-    assert (
-        sum(
-            node.get("@id") == site.home.route.canonical_url
-            for node in json.loads(script[1])["@graph"]
-        )
-        == 1
-    )
-    home = {
-        "@graph": [
-            {"@type": "Person", "url": "https://geoqiao.me/about/"},
-            {
-                "@id": "https://geoqiao.me/",
-                "@type": "WebSite",
-                "url": "https://geoqiao.me/",
-            },
-        ]
-    }
-    _replace_json_ld(home_path, home)
-    assert SiteArtifactValidator(site).validate(tmp_path) == []
-    home["@graph"][1]["url"] = "https://wrong.example/"
-    _replace_json_ld(home_path, home)
-    _replace_json_ld(
-        tmp_path / "about/index.html",
-        {"@type": "Person", "url": "https://wrong.example/"},
-    )
-    post_path = tmp_path / site.blogs[0].route.output_path
-    post_path.write_text(
-        post_path.read_text().replace(
-            'application/ld+json">', 'application/ld+json">INVALID', 1
-        )
-    )
-    codes = [d.code for d in SiteArtifactValidator(site).validate(tmp_path)]
-    assert codes.count("JSON_LD_URL_MISMATCH") == 2
-    assert "INVALID_JSON_LD" in codes
+    site, candidate = _rendered(tmp_path)
+    (candidate / "tags/python/index.html").unlink()
+    (candidate / "atom.xml").rename(candidate / "ATOM.XML")
+    (candidate / "drafts").mkdir()
+    (candidate / "drafts/index.html").write_text("<p>Draft</p>", encoding="utf-8")
+    # 404.html is served for any path, so its relative links start at the root.
+    _inject(candidate / "404.html", '<a href="about/">About</a><img src="gone.png">')
+
+    diagnostics = SiteArtifactValidator(site).validate(candidate)
+
+    assert [(d.code, d.message) for d in diagnostics] == [
+        ("MISSING_ROUTE", "missing page file: atom.xml"),
+        ("MISSING_ROUTE", "missing page file: tags/python/index.html"),
+        ("UNREGISTERED_HTML", "drafts/index.html is not a page of this site"),
+        (
+            "BROKEN_INTERNAL_LINK",
+            "404.html: img points to /gone.png, which is not a page or file of "
+            "this site",
+        ),
+    ]
 
 
 @pytest.mark.parametrize(
-    "reference",
+    ("reference", "broken"),
     [
-        '<a href="/Blog/">wrong case</a>',
-        '<a href="/%62log/">encoded page alias</a>',
-        '<a href="https://geoqiao.me/Blog/">wrong case</a>',
-        '<img src="/Blog/">',
-        '<link href="/templates/Quiet/static/css/Style.css" rel="stylesheet">',
-        '<img src="/templates/Quiet/static/images/Favicon.png">',
+        ('<a href="/Blog/">', "/Blog/"),
+        ('<a href="https://geoqiao.me/missing/">', "/missing/"),
+        ('<a href="missing/">', "/blog/hello/missing/"),
+        ('<img src="pic.png">', "/blog/hello/pic.png"),
+        ('<link rel="stylesheet" href="/assets/css/missing.css">', "missing.css"),
+        ('<script data-runtime-src="/assets/escaping/gone.js"></script>', "gone.js"),
+        ('<img srcset="/assets/images/favicon.png 1x, /assets/b.png 2x">', "/b.png"),
+        ('<meta property="og:image" content="https://geoqiao.me/og.png">', "og.png"),
+        ('<a href="/">', None),
+        ('<a href="https://geoqiao.me/blog/?page=2#top">', None),
+        (f'<a href="{_UNICODE_TAG}">', None),
+        ('<a href="/tags/示例-标签/">', None),
+        ('<img src="/assets/images/favicon.png?v=1#icon">', None),
+        ('<a href="https://example.org/missing/">', None),
+        ('<img src="//cdn.example.org/missing.png">', None),
+        ('<a href="mailto:me@example.org">', None),
+        ('<a href="#missing">', None),
     ],
 )
-def test_noncanonical_internal_links_and_resources_fail(
-    reference: str, tmp_path: Path
+def test_validator_resolves_each_reference_against_its_page(
+    tmp_path: Path, reference: str, broken: str | None
 ) -> None:
-    site = _render_representative_site(_settings(), tmp_path)
-    path = tmp_path / site.blogs[0].route.output_path
-    path.write_text(path.read_text().replace("</body>", reference + "</body>"))
-    assert any(
-        d.code in {"BROKEN_INTERNAL_LINK", "MISSING_ASSET"}
-        for d in SiteArtifactValidator(site).validate(tmp_path)
-    )
+    site, candidate = _rendered(tmp_path)
+    _inject(candidate / "blog/hello/index.html", reference)
+
+    diagnostics = SiteArtifactValidator(site).validate(candidate)
+
+    if broken is None:
+        assert diagnostics == []
+    else:
+        assert [d.code for d in diagnostics] == ["BROKEN_INTERNAL_LINK"]
+        assert diagnostics[0].message.startswith("blog/hello/index.html: ")
+        assert broken in diagnostics[0].message
 
 
 @pytest.mark.parametrize(
-    "filename,url_name,status,valid",
+    ("filename", "url_name", "status", "valid"),
     [
         ("encoded%20name.txt", "encoded%20name.txt", 404, False),
         ("encoded%20name.txt", "encoded%2520name.txt?download=1#file", 200, True),
@@ -640,18 +366,15 @@ def test_noncanonical_internal_links_and_resources_fail(
         ("雪.txt", "%E9%9B%AA.txt", 200, True),
     ],
 )
-def test_static_file_urls_decode_once_like_local_http(
+def test_file_urls_decode_once_like_local_http(
     filename: str, url_name: str, status: int, valid: bool, tmp_path: Path
 ) -> None:
-    site = _render_representative_site(_settings(), tmp_path)
-    prefix = f"{site.metadata.theme.asset_path}/static/"
-    asset = tmp_path / prefix.lstrip("/") / filename
+    site, candidate = _rendered(tmp_path)
+    asset = candidate / "assets" / filename
     asset.write_text("Asset sentinel.", encoding="utf-8")
-    path = tmp_path / site.blogs[0].route.output_path
-    original = path.read_text()
-    url = prefix + url_name
+    url = f"/assets/{url_name}"
     server = ThreadingHTTPServer(
-        ("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=str(tmp_path))
+        ("127.0.0.1", 0), partial(SimpleHTTPRequestHandler, directory=str(candidate))
     )
     thread = Thread(target=server.serve_forever, daemon=True)
     thread.start()
@@ -664,23 +387,18 @@ def test_static_file_urls_decode_once_like_local_http(
                 assert response.read() == asset.read_bytes()
         except HTTPError as exc:
             actual_status = exc.code
-        assert actual_status == status
-        for tag, attr in (("a", "href"), ("img", "src")):
-            reference = f'<{tag} {attr}="{url}"></{tag}>'
-            path.write_text(original.replace("</body>", reference + "</body>"))
-            diagnostics = SiteArtifactValidator(site).validate(tmp_path)
-            if valid:
-                assert diagnostics == []
-            else:
-                assert any(d.code == "MISSING_ASSET" for d in diagnostics)
     finally:
         server.shutdown()
         server.server_close()
         thread.join()
+    assert actual_status == status
+    _inject(candidate / "blog/hello/index.html", f'<a href="{url}"></a>')
+    codes = [d.code for d in SiteArtifactValidator(site).validate(candidate)]
+    assert codes == ([] if valid else ["BROKEN_INTERNAL_LINK"])
 
 
 @pytest.mark.parametrize(
-    "filename,url_name",
+    ("filename", "url_name"),
     [
         ("bad%name.txt", "bad%name.txt"),
         ("bad%FFname.txt", "bad%FFname.txt"),
@@ -692,230 +410,53 @@ def test_static_file_urls_decode_once_like_local_http(
         ("ab.txt", "a\tb.txt"),
     ],
 )
-def test_unsafe_static_url_paths_fail_before_normalization(
+def test_unsafe_file_urls_fail_before_normalization(
     filename: str, url_name: str, tmp_path: Path
 ) -> None:
-    site = _render_representative_site(_settings(), tmp_path)
-    prefix = f"{site.metadata.theme.asset_path}/static/"
-    asset = tmp_path / prefix.lstrip("/") / filename
+    site, candidate = _rendered(tmp_path)
+    asset = candidate / "assets" / filename
     asset.parent.mkdir(parents=True, exist_ok=True)
     asset.write_text("Must not authorize an unsafe URL.", encoding="utf-8")
-    path = tmp_path / site.blogs[0].route.output_path
-    original = path.read_text()
+    page = candidate / "blog/hello/index.html"
+    original = page.read_text(encoding="utf-8")
     for tag, attr in (("a", "href"), ("img", "src")):
-        reference = f'<{tag} {attr}="{prefix}{url_name}"></{tag}>'
-        path.write_text(original.replace("</body>", reference + "</body>"))
-        assert any(
-            d.code == "INVALID_INTERNAL_PATH"
-            for d in SiteArtifactValidator(site).validate(tmp_path)
-        )
+        page.write_text(original, encoding="utf-8")
+        _inject(page, f'<{tag} {attr}="/assets/{url_name}"></{tag}>')
+        assert [d.code for d in SiteArtifactValidator(site).validate(candidate)] == [
+            "INVALID_INTERNAL_PATH"
+        ]
 
 
-def test_static_asset_symlink_is_not_a_contained_emitted_file(tmp_path: Path) -> None:
-    output = tmp_path / "candidate"
-    site = _render_representative_site(_settings(), output)
+def test_a_symlinked_file_is_not_part_of_the_site(tmp_path: Path) -> None:
+    site, candidate = _rendered(tmp_path)
     outside = tmp_path / "outside.txt"
-    outside.write_text("Outside candidate.")
-    url = f"{site.metadata.theme.asset_path}/static/escape.txt"
-    (output / url.lstrip("/")).symlink_to(outside)
-    path = output / site.blogs[0].route.output_path
-    original = path.read_text()
-    for tag, attr in (("a", "href"), ("img", "src")):
-        path.write_text(
-            original.replace("</body>", f'<{tag} {attr}="{url}"></{tag}></body>')
-        )
-        assert any(
-            d.code == "MISSING_ASSET"
-            for d in SiteArtifactValidator(site).validate(output)
-        )
+    outside.write_text("Outside the candidate.", encoding="utf-8")
+    (candidate / "assets/escape.txt").symlink_to(outside)
+    _inject(candidate / "blog/hello/index.html", '<a href="/assets/escape.txt"></a>')
+    assert [d.code for d in SiteArtifactValidator(site).validate(candidate)] == [
+        "BROKEN_INTERNAL_LINK"
+    ]
 
 
-@pytest.mark.parametrize("artifact", ["blog/a-blog/index.html", "atom.xml"])
-def test_wrong_case_artifact_filename_is_not_an_existing_route(
-    artifact: str, tmp_path: Path
-) -> None:
-    site = _render_representative_site(_settings(), tmp_path)
-    path = tmp_path / artifact
-    path.rename(path.with_name(path.name.upper()))
-    assert any(
-        d.code == "MISSING_ROUTE"
-        for d in SiteArtifactValidator(site).validate(tmp_path)
+def test_theme_check_reports_seo_gaps_as_warnings(tmp_path: Path) -> None:
+    quiet = check_theme(_settings(), config_root=tmp_path)
+    assert quiet.success and quiet.diagnostics == (), quiet.diagnostics
+
+    use = _theme(
+        tmp_path,
+        {
+            "ideas.html": "<!doctype html><html><head><title> </title>"
+            '<meta property="og:url" content="https://geoqiao.me/wrong/">'
+            "</head><body></body></html>"
+        },
     )
+    result = check_theme(_settings(theme={"use": use}), config_root=tmp_path)
 
-
-def test_atom_entry_lookup_requires_exact_route_case(tmp_path: Path) -> None:
-    site = _render_representative_site(_settings(), tmp_path)
-    path = tmp_path / "atom.xml"
-    path.write_text(path.read_text().replace("/blog/a-blog/", "/Blog/a-blog/"))
-    assert any(
-        d.code == "ATOM_ENTRY_ROUTE"
-        for d in SiteArtifactValidator(site).validate(tmp_path)
-    )
-
-
-@pytest.mark.parametrize(
-    "replacement",
-    [
-        '<meta property="og:description" content="Wrong description.">',
-        '<meta property="og:description">',
-        "",
-    ],
-)
-@pytest.mark.parametrize("description", ["About description.", ""])
-def test_about_description_mismatch_fails_artifact_validation(
-    tmp_path: Path,
-    replacement: str,
-    description: str,
-) -> None:
-    settings = _settings()
-    site = _render_representative_site(settings, tmp_path)
-    assert site.about is not None
-    site = replace(site, about=replace(site.about, description=description))
-    about_path = tmp_path / "about" / "index.html"
-    about_html = about_path.read_text(encoding="utf-8").replace(
-        "About description.", description
-    )
-    about_path.write_text(about_html, encoding="utf-8")
-    assert SiteArtifactValidator(site).validate(tmp_path) == []
-    broken_html = about_html.replace(
-        f'<meta property="og:description" content="{description}">',
-        replacement,
-        1,
-    )
-    assert broken_html != about_html
-    about_path.write_text(broken_html, encoding="utf-8")
-
-    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
-    assert any(
-        diagnostic.code == "ABOUT_DESCRIPTION_MISMATCH" for diagnostic in diagnostics
-    )
-
-
-@pytest.mark.parametrize(
-    "tampered",
-    [
-        "javascript:alert(1)",
-        "/templates/Quiet/static/images/other.png",
-        "https://wrong.example/og.png",
-        "https://[invalid",
-    ],
-)
-def test_tampered_social_image_metadata_is_rejected(
-    tmp_path: Path, tampered: str
-) -> None:
-    configured = "https://raw.githubusercontent.com/owner/site/abc/assets/social/og.png"
-    site = _render_representative_site(
-        _settings(social_image=configured, social_image_alt="Site preview"), tmp_path
-    )
-    path = tmp_path / "index.html"
-    html = path.read_text(encoding="utf-8")
-    assert html.count(configured) == 2
-    path.write_text(html.replace(configured, tampered, 1), encoding="utf-8")
-
-    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
-    assert any(diagnostic.code == "SEO_URL_MISMATCH" for diagnostic in diagnostics)
-
-
-def test_missing_referenced_script_fails_artifact_validation(
-    tmp_path: Path,
-) -> None:
-    settings = _settings()
-    site = _render_representative_site(settings, tmp_path)
-    script_path = (
-        tmp_path / "templates" / settings.theme.name / "static" / "js" / "site.js"
-    )
-    script_path.unlink()
-
-    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
-    assert any(
-        diagnostic.code == "MISSING_ASSET" and "site.js" in diagnostic.message
-        for diagnostic in diagnostics
-    )
-
-
-def test_missing_deferred_runtime_asset_fails_artifact_validation(
-    tmp_path: Path,
-) -> None:
-    settings = _settings()
-    site = _render_representative_site(settings, tmp_path)
-    mermaid_path = next(
-        (tmp_path / "templates" / settings.theme.name / "static/vendor").glob(
-            "mermaid-*/mermaid.min.js"
-        )
-    )
-    mermaid_path.unlink()
-
-    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
-    assert any(
-        diagnostic.code == "MISSING_ASSET" and "mermaid.min.js" in diagnostic.message
-        for diagnostic in diagnostics
-    )
-
-
-def test_missing_same_origin_absolute_asset_fails_artifact_validation(
-    tmp_path: Path,
-) -> None:
-    settings = _settings()
-    theme = settings.theme.name
-    site = _render_representative_site(settings, tmp_path)
-    asset_dir = tmp_path / "templates" / theme / "static" / "css"
-    asset_path = asset_dir / "absolute.css"
-    asset_path.write_text("", encoding="utf-8")
-    about_path = tmp_path / "about" / "index.html"
-    about_html = about_path.read_text(encoding="utf-8")
-    reference = (
-        f'<link rel="stylesheet" href="https://geoqiao.me/templates/{theme}'
-        '/static/css/absolute.css?cache=1#style">'
-    )
-    about_path.write_text(
-        about_html.replace("</head>", f"{reference}</head>", 1), encoding="utf-8"
-    )
-    assert SiteArtifactValidator(site).validate(tmp_path) == []
-    asset_path.unlink()
-
-    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
-    assert any(
-        diagnostic.code == "MISSING_ASSET" and "absolute.css" in diagnostic.message
-        for diagnostic in diagnostics
-    )
-
-
-def test_missing_referenced_image_fails_artifact_validation(
-    tmp_path: Path,
-) -> None:
-    theme = "Quiet"
-    profile_avatar = (
-        f"https://geoqiao.me/templates/{theme}/static/images/profile.png?cache=1#avatar"
-    )
-    settings = _settings(profile_avatar=profile_avatar)
-    site = _render_representative_site(settings, tmp_path)
-    image_dir = tmp_path / "templates" / theme / "static" / "images"
-    image_bytes = (image_dir / "favicon.png").read_bytes()
-    for filename in ("profile.png", "responsive.png", "other.png"):
-        (image_dir / filename).write_bytes(image_bytes)
-
-    about_path = tmp_path / "about" / "index.html"
-    about_html = about_path.read_text(encoding="utf-8")
-    srcset = (
-        f"/templates/{theme}/static/images/responsive.png?width=1 1x,"
-        f" /templates/{theme}/static/images/other.png#wide 2x"
-    )
-    about_html = about_html.replace(
-        f'src="{profile_avatar}"',
-        f'src="{profile_avatar}" srcset="{srcset}"',
-        1,
-    )
-    about_path.write_text(about_html, encoding="utf-8")
-    assert SiteArtifactValidator(site).validate(tmp_path) == []
-
-    (image_dir / "profile.png").unlink()
-    (image_dir / "responsive.png").unlink()
-    diagnostics = SiteArtifactValidator(site).validate(tmp_path)
-    assert any(
-        diagnostic.code == "MISSING_ASSET" and "profile.png" in diagnostic.message
-        for diagnostic in diagnostics
-    )
-    assert any(
-        diagnostic.code == "MISSING_ASSET" and "responsive.png" in diagnostic.message
-        for diagnostic in diagnostics
-    )
+    assert result.success
+    assert [(d.severity, d.code) for d in result.diagnostics] == [
+        ("warning", "SEO_TITLE"),
+        ("warning", "SEO_DESCRIPTION"),
+        ("warning", "SEO_CANONICAL"),
+        ("warning", "SEO_URL"),
+    ]
+    assert all(d.message.startswith("ideas/index.html: ") for d in result.diagnostics)

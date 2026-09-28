@@ -1,6 +1,6 @@
 from __future__ import annotations
 
-import re
+import json
 from pathlib import Path
 from typing import Never
 
@@ -8,16 +8,22 @@ import pytest
 from pydantic import ValidationError
 
 from escaping.config import (
-    BuiltinThemeConfig,
+    ConfigError,
     GithubConfig,
     Link,
-    LocalThemeConfig,
-    PathsConfig,
+    PlatformContext,
     ProjectCatalogEntry,
     ProjectFallbackMetadata,
+    RepositoryIdentity,
     SecurityConfig,
     Settings,
+    read_config_overrides,
+    read_platform_context,
+    security_from_config,
+    validate_config_overrides,
 )
+from escaping.services.github_service import PublicProfile
+from escaping.site_inputs import resolve_settings
 
 _BASE = {
     "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
@@ -25,72 +31,200 @@ _BASE = {
     "about": {"issue_number": 10},
     "security": {"token_env": "TOKEN"},
 }
+_CONTEXT = {
+    "repository": "alice/site",
+    "owner_login": "alice",
+    "owner_type": "User",
+    "pages_base_url": "https://notes.example/",
+    "pages_base_path": "/",
+}
 
 
-def test_settings_reject_unknown_nested_fields() -> None:
-    with pytest.raises(ValidationError):
-        Settings.model_validate({**_BASE, "paths": {"old_html": "x"}})
-    with pytest.raises(ValidationError):
-        Settings.model_validate({**_BASE, "site": {**_BASE["site"], "typo": True}})
+def _problems(data: object) -> list[str]:
+    with pytest.raises(ConfigError) as error:
+        validate_config_overrides(data)
+    return error.value.problems
 
 
-@pytest.mark.parametrize("selection", [[1, 1], [0], [-1], [True], ["41"], None])
-def test_featured_posts_reject_invalid_issue_selections(selection: object) -> None:
-    with pytest.raises(ValidationError):
-        Settings.model_validate(
-            {**_BASE, "site": {**_BASE["site"], "featured_posts": selection}}
+class _Source:
+    """Repository/profile source; ``bob/*`` belongs to an Organization."""
+
+    def fetch_repository_identity(self, repository: str) -> RepositoryIdentity:
+        return RepositoryIdentity(
+            repository=repository,
+            owner_login=repository.split("/")[0],
+            owner_type="Organization" if repository.startswith("bob/") else "User",
+        )
+
+    def fetch_public_profile(self, login: str) -> PublicProfile:
+        return PublicProfile(
+            login, f"{login.title()} Example", "https://example.org/a.png", "Hello"
         )
 
 
-def test_strict_paths_have_only_output_and_page_size() -> None:
-    paths = PathsConfig()
-    assert paths.output == "output"
-    assert paths.page_size == 10
-    with pytest.raises(ValidationError):
-        PathsConfig.model_validate({"unknown": "value"})
+class _NoNetwork:
+    def fetch_repository_identity(self, repository: str) -> Never:
+        pytest.fail("an invalid Config must fail before repository access")
+
+    def fetch_public_profile(self, login: str) -> Never:
+        pytest.fail("an invalid Config must fail before Profile access")
 
 
-def test_project_catalog_visual_fields_use_safe_urls_and_defaults() -> None:
+@pytest.mark.parametrize(
+    ("data", "problem"),
+    [
+        (
+            {"site": {"featured_posts": [1]}},
+            "site.featured_posts: moved to theme.options.featured_posts",
+        ),
+        ({"profile": {"tagline": "x"}}, "profile.tagline: moved to theme.options"),
+        ({"branding": {}}, "branding: moved to theme.options.show_powered_by"),
+        (
+            {"comments": {"theme_mode": "auto"}},
+            "comments.theme_mode: moved to theme.options.comments_theme_mode",
+        ),
+        ({"theme": {"source": "local"}}, "theme.source: replaced by theme.use"),
+        ({"theme": {"name": "Quiet"}}, "theme.name: replaced by theme.use"),
+        ({"site": {"thesis": ["x"]}}, "site.thesis: removed"),
+        ({"sitee": {}}, "sitee: unknown field; did you mean site?"),
+        ({"site": {"titel": "x"}}, "site.titel: unknown field; did you mean title?"),
+        ({"paths": {"zzz": 1}}, "paths.zzz: unknown field"),
+        ({"about": None}, "about: is empty; remove the line or add values under it"),
+        (
+            {"site": {"navigation": {"items": [{"name": "Blog"}]}}},
+            "items.0.url: required",
+        ),
+    ],
+)
+def test_config_problems_name_the_field_and_the_fix(data: dict, problem: str) -> None:
+    assert any(problem in line for line in _problems(data)), _problems(data)
+
+
+@pytest.mark.parametrize(
+    "data",
+    [
+        {"security": {"token_env": "ghp_SECRETVALUE-1"}},
+        {"site": {"url": "https://user:ghp_SECRETVALUE@example.com/"}},
+        {"paths": {"page_size": "ghp_SECRETVALUE"}},
+        {"site": {"ghp_SECRETVALUE": "ghp_SECRETVALUE"}},
+        {"comments": {"repo": "ghp_SECRETVALUE"}},
+    ],
+)
+def test_config_problems_never_echo_supplied_values(data: dict) -> None:
+    problems = _problems(data)
+    assert problems
+    # The unknown key itself is named; its value never is.
+    assert not any("ghp_SECRETVALUE" in p.split(":", 1)[1] for p in problems)
+
+
+def test_config_file_errors_point_at_the_line(tmp_path: Path) -> None:
+    path = tmp_path / "config.yaml"
+    for text, expected in (
+        ("site: {}\nsite: {}\n", "config.yaml:2:1: the same key appears twice"),
+        ("site:\n  title: a\n  title: b\n", "config.yaml:3:3: the same key appears"),
+        ("site:\n  title: [\n", "config.yaml:3:1:"),
+        ("- a\n", "Config must be a mapping"),
+        ("security: !!python/object:x {}\n", "config.yaml:1:11:"),
+    ):
+        path.write_text(text, encoding="utf-8")
+        with pytest.raises(ConfigError) as error:
+            read_config_overrides(path)
+        assert any(expected in p for p in error.value.problems), error.value.problems
+    with pytest.raises(ConfigError, match="Config file not found"):
+        read_config_overrides(tmp_path / "missing.yaml")
+
+
+def test_empty_config_file_is_all_defaults_and_token_env_is_a_name(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "config.yaml"
+    for text in ("", "null\n", "{}\n"):
+        path.write_text(text, encoding="utf-8")
+        assert read_config_overrides(path) == {}
+    assert security_from_config({}).token_env == "GITHUB_TOKEN"  # noqa: S105
+    path.write_text("security:\n  token_env: READ_TOKEN\n", encoding="utf-8")
+    assert security_from_config(read_config_overrides(path)).token_env == "READ_TOKEN"  # noqa: S105
+    for name in ("G-T", "TOKEN\n", "1TOKEN"):
+        with pytest.raises(ValidationError):
+            SecurityConfig(token_env=name)
+
+
+@pytest.mark.parametrize(
+    ("use", "problem"),
+    [
+        ("Quiet", "use a built-in Theme name such as quiet, or a directory path"),
+        ("my theme", "use a built-in Theme name"),
+        ("../theme", "must stay inside the site repository"),
+        ("/srv/theme", "must stay inside the site repository"),
+        ("themes\\x/y", "must stay inside the site repository"),
+    ],
+)
+def test_theme_use_is_a_builtin_name_or_a_config_relative_directory(
+    use: str, problem: str
+) -> None:
+    assert any(problem in p for p in _problems({"theme": {"use": use}}))
+
+
+def test_theme_defaults_to_quiet_and_keeps_options_for_the_theme() -> None:
+    default = Settings.model_validate(_BASE).theme
+    assert (default.use, default.options, default.local_path) == ("quiet", {}, None)
+    local = Settings.model_validate(
+        {**_BASE, "theme": {"use": "./site-theme", "options": {"anything": [1]}}}
+    ).theme
+    assert local.local_path == Path("site-theme")
+    # Options are checked against the Theme's theme.yaml later, not here.
+    assert local.options == {"anything": [1]}
+
+
+def test_projects_accept_a_repository_a_website_or_both() -> None:
+    repository_only = ProjectCatalogEntry(repository="geoqiao/Some.Tool_v2")
+    assert repository_only.slug == "some-tool-v2"
+    assert repository_only.title == "Some.Tool_v2"
+    website_only = ProjectCatalogEntry(
+        website="https://example.com/", slug="site", title="Site"
+    )
+    assert website_only.repository == ""
     entry = ProjectCatalogEntry.model_validate(
         {
             "repository": "owner/project",
-            "image": "/templates/my-theme/static/images/project.webp",
+            "image": "/assets/images/project.webp",
             "links": [{"name": "Demo", "url": "https://example.org/"}],
+            "fallback_metadata": {"stars": 1, "language": "Python"},
         }
     )
-    assert entry.image == "/templates/my-theme/static/images/project.webp"
+    assert entry.image == "/assets/images/project.webp"
     assert [(link.name, link.url) for link in entry.links] == [
         ("Demo", "https://example.org/")
     ]
-    defaults = ProjectCatalogEntry(repository="owner/other")
-    assert defaults.image == "" and defaults.links == []
     with pytest.raises(ValidationError):
-        ProjectCatalogEntry(repository="owner/project", image="javascript:bad")
+        ProjectFallbackMetadata(stars=-1)
 
 
-def test_theme_source_is_explicit_and_separate_from_output_paths() -> None:
-    defaults = Settings.model_validate(_BASE)
-    assert defaults.theme == BuiltinThemeConfig(name="Quiet")
-
-    builtin = Settings.model_validate(
-        {**_BASE, "theme": {"source": "builtin", "name": "Quiet"}}
-    )
-    assert builtin.theme == BuiltinThemeConfig(name="Quiet")
-
-    local = Settings.model_validate(
-        {
-            **_BASE,
-            "theme": {
-                "source": "local",
-                "name": "site-theme",
-                "path": "theme",
-            },
-        }
-    )
-    assert local.theme == LocalThemeConfig(name="site-theme", path=Path("theme"))
-
-    with pytest.raises(ValidationError):
-        PathsConfig.model_validate({"theme": "Quiet"})
+@pytest.mark.parametrize(
+    ("projects", "problem"),
+    [
+        ([{}], "projects.0: a project needs a repository, a website, or both"),
+        (
+            [{"website": "https://example.com/"}],
+            "projects.0: a project without a repository needs a slug",
+        ),
+        (
+            [{"website": "http://example.com/", "slug": "x", "title": "X"}],
+            "projects.0.website:",
+        ),
+        (
+            [{"repository": "a/tool"}, {"repository": "b/Tool"}],
+            "projects share the slug tool; set a distinct slug for each",
+        ),
+        ([{"repository": "not-a-repository"}], "use the owner/repo format"),
+        ([{"repository": "a/b", "slug": "Bad Slug"}], "slug must use lowercase"),
+        ([{"repository": "a/b", "image": "javascript:x"}], "projects.0.image:"),
+        ([{"repository": "a/b", "featured": "yes"}], "projects.0.featured:"),
+    ],
+)
+def test_project_problems(projects: list[dict], problem: str) -> None:
+    problems = _problems({"projects": projects})
+    assert any(problem in p for p in problems), problems
 
 
 @pytest.mark.parametrize(
@@ -109,370 +243,143 @@ def test_link_rejects_unsafe_destinations(url: str) -> None:
         Link(name="unsafe", url=url)
 
 
-def test_profile_and_branding_reject_unsafe_rendered_urls() -> None:
-    with pytest.raises(ValidationError):
-        Settings.model_validate({**_BASE, "profile": {"avatar": "javascript:alert(1)"}})
-    with pytest.raises(ValidationError):
-        Settings.model_validate(
-            {
-                **_BASE,
-                "branding": {"powered_by_url": "//evil.example/source"},
-            }
-        )
-    with pytest.raises(ValidationError):
-        Settings.model_validate(
-            {**_BASE, "comments": {"theme": "</script><script>alert(1)"}}
-        )
-
-
-def test_social_image_defaults_and_accepts_safe_resource_urls() -> None:
-    defaults = Settings.model_validate(_BASE)
-    assert defaults.seo.social_image == ""
-    assert defaults.seo.social_image_alt == ""
-
-    for image in (
-        "https://raw.githubusercontent.com/owner/site/abc/assets/social/og.png",
-        "/templates/Quiet/static/images/og.png",
-    ):
-        settings = Settings.model_validate(
-            {
-                **_BASE,
-                "seo": {"social_image": image, "social_image_alt": "Preview"},
-            }
-        )
-        assert settings.seo.social_image == image
-        assert settings.seo.social_image_alt == "Preview"
+@pytest.mark.parametrize(
+    ("image", "valid"),
+    [
+        ("https://raw.githubusercontent.com/o/s/abc/og.png", True),
+        ("/assets/images/og.png", True),
+        ("http://example.org/og.png", False),
+        ("mailto:image@example.org", False),
+        ("#og-image", False),
+        ("//evil.example/og.png", False),
+        ("https://example.org/og\n.png", False),
+    ],
+)
+def test_resource_urls_are_https_or_root_relative(image: str, valid: bool) -> None:
+    for data in ({"seo": {"social_image": image}}, {"profile": {"avatar": image}}):
+        if valid:
+            Settings.model_validate({**_BASE, **data})
+        else:
+            with pytest.raises(ValidationError):
+                Settings.model_validate({**_BASE, **data})
 
 
 @pytest.mark.parametrize(
     "url",
     [
-        "http://example.org/og.png",
-        "mailto:image@example.org",
-        "#og-image",
-        "//evil.example/og.png",
-        "https://user:password@example.org/og.png",
-        "https://example.org/og\n.png",
-    ],
-)
-def test_social_image_reuses_safe_resource_url_boundary(url: str) -> None:
-    with pytest.raises(ValidationError):
-        Settings.model_validate({**_BASE, "seo": {"social_image": url}})
-
-
-@pytest.mark.parametrize(
-    "thesis",
-    [
-        ["A deliberate line.", "   "],
-        ["A deliberate line.", 42],
-    ],
-)
-def test_site_thesis_rejects_blank_or_non_string_lines(thesis: object) -> None:
-    with pytest.raises(ValidationError):
-        Settings.model_validate({**_BASE, "site": {**_BASE["site"], "thesis": thesis}})
-
-
-def test_https_origin_and_dynamic_token_name() -> None:
-    assert GithubConfig(repo="o/r", allowed_authors=["A"]).username == "o"
-    for token_env in ("G-T", "TOKEN\n"):
-        with pytest.raises(ValidationError):
-            SecurityConfig(token_env=token_env)
-    with pytest.raises(ValidationError):
-        Settings.model_validate(
-            {**_BASE, "site": {**_BASE["site"], "url": "http://x.test"}}
-        )
-
-
-@pytest.mark.parametrize(
-    "url",
-    [
+        "http://x.test/",
         "https://example.org\\nested",
         "https://exa\nmple.org/",
         123,
         "https://example.org/nested/",
     ],
 )
-def test_canonical_origin_rejects_unsafe_or_non_root_input(url: object) -> None:
+def test_site_url_must_be_a_root_https_origin(url: object) -> None:
     with pytest.raises(ValidationError):
         Settings.model_validate({**_BASE, "site": {**_BASE["site"], "url": url}})
 
 
-@pytest.mark.parametrize(
-    ("section", "value"),
-    [
-        ("seo", {"enable_sitemap": False}),
-        ("branding", {"show_intro": True}),
-        ("comments", {"provider": "utterances"}),
-    ],
-)
-def test_removed_noop_config_fields_are_rejected(
-    section: str, value: dict[str, object]
-) -> None:
-    with pytest.raises(ValidationError):
-        Settings.model_validate({**_BASE, section: value})
-
-
 def test_comments_require_an_explicit_boolean_opt_in() -> None:
     assert not Settings.model_validate(_BASE).comments.enabled
-    for enabled in (True, False):
-        settings = Settings.model_validate(
-            {**_BASE, "comments": {"enabled": enabled, "repo": ""}}
-        )
-        assert settings.comments.enabled is enabled
-    for invalid in (None, "true", "false", 1, 0, [], {}):
+    assert Settings.model_validate(
+        {**_BASE, "comments": {"enabled": True}}
+    ).comments.enabled
+    for invalid in ("true", 1, [], {}):
         with pytest.raises(ValidationError):
             Settings.model_validate({**_BASE, "comments": {"enabled": invalid}})
 
 
-def test_repository_references_use_owner_repo_format() -> None:
-    with pytest.raises(ValidationError) as missing:
-        ProjectCatalogEntry.model_validate({})
-    assert any(
-        error["type"] == "missing" and error["loc"] == ("repository",)
-        for error in missing.value.errors()
-    )
-    with pytest.raises(ValidationError):
-        Settings.model_validate({**_BASE, "comments": {"repo": "javascript:bad"}})
-    with pytest.raises(ValidationError):
-        ProjectCatalogEntry(
-            slug="bad",
-            title="Bad",
-            repository="not-a-repository",
-            summary="Bad repository reference",
-        )
+def test_github_owner_and_allowed_authors() -> None:
+    config = GithubConfig(repo="Owner/site", allowed_authors=[" Alice "])
+    assert config.owner == "Owner" and config.allowed_authors == ["Alice"]
+    for authors in ([], [" "], ["alice", "ALICE"]):
+        with pytest.raises(ValidationError):
+            GithubConfig(repo="o/r", allowed_authors=authors)
 
 
-def test_project_fallback_contract() -> None:
-    entry = ProjectCatalogEntry(
-        slug="escaping",
-        title="Escaping",
-        repository="geoqiao/escaping",
-        summary="Compiler",
-        fallback_metadata=ProjectFallbackMetadata(
-            stars=1, forks=0, language="Python", topics=["tools"]
-        ),
-    )
-    assert entry.fallback_metadata is not None
-    with pytest.raises(ValidationError):
-        ProjectFallbackMetadata(stars=-1)
-
-
-def test_resolver_sources_preserve_overrides_and_require_trusted_authors() -> None:
-    from escaping.config import PlatformContext, RepositoryIdentity
-    from escaping.services.github_service import PublicProfile
-    from escaping.site_inputs import resolve_settings
-
-    context = PlatformContext.model_validate(
-        {
-            "repository": "alice/site",
-            "owner_login": "alice",
-            "owner_type": "User",
-            "pages_base_url": "https://notes.example/",
-            "pages_base_path": "/",
-        }
-    )
-
-    class Source:
-        def fetch_repository_identity(self, repository: str) -> RepositoryIdentity:
-            return RepositoryIdentity(
-                repository=repository,
-                owner_login=repository.split("/")[0],
-                owner_type="Organization" if repository.startswith("bob/") else "User",
-            )
-
-        def fetch_public_profile(self, login: str) -> PublicProfile:
-            return PublicProfile(
-                login, f"{login.title()} Example", "https://example.org/a.png", "Hello"
-            )
-
-    source = Source()
-    settings, warnings = resolve_settings({}, context=context, github_service=source)
+def test_resolver_fills_only_missing_fields_from_trusted_sources() -> None:
+    context = PlatformContext.model_validate(_CONTEXT)
+    settings, warnings = resolve_settings({}, context=context, github_service=_Source())
     assert not warnings
     assert settings.github.allowed_authors == ["alice"]
     assert settings.site.title == settings.site.author == "Alice Example"
     assert str(settings.site.url) == "https://notes.example/"
     assert settings.profile.bio == settings.site.description == "Hello"
-    partial, _ = resolve_settings(
-        {"github": {}, "site": {}, "projects": [{"repository": "Alice/Tool"}]},
-        context=context,
-        github_service=source,
-    )
-    assert partial.github == settings.github and partial.site == settings.site
-    assert partial.projects[0].slug == "alice/tool"
+
     overrides = {
         "site": {"description": "", "navigation": {"items": []}},
         "profile": {"avatar": "", "bio": ""},
-        "projects": [],
-        "branding": {"show_powered_by": False},
-        "theme": {"name": "Quiet"},
+        "theme": {"options": {"tagline": "kept"}},
     }
-    settings, _ = resolve_settings(overrides, context=context, github_service=source)
-    assert (
-        settings.site.description
-        == settings.profile.avatar
-        == settings.profile.bio
-        == ""
-    )
-    assert not settings.site.navigation.items and not settings.projects
-    assert not settings.branding.show_powered_by and settings.theme.name == "Quiet"
+    settings, _ = resolve_settings(overrides, context=context, github_service=_Source())
+    assert settings.site.description == settings.profile.bio == ""
+    assert not settings.site.navigation.items
+    assert settings.theme.options == {"tagline": "kept"}
     assert overrides["site"] == {"description": "", "navigation": {"items": []}}
-    with pytest.raises(ValueError, match=r"github\.allowed_authors"):
-        resolve_settings(
-            {"github": {"repo": "bob/content"}}, context=context, github_service=source
-        )
+
+    # Another owner's content repository: its owner, not the Pages owner.
     settings, _ = resolve_settings(
-        {"github": {"repo": "bob/content", "allowed_authors": [" Carol "]}},
-        context=context,
-        github_service=source,
-    )
-    assert settings.github.allowed_authors == ["Carol"]
-    assert (
-        settings.github.repo == "bob/content" and settings.site.author == "Bob Example"
-    )
-    assert str(settings.site.url) == "https://notes.example/"
-    settings, _ = resolve_settings(
-        {},
-        context=context,
-        github_service=source,
-        repository_override="carol/content",
+        {}, context=context, github_service=_Source(), repository_override="carol/c"
     )
     assert settings.github.allowed_authors == ["carol"]
     assert settings.site.author == "Carol Example"
-    # No context is needed when the actual URL and repository are explicit.
-    settings, _ = resolve_settings(
-        {
-            "github": {"repo": "carol/content"},
-            "site": {"url": "https://notes.example/"},
-        },
-        github_service=source,
-    )
-    assert settings.github.allowed_authors == ["carol"]
+    with pytest.raises(ValueError, match=r"github\.allowed_authors"):
+        resolve_settings(
+            {"github": {"repo": "bob/content"}},
+            context=context,
+            github_service=_Source(),
+        )
 
 
-@pytest.mark.parametrize(
-    "data",
-    [
-        {"site": None},
-        {"site": {"url": 123}},
-        {"profile": {"avatar": None}},
-        {"paths": {"typo": True}},
-        {"security": {"token_env": "TOKEN\n"}},
-        {"about": {"issue_number": None}},
-        {"projects": [{"repository": "alice/tool", "title": None}]},
-        {"site": {"url": "https://example.org\\nested"}},
-        {"site": {"url": "https://exa\nmple.org/"}},
-    ],
-)
-def test_resolver_rejects_invalid_explicit_values_before_enrichment(data: dict) -> None:
-    from escaping.site_inputs import resolve_settings
-
-    with pytest.raises(ValueError, match=r"Invalid Config fields|explicit null"):
-        resolve_settings(data)
+def test_resolver_without_github_access_names_what_it_would_read() -> None:
+    with pytest.raises(ValueError, match=r"github\.repo.*site\.url"):
+        resolve_settings({})
+    explicit = {
+        **_BASE,
+        "site": {**_BASE["site"], "description": ""},
+        "profile": {"avatar": ""},
+    }
+    with pytest.raises(ValueError, match=r"reading profile\.bio from GitHub needs"):
+        resolve_settings(explicit)
+    explicit["profile"] = {"avatar": "", "bio": ""}
+    settings, warnings = resolve_settings(explicit)
+    assert settings.github.repo == "geoqiao/site" and not warnings
 
 
 @pytest.mark.parametrize(
     ("data", "field"),
     [
-        ({"projects": [{}]}, "projects.0.repository"),
-        ({"site": {"navigation": {"items": [{}]}}}, "site.navigation.items.0.name"),
-        (
-            {"site": {"navigation": {"items": [{"name": "Blog"}]}}},
-            "site.navigation.items.0.url",
-        ),
-        (
-            {"profile": {"links": [{"url": "https://example.org/"}]}},
-            "profile.links.0.name",
-        ),
+        ({"site": {"url": 123}}, "site.url"),
+        ({"profile": {"avatar": None}}, "profile.avatar"),
+        ({"about": {"issue_number": "1"}}, "about.issue_number"),
+        ({"projects": [{}]}, "projects.0"),
         ({"profile": {"links": [{"name": "Profile"}]}}, "profile.links.0.url"),
-        ({"theme": {"source": "local", "path": "theme"}}, "theme.local.name"),
-        ({"theme": {"source": "local", "name": "custom"}}, "theme.local.path"),
+        ({"theme": {"use": "Quiet"}}, "theme.use"),
     ],
 )
-def test_non_defaultable_missing_fields_fail_before_profile_source(
-    data: dict, field: str
-) -> None:
-    from escaping.config import PlatformContext, validate_config_overrides
-    from escaping.site_inputs import resolve_settings
-
-    class NoNetwork:
-        def fetch_repository_identity(self, repository: str) -> Never:
-            pytest.fail("Invalid Config must fail before repository access")
-
-        def fetch_public_profile(self, login: str) -> Never:
-            pytest.fail("Invalid Config must fail before Profile access")
-
-    context = PlatformContext.model_validate(
-        {
-            "repository": "alice/site",
-            "owner_login": "alice",
-            "owner_type": "User",
-            "pages_base_url": "https://notes.example/",
-            "pages_base_path": "/",
-        }
-    )
-    with pytest.raises(ValueError, match=re.escape(field)):
-        validate_config_overrides(data)
-    with pytest.raises(ValueError, match=re.escape(field)):
-        resolve_settings(data, context=context, github_service=NoNetwork())
+def test_invalid_config_fails_before_any_github_access(data: dict, field: str) -> None:
+    context = PlatformContext.model_validate(_CONTEXT)
+    with pytest.raises(ConfigError) as error:
+        resolve_settings(data, context=context, github_service=_NoNetwork())
+    assert any(p.startswith(field) for p in error.value.problems)
 
 
-def test_context_and_missing_information_are_not_guessed(tmp_path: Path) -> None:
-    from escaping.config import PlatformContext, read_platform_context
-    from escaping.site_inputs import resolve_settings
-
-    valid = {
-        "repository": "alice/site",
-        "owner_login": "alice",
-        "owner_type": "User",
-        "pages_base_url": "https://example.org/",
-        "pages_base_path": "",
-    }
-    for patch in (
-        {"owner_login": "mallory"},
-        {"owner_type": "Bot"},
-        {"actor": "alice"},
-        {"pages_base_path": "/blog/"},
-        {"pages_base_url": "https://example.org/blog/"},
-        {"pages_base_url": "https://exa\nmple.org/"},
-        {"pages_base_url": 123},
+def test_platform_context_is_validated_without_echoing_values(tmp_path: Path) -> None:
+    path = tmp_path / "context.json"
+    for patch, problem in (
+        ({"pages_base_url": "https://secret-host.example/blog/"}, "pages_base_url:"),
+        ({"owner_login": "secret-login"}, "must identify the same owner"),
+        ({"owner_type": "Bot"}, "owner_type:"),
+        ({"actor": "secret-actor"}, "actor: unknown field"),
     ):
-        with pytest.raises(ValidationError):
-            PlatformContext.model_validate({**valid, **patch})
-    with pytest.raises(ValueError, match=r"github\.repo.*site\.url"):
-        resolve_settings({})
-    # Fully explicit config needs neither context nor any network collaborator.
-    complete = {
-        **_BASE,
-        "site": {**_BASE["site"], "description": ""},
-        "profile": {"avatar": "", "bio": ""},
-    }
-    settings, warnings = resolve_settings(complete)
-    assert settings.github.repo == "geoqiao/site" and not warnings
-    context_path = tmp_path / "context.json"
-    context_path.write_text(
-        '{"repository": "alice/site", "repository": "bob/site"}', encoding="utf-8"
-    )
-    with pytest.raises(ValueError, match="unique fields"):
-        read_platform_context(context_path)
-
-
-def test_safe_config_reader_is_shared_with_pre_settings_security(
-    tmp_path: Path,
-) -> None:
-    from escaping.config import read_config_overrides, security_from_config
-
-    path = tmp_path / "config.yaml"
-    path.write_text("{}", encoding="utf-8")
-    assert security_from_config(read_config_overrides(path)).token_env == "GITHUB_TOKEN"  # noqa: S105
-    path.write_text("security:\n  token_env: READ_TOKEN\n", encoding="utf-8")
-    assert security_from_config(read_config_overrides(path)).token_env == "READ_TOKEN"  # noqa: S105
-    for invalid in (
-        "null",
-        "[]",
-        "site: {}\nsite: {}",
-        "security: !!python/object:bad {}",
-        "security: null",
-    ):
-        path.write_text(invalid, encoding="utf-8")
-        with pytest.raises(ValueError):
-            security_from_config(read_config_overrides(path))
+        path.write_text(json.dumps({**_CONTEXT, **patch}), encoding="utf-8")
+        with pytest.raises(ConfigError) as error:
+            read_platform_context(path)
+        text = "\n".join(error.value.problems)
+        assert problem in text and "secret" not in text
+    path.write_text('{"repository": "a/b", "repository": "c/d"}', encoding="utf-8")
+    with pytest.raises(ConfigError, match="unique fields"):
+        read_platform_context(path)
+    path.write_text("{not json", encoding="utf-8")
+    with pytest.raises(ConfigError, match=r"context\.json:"):
+        read_platform_context(path)

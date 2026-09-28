@@ -1,18 +1,17 @@
 from __future__ import annotations
 
 import xml.etree.ElementTree as ET
-from datetime import UTC, datetime
+from datetime import UTC, datetime, timedelta, timezone
 
 import pytest
 
 from escaping.atom_feed import AtomXmlError, render_atom_xml
 from escaping.models.atom_feed import AtomEntry, AtomFeed
 from escaping.models.site import (
-    BrandingMetadata,
     CommentsMetadata,
+    SeoMetadata,
     SiteMetadata,
     SiteProfile,
-    ThemeMetadata,
 )
 from escaping.routes import RouteRegistry
 
@@ -26,19 +25,11 @@ def _metadata(*, title: str = "Test & Notes") -> SiteMetadata:
         author="Owner",
         description="A site description.",
         language="en",
-        github_name="owner",
-        github_repo="owner/site",
+        repo="owner/site",
         navigation=(),
-        thesis=(),
         profile=SiteProfile(),
-        branding=BrandingMetadata(True, "Powered by", "https://example.com/", ""),
-        comments=CommentsMetadata("owner/site", "github-light", "auto"),
-        google_search_verification="",
-        theme=ThemeMetadata(
-            "Quiet",
-            "/templates/Quiet",
-            "https://example.com/templates/Quiet/static/images/favicon.png",
-        ),
+        comments=CommentsMetadata(enabled=False, repo="owner/site"),
+        seo=SeoMetadata(),
     )
 
 
@@ -61,10 +52,13 @@ def _feed(*, updated: datetime = _AWARE, entry: AtomEntry | None = None) -> Atom
 
 
 def test_atom_renderer_uses_metadata_routes_and_escapes_xml() -> None:
-    xml = render_atom_xml(_feed(), _metadata(), "https://example.com/")
+    # 08:30 at UTC+8 on Jan 2 is 00:30 UTC.
+    local = datetime(2026, 1, 2, 8, 30, tzinfo=timezone(timedelta(hours=8)))
+    xml = render_atom_xml(_feed(updated=local), _metadata(), "https://example.com/")
     root = ET.fromstring(xml)
 
     assert root.findtext(f"{{{_ATOM_NS}}}id") == "https://example.com/"
+    assert root.findtext(f"{{{_ATOM_NS}}}updated") == "2026-01-02T00:30:00Z"
     assert root.findtext(f"{{{_ATOM_NS}}}title") == "Test & Notes"
     assert root.findtext(f"{{{_ATOM_NS}}}author/{{{_ATOM_NS}}}name") == "Owner"
     self_link = next(

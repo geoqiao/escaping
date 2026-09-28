@@ -155,22 +155,32 @@ def test_ideas_forbid_slug_sort_and_keep_tags_outside_blog_taxonomy() -> None:
 
 
 @pytest.mark.parametrize(
-    "configured,other,expected",
+    "configured,expected",
     [
-        (_snapshot(10, "about", published=False), None, "ABOUT_UNPUBLISHED"),
-        (_snapshot(10, "about", author="other"), None, "ABOUT_UNAUTHORIZED"),
-        (_snapshot(10, "about", is_pr=True), None, "ABOUT_IS_PULL_REQUEST"),
-        (_snapshot(10, "idea"), None, "ABOUT_TYPE_INVALID"),
-        (_snapshot(10, "about"), _snapshot(11, "about"), "ABOUT_DUPLICATE"),
+        (_snapshot(10, "about", published=False), "ABOUT_UNPUBLISHED"),
+        (_snapshot(10, "about", author="other"), "ABOUT_UNAUTHORIZED"),
+        (_snapshot(10, "about", is_pr=True), "ABOUT_IS_PULL_REQUEST"),
+        (_snapshot(10, "idea"), "ABOUT_TYPE_INVALID"),
     ],
 )
-def test_about_failure_matrix(
-    configured: IssueSnapshot, other: IssueSnapshot | None, expected: str
+def test_configured_about_failures_stop_the_build(
+    configured: IssueSnapshot, expected: str
 ) -> None:
-    snapshots = [configured] + ([other] if other is not None else [])
-    result = _compiler().compile(snapshots)
+    result = _compiler().compile([configured, _snapshot(1, "blog")])
     assert expected in _codes(result)
-    assert result.about is None
+    assert result.has_errors and result.about is None and not result.skipped
+
+
+def test_other_about_issues_are_skipped_when_one_is_configured() -> None:
+    result = _compiler().compile(
+        [_snapshot(11, "about"), _snapshot(10, "about"), _snapshot(1, "blog")]
+    )
+    assert not result.has_errors, result.diagnostics
+    assert result.about is not None and result.about.issue_number == 10
+    assert result.skipped == (11,)
+    assert [(d.code, d.issue_number) for d in result.diagnostics] == [
+        ("ABOUT_NOT_SELECTED", 11)
+    ]
 
 
 @pytest.mark.parametrize(
@@ -273,7 +283,7 @@ def test_description_uses_only_sanitized_visible_body_text(
         ("unknown: value", "FRONT_MATTER_UNKNOWN_FIELD"),
     ],
 )
-def test_explicit_invalid_metadata_fails_the_entire_batch(
+def test_explicit_invalid_metadata_skips_only_that_issue(
     metadata: str, code: str
 ) -> None:
     result = _compiler().compile(
@@ -285,7 +295,9 @@ def test_explicit_invalid_metadata_fails_the_entire_batch(
     )
     assert code in _codes(result)
     assert any(d.code == code and d.issue_number == 128 for d in result.diagnostics)
-    assert not result.blogs and not result.ideas and result.about is None
+    assert not result.has_errors and result.skipped == (128,)
+    assert [post.issue_number for post in result.blogs] == [1]
+    assert result.about is not None
 
 
 def test_defaults_keep_publication_gates_and_collect_published_errors() -> None:
@@ -327,10 +339,12 @@ def test_defaults_keep_publication_gates_and_collect_published_errors() -> None:
         "TYPE_LABEL_UNKNOWN",
         "FRONT_MATTER_UNCLOSED",
     }
-    assert not bad.blogs and bad.about is None
+    assert not bad.has_errors and bad.skipped == (20, 21, 22, 23)
+    assert [p.issue_number for p in bad.blogs] == [128]
+    assert bad.about is not None
 
 
-def test_default_and_explicit_slugs_share_registry_and_collision_checks() -> None:
+def test_oldest_issue_keeps_a_contested_slug() -> None:
     routes = RouteRegistry(str(_settings().site.url))
     default = replace(_snapshot(128, "blog"), body="Body.")
     registered = ContentCompiler(_settings(), route_registry=routes).compile(
@@ -338,15 +352,44 @@ def test_default_and_explicit_slugs_share_registry_and_collision_checks() -> Non
     )
     assert not registered.has_errors
     assert registered.blogs[0].route is routes.route("blog-detail-128")
+    # Input order does not matter: the lower Issue number owns the slug.
     collision = _compiler().compile(
         [
-            default,
             _snapshot(129, "blog", metadata='slug: "128"'),
+            default,
             _snapshot(10, "about"),
         ]
     )
-    assert "SLUG_DUPLICATE" in _codes(collision)
-    assert not collision.blogs
+    assert not collision.has_errors and collision.skipped == (129,)
+    assert [p.issue_number for p in collision.blogs] == [128]
+    duplicate = next(d for d in collision.diagnostics if d.code == "SLUG_DUPLICATE")
+    assert duplicate.issue_number == 129 and "#128" in duplicate.message
+
+
+def test_unicode_tags_keep_display_names_and_share_keys() -> None:
+    result = _compiler().compile(
+        [
+            _snapshot(
+                1,
+                "blog",
+                labels=(
+                    "tag:Machine Learning",
+                    "TAG:machine_learning",
+                    "tag:示例 标签",
+                ),
+            ),
+            _snapshot(2, "blog", metadata="slug: other", labels=("tag:C++",)),
+            _snapshot(10, "about"),
+        ]
+    )
+    assert not result.has_errors and result.skipped == (2,)
+    assert "TAG_INVALID" in _codes(result)
+    tags = result.blogs[0].tags
+    assert [(tag.name, tag.key) for tag in tags] == [
+        ("Machine Learning", "machine-learning"),
+        ("示例 标签", "示例-标签"),
+    ]
+    assert tags[1].route.output_path == "tags/示例-标签/index.html"
 
 
 @pytest.mark.parametrize("kind,number", [("idea", 2), ("about", 10)])
@@ -477,10 +520,10 @@ def test_highlighted_source_and_fence_options_cannot_inject_html(info: str) -> N
 
 def test_missing_about_and_about_tags_fail() -> None:
     missing = _compiler().compile([_snapshot(1, "blog")])
-    assert "ABOUT_MISSING" in _codes(missing)
+    assert "ABOUT_MISSING" in _codes(missing) and missing.has_errors
 
     tagged = _compiler().compile([_snapshot(10, "about", labels=("tag:profile",))])
-    assert "ABOUT_TAG_FORBIDDEN" in _codes(tagged)
+    assert "ABOUT_TAG_FORBIDDEN" in _codes(tagged) and tagged.has_errors
 
 
 def test_about_discovery_requires_a_unique_valid_published_candidate() -> None:
@@ -498,7 +541,10 @@ def test_about_discovery_requires_a_unique_valid_published_candidate() -> None:
     discovered = discover([_snapshot(42, "about")])
     assert not discovered.has_errors and discovered.about is not None
     assert discovered.about.issue_number == 42
-    duplicate = discover([_snapshot(42, "about"), _snapshot(43, "about")])
+    duplicate = discover([_snapshot(43, "about"), _snapshot(42, "about")])
     assert "ABOUT_DUPLICATE" in _codes(duplicate)
+    assert not duplicate.has_errors and duplicate.skipped == (43,)
+    assert duplicate.about is not None and duplicate.about.issue_number == 42
     invalid = discover([_snapshot(42, "about", metadata="slug: forbidden")])
     assert "SLUG_FORBIDDEN" in _codes(invalid) and invalid.about is None
+    assert not invalid.has_errors and invalid.skipped == (42,)

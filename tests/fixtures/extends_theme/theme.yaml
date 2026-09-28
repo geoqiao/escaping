@@ -1,0 +1,24 @@
+# Extends the built-in Quiet: overrides two partials, adds an option, a
+# static page and one page per configured project.
+api: 3
+extends: quiet
+
+options:
+  now_text:
+    type: string
+    default: Working on escaping.
+    description: Shown on /now/ and in a head meta tag.
+
+pages:
+  - path: /now/
+    template: now.html
+  - path: /projects/{slug}/
+    template: project.html
+    for_each: projects
+
+strings:
+  en:
+    now_title: Now
+    footer_thanks: Thanks for stopping by.
+  zh:
+    now_title: 现在

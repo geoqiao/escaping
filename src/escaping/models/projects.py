@@ -14,6 +14,12 @@ class ProjectLink:
 
 @dataclass(frozen=True)
 class Project:
+    """A curated project. ``url`` is its website, else its repository.
+
+    ``page`` is the Route of the Theme's detail page when the Theme declares
+    one with ``for_each: projects``.
+    """
+
     slug: str
     title: str
     repository: str
@@ -21,43 +27,21 @@ class Project:
     url: str
     featured: bool
     order: int
+    website: str = ""
     stars: int | None = None
     forks: int | None = None
     language: str | None = None
     topics: tuple[str, ...] = field(default_factory=tuple)
     image: str = ""
     links: tuple[ProjectLink, ...] = field(default_factory=tuple)
-
-
-@dataclass(frozen=True)
-class ProjectsPage:
-    projects: tuple[Project, ...]
-    featured: tuple[Project, ...]
-    route: Route
-
-    def top_by_stars(self, limit: int = 5) -> tuple[Project, ...]:
-        """Return known-star projects first, preserving catalog order for ties."""
-        ranked = sorted(
-            self.projects,
-            key=lambda project: (
-                project.stars is None,
-                -(project.stars or 0),
-                project.order,
-                project.slug,
-            ),
-        )
-        return tuple(ranked[:limit])
+    page: Route | None = None
 
     @property
-    def canonical_path(self) -> str:
-        return self.route.canonical_path
-
-    @property
-    def canonical_url(self) -> str:
-        return self.route.canonical_url
+    def repository_url(self) -> str:
+        return f"https://github.com/{self.repository}" if self.repository else ""
 
 
 @dataclass(frozen=True)
 class ProjectCompilationResult:
-    page: ProjectsPage
+    projects: tuple[Project, ...] = field(default_factory=tuple)
     diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)

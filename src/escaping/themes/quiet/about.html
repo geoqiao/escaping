@@ -1,0 +1,20 @@
+{% extends 'base.html' %}
+{% set about = page.about %}
+{% set page_title = about.title %}
+{% set active_section = site.routes.about.canonical_path %}
+{% block content %}
+{% from 'components.html' import project_entry, comments_section, mermaid with context %}
+<article class="about-page">
+  <header class="about-header"><p class="eyebrow muted">{{ t.about }}</p><h1>{{ about.title }}</h1></header>
+  <div class="post-content about-story">{% if about.is_profile %}<p>{{ site.profile.bio }}</p>{% else %}{{ about.body_html|safe }}{% endif %}</div>
+  {% if site.featured_projects %}
+  <section class="about-works" aria-labelledby="projects-title">
+    <div class="section-heading"><h2 id="projects-title">{{ t.also_building }}</h2><a class="more-projects" href="{{ site.routes.projects.canonical_path }}">{{ t.all_projects }} <span aria-hidden="true">↗</span></a></div>
+    <div class="works-grid">{% for project in site.featured_projects[:4] %}{{ project_entry(project) }}{% endfor %}</div>
+  </section>
+  {% endif %}
+  <div class="article-end"><a href="{{ site.routes.home.canonical_path }}">{{ t.back_home }}</a><a href="#top">{{ t.back_to_top }} ↑</a></div>
+  {% if site.comments.enabled and not about.is_profile %}{{ comments_section(about.issue_number) }}{% endif %}
+</article>
+{% if not about.is_profile %}{{ mermaid() }}{% endif %}
+{% endblock %}

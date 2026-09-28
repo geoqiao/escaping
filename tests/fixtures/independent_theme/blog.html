@@ -1,0 +1,24 @@
+{% extends "base.html" %}
+{% set page_title = "Blog" %}
+{% set active_destination = site.routes.blog.canonical_path %}
+
+{% block content %}
+<div class="page-shell">
+  <header class="page-heading">
+    <p class="eyebrow">Archive</p>
+    <h1>Blog</h1>
+    <p>{{ site.description }}</p>
+  </header>
+
+  {% set posts = page.archive.posts %}{% set show_descriptions = false %}
+  {% include "_post_list.html" %}
+
+  {% if page.archive.total_pages > 1 %}
+  <nav class="pagination" aria-label="Blog pages">
+    {% if page.archive.prev_route %}<a href="{{ page.archive.prev_route.canonical_path }}">Newer posts</a>{% endif %}
+    <span>Page {{ page.archive.page_number }} of {{ page.archive.total_pages }}</span>
+    {% if page.archive.next_route %}<a href="{{ page.archive.next_route.canonical_path }}">Older posts</a>{% endif %}
+  </nav>
+  {% endif %}
+</div>
+{% endblock %}

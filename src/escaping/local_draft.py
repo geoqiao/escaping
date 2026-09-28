@@ -19,6 +19,7 @@ from .content_validation import (
     CONTENT_TYPES,
     render_body,
     reserved_blog_slug,
+    tag_key,
     validate_authored_content,
 )
 from .utils.frontmatter import (
@@ -97,7 +98,7 @@ def prepare_local_draft(
                 field="tags",
             )
         )
-    elif len(tags) != len(set(tags)):
+    elif len(tags) != len({tag_key(tag) for tag in tags}):
         errors.append(
             Diagnostic(
                 "error",

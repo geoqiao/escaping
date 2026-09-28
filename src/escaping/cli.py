@@ -1,86 +1,283 @@
+"""Command line: ``escpe build`` (the default) and ``escpe theme check``.
+
+Exit status: 0 published, 1 failed (nothing published), 2 published but some
+Issues were skipped because of their own errors.
+"""
+
 from __future__ import annotations
 
 import argparse
 import os
 import sys
+from collections.abc import Sequence
+from copy import deepcopy
 from pathlib import Path
+from typing import Any
 
-import structlog
-from pydantic import ValidationError
-
-from .config import read_config_overrides, read_platform_context, security_from_config
-from .services.github_service import GitHubService
-from .site_compiler import SiteCompiler
+from .build_result import BuildResult, Diagnostic
+from .config import (
+    ConfigError,
+    read_config_overrides,
+    read_platform_context,
+    security_from_config,
+)
+from .models.issue_snapshot import IssueSnapshot
+from .services.github_service import GitHubService, read_issues_json
+from .site_compiler import IssueSource, SiteCompiler, check_theme
 from .site_inputs import resolve_settings
 
-logger = structlog.get_logger()
+EXIT_OK = 0
+EXIT_FAILED = 1
+EXIT_SKIPPED = 2
 
 
-def run_cli() -> None:
-    parser = argparse.ArgumentParser(description="Strict GitHub Issue Site Compiler")
-    parser.add_argument(
-        "--repo",
-        help="GitHub repository (owner/name); overrides the configured source repository.",
+def run_cli(argv: Sequence[str] | None = None) -> None:
+    sys.exit(main(argv))
+
+
+def main(argv: Sequence[str] | None = None) -> int:
+    args = list(sys.argv[1:] if argv is None else argv)
+    if not args or (args[0].startswith("-") and args[0] not in ("-h", "--help")):
+        args.insert(0, "build")
+    ns = _parser().parse_args(args)
+    if ns.command == "theme":
+        return _theme_check(ns)
+    return _build(ns)
+
+
+def _parser() -> argparse.ArgumentParser:
+    parser = argparse.ArgumentParser(
+        prog="escpe", description="Build a website from GitHub Issues."
     )
-    parser.add_argument(
-        "--config",
-        type=Path,
-        default=Path("config.yaml"),
-        help="Strict YAML configuration path.",
+    commands = parser.add_subparsers(dest="command", required=True)
+    build = commands.add_parser("build", help="build and publish the site (default)")
+    _common(build)
+    build.add_argument(
+        "--repo", help="content repository (owner/name); overrides github.repo"
     )
-    parser.add_argument(
+    build.add_argument(
         "--context",
         type=Path,
-        help="Non-secret GitHub.com repository/Pages root context JSON path.",
+        help="JSON with the repository and Pages URL, written by the Action",
     )
-    args = parser.parse_args()
+    build.add_argument(
+        "--token-env",
+        metavar="NAME",
+        help="environment variable holding the GitHub token; "
+        "overrides security.token_env",
+    )
+    theme = commands.add_parser("theme", help="Theme tools")
+    theme_commands = theme.add_subparsers(dest="theme_command", required=True)
+    check = theme_commands.add_parser(
+        "check",
+        help="render the site with sample content and report Theme problems",
+    )
+    _common(check)
+    return parser
 
-    config_path = args.config.expanduser().absolute()
+
+def _common(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--config", type=Path, default=Path("config.yaml"), help="site Config file"
+    )
+    parser.add_argument(
+        "--issues-json",
+        type=Path,
+        help="read Issues from this file instead of GitHub "
+        "(gh api --paginate --slurp 'repos/OWNER/REPO/issues?state=all&per_page=100')",
+    )
+
+
+def _build(ns: argparse.Namespace) -> int:
+    report = _Reporter()
+    config_path = ns.config.expanduser().absolute()
     try:
         overrides = read_config_overrides(config_path)
-        context = (
-            read_platform_context(args.context) if args.context is not None else None
-        )
-        security = security_from_config(overrides)
-        token = os.environ.get(security.token_env)
-        if not token:
-            logger.error("missing_token", env_var=security.token_env)
-            sys.exit(1)
-        github = GitHubService(token)
+        context = read_platform_context(ns.context) if ns.context else None
+        token_env = ns.token_env or security_from_config(overrides).token_env
+        token = os.environ.get(token_env)
+        snapshots = _read_issues(ns.issues_json)
+        if not token and snapshots is None:
+            report.fail(
+                [
+                    f"set the {token_env} environment variable to a GitHub token, "
+                    "or pass --issues-json"
+                ]
+            )
+            return EXIT_FAILED
+        github = GitHubService(token) if token else None
         settings, input_diagnostics = resolve_settings(
             overrides,
             context=context,
             github_service=github,
-            repository_override=args.repo,
+            repository_override=ns.repo,
         )
+    except ConfigError as exc:
+        report.fail(exc.problems)
+        return EXIT_FAILED
     except (OSError, ValueError) as exc:
-        message = str(exc)
-        if isinstance(exc, ValidationError):
-            message = "Invalid input fields: " + ", ".join(
-                ".".join(map(str, error["loc"])) for error in exc.errors()
-            )
-        logger.error("input_failed", message=message)
-        sys.exit(1)
+        report.fail([str(exc)])
+        return EXIT_FAILED
 
     result = SiteCompiler(
-        token,
-        settings.github.repo,
         settings,
         config_root=config_path.parent,
-        github_service=github,
+        issues=_issue_source(github, settings.github.repo, snapshots),
+        project_enricher=github.fetch_project_enrichment if github else None,
     ).generate()
-    for diagnostic in (*input_diagnostics, *result.diagnostics):
-        fields: dict[str, str | int] = {
-            "code": diagnostic.code,
-            "message": diagnostic.message,
-        }
-        if diagnostic.issue_number is not None:
-            fields["issue_number"] = diagnostic.issue_number
-        if diagnostic.field is not None:
-            fields["field"] = diagnostic.field
-        if diagnostic.severity == "error":
-            logger.error("build_diagnostic", **fields)
-        else:
-            logger.warning("build_diagnostic", **fields)
+    report.repo = settings.github.repo
+    report.result(
+        result,
+        input_diagnostics,
+        done=f"Published {settings.paths.output}/.",
+        failed="Build failed; the previous output was left unchanged.",
+    )
     if not result.success:
-        sys.exit(1)
+        return EXIT_FAILED
+    report.outputs(
+        output=str((config_path.parent / settings.paths.output).resolve()),
+        skipped_issues=",".join(map(str, result.skipped_issues)),
+    )
+    return EXIT_SKIPPED if result.skipped_issues else EXIT_OK
+
+
+def _theme_check(ns: argparse.Namespace) -> int:
+    report = _Reporter()
+    config_path = ns.config.expanduser().absolute()
+    try:
+        overrides = read_config_overrides(config_path)
+        snapshots = _read_issues(ns.issues_json)
+        settings, _ = resolve_settings(_with_placeholders(overrides))
+    except ConfigError as exc:
+        report.fail(exc.problems)
+        return EXIT_FAILED
+    except (OSError, ValueError) as exc:
+        report.fail([str(exc)])
+        return EXIT_FAILED
+    result = check_theme(settings, config_root=config_path.parent, snapshots=snapshots)
+    report.result(
+        result,
+        (),
+        done=f"Theme {settings.theme.use} renders every page.",
+        failed="Theme check failed.",
+    )
+    return EXIT_OK if result.success else EXIT_FAILED
+
+
+def _issue_source(
+    github: GitHubService | None,
+    repo: str,
+    snapshots: list[IssueSnapshot] | None,
+) -> IssueSource:
+    if snapshots is not None:
+        return lambda: snapshots
+    if github is None:
+        raise ValueError("a GitHub token or --issues-json is required")
+    client = github
+    return lambda: client.fetch_issue_snapshots(client.get_repo(repo))
+
+
+def _read_issues(path: Path | None) -> list[IssueSnapshot] | None:
+    return read_issues_json(path.expanduser()) if path is not None else None
+
+
+def _with_placeholders(overrides: dict[str, Any]) -> dict[str, Any]:
+    """Fill identity fields a real build reads from GitHub; the check is offline."""
+    data = deepcopy(overrides)
+    github = data.setdefault("github", {})
+    github.setdefault("repo", "example/site")
+    github.setdefault("allowed_authors", ["example"])
+    site = data.setdefault("site", {})
+    site.setdefault("url", "https://example.com/")
+    for key, value in (
+        ("title", "Example"),
+        ("author", "Example Author"),
+        ("description", "An example site."),
+    ):
+        site.setdefault(key, value)
+    profile = data.setdefault("profile", {})
+    profile.setdefault("avatar", "")
+    profile.setdefault("bio", "")
+    return data
+
+
+class _Reporter:
+    """Plain lines on stderr; annotations and a job summary on GitHub Actions."""
+
+    def __init__(self) -> None:
+        self.actions = os.environ.get("GITHUB_ACTIONS") == "true"
+        self.summary_path = os.environ.get("GITHUB_STEP_SUMMARY")
+        self.output_path = os.environ.get("GITHUB_OUTPUT")
+        self.repo = ""
+
+    def outputs(self, **values: str) -> None:
+        """Step outputs for the Action, e.g. the directory to upload."""
+        if not self.output_path:
+            return
+        if any("\n" in value or "\r" in value for value in values.values()):
+            raise ValueError("a step output cannot contain a line break")
+        with Path(self.output_path).open("a", encoding="utf-8") as file:
+            for name, value in values.items():
+                file.write(f"{name.replace('_', '-')}={value}\n")
+
+    def fail(self, problems: Sequence[str]) -> None:
+        self.result(
+            BuildResult(
+                False, tuple(Diagnostic("error", "CONFIG_INVALID", p) for p in problems)
+            ),
+            (),
+            done="",
+            failed="Nothing was built.",
+        )
+
+    def result(
+        self,
+        result: BuildResult,
+        extra: Sequence[Diagnostic],
+        *,
+        done: str,
+        failed: str,
+    ) -> None:
+        diagnostics = (*extra, *result.diagnostics)
+        for diagnostic in diagnostics:
+            print(f"{diagnostic.severity}: {diagnostic.message}", file=sys.stderr)
+            if self.actions:
+                command = "error" if diagnostic.severity == "error" else "warning"
+                print(
+                    f"::{command} title={_escape(diagnostic.code, True)}::"
+                    f"{_escape(diagnostic.message, False)}"
+                )
+        headline = done if result.success else failed
+        if result.success and result.skipped_issues:
+            numbers = ", ".join(f"#{n}" for n in result.skipped_issues)
+            headline += f" Skipped Issues {numbers}; fix the errors above."
+        print(headline, file=sys.stderr)
+        if self.summary_path:
+            self._write_summary(headline, diagnostics)
+
+    def _write_summary(self, headline: str, diagnostics: Sequence[Diagnostic]) -> None:
+        lines = ["## escaping", "", headline, ""]
+        if diagnostics:
+            lines += ["| | Issue | Problem |", "| --- | --- | --- |"]
+            for d in diagnostics[:100]:
+                mark = "❌" if d.severity == "error" else "⚠️"
+                issue = (
+                    f"[#{d.issue_number}](https://github.com/{self.repo}/issues/"
+                    f"{d.issue_number})"
+                    if d.issue_number is not None and self.repo
+                    else ""
+                )
+                message = d.message.replace("|", "\\|").replace("\n", " ")
+                lines.append(f"| {mark} | {issue} | {message} |")
+        try:
+            with Path(self.summary_path or "").open("a", encoding="utf-8") as file:
+                file.write("\n".join(lines) + "\n")
+        except OSError:
+            print("warning: could not write the job summary", file=sys.stderr)
+
+
+def _escape(value: str, is_property: bool) -> str:
+    value = value.replace("%", "%25").replace("\r", "%0D").replace("\n", "%0A")
+    if is_property:
+        value = value.replace(":", "%3A").replace(",", "%2C")
+    return value

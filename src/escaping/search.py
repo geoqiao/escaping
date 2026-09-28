@@ -51,8 +51,8 @@ def build_search_index(site: SiteModel) -> SearchIndex:
             description=project.summary,
             tags=list(project.topics),
             type="Project",
-            url=project.url,
+            url=project.page.canonical_path if project.page else project.url,
         )
-        for project in site.projects.projects
+        for project in site.projects
     )
     return {"version": 1, "items": items}

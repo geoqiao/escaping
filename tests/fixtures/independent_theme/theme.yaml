@@ -1,20 +1,27 @@
-api_version: "2"
-capabilities:
-  - comments
-  - markdown
-  - responsive
-required_templates:
-  - base.html
-  - home.html
-  - index.html
-  - post.html
-  - ideas.html
-  - idea.html
-  - about.html
-  - projects.html
-  - tags.html
-  - tag.html
-required_assets:
-  - static/css
-  - static/js
-  - static/images
+# A small Theme written only against the public Theme API 3 contract.
+api: 3
+
+options:
+  footer_note:
+    type: string
+    default: ""
+    description: Text shown in the footer.
+  comments_theme:
+    type: choice
+    values: [github-light, github-dark]
+    default: github-light
+    description: Utterances theme.
+
+strings:
+  en:
+    skip: Skip to content
+    home_label: Home
+    primary: Primary
+    no_posts: No posts yet.
+    not_found: Not found
+  zh:
+    skip: 跳到正文
+    home_label: 首页
+    primary: 主导航
+    no_posts: 还没有文章。
+    not_found: 页面不存在

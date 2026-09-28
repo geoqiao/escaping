@@ -1,0 +1,8 @@
+<footer class="site-footer" lang="{{ t.language }}">
+  <div><strong>{{ site.author }}</strong><span>{{ theme.footer_text or t.footer_thanks }}</span></div>
+  <nav aria-label="{{ t.footer_links }}">
+    {% for link in site.profile.links %}<a href="{{ link.url }}">{{ link.name }} ↗</a>{% endfor %}
+    <a href="{{ site.routes.atom.canonical_path }}">RSS ↗</a>
+    {% if theme.show_powered_by %}<a href="https://github.com/geoqiao/escaping">{{ t.powered_by }}</a>{% endif %}
+  </nav>
+</footer>

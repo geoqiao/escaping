@@ -39,17 +39,17 @@ from playwright.sync_api import (  # noqa: E402
 )
 
 from escaping.config import Settings  # noqa: E402
-from escaping.content_compiler import ContentCompiler  # noqa: E402
 from escaping.models.issue_snapshot import IssueSnapshot  # noqa: E402
-from escaping.projects import ProjectCompiler  # noqa: E402
-from escaping.routes import RouteRegistry  # noqa: E402
-from escaping.services.render_service import RenderService  # noqa: E402
-from escaping.site_builder import SiteBuilder  # noqa: E402
-from escaping.theme import ThemeLoader  # noqa: E402
+from escaping.site_compiler import (  # noqa: E402
+    compile_site,
+    prepare_theme,
+    render_site,
+)
 from escaping.utils.html_sanitizer import sanitize_html  # noqa: E402
 
 _ROOT = Path(__file__).parent.parent.absolute()
 _THEMES = ("Quiet", "independent")
+_CHINESE_TAG_PATH = "/tags/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/"
 _MERMAID_RENDER_TIMEOUT_MS = 15_000
 _ADJACENT_POSTS: tuple[tuple[int, str, str, datetime, str], ...] = (
     (4, "Tie low", "tie-low", datetime(2026, 1, 2, tzinfo=UTC), "focus"),
@@ -60,7 +60,7 @@ _ADJACENT_POSTS: tuple[tuple[int, str, str, datetime, str], ...] = (
 )
 
 
-def _browser_settings(theme: str) -> Settings:
+def _browser_settings(theme: str, language: str = "en") -> Settings:
     return Settings.model_validate(
         {
             "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
@@ -68,7 +68,7 @@ def _browser_settings(theme: str) -> Settings:
                 "title": "Browser Site",
                 "author": "geoqiao",
                 "url": "https://geoqiao.me/",
-                "language": "zh-CN" if theme == "Quiet" else "en",
+                "language": language,
                 "navigation": {
                     "items": [
                         {"name": "Home", "url": "/"},
@@ -80,7 +80,7 @@ def _browser_settings(theme: str) -> Settings:
                     ]
                 },
             },
-            "profile": {"avatar": "/templates/Quiet/static/images/favicon.png"}
+            "profile": {"avatar": "/assets/images/favicon.png"}
             if theme == "Quiet"
             else {},
             "about": {"issue_number": 10},
@@ -91,9 +91,7 @@ def _browser_settings(theme: str) -> Settings:
                     "summary": "A useful, independently maintained tool.",
                     "featured": i != 0,
                     "order": 6 - i,
-                    "image": "/templates/Quiet/static/images/favicon.png"
-                    if i == 6
-                    else "",
+                    "image": "/assets/images/favicon.png" if i == 6 else "",
                     "links": [
                         {"name": "Docs & examples", "url": "https://example.com/docs"}
                     ]
@@ -108,15 +106,45 @@ def _browser_settings(theme: str) -> Settings:
             "paths": {"page_size": 2},
             "security": {"token_env": "TEST_TOKEN"},
             "comments": {"enabled": True},
-            "theme": {
-                "source": "local",
-                "name": "independent",
-                "path": "tests/fixtures/independent_theme",
-            }
+            "theme": {"use": "tests/fixtures/independent_theme"}
             if theme == "independent"
-            else {"source": "builtin", "name": theme},
+            else {"use": "quiet", "options": {"featured_posts": [1]}},
         }
     )
+
+
+def _write_site(
+    settings: Settings,
+    snapshots: list[IssueSnapshot],
+    output_dir: Path,
+    build_time: datetime,
+) -> None:
+    """Build through the public pipeline, without GitHub or output staging."""
+    theme, options = prepare_theme(settings, _ROOT)
+    site = compile_site(
+        settings, snapshots, theme, project_enricher=None, build_start_time=build_time
+    )
+    assert not site.has_errors, site.diagnostics
+    render_site(output_dir, site, theme, options)
+
+
+class _PagesHandler(SimpleHTTPRequestHandler):
+    """Serve ``404.html`` for missing paths with status 404, like GitHub Pages."""
+
+    def send_error(
+        self, code: int, message: str | None = None, explain: str | None = None
+    ) -> None:
+        page = Path(str(self.directory)) / "404.html"
+        if code != 404 or not page.is_file():
+            super().send_error(code, message, explain)
+            return
+        body = page.read_bytes()
+        self.send_response(404)
+        self.send_header("Content-Type", "text/html; charset=utf-8")
+        self.send_header("Content-Length", str(len(body)))
+        self.end_headers()
+        if self.command != "HEAD":
+            self.wfile.write(body)
 
 
 def _adjacent_snapshot(
@@ -147,9 +175,9 @@ def _adjacent_snapshot(
 
 def _write_quiet_adjacent_site(output_dir: Path) -> None:
     settings = _browser_settings("Quiet")
-    routes = RouteRegistry(str(settings.site.url))
     build_time = datetime(2026, 1, 20, tzinfo=UTC)
-    content = ContentCompiler(settings, route_registry=routes).compile(
+    _write_site(
+        settings,
         [
             *(_adjacent_snapshot(*definition) for definition in _ADJACENT_POSTS),
             IssueSnapshot(
@@ -172,21 +200,10 @@ def _write_quiet_adjacent_site(output_dir: Path) -> None:
                 updated_at=build_time,
                 is_pull_request=False,
             ),
-        ]
+        ],
+        output_dir,
+        build_time,
     )
-    assert not content.has_errors
-    site = SiteBuilder(settings, route_registry=routes).build(
-        content,
-        ProjectCompiler().compile(settings.projects, route=routes.projects()),
-        build_start_time=build_time,
-    )
-    assert not site.has_errors
-    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
-    renderer.copy_theme_assets(output_dir)
-    for output_path, html in renderer.render_site(site).items():
-        path = output_dir / output_path
-        path.parent.mkdir(parents=True, exist_ok=True)
-        path.write_text(html, encoding="utf-8")
 
 
 @pytest.mark.parametrize("width", [1440, 390, 320])
@@ -422,7 +439,7 @@ def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
                 f"```text\n{wide_token}\n```\n\n"
                 "```mermaid\nflowchart LR\n  A[Local] --> B[Diagram]\n```"
             ),
-            labels=("type:blog", "published", "tag:pi"),
+            labels=("type:blog", "published", "tag:pi", "tag:机器学习"),
             created_at=build_time,
             updated_at=build_time,
             is_pull_request=False,
@@ -483,53 +500,33 @@ def built_site_dirs(tmp_path_factory: pytest.TempPathFactory) -> dict[str, Path]
         quiet_toc_snapshots.append(
             replace(snapshot, body=snapshot.body.replace("Body.", body))
         )
-    output_dirs: dict[str, Path] = {}
+    variants: dict[str, tuple[Settings, list[IssueSnapshot]]] = {}
     for theme in _THEMES:
         settings = _browser_settings(theme)
-        if theme == "Quiet":
-            settings.site.featured_posts = [1]
-        routes = RouteRegistry(str(settings.site.url))
-        content = ContentCompiler(settings, route_registry=routes).compile(
-            snapshots + (quiet_toc_snapshots if theme == "Quiet" else [])
-        )
-        site = SiteBuilder(settings, route_registry=routes).build(
-            content,
-            ProjectCompiler().compile(settings.projects, route=routes.projects()),
-            build_start_time=build_time,
-        )
-        assert not site.has_errors
-
-        renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
-        for variant in (theme, f"{theme}-disabled"):
-            if variant.endswith("-disabled"):
-                disabled = settings.model_copy(
-                    update={
-                        "comments": settings.comments.model_copy(
-                            update={"enabled": False}
-                        ),
-                        "site": settings.site.model_copy(
-                            update={
-                                "navigation": settings.site.navigation.model_copy(
-                                    update={"items": []}
-                                )
-                            }
-                        ),
-                    }
-                )
-                site = SiteBuilder(disabled, routes).build(
-                    content,
-                    ProjectCompiler().compile(
-                        settings.projects, route=routes.projects()
+        theme_snapshots = snapshots + (quiet_toc_snapshots if theme == "Quiet" else [])
+        variants[theme] = (settings, theme_snapshots)
+        # No comments and an explicit empty menu.
+        variants[f"{theme}-disabled"] = (
+            settings.model_copy(
+                update={
+                    "comments": settings.comments.model_copy(update={"enabled": False}),
+                    "site": settings.site.model_copy(
+                        update={
+                            "navigation": settings.site.navigation.model_copy(
+                                update={"items": []}
+                            )
+                        }
                     ),
-                    build_start_time=build_time,
-                )
-            output_dir = tmp_path_factory.mktemp(f"browser-site-{variant}")
-            renderer.copy_theme_assets(output_dir)
-            for output_path, html in renderer.render_site(site).items():
-                path = output_dir / output_path
-                path.parent.mkdir(parents=True, exist_ok=True)
-                path.write_text(html, encoding="utf-8")
-            output_dirs[variant] = output_dir
+                }
+            ),
+            theme_snapshots,
+        )
+    variants["Quiet-zh"] = (_browser_settings("Quiet", language="zh"), snapshots)
+    output_dirs: dict[str, Path] = {}
+    for variant, (settings, variant_snapshots) in variants.items():
+        output_dir = tmp_path_factory.mktemp(f"browser-site-{variant}")
+        _write_site(settings, variant_snapshots, output_dir, build_time)
+        output_dirs[variant] = output_dir
     return output_dirs
 
 
@@ -539,7 +536,7 @@ def site_servers(built_site_dirs: dict[str, Path]) -> Iterator[dict[str, str]]:
     server_threads: list[Thread] = []
     urls: dict[str, str] = {}
     for theme, output_dir in built_site_dirs.items():
-        handler = partial(SimpleHTTPRequestHandler, directory=str(output_dir))
+        handler = partial(_PagesHandler, directory=str(output_dir))
         server = ThreadingHTTPServer(("127.0.0.1", 0), handler)
         server_thread = Thread(target=server.serve_forever, daemon=True)
         server_thread.start()
@@ -807,7 +804,7 @@ def test_independent_theme_keyboard_navigation_and_local_overflow(
         expect(region).not_to_have_js_property("scrollLeft", 0)
         assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
 
-        # Explicit [] keeps branding, but produces neither nav shell nor widget.
+        # An explicit empty menu produces neither nav shell nor comments widget.
         empty = site_servers["independent-disabled"]
         page.goto(empty + "/blog/a-blog/", wait_until="load")
         expect(page.locator(".primary-nav, #comments-container, iframe")).to_have_count(
@@ -843,7 +840,7 @@ def test_mermaid_diagram_uses_the_local_theme_runtime(
     assert all(request.startswith(site_server) for request in mermaid_requests)
     assert (
         sum(
-            "/static/vendor/mermaid-11.16.1/mermaid.min.js" in request
+            "/assets/escaping/mermaid/mermaid.min.js" in request
             for request in mermaid_requests
         )
         == 1
@@ -960,7 +957,7 @@ def test_quiet_reading_enhancements_and_appearance(
     try:
         page.emulate_media(color_scheme="dark", reduced_motion="reduce")
         page.goto(f"{origin}/blog/a-blog/", wait_until="load")
-        tag_box = page.locator(".article-heading .tag-links a").bounding_box()
+        tag_box = page.locator(".article-heading .tag-links a").first.bounding_box()
         assert (
             tag_box is not None and tag_box["width"] >= 24 and tag_box["height"] >= 24
         )
@@ -1032,7 +1029,7 @@ def test_quiet_navigation_is_stable_and_usable_when_initialization_is_unavailabl
     page.on("pageerror", lambda error: errors.append(str(error)))
     script = "appearance.js" if initialization == "blocked-appearance" else "site.js"
     page.route(
-        f"**/Quiet/static/js/{script}",
+        f"**/assets/js/{script}",
         lambda route: (
             pending.append(route) if initialization == "delayed-site" else route.abort()
         ),
@@ -1067,7 +1064,7 @@ def test_quiet_navigation_is_stable_and_usable_when_initialization_is_unavailabl
         if initialization == "delayed-site":
             assert len(pending) == 1
             pending.pop().continue_()
-            page.unroute(f"**/Quiet/static/js/{script}")
+            page.unroute(f"**/assets/js/{script}")
         page.wait_for_load_state("load")
         # Two rendered frames, not load-as-paint or a timing-dependent sleep.
         page.evaluate(
@@ -1113,7 +1110,7 @@ def test_quiet_toc_reserves_its_natural_compact_size_before_initialization(
     context = browser.new_context(viewport={"width": width, "height": 900})
     page = context.new_page()
     pending: list[Route] = []
-    page.route("**/Quiet/static/js/site.js", lambda route: pending.append(route))
+    page.route("**/assets/js/site.js", lambda route: pending.append(route))
     page.route("https://utteranc.es/**", lambda route: route.abort())
     try:
         page.goto(f"{site_servers['Quiet']}/blog/{slug}/", wait_until="commit")
@@ -1181,7 +1178,7 @@ def test_quiet_toc_unavailable_script_leaves_no_fake_control(
         java_script_enabled=javascript, viewport={"width": 320, "height": 700}
     )
     page = context.new_page()
-    page.route("**/Quiet/static/js/site.js", lambda route: route.abort())
+    page.route("**/assets/js/site.js", lambda route: route.abort())
     page.route("https://utteranc.es/**", lambda route: route.abort())
     try:
         page.goto(f"{site_servers['Quiet']}/blog/toc-headings/", wait_until="load")
@@ -1530,7 +1527,8 @@ def test_empty_menu_preserves_keyboard_entry_brand_and_appearance(
         page.goto(f"{origin}/blog/a-blog/", wait_until="load")
         expect(page.get_by_role("button", name="Toggle menu")).to_have_count(0)
         page.keyboard.press("Tab")
-        expect(page.get_by_role("link", name="Skip to main content")).to_be_focused()
+        # Each Theme words its own skip link.
+        expect(page.locator(".skip-link")).to_be_focused()
         page.keyboard.press("Enter")
         expect(page.locator("#main-content")).to_be_focused()
         brand = page.locator(".identity, .brand")
@@ -1756,6 +1754,7 @@ def test_quiet_v3_centered_pages_and_compact_navigation(
             "blog/page/2/",
             "tags/",
             "tags/pi/",
+            "tags/机器学习/",
             "projects/",
             "about/",
             "blog/a-blog/",
@@ -2124,5 +2123,122 @@ def test_quiet_v3_code_surface_preserves_text_colors_and_native_scroll(
         expect(
             page.locator(".code-block .mermaid, .code-block .language-mermaid")
         ).to_have_count(0)
+    finally:
+        page.close()
+
+
+def test_quiet_ui_strings_follow_the_site_language(
+    browser: Browser, site_servers: dict[str, str]
+) -> None:
+    page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.route("https://**/*", lambda route: route.abort())
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    origin = site_servers["Quiet-zh"]
+    english = ("Skip to main content", "Dark mode", "Toggle menu", "On this page")
+    try:
+        page.goto(origin + "/", wait_until="load")
+        expect(page.locator("html")).to_have_attribute("lang", "zh")
+        page.keyboard.press("Tab")
+        expect(page.get_by_role("link", name="跳到正文")).to_be_focused()
+        for heading in ("精选", "最近文章", "我的项目"):
+            expect(page.get_by_role("heading", name=heading)).to_be_visible()
+        expect(
+            page.locator(".home-intro").get_by_role("link", name="博客")
+        ).to_be_visible()
+        expect(page.get_by_role("button", name="深色模式")).to_be_visible()
+        page.get_by_role("button", name="搜索").click()
+        dialog = page.get_by_role("dialog", name="搜索")
+        expect(dialog).to_be_visible()
+        dialog.get_by_role("searchbox").fill("no-such-keyword")
+        expect(dialog.get_by_role("status")).to_contain_text("没有结果")
+        page.keyboard.press("Escape")
+
+        page.goto(origin + "/blog/a-blog/", wait_until="load")
+        page.get_by_role("button", name="展开或收起菜单").click()
+        expect(page.get_by_role("navigation", name="主导航")).to_be_visible()
+        expect(page.locator("details.toc summary")).to_have_text("本页目录")
+        expect(page.locator(".copy-code").first).to_have_text("复制代码")
+        html = page.content()
+        assert not [text for text in english if text in html]
+
+        page.goto(origin + "/no-such-page/", wait_until="load")
+        expect(page.get_by_role("heading", level=1)).to_contain_text("页面不存在")
+        expect(
+            page.locator("main").get_by_role("link", name="返回首页")
+        ).to_be_visible()
+        assert not errors
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("theme", _THEMES)
+def test_not_found_page_is_served_for_any_missing_path(
+    browser: Browser, site_servers: dict[str, str], theme: str
+) -> None:
+    heading, home_link = {
+        "Quiet": ("Page not found", "Back to Home"),
+        "independent": ("Not found", "Home"),
+    }[theme]
+    page = browser.new_page(viewport={"width": 320, "height": 700})
+    page.route("https://**/*", lambda route: route.abort())
+    origin = site_servers[theme]
+    missing = f"{origin}/blog/missing/deeper/"
+    broken: list[str] = []
+    page.on(
+        "response",
+        lambda response: (
+            broken.append(response.url)
+            if response.status >= 400 and response.url != missing
+            else None
+        ),
+    )
+    page.on(
+        "requestfailed",
+        lambda request: (
+            broken.append(request.url) if request.url.startswith(origin) else None
+        ),
+    )
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    try:
+        response = page.goto(missing, wait_until="load")
+        assert response is not None and response.status == 404
+        expect(page.get_by_role("heading", level=1)).to_contain_text(heading)
+        expect(page.locator('meta[name="robots"]')).to_have_attribute(
+            "content", "noindex"
+        )
+        expect(page.locator('link[rel="canonical"]')).to_have_count(0)
+        # Root-relative assets load even from a nested missing path.
+        assert page.evaluate("document.styleSheets.length") > 0
+        assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
+        page.locator("main").get_by_role("link", name=home_link).click()
+        expect(page).to_have_url(origin + "/")
+        assert not broken
+        assert not errors
+    finally:
+        page.close()
+
+
+@pytest.mark.parametrize("theme", _THEMES)
+def test_chinese_tag_links_reach_their_tag_page(
+    browser: Browser, site_servers: dict[str, str], theme: str
+) -> None:
+    page = browser.new_page()
+    origin = site_servers[theme]
+    tag = page.locator("main").get_by_role("link", name="机器学习", exact=True)
+    try:
+        page.goto(origin + "/blog/a-blog/", wait_until="load")
+        tag.first.click()
+        expect(page).to_have_url(origin + _CHINESE_TAG_PATH)
+        expect(page.get_by_role("heading", level=1)).to_have_text("机器学习")
+        expect(
+            page.locator("main").get_by_role(
+                "link", name=re.compile("Agent Orchestrator")
+            )
+        ).to_be_visible()
+        page.goto(origin + "/tags/", wait_until="load")
+        page.locator("main").get_by_role("link", name=re.compile("机器学习")).click()
+        expect(page).to_have_url(origin + _CHINESE_TAG_PATH)
     finally:
         page.close()

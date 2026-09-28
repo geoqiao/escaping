@@ -1,43 +1,48 @@
+{% set active_destination = active_destination|default("") %}
 <!doctype html>
-<html lang="{{ language }}" class="no-js">
+<html lang="{{ site.language }}" class="no-js">
   <head>
     <meta charset="utf-8">
     <meta name="viewport" content="width=device-width, initial-scale=1">
-    <title>{{ page_title }} · {{ blog_title }}</title>
-    <meta name="description" content="{{ page_description }}">
-    <link rel="canonical" href="{{ page_canonical_url }}">
+    <title>{{ page_title }} · {{ site.title }}</title>
+    <meta name="description" content="{{ page.description }}">
+    {% if page.route %}
+    <link rel="canonical" href="{{ page.route.canonical_url }}">
+    <meta property="og:url" content="{{ page.route.canonical_url }}">
+    <meta name="twitter:url" content="{{ page.route.canonical_url }}">
+    {% else %}
+    <meta name="robots" content="noindex">
+    {% endif %}
     <meta property="og:title" content="{{ page_title }}">
-    <meta property="og:description" content="{{ page_description }}">
-    <meta property="og:url" content="{{ page_canonical_url }}">
+    <meta property="og:description" content="{{ page.description }}">
     <meta property="og:type" content="website">
-    <meta property="og:site_name" content="{{ blog_title }}">
+    <meta property="og:site_name" content="{{ site.title }}">
     <meta name="twitter:card" content="summary">
     <meta name="twitter:title" content="{{ page_title }}">
-    <meta name="twitter:description" content="{{ page_description }}">
-    <meta name="twitter:url" content="{{ page_canonical_url }}">
-    <link rel="alternate" type="application/atom+xml" href="{{ atom_url }}">
-    <link rel="icon" href="{{ theme_path }}/static/images/favicon.png">
-    <link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
-    <script src="{{ theme_path }}/static/js/site.js" defer></script>
-    {% if structured_data is defined %}
-    <script type="application/ld+json">{{ structured_data|tojson }}</script>
+    <meta name="twitter:description" content="{{ page.description }}">
+    <link rel="alternate" type="application/atom+xml" href="{{ site.routes.atom.canonical_url }}">
+    <link rel="icon" href="/assets/images/favicon.png">
+    <link rel="stylesheet" href="/assets/css/style.css">
+    <script src="/assets/js/site.js" defer></script>
+    {% if page.json_ld %}
+    <script type="application/ld+json">{{ page.json_ld|tojson }}</script>
     {% endif %}
   </head>
   <body>
-    <a class="skip-link" href="#main-content">{{ skip_link_text }}</a>
+    <a class="skip-link" href="#main-content">{{ t.skip }}</a>
     <header class="site-header">
       <div class="header-inner">
-        <a class="brand" href="{{ home_path }}" aria-label="{{ blog_title }} — Home">
+        <a class="brand" href="{{ site.routes.home.canonical_path }}" aria-label="{{ site.title }} — {{ t.home_label }}">
           <svg class="brand-mark" viewBox="0 0 24 24" aria-hidden="true" focusable="false">
             <rect x="2" y="2" width="20" height="20" fill="none" stroke="currentColor" stroke-width="2"/>
             <path d="M6 16 10 8l4 8 2-4 2 4" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="square" stroke-linejoin="miter"/>
           </svg>
-          <span>{{ blog_title }}</span>
+          <span>{{ site.title }}</span>
         </a>
-        {% if navigation_items %}
-        <nav class="primary-nav" aria-label="Primary">
+        {% if site.navigation %}
+        <nav class="primary-nav" aria-label="{{ t.primary }}">
           <ul>
-            {% for item in navigation_items %}
+            {% for item in site.navigation %}
             <li>
               <a href="{{ item.url }}"{% if item.url == active_destination %} aria-current="page"{% endif %}>{{ item.name }}</a>
             </li>
@@ -55,21 +60,14 @@
 
     <footer class="site-footer">
       <div class="footer-inner">
-        {% if metadata.profile.links %}
+        {% if site.profile.links %}
         <ul class="footer-links" aria-label="Profile links">
-          {% for link in metadata.profile.links %}
+          {% for link in site.profile.links %}
           <li><a href="{{ link.url }}">{{ link.name }}</a></li>
           {% endfor %}
         </ul>
         {% endif %}
-        <p class="footer-note">
-          {% if branding.show_powered_by %}
-          <a href="{{ branding.powered_by_url }}">{{ branding.powered_by_text }}</a>
-          {% endif %}
-          {% if branding.source_link_url %}
-          <a href="{{ branding.source_link_url }}">Source</a>
-          {% endif %}
-        </p>
+        {% if theme.footer_note %}<p class="footer-note">{{ theme.footer_note }}</p>{% endif %}
       </div>
     </footer>
   </body>

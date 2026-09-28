@@ -5,12 +5,16 @@ from __future__ import annotations
 from copy import deepcopy
 from typing import Protocol
 
+from pydantic import ValidationError
+
 from .build_result import Diagnostic
 from .config import (
+    ConfigError,
     PlatformContext,
+    ProfileConfig,
     RepositoryIdentity,
     Settings,
-    SiteProfileConfig,
+    describe_validation_errors,
     validate_config_overrides,
 )
 from .services.github_service import PublicProfile
@@ -59,9 +63,10 @@ def resolve_settings(
             "Missing Config fields (or provide --context): " + ", ".join(missing)
         )
 
-    needs_profile = any(
-        key not in site for key in ("title", "author", "description")
-    ) or any(key not in profile for key in ("avatar", "bio"))
+    unset = [
+        f"site.{key}" for key in ("title", "author", "description") if key not in site
+    ] + [f"profile.{key}" for key in ("avatar", "bio") if key not in profile]
+    needs_profile = bool(unset)
     repository = github["repo"]
     identity: RepositoryIdentity | None = context
     cross_repository = (
@@ -73,7 +78,14 @@ def resolve_settings(
         or (context is None and (needs_profile or "allowed_authors" not in github))
     ):
         if github_service is None:
-            raise ValueError("Missing trusted repository identity for github.repo")
+            if "allowed_authors" not in github:
+                unset.append("github.allowed_authors")
+            raise ValueError(
+                "reading "
+                + (", ".join(unset) or "the repository owner")
+                + " from GitHub needs a token; set them in the Config instead, "
+                "or provide the token"
+            )
         try:
             identity = github_service.fetch_repository_identity(repository)
             if identity.repository.casefold() != repository.casefold():
@@ -103,7 +115,7 @@ def resolve_settings(
                 public.name, str
             ):
                 raise ValueError("invalid public profile")
-            SiteProfileConfig(avatar=public.avatar_url, bio=public.bio)
+            ProfileConfig(avatar=public.avatar_url, bio=public.bio)
         except Exception:
             public = PublicProfile(login)
             diagnostics.append(
@@ -120,4 +132,7 @@ def resolve_settings(
         site.setdefault("description", public.bio)
         profile.setdefault("avatar", public.avatar_url)
         profile.setdefault("bio", public.bio)
-    return Settings.model_validate(data), tuple(diagnostics)
+    try:
+        return Settings.model_validate(data), tuple(diagnostics)
+    except ValidationError as exc:
+        raise ConfigError(describe_validation_errors(exc.errors(), Settings)) from None

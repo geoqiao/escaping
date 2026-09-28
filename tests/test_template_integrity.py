@@ -1,232 +1,163 @@
+"""Theme contract: every Theme renders every page through the public pipeline.
+
+The contract runs over the built-in Quiet, a Theme that extends it and an
+independent Theme; the Quiet tests pin behavior of the default Theme.
+"""
+
 from __future__ import annotations
 
 import json
 import re
 import struct
-from dataclasses import replace
+from collections.abc import Mapping, Sequence
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from pathlib import Path
 
 import pytest
-from jinja2 import ChoiceLoader, DictLoader
 
+from escaping.artifact_validation import SiteArtifactValidator, audit_seo
 from escaping.config import Settings
-from escaping.content_compiler import ContentCompiler
-from escaping.models.blog_post import BlogPost, BlogTag
-from escaping.models.content import ContentCompilationResult
 from escaping.models.issue_snapshot import IssueSnapshot
-from escaping.projects import ProjectCompiler
-from escaping.routes import RouteRegistry
-from escaping.services.render_service import RenderService
-from escaping.site_builder import SiteBuilder
-from escaping.theme import ThemeLoader
+from escaping.models.site import SiteModel
+from escaping.site_compiler import check_theme, compile_site, prepare_theme, render_site
 
 _ROOT = Path(__file__).parent.parent.absolute()
-_MERMAID_VERSION = "11.16.1"
-_MERMAID_ASSET = f"static/vendor/mermaid-{_MERMAID_VERSION}/mermaid.min.js"
-_ADJACENT_POSTS: tuple[tuple[int, str, str, datetime, str], ...] = (
-    (4, "Tie low", "tie-low", datetime(2026, 1, 2, tzinfo=UTC), "focus"),
-    (1, "Oldest post", "oldest", datetime(2026, 1, 1, tzinfo=UTC), "focus"),
-    (11, "Newest post", "newest", datetime(2026, 1, 3, tzinfo=UTC), "focus"),
-    (12, "Older post", "older", datetime(2026, 1, 1, tzinfo=UTC), "other"),
-    (7, "Tie <high> & safe", "tie-high", datetime(2026, 1, 2, tzinfo=UTC), "other"),
-)
+_NOW = datetime(2026, 1, 20, tzinfo=UTC)
+_THEMES = {
+    "quiet": "quiet",
+    "extends": "tests/fixtures/extends_theme",
+    "independent": "tests/fixtures/independent_theme",
+}
+_PROJECT = {
+    "repository": "geoqiao/alpha",
+    "slug": "alpha",
+    "title": "Alpha",
+    "summary": "A small tool.",
+    "featured": True,
+}
 
 
 def _settings(
-    theme: str,
+    theme: str = "quiet",
     *,
-    language: str = "en",
-    title: str = "Site",
-    author: str = "geoqiao",
-    avatar: str = "",
-    bio: str = "",
-    page_size: int | None = None,
-    comments_enabled: bool = True,
-    navigation_items: list[dict[str, str]] | None = None,
-    social_image: str | None = None,
-    social_image_alt: str | None = None,
+    site: Mapping[str, object] | None = None,
+    options: Mapping[str, object] | None = None,
+    **sections: object,
 ) -> Settings:
-    site: dict[str, object] = {
-        "title": title,
-        "author": author,
-        "url": "https://geoqiao.me/",
-        "language": language,
-        "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
-    }
-    if navigation_items is not None:
-        site["navigation"] = {"items": navigation_items}
-    data: dict[str, object] = {
-        "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
-        "site": site,
-        "profile": {"avatar": avatar, "bio": bio},
-        "about": {"issue_number": 10},
-        "theme": {
-            "source": "local",
-            "name": theme,
-            "path": "tests/fixtures/independent_theme",
+    return Settings.model_validate(
+        {
+            "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
+            "site": {
+                "title": "Site",
+                "author": "geoqiao",
+                "url": "https://geoqiao.me/",
+                "description": "Notes and tools.",
+                "navigation": {"items": [{"name": "Blog", "url": "/blog/"}]},
+                **(site or {}),
+            },
+            "about": {"issue_number": 10},
+            "theme": {"use": _THEMES[theme], "options": options or {}},
+            "comments": {"enabled": True},
+            "projects": [_PROJECT],
+            **sections,
         }
-        if theme == "independent"
-        else {"source": "builtin", "name": theme},
-        "security": {"token_env": "TOKEN"},
-        "comments": {"enabled": comments_enabled},
-    }
-    if page_size is not None:
-        data["paths"] = {"page_size": page_size}
-    if social_image is not None or social_image_alt is not None:
-        data["seo"] = {
-            "social_image": social_image or "",
-            "social_image_alt": social_image_alt or "",
-        }
-    return Settings.model_validate(data)
+    )
 
 
-def _snap(
-    number: int, kind: str, metadata: str, *, labels: tuple[str, ...] = ()
+def _issue(
+    number: int,
+    kind: str,
+    *,
+    title: str | None = None,
+    fields: str = "",
+    labels: tuple[str, ...] = (),
+    day: int | None = None,
+    body: str = "Body **content**.",
 ) -> IssueSnapshot:
-    now = datetime(2026, 1, number, tzinfo=UTC)
+    created = datetime(2026, 1, day or number, tzinfo=UTC)
     return IssueSnapshot(
         number,
-        kind.title(),
+        title or kind.title(),
         "geoqiao",
-        f"---\n{metadata}\n---\n\nBody **content**.",
-        (f"type:{kind}", "published", *labels),
-        now,
-        now,
+        f"---\n{fields}\n---\n\n{body}" if fields else body,
+        ("published", f"type:{kind}", *labels),
+        created,
+        created,
         False,
     )
 
 
-def _render_theme(
-    theme: str,
-    *,
-    language: str = "en",
-    title: str = "Site",
-    author: str = "geoqiao",
-    avatar: str = "",
-    bio: str = "",
-    comments_enabled: bool = True,
-    navigation_items: list[dict[str, str]] | None = None,
-    social_image: str | None = None,
-    social_image_alt: str | None = None,
-) -> dict[str, str]:
-    settings = _settings(
-        theme,
-        language=language,
-        title=title,
-        author=author,
-        avatar=avatar,
-        bio=bio,
-        comments_enabled=comments_enabled,
-        navigation_items=navigation_items,
-        social_image=social_image,
-        social_image_alt=social_image_alt,
-    )
-    routes = RouteRegistry(str(settings.site.url))
-    content = ContentCompiler(settings, route_registry=routes).compile(
-        [
-            _snap(
-                1,
-                "blog",
-                'slug: post\ndescription: Post.\ncreated_date: "2026-01-01"',
-                labels=("tag:python",),
-            ),
-            _snap(
-                2,
-                "idea",
-                'description: Idea.\ncreated_date: "2026-01-02"',
-                labels=("tag:idea-only", "tag:python"),
-            ),
-            _snap(10, "about", 'description: About.\ncreated_date: "2026-01-03"'),
-        ]
-    )
-    site = SiteBuilder(settings, route_registry=routes).build(
-        content,
-        ProjectCompiler().compile(settings.projects, route=routes.projects()),
-        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
-    )
-    assert not site.has_errors
-    loaded_theme = ThemeLoader(_ROOT).load(settings.theme)
-    return RenderService(loaded_theme).render_site(site)
+_CONTENT = (
+    _issue(
+        1,
+        "blog",
+        fields="slug: post\ndescription: Post.",
+        labels=("tag:python",),
+        body="Body **content**.\n\n```mermaid\ngraph LR\n  A --> B\n```\n",
+    ),
+    _issue(
+        2,
+        "idea",
+        fields="description: Idea.",
+        labels=("tag:idea-only", "tag:python"),
+    ),
+    _issue(10, "about", fields="description: About."),
+)
+
+_ADJACENT = (
+    (4, "Tie low", "tie-low", 2, "focus"),
+    (1, "Oldest post", "oldest", 1, "focus"),
+    (11, "Newest post", "newest", 3, "focus"),
+    (12, "Older post", "older", 1, "other"),
+    (7, "Tie <high> & safe", "tie-high", 2, "other"),
+)
 
 
-def _local_blog(
-    routes: RouteRegistry,
-    issue_number: int,
-    title: str,
-    slug: str,
-    published_at: datetime,
-    tag_name: str,
-) -> BlogPost:
-    tag_route = routes.tag(tag_name)
-    return BlogPost(
-        issue_number=issue_number,
-        title=title,
-        slug=slug,
-        description=f"Description {issue_number}",
-        created_date=published_at.date().isoformat(),
-        published_at=published_at,
-        updated_at=published_at,
-        tags=(BlogTag(tag_name, tag_route.canonical_path),),
-        body_html="<p>Body.</p>",
-        route=routes.blog_detail(slug),
-    )
-
-
-def _render_quiet_adjacent_posts(
-    featured_posts: list[int] | None = None,
-    *,
-    descriptions: dict[int, str] | None = None,
-) -> dict[str, str]:
-    settings = _settings("Quiet", page_size=2)
-    data = settings.model_dump()
-    if featured_posts is not None:
-        data["site"]["featured_posts"] = featured_posts
-    data["profile"].update(tagline="Tools for my work.", bio="Experiments & lessons.")
-    settings = Settings.model_validate(data)
-    routes = RouteRegistry(str(settings.site.url))
-    posts = tuple(_local_blog(routes, *definition) for definition in _ADJACENT_POSTS)
-    if descriptions is not None:
-        posts = tuple(
-            replace(
-                post, description=descriptions.get(post.issue_number, post.description)
-            )
-            for post in posts
+def _adjacent_posts(descriptions: dict[int, str] | None = None) -> list[IssueSnapshot]:
+    descriptions = descriptions or {}
+    posts = [
+        _issue(
+            number,
+            "blog",
+            title=title,
+            fields=f"slug: {slug}\ndescription: "
+            + json.dumps(descriptions.get(number, f"Description {number}")),
+            labels=(f"tag:{tag}",),
+            day=day,
         )
-    supporting_content = ContentCompiler(settings, route_registry=routes).compile(
-        [
-            _snap(
-                2,
-                "idea",
-                'description: Idea.\ncreated_date: "2026-01-02"',
-            ),
-            _snap(
-                10,
-                "about",
-                'description: About.\ncreated_date: "2026-01-03"',
-            ),
-        ]
-    )
-    content = ContentCompilationResult(
-        blogs=posts,
-        ideas=supporting_content.ideas,
-        about=supporting_content.about,
-        diagnostics=supporting_content.diagnostics,
-    )
-    site = SiteBuilder(settings, route_registry=routes).build(
-        content,
-        ProjectCompiler().compile(settings.projects, route=routes.projects()),
-        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
-    )
-    assert not site.has_errors
-    return RenderService(ThemeLoader(_ROOT).load(settings.theme)).render_site(site)
+        for number, title, slug, day, tag in _ADJACENT
+    ]
+    return [*posts, *_CONTENT[1:]]
 
 
-@pytest.mark.parametrize("theme", ["Quiet", "independent"])
-def test_theme_contract_renders_every_strict_page(theme: str) -> None:
-    html = _render_theme(theme)
-    assert set(html) >= {
+def _build(
+    output: Path, settings: Settings, content: Sequence[IssueSnapshot] = _CONTENT
+) -> tuple[SiteModel, dict[str, str]]:
+    theme, options = prepare_theme(settings, _ROOT)
+    site = compile_site(
+        settings, content, theme, project_enricher=None, build_start_time=_NOW
+    )
+    assert not site.has_errors and not site.skipped_issues, site.diagnostics
+    rendered = render_site(output, site, theme, options)
+    assert SiteArtifactValidator(site).validate(output) == []
+    return site, rendered.files
+
+
+def _pages(
+    output: Path, settings: Settings, content: Sequence[IssueSnapshot] = _CONTENT
+) -> dict[str, str]:
+    _, files = _build(output, settings, content)
+    return {path: text for path, text in files.items() if path.endswith(".html")}
+
+
+@pytest.mark.parametrize("theme", list(_THEMES))
+def test_theme_contract_renders_every_page_with_valid_links(
+    theme: str, tmp_path: Path
+) -> None:
+    site, files = _build(tmp_path, _settings(theme))
+
+    assert set(files) >= {
         "index.html",
         "blog/index.html",
         "blog/post/index.html",
@@ -235,46 +166,64 @@ def test_theme_contract_renders_every_strict_page(theme: str) -> None:
         "about/index.html",
         "projects/index.html",
         "tags/index.html",
+        "tags/python/index.html",
+        "404.html",
         "atom.xml",
         "sitemap.xml",
         "robots.txt",
+        "search.json",
     }
-    combined = "\n".join(value for key, value in html.items() if key.endswith(".html"))
-    assert "issue-number" in combined and "2" in combined and "10" in combined
-    assert "/templates/" + theme + "/static/" in combined
-    assert "created_date:" not in combined and "slug:" not in combined
-    assert "<script>alert" not in combined
-    assert "idea-only" in html["ideas/2/index.html"]
+    assert audit_seo(site, tmp_path) == []
+    for shared in ("comments.js", "mermaid.js", "mermaid/mermaid.min.js"):
+        assert (tmp_path / "assets" / "escaping" / shared).is_file()
+
+    pages = {path: text for path, text in files.items() if path.endswith(".html")}
+    combined = "\n".join(pages.values())
+    assert "slug: post" not in combined and "description: Post." not in combined
+    assert "Body <strong>content</strong>." in pages["blog/post/index.html"]
+    assert 'href="/tags/python/"' in pages["blog/post/index.html"]
+    assert "idea-only" in pages["ideas/2/index.html"]
     assert 'href="/tags/idea-only/"' not in combined
-    assert "tags/idea-only/index.html" not in html
-    assert 'href="/tags/python/"' in html["blog/post/index.html"]
+    assert "tags/idea-only/index.html" not in files
+    for path, number in (
+        ("blog/post/index.html", 1),
+        ("ideas/2/index.html", 2),
+        ("about/index.html", 10),
+    ):
+        html = pages[path]
+        assert html.count('id="comments-container"') == 1, path
+        assert f'data-issue-number="{number}"' in html, path
+        assert 'data-comments-repo="geoqiao/site"' in html, path
+        assert 'data-comments-theme="github-light"' in html, path
+        assert '<script src="/assets/escaping/comments.js" defer></script>' in html
+    post = pages["blog/post/index.html"]
+    assert 'src="/assets/escaping/mermaid.js"' in post
+    assert 'data-runtime-src="/assets/escaping/mermaid/mermaid.min.js"' in post
 
-    comment_pages = {
-        "blog": ("blog/post/index.html", 1),
-        "idea": ("ideas/2/index.html", 2),
-        "about": ("about/index.html", 10),
-    }
-    for page_name, (output_path, issue_number) in comment_pages.items():
-        rendered = html[output_path]
-        assert rendered.count('id="comments-container"') == 1, page_name
-        assert f'{theme}/static/js/comments.js" defer' in rendered, page_name
-        assert f'data-issue-number="{issue_number}"' in rendered, page_name
-        assert 'data-comments-repo="geoqiao/site"' in rendered, page_name
-        assert 'data-comments-theme-mode="auto"' in rendered, page_name
+    not_found = pages["404.html"]
+    assert '<meta name="robots" content="noindex">' in not_found
+    assert 'rel="canonical"' not in not_found and "og:url" not in not_found
+    assert "404" not in files["sitemap.xml"]
 
 
-@pytest.mark.parametrize("theme", ["Quiet", "independent"])
+@pytest.mark.parametrize("theme", list(_THEMES))
+def test_theme_check_passes_with_sample_content(theme: str) -> None:
+    result = check_theme(_settings(theme), config_root=_ROOT)
+
+    assert result.success, result.diagnostics
+    assert result.diagnostics == ()
+
+
+@pytest.mark.parametrize("theme", list(_THEMES))
 def test_disabled_comments_leave_no_widget_or_dead_discussion_anchor(
-    theme: str,
+    theme: str, tmp_path: Path
 ) -> None:
-    rendered = _render_theme(theme, comments_enabled=False)
-    for path, html in rendered.items():
-        if not path.endswith(".html"):
-            continue
+    pages = _pages(tmp_path, _settings(theme, comments={"enabled": False}))
+
+    for path, html in pages.items():
         for absent in (
             "comments-container",
             "comments.js",
-            "comments-loading",
             "comments-title",
             "utteranc.es",
             "<iframe",
@@ -282,7 +231,52 @@ def test_disabled_comments_leave_no_widget_or_dead_discussion_anchor(
         ):
             assert absent not in html, (path, absent)
     for path in ("blog/post/index.html", "ideas/2/index.html", "about/index.html"):
-        assert "Body <strong>content</strong>." in rendered[path]
+        assert "Body <strong>content</strong>." in pages[path]
+
+
+@pytest.mark.parametrize("theme", list(_THEMES))
+def test_profile_about_is_escaped_and_has_no_issue_features(
+    theme: str, tmp_path: Path
+) -> None:
+    settings = _settings(
+        theme,
+        site={"author": "Alice <Builder>"},
+        profile={"bio": "Public <script>alert(1)</script> & bio"},
+        about={},
+    )
+
+    about = _pages(tmp_path, settings, _CONTENT[:2])["about/index.html"]
+
+    assert "Alice &lt;Builder&gt;" in about
+    assert "Public &lt;script&gt;alert(1)&lt;/script&gt; &amp; bio" in about
+    assert "<script>alert(1)" not in about
+    schema = re.search(r'<script type="application/ld\+json">(.*?)</script>', about)
+    assert schema is not None
+    identity = json.loads(schema.group(1))
+    assert identity["@type"] == "AboutPage" and identity["name"] == "Alice <Builder>"
+    for absent in ("data-issue-number", "comments.js", "/issues/", "<time", "Posting"):
+        assert absent not in about
+
+
+def test_a_theme_extending_quiet_overrides_partials_strings_and_assets(
+    tmp_path: Path,
+) -> None:
+    settings = _settings("extends", options={"now_text": "Reading <books>."})
+
+    pages = _pages(tmp_path, settings)
+
+    for path, html in pages.items():
+        assert '<meta name="x-now" content="Reading &lt;books&gt;.">' in html, path
+        assert '<link rel="stylesheet" href="/assets/css/extra.css">' in html, path
+        assert "Thanks for stopping by." in html, path
+        assert "Thanks for reading." not in html, path
+        assert 'class="site-surface"' in html, path
+    home = pages["index.html"]
+    assert '<p class="custom-intro">Custom introduction for geoqiao.' in home
+    assert "my blog" not in home
+    assert '<p class="now-text">Reading &lt;books&gt;.</p>' in pages["now/index.html"]
+    assert (tmp_path / "assets/css/extra.css").is_file()
+    assert (tmp_path / "assets/css/style.css").is_file()
 
 
 class _MenuProbe(HTMLParser):
@@ -307,16 +301,15 @@ class _MenuProbe(HTMLParser):
 
     def handle_endtag(self, tag: str) -> None:
         if tag == "a" and self.href is not None:
-            self.links.append(
-                (self.label.strip().removeprefix("~/").rstrip(" ↗·"), self.href)
-            )
+            self.links.append((self.label.strip().rstrip(" ↗"), self.href))
             self.href = None
         if tag == self.end_tag:
             self.end_tag = ""
 
 
-def test_quiet_menu_is_a_complete_override_independent_of_brand() -> None:
-    for items in (
+@pytest.mark.parametrize(
+    "items",
+    [
         [
             {"name": "Feed", "url": "/atom.xml"},
             {"name": "Start", "url": "/"},
@@ -324,185 +317,231 @@ def test_quiet_menu_is_a_complete_override_independent_of_brand() -> None:
         ],
         [{"name": "Notes", "url": "/ideas/"}],
         [],
-    ):
-        html = _render_theme("Quiet", navigation_items=items)["blog/index.html"]
-        probe = _MenuProbe()
-        probe.feed(html)
-        assert probe.links == [(item["name"], item["url"]) for item in items]
-        assert 'class="identity" href="/"' in html
-        assert ('aria-label="Toggle menu"' in html) is bool(items)
-        assert 'href="#main-content"' in html
-        if not items:
-            assert 'id="site-navigation"' not in html
-
-
-@pytest.mark.parametrize("language", ["en", "zh-CN"])
-def test_quiet_interface_is_english_without_translating_site_content(
-    language: str,
+    ],
+)
+def test_quiet_menu_is_exactly_the_configured_navigation(
+    items: list[dict[str, str]], tmp_path: Path
 ) -> None:
-    rendered = _render_theme("Quiet", language=language, title="中文站点")
-    for path, html in rendered.items():
-        if path.endswith(".html"):
-            assert f'<html lang="{language}">' in html
-            assert "中文站点" in html
-            assert not re.search(r"[\u4e00-\u9fff]", html.replace("中文站点", ""))
-    assert "Site index" in rendered["blog/index.html"]
-    assert "my blog" in rendered["index.html"]
+    settings = _settings(site={"navigation": {"items": items}})
+
+    html = _pages(tmp_path, settings)["blog/index.html"]
+
+    probe = _MenuProbe()
+    probe.feed(html)
+    assert probe.links == [(item["name"], item["url"]) for item in items]
+    assert 'class="identity" href="/"' in html
+    assert ('aria-label="Toggle menu"' in html) is bool(items)
+    assert ('id="site-navigation"' in html) is bool(items)
+    assert 'href="#main-content"' in html
 
 
-def test_quiet_uses_profile_avatar_only_for_identity_and_favicon() -> None:
+@pytest.mark.parametrize(
+    ("language", "used", "expected", "absent"),
+    [
+        ("en", "en", ("Skip to main content", "Site index", "Recent Articles"), "站点"),
+        ("zh-CN", "zh", ("跳到正文", "站点目录", "最近文章"), "Site index"),
+    ],
+)
+def test_quiet_interface_strings_follow_the_site_language(
+    language: str,
+    used: str,
+    expected: tuple[str, str, str],
+    absent: str,
+    tmp_path: Path,
+) -> None:
+    pages = _pages(tmp_path, _settings(site={"language": language}))
+
+    for html in pages.values():
+        assert f'<html lang="{language}">' in html
+    skip, index, recent = expected
+    blog = pages["blog/index.html"]
+    assert f'<a class="skip-link" href="#main-content" lang="{used}">{skip}</a>' in blog
+    assert index in blog and absent not in blog
+    assert recent in pages["index.html"]
+    # Site content is never translated.
+    assert "Body <strong>content</strong>." in pages["blog/post/index.html"]
+
+
+def test_quiet_accent_colors_reach_every_page(tmp_path: Path) -> None:
+    options = {"accent_color": "#A72F6A", "accent_color_dark": "#e58bb6"}
+
+    pages = _pages(tmp_path / "custom", _settings(options=options))
+
+    for html in pages.values():
+        assert ":root { --accent: #A72F6A; }" in html
+        assert ':root[data-theme="dark"] { --accent: #e58bb6; }' in html
+        assert ":root:not([data-theme]) { --accent: #e58bb6; }" in html
+    default = _pages(tmp_path / "default", _settings())
+    assert not any("--accent" in html for html in default.values())
+
+
+def test_quiet_uses_profile_avatar_only_for_identity_and_favicon(
+    tmp_path: Path,
+) -> None:
     avatar = "https://example.com/ada.webp"
-    rendered = _render_theme("Quiet", author="Ada Lovelace", avatar=avatar)
-    for path, html in rendered.items():
-        if path.endswith(".html"):
-            assert f'<link rel="icon" href="{avatar}">' in html
-            avatar_class = "home-avatar" if path == "index.html" else "identity-avatar"
-            assert f'class="{avatar_class}" src="{avatar}" alt=""' in html
-            assert "identity-mark" not in html
-    assert rendered["about/index.html"].count(f'src="{avatar}"') == 1
-    assert 'class="about-page"' in rendered["about/index.html"]
-    fallback = _render_theme("Quiet", author="Ada Lovelace")["blog/index.html"]
-    assert ">AL</span>" in fallback
-    assert 'href="/templates/Quiet/static/images/favicon.png"' in fallback
+    settings = _settings(site={"author": "Ada Lovelace"}, profile={"avatar": avatar})
 
+    pages = _pages(tmp_path / "avatar", settings)
 
-def test_idea_tag_public_context_is_display_only_not_a_blog_route() -> None:
-    settings = _settings("Quiet")
-    routes = RouteRegistry(str(settings.site.url))
-    content = ContentCompiler(settings, route_registry=routes).compile(
-        [
-            _snap(
-                2,
-                "idea",
-                'description: Idea.\ncreated_date: "2026-01-02"',
-                labels=("tag:idea-only", "TAG:IDEA-ONLY"),
-            ),
-            _snap(10, "about", 'description: About.\ncreated_date: "2026-01-03"'),
-        ]
+    for path, html in pages.items():
+        assert f'<link rel="icon" href="{avatar}">' in html
+        avatar_class = "home-avatar" if path == "index.html" else "identity-avatar"
+        assert f'class="{avatar_class}" src="{avatar}" alt=""' in html
+        assert "identity-mark" not in html
+    assert pages["about/index.html"].count(f'src="{avatar}"') == 1
+    fallback = _pages(tmp_path / "fallback", _settings(site={"author": "Ada Lovelace"}))
+    assert ">AL</span>" in fallback["blog/index.html"]
+    assert (
+        '<link rel="icon" href="/assets/images/favicon.png">' in fallback["index.html"]
     )
-    site = SiteBuilder(settings, routes).build(
-        content,
-        ProjectCompiler().compile([], route=routes.projects()),
-        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
-    )
-    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
-    assert renderer.env.loader is not None
-    renderer.env.loader = ChoiceLoader(
-        [
-            DictLoader(
-                {
-                    "idea.html": "{% for tag in idea.tags %}<span>{{ tag.name }}</span>{% if tag.path is defined %}FALSE ROUTE{% endif %}{% endfor %}"
-                }
-            ),
-            renderer.env.loader,
-        ]
-    )
-    rendered = renderer.render_site(site)
-    assert rendered["ideas/2/index.html"] == "<span>idea-only</span>"
-    assert not site.tags.tags and not site.tag_archives
-    assert routes.route_for_path("/tags/idea-only/") is None
 
 
-def test_quiet_idea_tags_are_text_while_blog_tags_keep_their_archive() -> None:
-    rendered = _render_theme("Quiet")
-    tags = re.search(r'<ul class="tag-links".*?</ul>', rendered["ideas/2/index.html"])
+def test_quiet_idea_tags_are_text_while_blog_tags_keep_their_archive(
+    tmp_path: Path,
+) -> None:
+    pages = _pages(tmp_path, _settings())
+
+    tags = re.search(r'<ul class="tag-links".*?</ul>', pages["ideas/2/index.html"])
     assert tags is not None
     assert "<span>idea-only</span>" in tags.group()
     assert "<span>python</span>" in tags.group()
     assert "href=" not in tags.group()
-    assert "tags/idea-only/index.html" not in rendered
-    assert 'href="/tags/python/"' in rendered["blog/post/index.html"]
-    assert "tags/python/index.html" in rendered
+    assert '<a href="/tags/python/">python</a>' in pages["blog/post/index.html"]
 
 
-def test_quiet_blog_adjacent_navigation_uses_global_sorted_routes() -> None:
-    rendered = _render_quiet_adjacent_posts()
+def test_quiet_blog_adjacent_navigation_uses_global_sorted_routes(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(paths={"page_size": 2})
 
-    newest = rendered["blog/newest/index.html"]
-    assert 'class="article-end"' in newest
+    pages = _pages(tmp_path, settings, _adjacent_posts())
+
+    newest = pages["blog/newest/index.html"]
     assert "Previous" not in newest
     assert '<a rel="next" href="/blog/tie-high/"' in newest
-    assert ">Next</a>" in newest
-
-    middle = rendered["blog/tie-low/index.html"]
+    middle = pages["blog/tie-low/index.html"]
     assert (
-        '<a rel="prev" href="/blog/tie-high/" aria-label="Previous: Tie &lt;high&gt; &amp; safe">'
-        "Previous</a>"
+        '<a rel="prev" href="/blog/tie-high/" '
+        'aria-label="Previous: Tie &lt;high&gt; &amp; safe">Previous</a>'
     ) in middle
     assert (
         '<a rel="next" href="/blog/older/" aria-label="Next: Older post">Next</a>'
         in middle
     )
+    oldest = pages["blog/oldest/index.html"]
+    assert '<a rel="prev" href="/blog/older/"' in oldest
+    assert ">Next</a>" not in oldest
+    focus = pages["tags/focus/index.html"]
+    assert all(title in focus for title in ("Tie low", "Newest post", "Oldest post"))
+    assert "Tie &lt;high&gt;" not in focus and "Older post" not in focus
 
-    oldest = rendered["blog/oldest/index.html"]
-    assert (
-        '<a rel="prev" href="/blog/older/" aria-label="Previous: Older post">Previous</a>'
-        in oldest
+
+def test_quiet_article_footers_fit_the_section(tmp_path: Path) -> None:
+    pages = _pages(tmp_path, _settings())
+
+    post = pages["blog/post/index.html"]
+    assert 'class="article-end"' not in post  # a single post has no neighbors
+    assert 'class="breadcrumb" href="/blog/"' in post
+    assert '<body id="top">' in post
+    assert "Back to Ideas" in pages["ideas/2/index.html"]
+    assert "Back to Home" in pages["about/index.html"]
+
+
+@pytest.mark.parametrize("selection", [None, [], [1, 7, 4]])
+def test_quiet_home_keeps_featured_and_recent_writing(
+    selection: list[int] | None, tmp_path: Path
+) -> None:
+    options: dict[str, object] = {"tagline": "Tools for my work."}
+    if selection is not None:
+        options["featured_posts"] = selection
+    settings = _settings(
+        options=options,
+        profile={"bio": "Experiments & lessons."},
+        paths={"page_size": 2},
     )
-    assert "Next" not in oldest
-    focus_tag = rendered["tags/focus/index.html"]
-    assert (
-        "Tie low" in focus_tag
-        and "Newest post" in focus_tag
-        and "Oldest post" in focus_tag
-    )
-    assert "Tie &lt;high&gt;" not in focus_tag and "Older post" not in focus_tag
 
+    pages = _pages(tmp_path, settings, _adjacent_posts())
 
-def test_quiet_blog_footer_change_is_scoped_to_multi_post_blog_navigation() -> None:
-    quiet = _render_theme("Quiet")
-    blog = quiet["blog/post/index.html"]
-    assert 'class="article-end"' not in blog
-    assert "Back to Blog" not in blog
-    assert "Back to top" not in blog
-    assert 'class="breadcrumb"' in blog
-    assert '<body id="top">' in blog
-    assert "Back to Ideas" in quiet["ideas/2/index.html"]
-    assert "Back to Home" in quiet["about/index.html"]
-
-
-def test_named_site_routes_are_consumable_without_blogs_or_ideas() -> None:
-    settings = _settings("Quiet")
-    routes = RouteRegistry(str(settings.site.url))
-    content = ContentCompiler(settings, route_registry=routes).compile(
-        [_snap(10, "about", 'description: About.\ncreated_date: "2026-01-03"')]
-    )
-    site = SiteBuilder(settings, route_registry=routes).build(
-        content,
-        ProjectCompiler().compile(settings.projects, route=routes.projects()),
-        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
-    )
-    assert not site.has_errors and not site.blogs and not site.ideas
-    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
-    rendered = renderer.render_site(site)
-    names = ("home", "blog", "ideas", "about", "projects", "tags", "atom")
-    for name in names:
-        assert routes.route(name).output_path in rendered
-
-    # A consumer template exercises the public context, not a private helper.
-    assert renderer.env.loader is not None
-    renderer.env.loader = ChoiceLoader(
-        [
-            DictLoader(
-                {
-                    "home.html": (
-                        "{% for name in " + repr(names) + " %}"
-                        "{% set route = site_routes[name] %}"
-                        "{{ route.canonical_path }}|{{ route.output_path }}|"
-                        "{{ route.canonical_url }}\n{% endfor %}"
-                    )
-                }
-            ),
-            renderer.env.loader,
+    home = pages["index.html"]
+    assert "Tools for my work." in home and "Experiments &amp; lessons." in home
+    assert 'class="site-rail"' not in home
+    intro = home.split('class="home-intro"', 1)[1].split("</div>", 1)[0]
+    for path in ("/blog/", "/about/", "/projects/"):
+        assert f'href="{path}"' in intro
+    recent = home.split('aria-labelledby="recent-title"', 1)[1].split("</section>")[0]
+    slugs = ["newest", "tie-high", "tie-low", "older", "oldest"]
+    positions = [recent.index(f'href="/blog/{slug}/"') for slug in slugs]
+    assert positions == sorted(positions)
+    assert "Description " not in home and 'aria-label="Tags"' not in home
+    if selection:
+        featured = home.split('aria-labelledby="featured-title"', 1)[1]
+        featured = featured.split("</section>", 1)[0]
+        positions = [
+            featured.index(f'href="/blog/{slug}/"')
+            for slug in ("oldest", "tie-high", "tie-low")
         ]
+        assert positions == sorted(positions)
+        assert "Tie &lt;high&gt; &amp; safe" in featured
+    else:
+        assert 'id="featured-title"' not in home
+    assert 'href="/blog/older/"' in pages["blog/page/2/index.html"]
+
+
+def test_quiet_blog_descriptions_survive_pagination_as_plain_text(
+    tmp_path: Path,
+) -> None:
+    content = _adjacent_posts({11: 'Tabs & "quotes" explained.'})
+
+    pages = _pages(tmp_path, _settings(paths={"page_size": 2}), content)
+
+    first = pages["blog/index.html"]
+    assert (
+        '<p class="entry-description">Tabs &amp; &#34;quotes&#34; explained.</p>'
+        in first
     )
-    renderer.env.cache.clear()
-    probe = renderer.render_site(site)["index.html"]
-    assert probe.splitlines() == [
-        f"{route.canonical_path}|{route.output_path}|{route.canonical_url}"
-        for name in names
-        for route in [routes.route(name)]
-    ]
+    assert '<p class="entry-description">Description 7</p>' in first
+    second = pages["blog/page/2/index.html"]
+    assert '<p class="entry-description">Description 4</p>' in second
+    assert '<p class="entry-description">Description 12</p>' in second
+    for path in ("index.html", "tags/focus/index.html"):
+        assert 'class="entry-description"' not in pages[path]
+
+
+def test_quiet_site_identity_reaches_homepage_search_signals(tmp_path: Path) -> None:
+    settings = _settings(site={"title": "Geo Qiao", "author": "Geo Qiao"})
+
+    home = _pages(tmp_path, settings)["index.html"]
+
+    assert "<title>Geo Qiao</title>" in home
+    assert '<meta property="og:site_name" content="Geo Qiao">' in home
+    assert "<strong>Geo Qiao</strong>" in home
+    match = re.search(r'<script type="application/ld\+json">(.*?)</script>', home)
+    assert match is not None
+    graph = json.loads(match.group(1))["@graph"]
+    website = next(item for item in graph if item["@type"] == "WebSite")
+    assert website["name"] == "Geo Qiao"
+    assert website["url"] == "https://geoqiao.me/"
+
+
+def test_quiet_social_image_metadata_covers_every_page(tmp_path: Path) -> None:
+    seo = {
+        "social_image": "/assets/images/favicon.png",
+        "social_image_alt": 'Preview "art" & text',
+    }
+
+    configured = _pages(tmp_path / "set", _settings(seo=seo))
+
+    image = "https://geoqiao.me/assets/images/favicon.png"
+    alt = "Preview &#34;art&#34; &amp; text"
+    for html in configured.values():
+        assert f'<meta property="og:image" content="{image}">' in html
+        assert f'<meta name="twitter:image" content="{image}">' in html
+        assert '<meta name="twitter:card" content="summary_large_image">' in html
+        assert f'<meta property="og:image:alt" content="{alt}">' in html
+        assert f'<meta name="twitter:image:alt" content="{alt}">' in html
+    for html in _pages(tmp_path / "unset", _settings()).values():
+        assert "og:image" not in html and "twitter:image" not in html
+        assert '<meta name="twitter:card" content="summary">' in html
 
 
 class _RuntimeResourceProbe(HTMLParser):
@@ -525,157 +564,35 @@ class _RuntimeResourceProbe(HTMLParser):
             self.resources.append(attributes.get("href", ""))
 
 
-def test_quiet_runtime_dependencies_are_local_and_reproducible() -> None:
-    theme = "Quiet"
-    rendered = _render_theme(theme)
-    probe = _RuntimeResourceProbe()
-    for output_path, html in rendered.items():
-        if output_path.endswith(".html"):
-            probe.feed(html)
+def test_quiet_runtime_dependencies_are_local(tmp_path: Path) -> None:
+    pages = _pages(tmp_path, _settings())
 
+    probe = _RuntimeResourceProbe()
+    for html in pages.values():
+        probe.feed(html)
+    assert probe.resources
     assert not [
         resource
         for resource in probe.resources
         if resource.startswith(("https://", "http://", "//"))
     ]
-    post = rendered["blog/post/index.html"]
-    asset_url = f"/templates/{theme}/{_MERMAID_ASSET}"
-    assert f'data-runtime-src="{asset_url}"' in post
-    assert f'src="/templates/{theme}/static/js/mermaid.js"' in post
-
-    loaded_theme = ThemeLoader(_ROOT).load(_settings(theme).theme)
-    css_dir = loaded_theme.resource_root.joinpath("static/css")
     css = "\n".join(
-        resource.read_text(encoding="utf-8")
-        for resource in css_dir.iterdir()
-        if resource.is_file() and resource.name.endswith(".css")
+        path.read_text(encoding="utf-8") for path in tmp_path.glob("assets/**/*.css")
     )
     assert not re.search(r"@import\s+(?:url\()?['\"]?(?:https?:)?//", css)
     assert not re.search(
-        r"@font-face\s*\{[^}]*url\(\s*['\"]?(?:https?:)?//",
-        css,
-        flags=re.DOTALL,
+        r"@font-face\s*\{[^}]*url\(\s*['\"]?(?:https?:)?//", css, flags=re.DOTALL
     )
 
 
 def test_quiet_favicon_is_a_valid_search_eligible_png() -> None:
     favicon = (
-        _ROOT / "src/escaping/themes/Quiet/static/images/favicon.png"
+        _ROOT / "src/escaping/themes/quiet/static/images/favicon.png"
     ).read_bytes()
 
     assert favicon.startswith(b"\x89PNG\r\n\x1a\n")
     width, height = struct.unpack(">II", favicon[16:24])
-    assert width == height
-    assert width >= 48
-
-
-@pytest.mark.parametrize("selection", [None, [], [1, 7, 4]])
-def test_home_introduction_and_title_lists_keep_featured_and_recent_writing(
-    selection: list[int] | None,
-) -> None:
-    artifacts = _render_quiet_adjacent_posts(selection)
-    home = artifacts["index.html"]
-    assert "Tools for my work." in home
-    assert "Experiments &amp; lessons." in home
-    assert 'class="site-rail"' not in home
-    assert 'aria-label="Toggle menu"' not in home
-    intro = home.split('class="home-intro"', 1)[1].split("</div>", 1)[0]
-    for path in ("/blog/", "/about/", "/projects/"):
-        assert f'href="{path}"' in intro
-    recent = home.split('aria-labelledby="recent-title"', 1)[1].split("</section>", 1)[
-        0
-    ]
-    assert "Recent Articles" in recent
-    slugs = ["newest", "tie-high", "tie-low", "older", "oldest"]
-    positions = [recent.index(f'href="/blog/{slug}/"') for slug in slugs]
-    assert positions == sorted(positions)
-    assert "Description " not in home
-    assert 'aria-label="Tags"' not in home
-    if selection:
-        featured = home.split('aria-labelledby="featured-title"', 1)[1].split(
-            "</section>", 1
-        )[0]
-        assert "Featured" in featured
-        positions = [
-            featured.index(f'href="/blog/{slug}/"')
-            for slug in ("oldest", "tie-high", "tie-low")
-        ]
-        assert positions == sorted(positions)
-        assert "Tie &lt;high&gt; &amp; safe" in home
-    else:
-        assert 'id="featured-title"' not in home
-    assert 'href="/blog/"' in home
-    assert 'href="/blog/older/"' in artifacts["blog/page/2/index.html"]
-
-
-def test_blog_descriptions_survive_pagination_and_remain_plain_text() -> None:
-    artifacts = _render_quiet_adjacent_posts(
-        descriptions={11: "A <button> & its behavior.", 7: ""}
-    )
-    first_page = artifacts["blog/index.html"]
-    assert (
-        '<p class="entry-description">A &lt;button&gt; &amp; its behavior.</p>'
-        in first_page
-    )
-    assert first_page.count('class="entry-description"') == 1
-    second_page = artifacts["blog/page/2/index.html"]
-    assert '<p class="entry-description">Description 4</p>' in second_page
-    assert '<p class="entry-description">Description 12</p>' in second_page
-    for path in ("index.html", "tags/focus/index.html"):
-        assert 'class="entry-description"' not in artifacts[path]
-
-
-def test_configured_site_identity_reaches_homepage_search_signals() -> None:
-    home = _render_theme("Quiet", title="Geo Qiao", author="Geo Qiao")["index.html"]
-
-    assert "<title>Geo Qiao</title>" in home
-    assert '<meta property="og:site_name" content="Geo Qiao">' in home
-    assert "<strong>Geo Qiao</strong>" in home
-
-    match = re.search(r'<script type="application/ld\+json">(.*?)</script>', home)
-    assert match is not None
-    graph = json.loads(match.group(1))["@graph"]
-    website = next(item for item in graph if item["@type"] == "WebSite")
-    assert website["name"] == "Geo Qiao"
-
-
-def test_quiet_shared_social_image_metadata_covers_every_page() -> None:
-    configured = _render_theme(
-        "Quiet",
-        social_image="/templates/Quiet/static/images/og.png",
-        social_image_alt='Preview "art" & text',
-    )
-    for path, html in configured.items():
-        if not path.endswith(".html"):
-            continue
-        assert (
-            '<meta property="og:image" '
-            'content="https://geoqiao.me/templates/Quiet/static/images/og.png">'
-        ) in html
-        assert (
-            '<meta name="twitter:image" '
-            'content="https://geoqiao.me/templates/Quiet/static/images/og.png">'
-        ) in html
-        assert '<meta name="twitter:card" content="summary_large_image">' in html
-        assert (
-            '<meta property="og:image:alt" content="Preview &#34;art&#34; &amp; text">'
-            in html
-        )
-        assert (
-            '<meta name="twitter:image:alt" content="Preview &#34;art&#34; &amp; text">'
-            in html
-        )
-
-    absent = _render_theme("Quiet")
-    for path, html in absent.items():
-        if not path.endswith(".html"):
-            continue
-        assert 'property="og:image"' not in html
-        assert 'name="twitter:image"' not in html
-        assert 'property="og:image:alt"' not in html
-        assert 'name="twitter:image:alt"' not in html
-        assert '<meta name="twitter:card" content="summary">' in html
-        assert "summary_large_image" not in html
+    assert width == height and width >= 48
 
 
 def test_shared_mermaid_loader_preserves_lazy_and_security_contract() -> None:
@@ -684,68 +601,3 @@ def test_shared_mermaid_loader_preserves_lazy_and_security_contract() -> None:
     assert "if (!loader || !runtimeSrc || !codeBlocks.length) return;" in script
     assert 'securityLevel: "strict"' in script
     assert "startOnLoad: false" in script
-
-
-@pytest.mark.parametrize("theme", ["Quiet", "independent"])
-def test_profile_about_is_readable_safe_and_not_issue_content(
-    theme: str, tmp_path: Path
-) -> None:
-    from escaping.artifact_validation import SiteArtifactValidator
-    from escaping.models.content import ProfileAbout
-
-    settings = Settings.model_validate(
-        {
-            **_settings(
-                theme,
-                author="Alice <Builder>",
-                bio="Public <script>alert(1)</script> & bio",
-            ).model_dump(),
-            "about": {},
-        }
-    )
-    routes = RouteRegistry(str(settings.site.url))
-    content = ContentCompiler(settings, route_registry=routes).compile([])
-    site = SiteBuilder(settings, routes).build(
-        content,
-        ProjectCompiler().compile([], route=routes.projects()),
-        build_start_time=datetime(2026, 1, 20, tzinfo=UTC),
-    )
-    assert not site.has_errors and isinstance(site.about, ProfileAbout)
-    renderer = RenderService(ThemeLoader(_ROOT).load(settings.theme))
-    renderer.copy_theme_assets(tmp_path)
-    rendered = renderer.render_site(site)
-    about = rendered["about/index.html"]
-    assert "Alice &lt;Builder&gt;" in about
-    assert "Public &lt;script&gt;alert(1)&lt;/script&gt; &amp; bio" in about
-    assert "<script>alert(1)" not in about
-    schema = re.search(r'<script type="application/ld\+json">(.*?)</script>', about)
-    assert schema is not None
-    identity = json.loads(schema.group(1))
-    assert identity["@type"] == "AboutPage" and identity["name"] == "Alice <Builder>"
-    assert "mainEntity" not in identity  # A public owner may be an Organization.
-    for absent in (
-        "data-issue-number",
-        "comments.js",
-        "comments-container",
-        "comments-title",
-        "/issues/",
-        "ISSUE",
-        "<time",
-        "BlogPosting",
-        "datePublished",
-    ):
-        assert absent not in about
-    for path, html in rendered.items():
-        destination = tmp_path / path
-        destination.parent.mkdir(parents=True, exist_ok=True)
-        destination.write_text(html, encoding="utf-8")
-    assert not SiteArtifactValidator(site).validate(tmp_path)
-    target = tmp_path / "about/index.html"
-    target.write_text(
-        about.replace('"@type": "AboutPage"', '"@type": "BlogPosting"'),
-        encoding="utf-8",
-    )
-    assert any(
-        d.code == "PROFILE_ABOUT_IDENTITY"
-        for d in SiteArtifactValidator(site).validate(tmp_path)
-    )

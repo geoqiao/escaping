@@ -8,9 +8,8 @@ from .atom_feed import AtomFeed
 from .blog_archive import ArchivePage
 from .blog_post import BlogPost
 from .content import AboutPage, Idea, ProfileAbout
-from .home_page import HomePage
-from .projects import ProjectsPage
-from .tag_taxonomy import TagArchive, TagsIndex
+from .projects import Project
+from .tag_taxonomy import Tag
 
 
 @dataclass(frozen=True)
@@ -22,59 +21,45 @@ class SiteLink:
 @dataclass(frozen=True)
 class SiteProfile:
     avatar: str = ""
-    tagline: str = ""
     bio: str = ""
     links: tuple[SiteLink, ...] = field(default_factory=tuple)
 
 
 @dataclass(frozen=True)
-class BrandingMetadata:
-    show_powered_by: bool
-    powered_by_text: str
-    powered_by_url: str
-    source_link_url: str
-
-
-@dataclass(frozen=True)
 class CommentsMetadata:
+    enabled: bool
     repo: str
-    theme: str
-    theme_mode: str
-    enabled: bool = False
 
 
 @dataclass(frozen=True)
-class ThemeMetadata:
-    name: str
-    asset_path: str
-    favicon_url: str
-
-
-@dataclass(frozen=True)
-class SiteMetadata:
-    """All immutable site identity and shared rendering data."""
-
-    title: str
-    author: str
-    description: str
-    language: str
-    github_name: str
-    github_repo: str
-    navigation: tuple[SiteLink, ...]
-    thesis: tuple[str, ...]
-    profile: SiteProfile
-    branding: BrandingMetadata
-    comments: CommentsMetadata
-    google_search_verification: str
-    theme: ThemeMetadata
+class SeoMetadata:
+    google_search_console: str = ""
     social_image: str = ""
     social_image_alt: str = ""
 
 
 @dataclass(frozen=True)
-class IdeasPage:
+class SiteMetadata:
+    """Theme-independent site identity from the site layer of the Config."""
+
+    title: str
+    author: str
+    description: str
+    language: str
+    repo: str
+    navigation: tuple[SiteLink, ...]
+    profile: SiteProfile
+    comments: CommentsMetadata
+    seo: SeoMetadata
+
+
+@dataclass(frozen=True)
+class ThemePage:
+    """An extra page declared by the Theme; ``project`` is set for ``for_each``."""
+
     route: Route
-    ideas: tuple[Idea, ...] = field(default_factory=tuple)
+    template: str
+    project: Project | None = None
 
 
 @dataclass(frozen=True)
@@ -82,19 +67,22 @@ class SiteModel:
     """Complete immutable build model consumed by renderer and validator."""
 
     metadata: SiteMetadata
-    home: HomePage
     blogs: tuple[BlogPost, ...]
     archives: tuple[ArchivePage, ...]
-    ideas_page: IdeasPage
     ideas: tuple[Idea, ...]
-    about: AboutPage | ProfileAbout | None
-    projects: ProjectsPage
-    tags: TagsIndex
-    tag_archives: tuple[TagArchive, ...]
+    about: AboutPage | ProfileAbout
+    projects: tuple[Project, ...]
+    tags: tuple[Tag, ...]
+    theme_pages: tuple[ThemePage, ...]
     feed: AtomFeed
     routes: RouteRegistry
     diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)
+    skipped_issues: tuple[int, ...] = field(default_factory=tuple)
 
     @property
     def has_errors(self) -> bool:
-        return any(d.severity == "error" for d in self.diagnostics)
+        """Errors that stop publication; a Skipped Issue's errors do not."""
+        return any(
+            d.severity == "error" and d.issue_number not in self.skipped_issues
+            for d in self.diagnostics
+        )

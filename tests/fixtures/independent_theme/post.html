@@ -1,36 +1,34 @@
 {% extends "base.html" %}
-{% set page_title = post.title %}
-{% set page_description = post.description %}
-{% set active_destination = site_routes.blog.canonical_path %}
+{% set page_title = page.post.title %}
+{% set active_destination = site.routes.blog.canonical_path %}
 
 {% block content %}
 <div class="page-shell">
   <article class="detail-page">
     <header class="page-heading">
       <p class="eyebrow">Blog</p>
-      <h1>{{ post.title }}</h1>
-      <p class="meta"><time>{{ post.created_date }}</time></p>
-      {% if post.tags %}
+      <h1>{{ page.post.title }}</h1>
+      <p class="meta"><time>{{ page.post.created_date }}</time></p>
+      {% if page.post.tags %}
       <ul class="tag-list" aria-label="Post tags">
-        {% for tag in post.tags %}
+        {% for tag in page.post.tags %}
         <li><a href="{{ tag.path }}">{{ tag.name }}</a></li>
         {% endfor %}
       </ul>
       {% endif %}
     </header>
-    <div class="rich-content" tabindex="0" role="region" aria-label="Post content">{{ post.body_html|safe }}</div>
+    <div class="rich-content" tabindex="0" role="region" aria-label="Post content">{{ page.post.body_html|safe }}</div>
 
-    {% if comments.enabled %}
-      {% set comments_issue_number = post.issue_number %}
-      {% include "_comments.html" %}
-    {% endif %}
+    {% set comments_issue_number = page.post.issue_number %}
+    {% include "_comments.html" %}
   </article>
 
-  {% if prev_post is not none or next_post is not none %}
+  {% if page.newer or page.older %}
   <nav class="neighbor-nav" aria-label="Post navigation">
-    {% if prev_post is not none %}<a href="{{ prev_post.canonical_path }}">← {{ prev_post.title }}</a>{% endif %}
-    {% if next_post is not none %}<a href="{{ next_post.canonical_path }}">{{ next_post.title }} →</a>{% endif %}
+    {% if page.newer %}<a href="{{ page.newer.canonical_path }}">← {{ page.newer.title }}</a>{% endif %}
+    {% if page.older %}<a href="{{ page.older.canonical_path }}">{{ page.older.title }} →</a>{% endif %}
   </nav>
   {% endif %}
 </div>
+<script src="/assets/escaping/mermaid.js" data-runtime-src="/assets/escaping/mermaid/mermaid.min.js" data-mermaid-theme="auto" defer></script>
 {% endblock %}

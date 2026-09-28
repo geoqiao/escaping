@@ -1,0 +1,61 @@
+{% set page_title = page_title|default(site.title) %}
+{% set page_description = page_description|default(page.description) %}
+{% set active_section = active_section|default(site.routes.home.canonical_path) %}
+<!DOCTYPE html>
+<html lang="{{ site.language }}">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{{ page_title }}{% if page_title != site.title %} · {{ site.title }}{% endif %}</title>
+  <meta name="description" content="{{ page_description }}">
+  {% if page.route %}
+  <link rel="canonical" href="{{ page.route.canonical_url }}">
+  {% else %}
+  <meta name="robots" content="noindex">
+  {% endif %}
+  <meta property="og:site_name" content="{{ site.title }}">
+  <meta property="og:title" content="{{ page_title }}">
+  <meta property="og:description" content="{{ page_description }}">
+  {% if page.route %}<meta property="og:url" content="{{ page.route.canonical_url }}">{% endif %}
+  <meta property="og:type" content="{{ 'article' if page.kind in ('post', 'idea') else 'website' }}">
+  {% if site.seo.social_image %}
+  <meta property="og:image" content="{{ site.seo.social_image }}">
+  {% if site.seo.social_image_alt %}<meta property="og:image:alt" content="{{ site.seo.social_image_alt }}">{% endif %}
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:image" content="{{ site.seo.social_image }}">
+  {% if site.seo.social_image_alt %}<meta name="twitter:image:alt" content="{{ site.seo.social_image_alt }}">{% endif %}
+  {% else %}
+  <meta name="twitter:card" content="summary">
+  {% endif %}
+  <meta name="twitter:title" content="{{ page_title }}">
+  <meta name="twitter:description" content="{{ page_description }}">
+  {% if page.route %}<meta name="twitter:url" content="{{ page.route.canonical_url }}">{% endif %}
+  {% if site.seo.google_search_console %}<meta name="google-site-verification" content="{{ site.seo.google_search_console }}">{% endif %}
+  <link rel="icon" href="{{ site.profile.avatar or '/assets/images/favicon.png' }}">
+  <link rel="alternate" type="application/atom+xml" title="{{ site.title }}" href="{{ site.routes.atom.canonical_path }}">
+  <script src="/assets/js/appearance.js"></script>
+  <link rel="stylesheet" href="/assets/css/style.css">
+  <link rel="stylesheet" href="/assets/css/syntax.css">
+  <link rel="stylesheet" href="/assets/css/search.css">
+  {% if theme.accent_color or theme.accent_color_dark %}
+  <style>
+    {% if theme.accent_color %}:root { --accent: {{ theme.accent_color }}; }{% endif %}
+    {% if theme.accent_color_dark %}:root[data-theme="dark"] { --accent: {{ theme.accent_color_dark }}; }
+    @media (prefers-color-scheme: dark) { :root:not([data-theme]) { --accent: {{ theme.accent_color_dark }}; } }{% endif %}
+  </style>
+  {% endif %}
+  <script src="/assets/js/site.js" data-copy-code="{{ t.copy_code }}" data-copied="{{ t.copied }}" data-copy-failed="{{ t.copy_failed }}" defer></script>
+  <script src="/assets/js/search.js" data-search-index="{{ site.routes.search.canonical_path }}" defer></script>
+  {% if page.json_ld %}<script type="application/ld+json">{{ page.json_ld|tojson }}</script>{% endif %}
+  {% include "head-extra.html" %}
+</head>
+<body id="top"{% if page.kind == 'home' %} class="home"{% endif %}>
+  <a class="skip-link" href="#main-content" lang="{{ t.language }}">{{ t.skip_to_content }}</a>
+  {% include "header.html" %}
+  {% include "search.html" %}
+  <div class="site-surface">
+    <main id="main-content" tabindex="-1">{% block content %}{% endblock %}</main>
+    {% include "footer.html" %}
+  </div>
+</body>
+</html>

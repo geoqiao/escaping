@@ -18,7 +18,6 @@ import pytest
 
 from escaping.output_safety import (
     OutputContainmentError,
-    validate_output_child_name,
     validate_output_containment,
 )
 
@@ -169,45 +168,3 @@ def test_no_filesystem_mutation(tmp_path: Path) -> None:
     with pytest.raises(OutputContainmentError):
         validate_output_containment("..", tmp_path)
     assert (out / "file.txt").read_text() == "keep"
-
-
-# ---------------------------------------------------------------------------
-# validate_output_child_name
-# ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "name, field, ok, match",
-    [
-        ("blog", "blog", True, ""),
-        ("atom.xml", "rss", True, ""),
-        ("Quiet", "theme", True, ""),
-        ("", "rss", False, "empty"),
-        ("/etc/passwd", "rss", False, "absolute"),
-        ("foo/bar", "blog", False, "separator"),
-        ("foo\\bar", "blog", False, "separator"),
-        (".", "blog", False, r"'\.'|dot"),
-        ("..", "blog", False, r"\.\.|dot"),
-        ("../evil", "blog", False, "separator"),
-    ],
-    ids=[
-        "blog",
-        "filename",
-        "theme",
-        "empty",
-        "absolute",
-        "fslash",
-        "bslash",
-        "dot",
-        "dotdot",
-        "dotdot-name",
-    ],
-)
-def test_validate_output_child_name(
-    name: str, field: str, ok: bool, match: str
-) -> None:
-    if ok:
-        assert validate_output_child_name(name, field) == name
-    else:
-        with pytest.raises(OutputContainmentError, match=match):
-            validate_output_child_name(name, field)

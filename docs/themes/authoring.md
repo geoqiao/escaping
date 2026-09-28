@@ -1,39 +1,130 @@
-# Theme authoring — API 2
+# Theme authoring — API 3
 
-A Theme is a local directory of Jinja templates and static files. This document
-is the public rendering contract: you do not need to import generator internals
-to write one. The current manifest API is **`"2"`**; API 1 is rejected, not adapted.
-See [migration](#migrating-from-api-1) before upgrading an existing local Theme.
+A Theme turns your site's data into HTML pages. The generator reads Issues,
+assigns every page its address and checks the result; the Theme decides how
+each page looks.
 
-Quiet is the only built-in and default Theme. For removed built-ins, follow the
-[migration notes](#migrating-removed-built-in-themes). A local Theme is an independently maintained, trusted dependency:
-review its HTML, JavaScript and Jinja before use. Autoescape is not a sandbox for
-untrusted template code. There is no remote fetch, cross-Theme inheritance,
-update/cache service, plugin system, or runtime API-1 compatibility layer.
-Jinja includes/macros/extends **within the selected Theme** are supported.
+There are three ways to change the look. Start with the smallest one that does
+what you need:
 
-## Directory and manifest
+1. **Set Quiet's options** in `config.yaml`. No files to write.
+2. **Extend Quiet**: a `theme/` directory with a two-line `theme.yaml` and only
+   the files you want to replace.
+3. **Write a complete Theme** that does not depend on Quiet.
 
-Given `site/config.yaml`, this declaration loads `site/theme/` regardless of the
-shell's working directory:
+Coming from an older Theme? See [Migrating from API 2](#migrating-from-api-2).
+
+## 1. Quiet's options
 
 ```yaml
 theme:
-  source: local
-  name: my-theme
-  path: theme
+  use: quiet # the default; this line can be left out
+  options:
+    tagline: Researcher / tool builder
+    accent_color: "#2f6aa7"
+    featured_posts: [41, 62]
 ```
 
-`path` must be a non-empty relative path without `..`. `name` is the single safe
-output-directory name, not a remote identifier. Missing or incompatible local
-files fail the build; the compiler never mixes in a default Theme.
+[Quiet](quiet.md) lists every option. A misspelt option name or a wrong value
+fails the build and names the option, for example
+`theme.options.taglin: quiet has no such option; did you mean tagline?`.
+
+## 2. Extend Quiet
+
+```text
+site/
+├── config.yaml          # theme: {use: ./theme}
+└── theme/
+    ├── theme.yaml
+    └── home-intro.html  # replaces Quiet's home-intro.html
+```
+
+`theme/theme.yaml`:
+
+```yaml
+api: 3
+extends: quiet
+```
+
+`config.yaml`:
+
+```yaml
+theme:
+  use: ./theme
+```
+
+A file in your Theme replaces Quiet's file with the same path. This works for
+templates and for static files. Everything you do not provide comes from Quiet.
+`use` must contain a `/` (`./theme`, `themes/mine`); a bare name such as
+`quiet` means a built-in Theme. The path is relative to `config.yaml`, must stay
+inside the site repository and must not overlap `paths.output`.
+
+This replaces Quiet's Home introduction and adds a stylesheet to every page
+(from `tests/fixtures/extends_theme`):
+
+```jinja
+{# theme/home-intro.html #}
+<div class="home-intro">
+  <p class="custom-intro">Custom introduction for {{ site.author }}. <a href="{{ site.routes.blog.canonical_path }}">{{ t.blog }}</a></p>
+</div>
+```
+
+```jinja
+{# theme/head-extra.html — Quiet includes it at the end of <head> #}
+<meta name="x-now" content="{{ theme.now_text }}">
+<link rel="stylesheet" href="/assets/css/extra.css">
+```
+
+`theme/static/css/extra.css` is published at `/assets/css/extra.css`, next to
+Quiet's files. [Quiet](quiet.md#可以替换的文件) lists the partials that are
+meant to be replaced.
+
+### Reusing the file you replace
+
+Inside a Theme that extends Quiet, `@quiet/` loads Quiet's own copy of a
+template. Use it to add to a page instead of rewriting it:
+
+```jinja
+{# theme/home.html #}
+{% extends "@quiet/home.html" %}
+{% block content %}
+{{ super() }}
+<p>{{ t.hello }}</p>
+{% endblock %}
+```
+
+Without the prefix, `home.html` would load your own file again. `@quiet/` is
+only available when `theme.yaml` says `extends: quiet`.
+
+Quiet's `base.html` reads three optional variables. Set them at the top of a
+page template, outside any block:
+
+| Variable | Used for | Default |
+| --- | --- | --- |
+| `page_title` | `<title>` (followed by ` · ` and the site title), Open Graph and Twitter titles | `site.title` |
+| `page_description` | Meta, Open Graph and Twitter descriptions | `page.description` |
+| `active_section` | The menu link whose `url` equals this path is marked current | `site.routes.home.canonical_path` |
+
+A new page for a Theme that extends Quiet (`tests/fixtures/extends_theme/now.html`):
+
+```jinja
+{% extends "base.html" %}
+{% set page_title = t.now_title %}
+{% block content %}
+<div class="page-heading"><h1>{{ t.now_title }}</h1><p class="now-text">{{ theme.now_text }}</p></div>
+{% endblock %}
+```
+
+Quiet's other templates also use `extends 'base.html'`, so a `base.html` in
+your Theme changes every page.
+
+## 3. A complete Theme
 
 ```text
 site/theme/
-├── theme.yaml
-├── base.html
+├── theme.yaml       # api: 3
 ├── home.html
-├── index.html
+├── blog.html        # Blog archive, one render per archive page
 ├── post.html
 ├── ideas.html
 ├── idea.html
@@ -41,543 +132,467 @@ site/theme/
 ├── projects.html
 ├── tags.html
 ├── tag.html
+├── 404.html         # optional
 └── static/
-    ├── css/style.css
-    ├── js/site.js
-    └── images/favicon.png
+    └── css/style.css
 ```
 
-All ten HTML files above are mandatory even if a collection is empty; `index.html`
-means **Blog archive**, not Home. Extra local includes and resources are allowed.
-A complete manifest is:
+The nine page templates are required; with `extends`, any of them may come from
+the parent. `404.html` is optional. Extra templates (a `base.html`, includes,
+macros) are yours to organise. `tests/fixtures/independent_theme` is a small,
+complete Theme written only against this document.
+
+## theme.yaml
 
 ```yaml
-api_version: "2"
-capabilities: [comments, markdown, responsive]
-required_templates: []
-required_assets:
-  - static/css
-  - static/js
-  - static/images
+api: 3              # required
+extends: quiet      # optional: a built-in Theme name
+options: {}         # optional: settings a site can change
+pages: []           # optional: extra pages
+strings: {}         # optional: interface text per language
 ```
 
-All four manifest fields are required; unknown fields fail. `api_version` is a
-quoted string. `capabilities` is a list of descriptive strings, not switches that
-turn pages or comments on/off; it does not bypass any contract below.
-`required_templates` adds required files to the mandatory ten (an empty list does
-not remove them). `required_assets` lists **directories**, not individual files.
-Resource paths must be relative and traversal-free. The `static/` directory is
-always needed for asset copying, even with `required_assets: []`.
+Unknown fields fail. `extends` can only name a built-in Theme; a local Theme
+cannot extend another local Theme. When a Theme extends another, its `options`,
+`pages` (by path) and `strings` (by language and key) are merged over the
+parent's, and the child wins.
 
-## Routes and rendering boundary
+### options
 
-The compiler resolves Config and content into one immutable **SiteModel** before
-rendering. Every page Route is constructed by the shared **RouteRegistry**, not
-by the Theme. Renderer and artifact validator consume that model; neither fetches
-GitHub data nor reads Config during rendering. The template receives only the
-contexts below, not a `site`, `settings`, `config`, raw Issue, or GitHub client.
+```yaml
+options:
+  now_text:
+    type: string
+    default: Working on escaping.
+    description: Shown on /now/ and in a head meta tag.
+```
 
-| Route field | Meaning / example |
-| --- | --- |
-| `name` | Registered identifier, e.g. `blog-detail-notes` |
-| `canonical_path` | Root-relative public path, e.g. `/blog/notes/` |
-| `output_path` | Artifact-relative filename, e.g. `blog/notes/index.html` |
-| `canonical_url` | Absolute HTTPS URL, e.g. `https://example.org/blog/notes/` |
+A site sets the value under `theme.options.now_text`; templates read
+`{{ theme.now_text }}`. Every option needs a `type` and a `default`, and the
+default must be a valid value. Option names start with a lowercase letter and
+use lowercase letters, digits and `_`. A child Theme can redeclare a parent's option to change its default.
 
-Use `route.canonical_path` for internal links and `route.canonical_url` for page
-identity. Never build paths from a title, slug, Issue number, page number or tag
-name. Pre-resolved `detail_path`, BlogTag `path`, navigation URLs and canonical
-properties below also come from registered routes. Project `url` is instead an
-external repository URL; Project `slug` is a catalog key, not a page Route.
-
-Home, Blog, Ideas, About, Projects, Tags, Atom, sitemap and robots still exist
-when hidden from the menu. Blog pagination and tag archives exist as registered
-by the model. Atom, sitemap, robots and the search index are generated by the
-compiler, not Theme templates. Do not emit extra HTML pages, aliases or a second
-feed.
-
-### Common context: every rendered page
-
-| Name | Type and meaning |
-| --- | --- |
-| `page_canonical_url` | Current page's registered absolute URL, including the actual pagination/tag page |
-| `site_routes` | Mapping of `home`, `blog`, `ideas`, `about`, `projects`, `tags`, `atom`, `search` to complete Routes; always available, including empty sites |
-| `home_path`, `blog_url`, `atom_url` | Home root-relative path, Home absolute URL, Atom absolute URL |
-| `blog_title`, `author_name`, `language`, `meta_description` | Site title, display author, document language, **site-level** description (not automatically the detail-page description) |
-| `author_initials` | Uppercase first letters of first/last words; first two characters for one word; empty for no words |
-| `github_name`, `github_repo` | Content repository's owner and `owner/repo`, not the workflow actor |
-| `theme_path` | Root-relative selected asset prefix, e.g. `/templates/my-theme`, with no trailing slash |
-| `theme_favicon_url` | Absolute metadata URL to `theme_path + '/static/images/favicon.png'`; this does not supply a fallback file. Include the PNG if used; load the icon with the root-relative `theme_path` prefix |
-| `navigation_items` | Ordered sequence of `name`, `url` pairs; render exactly this menu, possibly empty |
-| `skip_link_text` | `Skip to main content` |
-| `google_search_verification` | Verification value, possibly empty |
-| `comments`, `branding` | Same immutable objects as `metadata.comments` / `metadata.branding` |
-| `metadata` | Site metadata described next; not the entire SiteModel |
-| `featured_projects` | Ordered featured Project sequence from the catalog; Quiet shows at most four on Home and About, and omits empty featured sections |
-
-| Metadata object | Public fields |
-| --- | --- |
-| `metadata` | `title`, `author`, `description`, `language`, `github_name`, `github_repo`, `navigation` (= `navigation_items`), `thesis` (sequence of strings), plus the objects below and `google_search_verification` |
-| `metadata.social_image` | Optional absolute HTTPS shared social-preview image URL; empty when not configured |
-| `metadata.social_image_alt` | Optional plain-text alternative text for the shared social-preview image |
-| `metadata.profile` | `avatar`, `tagline`, `bio` (strings, possibly empty), `links` (sequence of `name`, `url`) |
-| `metadata.branding` | `show_powered_by` (bool), `powered_by_text`, `powered_by_url`, `source_link_url` (strings) |
-| `metadata.comments` | `enabled` (bool), `repo`, `theme`, `theme_mode` (strings). Empty Config repo is already resolved to `github_repo` |
-| `metadata.theme` | `name`, `asset_path` (= `theme_path`), `favicon_url` (= `theme_favicon_url`) |
-
-Thesis/tagline are optional presentation hints, not mandatory slogan copy. Profile
-text and all metadata remain plain text: use ordinary autoescape, never `|safe`.
-`social_image` and `social_image_alt` are additive API 2 fields. Existing local
-Themes may ignore them and keep their current head markup; they are not required
-to implement Quiet's social-image tags. If a Theme emits either image URL, it
-must emit an absolute HTTPS URL and the artifact validator checks same-origin
-resources and the configured `metadata.social_image` value.
-
-### Page-specific context: not globals
-
-Every row includes the common context. Names listed only in one row are
-**undefined** elsewhere, not implicitly `None`.
-
-| Template | Additional context | Page model |
+| `type` | Accepted value | In templates |
 | --- | --- | --- |
-| `home.html` | `home_page`, `structured_data`, `top_projects`, `projects_path` | HomePage; top projects is up to five Projects ranked by known stars descending, then catalog order/key; projects_path is registered Projects path |
-| `index.html` | `archive_page` | ArchivePage for the actual Blog archive page |
-| `post.html` | `post`, `structured_data`, `prev_post`, `next_post` | BlogPost; each neighbor is BlogPost or `None` |
-| `ideas.html` | `ideas`, `ideas_canonical_url` | Sequence of Ideas; URL equals page_canonical_url |
-| `idea.html` | `idea`, `structured_data` | Idea |
-| `about.html` | `about_page`, `about_is_profile`, `structured_data` | Issue About or Profile About, discriminated by the boolean |
-| `projects.html` | `projects` | ProjectsPage, **not** a sequence; iterate `projects.projects` |
-| `tags.html` | `tags_index` | TagsIndex |
-| `tag.html` | `tag_archive` | TagArchive |
-| `base.html` / local includes | Caller context, subject to Jinja include/import scope | Not separately rendered; imported macros need `with context` to use page values |
+| `string` | text | text |
+| `boolean` | `true` or `false` | bool |
+| `integer` | a whole number | int |
+| `color` | empty, or `#rgb` / `#rrggbb` | text |
+| `url` | empty, or an HTTPS, `mailto:`, root-relative (`/…`) or `#fragment` link | text |
+| `choice` | one of `values` (required for this type) | text |
+| `list` | a list of text | tuple of text |
+| `posts` | a list of positive Blog Issue numbers, no repeats | tuple of [Blog posts](#content-models), in the listed order |
 
-`structured_data` is supplied only on Home, Blog detail, Idea detail and About.
-Use `{% if structured_data is defined %}` in a shared base. Variables such as
-`article`, `active_section`, `section_label`, `comments_issue_number`, `page_title`
-and `page_description` in built-in templates are **Theme-local conventions**,
-not renderer-provided globals. Do not rely on them without defining them yourself.
+A `posts` number that is not a published Blog post is left out, and the build
+reports the warning `THEME_OPTION_POST_MISSING`.
 
-Blog neighbors use the entire Blog collection sorted by `(published_at,
-issue_number)` descending: Previous is the newer neighbor, Next is the older.
-They are independent of archive/tag entry points. The first/last has only one
-neighbor and a single-post site has neither. No wraparound or placeholder link.
-
-### Page model fields
-
-Sequences are immutable tuples; empty sequences are valid. Do not mutate models.
-Dates below are ISO date strings; timestamps are timezone-aware Python datetimes.
-
-| Model | Public fields/properties |
-| --- | --- |
-| HomePage | `route`, `canonical_url`, `recent_posts` (up to five HomePostEntry, newest first), `featured_posts` (HomePostEntry sequence in configured order, empty by default) |
-| HomePostEntry | `issue_number`, `title`, `description`, `created_date`, `detail_path`, `tags` (BlogTag sequence) |
-| ArchivePage | `route`, `canonical_url`, `page_number`, `total_pages`, `prev_route`, `next_route` (Route or None), `entries` (ArchiveEntry sequence). Empty Blog still has page 1 of 1 |
-| ArchiveEntry | `issue_number`, `title`, `description` (compiled plain text, possibly empty), `created_date`, `detail_path`, `tags` (BlogTag sequence); **no body** |
-| TagArchiveEntry | `issue_number`, `title`, `created_date`, `detail_path`, `tags` (BlogTag sequence); **no description or body** |
-| BlogPost | `issue_number`, `title`, `slug`, `description`, `created_date`, `published_at`, `updated_at`, `tags` (BlogTag sequence), `body_html`, `route`, `canonical_path`, `canonical_url` |
-| Idea | `issue_number`, `title`, `description`, `created_date`, `published_at`, `updated_at`, `tags` (IdeaTag sequence), `body_html`, `route`, `canonical_path`, `canonical_url`; **no slug** |
-| BlogTag | `name`, `path` (registered Blog tag archive path) |
-| IdeaTag | **`name` only**; no `path`, `route` or Blog archive membership, even when the name also occurs on Blogs |
-| Issue About | `issue_number`, `title`, `description`, `body_html`, `route`, `canonical_path`, `canonical_url`; no date/tags/slug |
-| Profile About | `title`, `description`, `route`, `canonical_path`, `canonical_url`; **no Issue number, body_html, dates, tags or slug** |
-| ProjectsPage | `route`, `canonical_path`, `canonical_url`, `projects`, `featured` (Project sequences); `top_by_stars(limit=5)` returns a ranked Project tuple |
-| Project | `slug`, `title`, `repository`, `summary`, `url`, `featured` (bool), `order` (int), `stars` / `forks` (int or None), `language` (string or None), `topics` (string sequence), `image` (resource URL or empty string), `links` (ordered immutable sequence of `name`, `url` pairs) |
-| TagsIndex | `route`, `canonical_url`, `tags` (TagSummary sequence) |
-| TagSummary | `name`, `count`, `route`; use `route.canonical_path`, not `path` |
-| TagArchive | `route`, `canonical_url`, `tag_name`, `index_route`, `entries` (TagArchiveEntry sequence) |
-
-Only sanitized `body_html` is trusted HTML: `{{ post.body_html|safe }}` (similarly
-Idea and Issue About). Never apply `safe` to title, description, Profile or tags.
-Descriptions derived from visible code may contain `<` or `>`; autoescape them.
-`created_date` is a normalized ASCII `YYYY-MM-DD` calendar date, suitable for
-both display and `<time datetime="…">`. Display it for Blog/Idea, not About.
-Do not substitute it for native publication/update timestamps in structured data.
-
-### Static search index
-
-`site_routes.search` points to `/search.json`. It is generated for every Theme
-and validated against SiteModel before publication, but is not a sitemap page.
-Local Themes may ignore it; no additional template or capability is required.
-This is an additive API 2 context field, not a change to existing page models.
-
-The UTF-8 JSON contract is `{ "version": 1, "items": [...] }`. Each item has
-plain-text `title`, `description`, string-array `tags`, `type` (`Blog`, `Idea` or
-`Project`), and `url`. Blog and Idea URLs come from their complete Routes; Project
-URLs are the catalog's external repository URLs. Entries are newest Blogs first,
-then newest Ideas, then catalog-order Projects. There are no drafts, unauthorized
-Issues, About pages, archive duplicates, raw bodies or body HTML in the index.
-Search covers titles, summaries and tags, **not full article text**.
-
-Use `site_routes.search.canonical_path`, not a hand-built endpoint. Quiet loads
-it only when the search dialog opens, caches it in memory for that page, and
-renders results as ordinary links using `textContent`. If implementing another
-client, validate URLs and JSON shape before creating links; never insert metadata
-as HTML. A failed request should leave archive navigation available. A script may
-advertise its index with `data-search-index`; artifact validation checks that
-resource URL along with its `src`.
-
-### Project artwork and links
-
-Project content comes from the site-owned catalog, not Theme constants or README
-synchronization. `image` accepts HTTPS/root-relative resource URLs; `links` use
-the same safe named-link contract as Profile links. Empty optional values do not
-require placeholders. Quiet uses two columns on desktop and one on narrow screens;
-full cards have a preferred proportion but grow for long text rather than truncate
-it. About cards are smaller and subordinate to the authored narrative. The existing
-Home `top_projects` star-ranking context remains available for local Themes; Quiet
-uses `featured_projects` instead.
-
-An image URL is not an instruction to copy a local file. Prefer already published
-HTTPS artwork, including immutable GitHub raw URLs. Internal static resources must
-use the selected Theme's asset prefix and exist in the candidate artifact. An
-arbitrary `/assets/projects/` URL is not a registered resource; an upload-time copy
-does not make that URL valid. A site-owned local Theme may ship its own artwork
-under `/templates/<name>/static/`. Do not weaken the artifact validator or add
-arbitrary asset discovery to make an image appear.
-
-### Code highlighting
-
-Explicitly recognized fenced-code languages receive build-time Pygments token
-markup inside sanitized code. Unmarked/unknown languages remain plain text;
-Mermaid keeps its separate shared rendering path. Local Themes may style the safe
-token spans or leave them unstyled without losing readable source text.
-
-Quiet uses Pygments' Xcode/GitHub Dark token palettes with its own code surfaces
-and a lighter dark-mode generic-output color; it does not reproduce either
-application's entire interface. Long lines stay unwrapped in a native horizontal
-scroll region with a thin thumb and transparent track. Copy controls copy the code
-text, not the language label or highlighting markup.
-
-## Head and structured data
-
-Every HTML page needs a meaningful title, language, viewport, description,
-Open Graph and Twitter metadata, plus **exactly one** canonical link. The
-canonical link, `og:url` and `twitter:url` must equal `page_canonical_url` exactly.
-Do not use Home's URL for archives, pagination, tags or detail pages. About's
-`description`, `og:description` and `twitter:description` must all equal
-`about_page.description`, including a legitimate empty description.
-
-A shared-head excerpt (define page_title/page_description in your page template):
-
-```jinja
-<title>{{ page_title }} · {{ blog_title }}</title>
-<meta name="description" content="{{ page_description }}">
-<link rel="canonical" href="{{ page_canonical_url }}">
-<meta property="og:title" content="{{ page_title }}">
-<meta property="og:description" content="{{ page_description }}">
-<meta property="og:url" content="{{ page_canonical_url }}">
-{% if metadata.social_image %}
-<meta property="og:image" content="{{ metadata.social_image }}">
-{% if metadata.social_image_alt %}<meta property="og:image:alt" content="{{ metadata.social_image_alt }}">{% endif %}
-<meta name="twitter:card" content="summary_large_image">
-<meta name="twitter:image" content="{{ metadata.social_image }}">
-{% if metadata.social_image_alt %}<meta name="twitter:image:alt" content="{{ metadata.social_image_alt }}">{% endif %}
-{% else %}
-<meta name="twitter:card" content="summary">
-{% endif %}
-<meta name="twitter:title" content="{{ page_title }}">
-<meta name="twitter:description" content="{{ page_description }}">
-<meta name="twitter:url" content="{{ page_canonical_url }}">
-<link rel="alternate" type="application/atom+xml" href="{{ atom_url }}">
-{% if structured_data is defined %}
-<script type="application/ld+json">{{ structured_data|tojson }}</script>
-{% endif %}
-```
-
-Emit supplied `structured_data` with `tojson`, never manually interpolate JSON
-or use `|safe` on a serialized string. The supplied shapes are Home's Person +
-WebSite graph, BlogPosting for Blog, Article for Idea, Person for Issue About,
-and AboutPage for Profile About. Profile About does not assume a GitHub
-Organization is a Person. Other pages have no supplied JSON-LD; optional
-Theme-authored JSON-LD follows the same rules.
-
-Each JSON-LD script is validated independently:
-
-| Shape | Exact page-identity rule |
-| --- | --- |
-| Root object without `@graph` | If `url` is supplied, it must be a string exactly equal to page_canonical_url. `url` is optional; a root `@id` is not checked as a replacement for it |
-| Root object with `@graph` | `@graph` must be an array of objects with **exactly one** node whose `@id` is exactly page_canonical_url. `#page`, `#author`, a relative path, a different URL or a duplicate match does not satisfy this rule |
-| Root or selected graph node `url` | Optional; if present it must be the exact canonical string. Null, arrays and `{"@id": ...}` URL values fail. A wrong root URL still fails even if the selected graph node is correct |
-| Referenced entities | Other graph nodes and nested `author.url`, `publisher.url`, `isPartOf`, citations, etc. need not equal the page URL; they are not recursively treated as page identity |
-| Profile About identity | The root object, or selected graph node, must have scalar `@type: "AboutPage"` or `"ProfilePage"`, without `datePublished` or `dateModified`. No fabricated Article/BlogPosting, Issue or date |
-
-Top-level arrays and malformed JSON fail. There is no remote context expansion,
-JSON-LD inference, or selection of a primary node by `@type`. The validator checks
-scripts present in the document, not general schema.org completeness; this does
-not remove the Theme obligation to emit the supplied data. Do not hide content
-or change indexing rules to bypass validation.
-
-## About: branch before reading Issue-only fields
-
-Both variants have the same registered `/about/` Route. An explicit About Issue
-selection must be valid; otherwise discovery uses the sole valid published About,
-then Profile About when none exists. See [site inputs](../site-inputs.md).
-
-```jinja
-{% extends 'base.html' %}
-{% set page_title = about_page.title %}
-{% set page_description = about_page.description %}
-{% block content %}
-<article>
-  <h1>{{ about_page.title }}</h1>
-  {% if about_is_profile %}
-    <p>{{ about_page.description }}</p>
-  {% else %}
-    <div class="post-content">{{ about_page.body_html|safe }}</div>
-    {% if comments.enabled %}
-      {% set comments_issue_number = about_page.issue_number %}
-      {% include '_comments.html' %}
-    {% endif %}
-  {% endif %}
-</article>
-{% endblock %}
-```
-
-The `_comments.html` include is optional Theme-local code shown below. Never
-synthesize Issue 0/None or an empty body_html to avoid this branch. Profile About
-has no source-Issue link, loading state, comment script or discussion anchor,
-even when `comments.enabled` is true for the rest of the site.
-
-## Comments: optional markup, shared protocol
-
-Comments default off. Enable with an actual YAML boolean, and separately authorize
-the [Utterances GitHub App](https://github.com/apps/utterances) for the public
-repository. Visitors writing through the widget also need its OAuth authorization;
-see [Utterances](https://utteranc.es/). Installing the compiler or setting a flag
-is not App installation, OAuth validation, or proof that posting works.
+### pages
 
 ```yaml
-comments:
-  enabled: true
-  repo: ""                 # falls back to github.repo
-  theme_mode: auto          # follows html[data-theme="light"|"dark"]
-  theme: github-light      # used when theme_mode is fixed
+pages:
+  - path: /now/
+    template: now.html
+  - path: /projects/{slug}/
+    template: project.html
+    for_each: projects
 ```
 
-Quoted booleans, numbers, null, unknown fields, unsafe repository names and
-unsupported themes are rejected, even when comments are disabled. `theme_mode`
-is `auto` or `fixed`. Fixed themes: `boxy-light`, `dark-blue`, `github-dark`,
-`github-dark-orange`, `github-light`, `gruvbox-dark`, `icy-dark`, `photon-dark`,
-`preferred-color-scheme`. Auto maps light to github-light and dark to photon-dark.
+- `path` is lowercase segments, each ending with `/`.
+- The generator owns `/`, `/blog/`, `/ideas/`, `/about/`, `/projects/`,
+  `/tags/` and everything under `/blog/`, `/ideas/`, `/tags/` and `/assets/`.
+  A page cannot use those.
+- `for_each: projects` renders the page once per project in the site's
+  `projects` list. The path must contain `{slug}` exactly once, as a whole
+  segment; other pages must not contain it. The template name may also contain
+  `{slug}` (`projects/{slug}.html`) to give each project its own template.
+- `template` is a relative `.html` name.
+- On these pages `page.kind` is `page`; for `for_each` pages `page.project` is
+  the project.
+- The first `for_each` page of a project becomes `project.page`. Link to
+  `project.page.canonical_path` when it is set; Quiet's project cards and the
+  search index do this.
+- A site can put the page in its menu: `site.navigation.items` accepts any
+  root-relative URL that is a page of the site.
 
-For Blog/Idea, call the include only when `comments.enabled`, setting
-`comments_issue_number` from `post.issue_number` / `idea.issue_number`. About uses
-the branch above. One possible `_comments.html` is:
+Two pages with the same address fail the build.
+
+### strings
+
+```yaml
+strings:
+  en:
+    now_title: Now
+  zh:
+    now_title: 现在
+```
+
+Templates read `{{ t.now_title }}`. For `site.language: zh-CN`, `t` starts
+with `en`, then applies `zh`, then `zh-cn` (language codes are not
+case-sensitive). `t.language` is the most specific language that had strings
+(`zh` here); use it for `lang` attributes on interface text. Keys follow the same
+naming rule as options; `language` is reserved.
+
+Define every key in `en`. A key that is missing for the site's language chain
+fails rendering. A child Theme can override single keys of its parent, such as
+Quiet's `footer_thanks`.
+
+## Template variables
+
+Every template receives exactly four names:
+
+| Name | What it is |
+| --- | --- |
+| `site` | Site-wide data, the same on every page |
+| `page` | The page being rendered |
+| `theme` | The Theme's options after defaults and the site's values |
+| `t` | Interface text for the site's language |
+
+Values are read-only. Missing fields fail loudly (Jinja `StrictUndefined`).
+Optional values are `none`; test them with `{% if value %}` or
+`is not none` (zero project stars is real data).
+
+### site
+
+| Field | Meaning |
+| --- | --- |
+| `title`, `author`, `description`, `language` | From the site Config |
+| `url` | Home URL, e.g. `https://example.com/` |
+| `repo` | Content repository, `owner/name` |
+| `profile` | `avatar`, `bio` (text, may be empty) and `links` (each `name`, `url`) |
+| `navigation` | The menu: each item has `name` and `url`. May be empty; render it as given |
+| `comments` | `enabled` (bool) and `repo` (defaults to `site.repo`) |
+| `seo` | `google_search_console`, `social_image` (absolute URL or empty), `social_image_alt` |
+| `routes` | [Routes](#routes) for `home`, `blog`, `ideas`, `about`, `projects`, `tags`, `atom`, `search` |
+| `posts` | Every Blog post, newest first |
+| `ideas` | Every Idea, newest first |
+| `projects` | The site's projects, by `order`, then slug |
+| `featured_projects` | Projects with `featured: true`, same order |
+| `tags` | Every [Blog tag](#content-models), by tag key |
+| `about` | The About page (same object as `page.about` on About) |
+
+### page
+
+Every page has all of these fields; the ones a page kind does not use are
+`none`.
+
+| Field | Meaning |
+| --- | --- |
+| `kind` | `home`, `blog`, `post`, `ideas`, `idea`, `about`, `projects`, `tags`, `tag`, `page` or `404` |
+| `route` | The page's [Route](#routes); `none` on `404` |
+| `description` | Summary for the meta description. The post's, Idea's or About's own on those pages, the project's summary on a `for_each` page, otherwise `site.description` |
+| `json_ld` | Structured data for Home, posts, Ideas and About; otherwise `none`. Output it with `{{ page.json_ld\|tojson }}` inside `<script type="application/ld+json">` |
+| `post`, `newer`, `older` | On `post`: the post and its newer and older neighbours in the whole Blog (`none` at either end) |
+| `idea` | On `idea` |
+| `archive` | On `blog`: the archive page |
+| `tag` | On `tag` |
+| `about` | On `about` |
+| `project` | On a `for_each` page |
+
+| Template | `page.kind` | Address |
+| --- | --- | --- |
+| `home.html` | `home` | `/` |
+| `blog.html` | `blog` | `/blog/`, `/blog/page/2/`, … |
+| `post.html` | `post` | `/blog/<slug>/`; the slug is the Issue number unless the Issue sets one |
+| `ideas.html` | `ideas` | `/ideas/` |
+| `idea.html` | `idea` | `/ideas/<Issue number>/` |
+| `about.html` | `about` | `/about/` |
+| `projects.html` | `projects` | `/projects/` |
+| `tags.html` | `tags` | `/tags/` |
+| `tag.html` | `tag` | `/tags/<tag key>/` |
+| your `pages` | `page` | the declared path |
+| `404.html` | `404` | `/404.html`, served for any missing address |
+
+### Routes
+
+| Field | Example |
+| --- | --- |
+| `canonical_path` | `/blog/notes/` — use this for links |
+| `canonical_url` | `https://example.com/blog/notes/` — use this for canonical and `og:url` |
+| `output_path` | `blog/notes/index.html` |
+| `name` | `blog-detail-notes` |
+
+Paths are percent-encoded, so a Chinese tag links correctly. Never build an
+address from a title, slug, number or tag name; take it from a Route.
+
+### Content models
+
+| Model | Fields |
+| --- | --- |
+| Blog post | `issue_number`, `title`, `slug`, `description`, `created_date`, `published_at`, `updated_at`, `tags` (Blog tags), `body_html`, `route`, `canonical_path`, `canonical_url` |
+| Blog tag on a post | `name`, `key`, `route`, `path` (= `route.canonical_path`) |
+| Idea | `issue_number`, `title`, `description`, `created_date`, `published_at`, `updated_at`, `tags`, `body_html`, `route`, `canonical_path`, `canonical_url` |
+| Idea tag | `name` only. Ideas have no tag pages; show the name as text |
+| Tag (`site.tags`, `page.tag`) | `name`, `key`, `count`, `posts` (newest first), `route`, `canonical_path`, `canonical_url` |
+| Archive page | `page_number`, `total_pages`, `posts`, `route`, `prev_route` (the newer page), `next_route` (the older page), `canonical_path`, `canonical_url`. An empty Blog still has page 1 of 1 |
+| Project | `slug`, `title`, `summary`, `url` (website, else repository), `repository`, `repository_url`, `website`, `featured`, `order`, `stars`, `forks`, `language`, `topics`, `image`, `links` (each `name`, `url`), `page` |
+| About from an Issue | `is_profile` (false), `issue_number`, `title`, `description`, `body_html`, `route`, `canonical_path`, `canonical_url` |
+| About from the profile | `is_profile` (true), `title`, `description`, `route`, `canonical_path`, `canonical_url` |
+
+`created_date` is a `YYYY-MM-DD` string, fine for display and
+`<time datetime>`. `published_at` and `updated_at` are timezone-aware
+datetimes.
+
+### About: branch before reading Issue-only fields
+
+Without an About Issue, the About page is built from the profile and has no
+Issue number or body. Check `is_profile` first
+(`tests/fixtures/independent_theme/about.html`):
 
 ```jinja
-{% if comments.enabled %}
-<section aria-labelledby="comments-title">
-  <h2 id="comments-title">Comments</h2>
-  <a href="https://github.com/{{ github_repo }}/issues/{{ comments_issue_number }}">View the original Issue on GitHub</a>
-  <div id="comments-container"
-       data-comments-repo="{{ comments.repo }}"
-       data-issue-number="{{ comments_issue_number }}"
-       data-source-repo="{{ github_repo }}"
-       data-comments-theme="{{ comments.theme }}"
-       data-comments-theme-mode="{{ comments.theme_mode }}"
-       data-blog-theme-default="light">
-    <p class="comments-loading" role="status">Loading comments…</p>
-  </div>
-  <noscript><p>Read and reply using the GitHub link above.</p></noscript>
-</section>
-<script src="{{ theme_path }}/static/js/comments.js" defer></script>
+{% if page.about.is_profile %}
+<p class="lead">{{ page.about.description }}</p>
+{% else %}
+<div class="rich-content">{{ page.about.body_html|safe }}</div>
+{% set comments_issue_number = page.about.issue_number %}
+{% include "_comments.html" %}
 {% endif %}
 ```
 
-Have exactly one container and one shared script on an enabled Issue detail page,
-none on archives/Home/Projects/Tags/Profile About. A Discuss link must use the
-**same condition** as its target; off means no script, iframe, loading state or
-dead anchor. A normal source-Issue link may remain when off. Keep the body and
-fallback readable and keyboard accessible. Hide loading messages when JavaScript
-is unavailable; do not hide fallback links.
+A profile About never shows comments.
 
-`data-comments-repo` binds the configured widget repository; `data-source-repo`
-is always the actual content repository for error fallback. The Issue number
-never changes to a title/URL/search term. If overriding repo, ensure the intended
-existing number is actually in that repository; the compiler does not migrate or
-create threads. Prefer the content repository to preserve discussion identity.
+### HTML and escaping
 
-Use the generator's shared comments.js, not copied protocol code or a direct
-Utterances client include. It owns origin/source-checked feedback, postMessage +
-MutationObserver theme following, removal of injected iframe `loading="lazy"`
-for Safari/WebKit, and bounded script-failure/timeout fallback to the source
-Issue. Do not hard-code iframe height to impersonate success. A real visible
-frame and anonymous sign-in controls demonstrate rendering, not successful
-App/OAuth comment submission. Third-party outages/403 and browser privacy rules
-can still prevent loading; no retry loop, PAT or proxy belongs in a Theme.
+Autoescape is on. `body_html` of posts, Ideas and Issue About is sanitised by
+the generator and is the only content to mark `|safe`. Titles, descriptions,
+tags, profile text, options and strings are plain text; let autoescape handle
+them. Output `page.json_ld` with `|tojson`, never as a string with `|safe`.
+
+Jinja does not pass the page context into imported macros by default. Import
+with `with context` when a macro reads `site`, `page`, `theme` or `t`, as Quiet
+does: `{% from 'components.html' import tags with context %}`.
 
 ## Static and shared assets
 
-The whole selected `static/` tree is copied to `/templates/<name>/static/`.
-Reference it with the provided leading-slash prefix:
+Everything under your Theme's `static/` is published under `/assets/`:
+`static/css/style.css` becomes `/assets/css/style.css`. With `extends`, your
+files and the parent's are combined and yours win on the same path. Files and
+folders starting with `.` are skipped. Reference assets with root-relative
+URLs (`/assets/…`) so they also work from `404.html`, which is served at any
+depth.
+
+- Symbolic links anywhere in a Theme are rejected; copy the file instead.
+- `static/escaping/` is reserved and fails the build.
+- Do not put `.html` files in `static/`; an HTML file that is not a page of the
+  site fails the build.
+
+The generator publishes shared scripts under `/assets/escaping/` for every
+Theme. Use them instead of copying their code.
+
+| File | Purpose |
+| --- | --- |
+| `/assets/escaping/comments.js` | Utterances comments |
+| `/assets/escaping/mermaid.js` | Loads the Mermaid runtime on pages with diagrams |
+| `/assets/escaping/mermaid/mermaid.min.js` | The bundled Mermaid runtime (with its `LICENSE` and `README.md`) |
+
+### Comments
+
+Comments are off unless the site sets `comments.enabled: true` and installs the
+[Utterances GitHub App](https://github.com/apps/utterances) on the repository.
+Show them only on pages backed by an Issue (posts, Ideas, an Issue About) and
+only when `site.comments.enabled` is true. The markup, from Quiet's
+`components.html`:
 
 ```jinja
-<link rel="stylesheet" href="{{ theme_path }}/static/css/style.css">
-<script src="{{ theme_path }}/static/js/site.js" defer></script>
+<div id="comments-container"
+     data-issue-number="{{ number }}"
+     data-comments-repo="{{ site.comments.repo }}"
+     data-source-repo="{{ site.repo }}"
+     data-comments-theme="github-light"
+     data-comments-theme-mode="auto"
+     data-blog-theme-default="light">
+  <p class="comments-loading" role="status">Loading comments…</p>
+</div>
+<script src="/assets/escaping/comments.js" defer></script>
 ```
 
-Do not prepend `/output`, use relative `templates/...`, or reference another
-Theme's directory. CSS-relative font/image URLs resolve relative to the CSS
-file; include their files and licenses. Referenced local resources must exist,
-with exact case. URL-encode file names correctly (one HTTP decode, not two).
-A same-origin resource outside the Theme prefix is not automatically imported
-from the site repository.
-
-The compiler additionally supplies these reserved output paths, replacing any
-Theme-local files there; **do not vendor duplicate copies into the Theme**:
-
-| Path below theme_path | Owner / use |
+| Attribute | Meaning |
 | --- | --- |
-| `static/js/comments.js` | Shared optional-comment protocol |
-| `static/js/mermaid.js` | Shared lazy diagram loader |
-| `static/vendor/mermaid-11.16.1/` | Bundled strict Mermaid runtime, README and license |
+| `data-issue-number` | The Issue the thread belongs to |
+| `data-comments-repo` | Repository holding the thread |
+| `data-source-repo` | Content repository, for the fallback link to the Issue |
+| `data-comments-theme-mode` | `auto`: follow `<html data-theme="light\|dark">` (github-light / photon-dark). `fixed`: always use `data-comments-theme` |
+| `data-comments-theme` | An Utterances theme name, used when the mode is `fixed` |
+| `data-blog-theme-default` | `light` or `dark`, used while `<html>` has no `data-theme` |
+| `data-unavailable-text` | Optional. Message shown if comments cannot load; English by default |
+| `data-issue-link-text` | Optional. Text of the fallback link to the Issue; English by default |
 
-Asset copying is independent of comments.enabled: an unused local comments.js
-file may exist in output, but disabled pages must not reference or execute it.
-If adding diagrams, use the shared loader with a local runtime declaration:
+Use one container per page. The optional `.comments-loading` element is
+replaced by a link to the Issue if comments cannot load. Quiet exposes the
+colour settings as its `comments_theme` and `comments_theme_mode` options; your
+Theme can do the same or hard-code them.
+
+### Diagrams
+
+A ```` ```mermaid ```` block in an Issue becomes `<pre><code
+class="language-mermaid">`. To draw it, add the loader on pages whose body can
+contain diagrams:
 
 ```jinja
-<script src="{{ theme_path }}/static/js/mermaid.js"
-        data-runtime-src="{{ theme_path }}/static/vendor/mermaid-11.16.1/mermaid.min.js"
-        data-mermaid-theme="auto" defer></script>
+<script src="/assets/escaping/mermaid.js"
+        data-runtime-src="/assets/escaping/mermaid/mermaid.min.js"
+        data-mermaid-theme="neutral" defer></script>
 ```
 
-Keep readable source when enhancement is unavailable and retain strict runtime
-security. Bundled fonts/scripts/CSS avoid extra runtime third-party requests;
-disabling comments does not mean blocking an author's intentionally external
-content images or profile avatar.
+`data-mermaid-theme` is a Mermaid theme name, or `auto` to pick dark or default
+from `<html data-theme>`. The loader does nothing on pages without diagrams, and
+the source stays readable if it fails.
 
-## Navigation and keyboard/layout contract
+### Files the generator writes
 
-The default primary menu is Home, Blog, Projects, Tags, About, RSS, in that
-order. Ideas remains a supported content type and route, available through an
-explicit menu entry; its omission from the default menu does not delete content. An explicit `site.navigation.items` list replaces it entirely: preserve
-order and names, allow removal of Home and `[]`, and never inject Home or RSS
-back into that menu. The independent brand links to `home_path`; content links
-and footer links are not primary-menu entries. Hiding an entry does not delete,
-noindex or unregister its page. Mark current navigation by destination, not the
-user-editable label.
+`/atom.xml`, `/sitemap.xml`, `/robots.txt` and `/search.json` are not
+templates. The sitemap lists every page, including your `pages`.
+`site.routes.search.canonical_path` points to the search index:
 
-| Interaction | Required behavior |
+```json
+{"version": 1, "items": [{"title": "…", "description": "…", "tags": ["…"], "type": "Blog", "url": "/blog/notes/"}]}
+```
+
+`type` is `Blog`, `Idea` or `Project`. Items are Blog posts (newest first),
+then Ideas, then projects; a project's `url` is its `project.page` when it has
+one. Search covers titles, summaries and tags, not full text. If you put the
+address in a `data-search-index` attribute on a `<script>`, the build checks
+that it exists. Insert results with `textContent`, never as HTML.
+
+## Checks
+
+### Every build
+
+Before reading any Issue, the build checks the Config, loads the Theme, checks
+the site's `theme.options`, and compiles every template. It stops if a required
+template or a `for_each` template is missing, or if a template has a syntax
+error (reported with file and line).
+
+After rendering, and before replacing the published output, it checks
+integrity:
+
+| Code | Meaning |
 | --- | --- |
-| Keyboard entry | A visible-on-focus skip link moves focus to main (e.g. `id="main-content" tabindex="-1"`); brand remains a working Home link |
-| Empty menu | No menu toggle, empty panel, hidden focus target or inert background. Existing appearance controls remain independently accessible |
-| Collapsible mobile menu | Labeled real control, aria-controls/expanded state, Enter/Space activation, Escape dismissal/focus return; closed links must not be a keyboard dead end. Always-visible, keyboard-accessible navigation needs no collapse control |
-| No/failed JS | Content and navigation remain usable without a fake enhancement button; don't hide the body for initialization or performance scores |
-| Local overflow | At narrow widths, wide tables/code/diagrams scroll inside their own region, not the page. Provide keyboard scrolling/focus and accessible names for interactive scroll regions |
-| Appearance | Visible focus indication, readable light/dark states, reduced-motion support for added animation; theme changes must not erase content or discussion identity |
+| `MISSING_ROUTE` | A page has no file |
+| `UNREGISTERED_HTML` | An `.html` file that is not a page of the site (`404.html` is allowed) |
+| `BROKEN_INTERNAL_LINK` | A link or resource on this site that is neither a page nor a file |
+| `INVALID_INTERNAL_PATH` | An unsafe internal URL, such as `..` or control characters |
 
-Do not replace semantic links with click-only elements. Test long titles, Unicode,
-empty collections, pagination, Blog/Idea/About and both About variants. Preserve
-headings, native content links, body readability and comments fallback when any
-optional enhancement fails.
+Checked references are `href` on `<a>` and `<link>`; `src` on `<script>`,
+`<img>` and `<source>`; `srcset`; `data-runtime-src` and `data-search-index`
+on `<script>`; and `og:image` / `twitter:image`. Relative links are resolved
+against the page URL. Links to other sites are not checked. A template error
+while rendering (such as an undefined variable) also fails the build. A failed
+build leaves the previously published output unchanged.
 
-## Diagnostics and author verification
+The build does not check titles, descriptions, canonical links or structured
+data. How a Theme writes its `<head>` is up to the Theme.
 
-Jinja uses **autoescape + StrictUndefined**. Missing fields fail loudly rather
-than silently becoming empty text. Use an explicit Profile branch, `is defined`
-for page-scoped values in base templates, and `is not none` for optional values
-(e.g. zero project stars is real data).
-
-| Failure | Diagnostic / action |
-| --- | --- |
-| Old manifest API, missing Theme/template/asset directory | `BUILD_FAILED`, with the unsupported API or missing resource. API error states expected `"2"` and points here |
-| Undefined variable or template syntax | `TEMPLATE_RENDER_FAILED`; undefined value named, syntax errors also include template name and line. Read the build log for the rendering traceback |
-| Wrong canonical / social URL | `CANONICAL_MISMATCH` / `SEO_URL_MISMATCH` |
-| About description or Profile identity | `ABOUT_DESCRIPTION_MISMATCH` / `PROFILE_ABOUT_IDENTITY` |
-| Bad JSON-LD | `INVALID_JSON_LD`, `JSON_LD_PAGE_IDENTITY` or `JSON_LD_URL_MISMATCH` |
-| Broken links/resources | `RELATIVE_LINK`, `BROKEN_INTERNAL_LINK`, `MISSING_ASSET` or `INVALID_INTERNAL_PATH` |
-| Missing/extra pages | `MISSING_ROUTE` / `UNREGISTERED_HTML` |
-
-These failures stop staged publication and leave old output intact. Fix the
-Theme/input; do not delete checks or weaken escaping. A successful build proves
-artifact checks, not every accessibility rule or external service's availability.
-
-Use an isolated site Config and build with the installed compiler from outside
-its checkout, then serve output as the HTTP document root:
+### escpe theme check
 
 ```bash
-escpe --config /absolute/site/config.yaml
-python -m http.server 8000 --directory /absolute/site/output
+escpe theme check --config config.yaml
 ```
 
-Inspect every page type, a second Blog page, empty collections, Profile and Issue
-About. Check canonical/social/JSON-LD and all local resources. Exercise desktop
-and 320/390px widths, keyboard-only/no-JS navigation, light/dark, long code/table
-scrolling, comments off, then comments on success/403/blocked-script fallback.
-Use Chromium and WebKit for comments wiring; actual Safari and authenticated
-App/OAuth behavior need their own evidence. Copying a built-in Theme validates
-loading, **not** independent authorship from this document.
+This renders the site offline with a few sample Issues (two Blog posts with
+tags, code, a table and a diagram, an Idea and an About Issue) and the site's
+own options and projects. It needs no token. It reports everything a build
+would, plus these warnings for each page in the sitemap:
 
-## Migrating removed built-in Themes
-
-`geoqiao.me`, `Escape1`, and `Escape2` are no longer shipped. An explicit built-in
-selection of these names fails with `built-in theme is missing`, leaves existing
-output intact, and never silently falls back to Quiet. Theme API 2 is unchanged.
-
-| Desired presentation | Before upgrading the compiler |
+| Code | Meaning |
 | --- | --- |
-| Quiet | Replace the Theme declaration with `theme: {source: builtin, name: Quiet}` |
-| Keep an old design | Copy its complete Theme directory from the site's previously reviewed compiler revision into the site repository, then select it with `source: local`, its existing `name`, and a Config-relative `path` |
+| `SEO_TITLE` | No `<title>` |
+| `SEO_DESCRIPTION` | No meta description |
+| `SEO_CANONICAL` | Not exactly one `<link rel="canonical">` equal to `page.route.canonical_url` |
+| `SEO_URL` | `og:url` or `twitter:url` differs from the canonical URL |
 
-Keeping the old name for a local Theme preserves its `/templates/<name>/` asset
-prefix. Include its manifest, templates, static files and licenses; shared
-comments/Mermaid assets still come from the compiler. Do not add a remote loader
-or assume the old built-in name downloads anything. Local Theme maintenance now
-belongs to the site owner; API-1 copies also need the migration below.
+To try real content, save your Issues with
+`gh api --paginate --slurp 'repos/OWNER/REPO/issues?state=all&per_page=100' > issues.json`
+and add `--issues-json issues.json`. From a checkout of escaping, prefix the
+command with `uv run` (see [Local build](../site-inputs.md#local-build)).
 
-Verify the candidate compiler, Config and Theme together outside production,
-including explicit avatar/resource URLs, links, keyboard navigation and comments.
-Do not change Issue numbers, slugs, dates or comment repositories for a Theme
-migration. Deploy separately after consumer verification; rollback the compatible
-compiler/Config/Theme set together. See [deployment](../deployment.md).
+A passing check is not a full review. Also look at the pages in a browser:
+narrow screens, keyboard navigation, light and dark, empty collections, both
+About variants, and comments on and off.
+
+## Security
+
+A Theme is trusted code: its templates and JavaScript run on your site. Review a
+Theme before using it. The generator never runs Python from a Theme and never
+downloads one; it reads only the built-in Themes and the local directory named
+by `theme.use`. Autoescape is not a sandbox for untrusted templates.
+
+## Migrating from API 2
+
+API 2 Themes stop the build with
+`theme.yaml must declare api: 3 (see docs/themes/authoring.md#migrating-from-api-2)`.
+There is no compatibility layer. For a Theme that only changed parts of Quiet,
+it is usually easier to start again with `extends: quiet` and copy over just
+the changed files.
+
+| API 2 | API 3 |
+| --- | --- |
+| `api_version: "2"`, `capabilities`, `required_templates`, `required_assets` | `api: 3`. The other fields are gone |
+| `index.html` (Blog archive) | `blog.html` |
+| `{{ theme_path }}/static/…` (`/templates/<name>/static/…`) | `/assets/…` |
+| Shared `…/static/js/comments.js`, `…/static/js/mermaid.js`, `…/static/vendor/mermaid-11.16.1/mermaid.min.js` | `/assets/escaping/comments.js`, `/assets/escaping/mermaid.js`, `/assets/escaping/mermaid/mermaid.min.js` |
+| Page variables defined only on some templates | Every page gets the same `page` object; unused fields are `none` |
+| Build failed on canonical, social URL and JSON-LD problems | `escpe theme check` warns; the build checks integrity only |
+| Quiet's interface was English for every language | `site.language: zh` or `zh-CN` switches Quiet to Chinese |
+
+Template variables:
+
+| API 2 | API 3 |
+| --- | --- |
+| `blog_title`, `author_name`, `language` | `site.title`, `site.author`, `site.language` |
+| `meta_description` | `page.description` (the site's is `site.description`) |
+| `github_repo` | `site.repo` |
+| `page_canonical_url` | `page.route.canonical_url` |
+| `site_routes.<name>`, `home_path`, `atom_url` | `site.routes.<name>`, `site.routes.home.canonical_path`, `site.routes.atom.canonical_url` |
+| `navigation_items` | `site.navigation` |
+| `metadata.profile` | `site.profile` (`tagline` is now a Quiet option) |
+| `comments` | `site.comments` (`theme` / `theme_mode` are now Theme options) |
+| `metadata.social_image`, `metadata.social_image_alt`, `google_search_verification` | `site.seo.social_image`, `site.seo.social_image_alt`, `site.seo.google_search_console` |
+| `structured_data` | `page.json_ld` |
+| `home_page.recent_posts` | `site.posts[:5]` |
+| `home_page.featured_posts` | A `posts` option, such as Quiet's `featured_posts` |
+| `archive_page` (`entries`) | `page.archive` (`posts`) |
+| `post`, `prev_post`, `next_post` | `page.post`, `page.newer`, `page.older` |
+| `ideas`, `idea` | `site.ideas`, `page.idea` |
+| `about_page`, `about_is_profile` | `page.about`, `page.about.is_profile` |
+| `projects.projects`, `featured_projects` | `site.projects`, `site.featured_projects` |
+| `tags_index.tags` | `site.tags` |
+| `tag_archive` (`tag_name`, `entries`) | `page.tag` (`name`, `posts`) |
+| `detail_path` | `canonical_path` |
+| `skip_link_text` and other fixed text | Your own `strings` |
+| `theme_path`, `theme_favicon_url`, `author_initials`, `branding`, `metadata.thesis`, `top_projects` | Removed. Use `/assets/…`, compute in the template, or declare an option |
+
+Site Config:
+
+| Old field | New place |
+| --- | --- |
+| `theme: {source: builtin, name: Quiet}` | `theme: {use: quiet}` (or leave it out) |
+| `theme: {source: local, name: x, path: theme}` | `theme: {use: ./theme}` |
+| `site.featured_posts` | `theme.options.featured_posts` |
+| `profile.tagline` | `theme.options.tagline` |
+| `branding` | `theme.options.show_powered_by` |
+| `comments.theme`, `comments.theme_mode` | `theme.options.comments_theme`, `theme.options.comments_theme_mode` |
+| `site.thesis` | Removed; declare it as an option of your own Theme |
+
+The build names each old field and where it went.
 
 ## Migrating from API 1
 
-API 2 is a deliberate break: IdeaTag no longer supplies a fictitious archive path,
-and About may be Profile content without Issue-only fields. Merely changing the
-manifest version is insufficient.
+API 1 Themes are rejected the same way. Follow
+[Migrating from API 2](#migrating-from-api-2); no API 1 name carries over on
+its own.
 
-| Existing use | Migration |
+## Migrating removed built-in Themes
+
+`geoqiao.me`, `Escape1` and `Escape2` are no longer shipped, and Quiet is now
+spelled `quiet`. Selecting another name fails and leaves the published site
+unchanged; it never falls back to Quiet silently.
+
+| You want | Do this |
 | --- | --- |
-| `api_version: "1"` | Update to `"2"` after adapting templates; retain capabilities and required resources. Old manifests fail clearly and preserve output |
-| Idea `tag.path` / shared linked-tag macro | Render `tag.name` as text for Idea; only BlogTag has path |
-| About assumed to have body_html/Issue/date | Branch on about_is_profile before accessing Issue fields; Profile uses escaped title/description or metadata.profile.bio, never a fake Issue |
-| Always-loaded comments / unconditional Discuss | Gate container, script and anchor on comments.enabled and real Issue context; Profile always excludes them |
-| Shared base reading detail-only globals | Use the per-page context table and `is defined`; prev_post/next_post exist only for Blog detail |
-| Custom JSON-LD graph | Add one exact page-canonical @id node; retain canonical root/node URLs and Profile identity rules; serialize with tojson |
-| Hard-coded Home/menu additions | Iterate navigation_items exactly; retain independent brand and accessible empty-menu behavior |
-| Bundled comments protocol / old asset prefix | Use shared assets through theme_path, not a copied runtime or `/output/` prefix |
+| Quiet | `theme: {use: quiet}`, or remove `theme` |
+| To keep an old design | Copy its directory from the generator version you used into the site repository, port it with [Migrating from API 2](#migrating-from-api-2), and select it with `theme: {use: ./that-directory}` |
 
-For a site that previously omitted Theme and relied on an older design, choose
-Quiet or preserve a local copy as described [above](#migrating-removed-built-in-themes).
-Quiet sites can keep their existing explicit Theme. To preserve previously enabled comments,
-add `comments.enabled: true` without changing repo/theme_mode or Issue identity.
-If the old Quiet menu relied on its injected Home link, **add Home explicitly**
-to the existing full configured list (and RSS only if desired); do not discard
-other authored entries. For the standard complete menu:
-
-```yaml
-site:
-  navigation:
-    items:
-      - {name: Home, url: /}
-      - {name: Blog, url: /blog/}
-      - {name: Projects, url: /projects/}
-      - {name: Tags, url: /tags/}
-      - {name: About, url: /about/}
-      - {name: RSS, url: /atom.xml}
-comments:
-  enabled: true
-```
-
-These are patches to existing Config, not instructions to replace its identity,
-About selection, dates, slugs, curated projects or comment repository. Defaults
-really change: without migration an omitted Theme selects Quiet, comments stop
-loading, and an explicit menu no longer gains Home. Authorized differences do
-not imply byte-for-byte equality with old artifacts.
-
-Upgrade the compiler, Config and local Theme as a reviewed compatible set; do
-not feed comments.enabled or API 2 to an old compiler and expect it to ignore
-unknown fields. Roll back that set together. Site deployment and App installation
-remain separate actions; a local successful build is not a production deployment.
+Assets of the copied Theme move from `/templates/<name>/static/` to
+`/assets/`. Upgrade the generator, Config and local Theme together, check them
+with `escpe theme check` and a local build, and deploy separately; see
+[deployment](../deployment.md).

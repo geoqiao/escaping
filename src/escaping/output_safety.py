@@ -68,29 +68,25 @@ def validate_output_containment(
 
     # --- Reject filesystem root ------------------------------------------------
     if str(output_path) == "/":
-        raise OutputContainmentError(
-            f"output path must not be the filesystem root: {output}"
-        )
+        raise OutputContainmentError("paths.output must not be the filesystem root")
 
     # --- Reject absolute paths ------------------------------------------------
     if output_path.is_absolute():
-        raise OutputContainmentError(
-            f"output path must be relative, got absolute path: {output}"
-        )
+        raise OutputContainmentError("paths.output must be a relative path")
 
     parts = output_path.parts
 
     # --- Reject filesystem root, current directory, and empty string ---------
     if not parts or parts == (".",) or parts == ("/",):
         raise OutputContainmentError(
-            f"output path must not be the repository root, filesystem root, "
-            f"or current directory: {output!r}"
+            "paths.output must not be the repository root, filesystem root, "
+            "or current directory"
         )
 
     # --- Reject parent-directory escapes --------------------------------------
     if ".." in parts:
         raise OutputContainmentError(
-            f"output path must not contain parent-directory references (..): {output}"
+            "paths.output must not contain parent-directory references (..)"
         )
 
     # --- Reject roots outside the allowed output-root set --------------------
@@ -98,22 +94,21 @@ def validate_output_containment(
     if top_level not in ALLOWED_OUTPUT_ROOTS:
         if top_level in PROTECTED_ROOTS:
             raise OutputContainmentError(
-                f"output root {top_level!r} is a protected repository root "
-                f"and is not in the allowed set {sorted(ALLOWED_OUTPUT_ROOTS)}"
+                "paths.output must not be inside a protected repository folder; "
+                f"allowed folders: {', '.join(sorted(ALLOWED_OUTPUT_ROOTS))}"
             )
         raise OutputContainmentError(
-            f"output root {top_level!r} is not in the allowed set "
-            f"{sorted(ALLOWED_OUTPUT_ROOTS)}"
+            "paths.output must start with an allowed folder: "
+            f"{', '.join(sorted(ALLOWED_OUTPUT_ROOTS))}"
         )
 
     # --- Resolve repo_root to an absolute path without symlinks --------------
     try:
         repo_resolved = repo_root.resolve()
-    except (RuntimeError, OSError) as e:
+    except RuntimeError, OSError:
         raise OutputContainmentError(
-            f"symlink resolution loop detected while resolving repo root: "
-            f"{repo_root} ({e})"
-        ) from e
+            "symlink resolution loop while resolving the repository root"
+        ) from None
 
     # --- Walk existing path components to reject ALL symlinks ----------------
     # shutil.rmtree cannot safely operate on a symbolic link: it raises
@@ -124,81 +119,29 @@ def validate_output_containment(
         current = current / part
         if current.is_symlink():
             try:
-                link_target = current.resolve()
-            except (RuntimeError, OSError) as e:
+                current.resolve()  # Raises on a symlink loop.
+            except RuntimeError, OSError:
                 raise OutputContainmentError(
-                    f"output path contains a symlink with a resolution loop: "
-                    f"{current} ({e})"
-                ) from e
-            raise OutputContainmentError(
-                f"output path contains a symlink: {current} -> {link_target}"
-            )
+                    "paths.output passes through a symlink with a resolution loop"
+                ) from None
+            raise OutputContainmentError("paths.output must not pass through a symlink")
 
     # --- Final resolved-path containment check -------------------------------
     try:
         resolved = (repo_root / output_path).resolve()
-    except (RuntimeError, OSError) as e:
+    except RuntimeError, OSError:
         raise OutputContainmentError(
-            f"symlink resolution loop detected while resolving output path: "
-            f"{output} ({e})"
-        ) from e
+            "symlink resolution loop while resolving paths.output"
+        ) from None
 
     if resolved == repo_resolved:
-        raise OutputContainmentError(
-            f"output path resolves to the repository root: {output}"
-        )
+        raise OutputContainmentError("paths.output resolves to the repository root")
 
     try:
         resolved.relative_to(repo_resolved)
     except ValueError:
         raise OutputContainmentError(
-            f"output path escapes the repository root: {output}"
+            "paths.output escapes the repository root"
         ) from None
 
     return resolved
-
-
-def validate_output_child_name(name: str, field_name: str = "name") -> str:
-    """Validate a child path/name field as a safe single name/filename.
-
-    Ensures that *name* is a single path component with no separators,
-    absolute prefixes, or ``.`` / ``..`` references so it cannot escape the
-    validated output directory.
-
-    Parameters
-    ----------
-    name:
-        The configured child path/name (e.g. ``blog``, ``atom.xml``).
-    field_name:
-        Human-readable field name used in error messages.
-
-    Returns
-    -------
-    str
-        The validated name unchanged.
-
-    Raises
-    ------
-    OutputContainmentError
-        If *name* is empty, absolute, contains path separators, or is
-        ``.`` / ``..``.
-    """
-    if not name or not name.strip():
-        raise OutputContainmentError(
-            f"{field_name} must not be empty or blank: {name!r}"
-        )
-
-    if Path(name).is_absolute():
-        raise OutputContainmentError(
-            f"{field_name} must not be an absolute path: {name!r}"
-        )
-
-    if "/" in name or "\\" in name:
-        raise OutputContainmentError(
-            f"{field_name} must not contain path separators: {name!r}"
-        )
-
-    if name in (".", ".."):
-        raise OutputContainmentError(f"{field_name} must not be '.' or '..': {name!r}")
-
-    return name
