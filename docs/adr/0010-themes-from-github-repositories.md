@@ -1,6 +1,7 @@
 ---
 status: accepted
-amends: ADR-0007 (a Theme came only from escaping or the site repository)
+amends: ADR-0007 (a Theme came only from escaping or the site repository) and
+  ADR-0008 (extends named only a built-in Theme; loading never used the network)
 ---
 
 # Themes from GitHub repositories

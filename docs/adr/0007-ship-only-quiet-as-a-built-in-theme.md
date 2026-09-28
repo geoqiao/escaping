@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; amended by ADR-0010
 ---
 
 # Ship only Quiet as a built-in Theme
