@@ -393,19 +393,11 @@ def _read_manifest(name: str, root: Path) -> _ManifestModel:
         raise ThemeError([f"{name}: theme.yaml{where} is not valid YAML"]) from None
     if not isinstance(data, dict):
         raise ThemeError([f"{name}: theme.yaml must be a mapping"])
-    if "api_version" in data or data.get("api") != THEME_API:
-        old = 2 if "api_version" in data else 3
+    if data.get("api") != THEME_API:
         raise ThemeError(
             [
                 f"{name}: theme.yaml must declare api: {THEME_API} "
-                f"(see docs/themes/authoring.md#migrating-from-api-{old})"
-            ]
-        )
-    if "pages" in data:
-        raise ThemeError(
-            [
-                f"{name}: theme.yaml pages: moved to pages.extra in the site's "
-                "config.yaml; the site decides which pages exist"
+                "(see docs/themes/authoring.md)"
             ]
         )
     try:

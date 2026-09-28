@@ -15,6 +15,14 @@ break things).
   are gone. A Theme that extends Quiet and links to `manrope-bold.ttf` or
   `source-serif-4.ttf` must bring its own copy.
 
+### Removed
+
+- **Hints for settings that moved in 0.2 and 0.3.** A Config field such as
+  `site.featured_posts` or `theme.source`, or `pages:` in a Theme's
+  `theme.yaml`, is now reported as an unknown field instead of naming its new
+  place. The [Theme guide](docs/themes/authoring.md#migrating-from-api-2)
+  still lists where each one went.
+
 ### Fixed
 
 - **One Blog post with a stray control character no longer stops the build.**

@@ -127,8 +127,7 @@ class OutputStagingService:
         raise OutputStagingError(
             f"output {self._output} contains files escaping did not create, "
             "and a build would delete them. Move your files out and delete the "
-            "directory (an output from escaping 0.1 needs this once), or set "
-            "paths.output to another directory"
+            "directory, or set paths.output to another directory"
         )
 
     # --- Staging creation ------------------------------------------------

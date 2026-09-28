@@ -51,21 +51,6 @@ _PREFIX_SECTIONS = ("blog", "ideas", "tags")
 _ASSETS = "/assets/"
 _UNSAFE_PATH_CHARS = re.compile(r"[\x00-\x20\x7f-\x9f\\?#\u2028\u2029\ufeff]")
 
-#: Fields removed by the Theme API 3 split, with where they went.
-_MOVED_FIELDS: dict[tuple[str, ...], str] = {
-    ("site", "featured_posts"): "moved to theme.options.featured_posts",
-    ("site", "thesis"): "removed; declare it as an option of your own Theme",
-    ("profile", "tagline"): "moved to theme.options.tagline",
-    (
-        "branding",
-    ): "moved to the Theme's options, such as theme.options.show_powered_by",
-    ("comments", "theme"): "moved to theme.options.comments_theme",
-    ("comments", "theme_mode"): "moved to theme.options.comments_theme_mode",
-    ("theme", "source"): "replaced by theme.use (quiet, ./path or github.com/…)",
-    ("theme", "name"): "replaced by theme.use (quiet, ./path or github.com/…)",
-    ("theme", "path"): "replaced by theme.use (quiet, ./path or github.com/…)",
-}
-
 
 class ConfigError(ValueError):
     """One or more Config problems, each naming its field and reason."""
@@ -739,10 +724,6 @@ def describe_validation_errors(errors: list[Any], model: type[BaseModel]) -> lis
         loc = tuple(error["loc"])
         field = ".".join(map(str, loc)) or "Config"
         if error["type"] == "extra_forbidden":
-            key_path = tuple(part for part in loc if isinstance(part, str))
-            if key_path in _MOVED_FIELDS:
-                problems.append(f"{field}: {_MOVED_FIELDS[key_path]}")
-                continue
             known = _fields_at(model, loc[:-1])
             match = difflib.get_close_matches(str(loc[-1]), known, n=1)
             hint = f"; did you mean {match[0]}?" if match else ""

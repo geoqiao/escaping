@@ -723,12 +723,12 @@ and nothing else from a Theme.
 ## Migrating from API 3
 
 API 3 Themes stop the build with
-`theme.yaml must declare api: 4 (see docs/themes/authoring.md#migrating-from-api-3)`.
+`theme.yaml must declare api: 4 (see docs/themes/authoring.md)`.
 Change `api: 3` to `api: 4`, then:
 
 | API 3 | API 4 |
 | --- | --- |
-| `pages:` in `theme.yaml` | Stops the build: `theme.yaml pages: moved to pages.extra in the site's config.yaml`. Move each entry, unchanged, under `pages.extra` in the site's `config.yaml`, and list them in the Theme's README |
+| `pages:` in `theme.yaml` | Stops the build: `theme.yaml pages: unknown field`. Move each entry, unchanged, under `pages.extra` in the site's `config.yaml`, and list them in the Theme's README |
 | All nine page templates required | Only `blog.html` and `post.html`; see [the table](#which-template-renders-a-page) |
 | `page.post`, `page.idea`, `page.about` | `page.item` |
 | `page.archive.posts` | `page.items` |
@@ -745,7 +745,7 @@ Change `api: 3` to `api: 4`, then:
 ## Migrating from API 2
 
 API 2 Themes stop the build with
-`theme.yaml must declare api: 4 (see docs/themes/authoring.md#migrating-from-api-2)`.
+`theme.yaml must declare api: 4 (see docs/themes/authoring.md)`.
 There is no compatibility layer. For a Theme that only changed parts of Quiet,
 it is usually easier to start again with `extends: quiet` and copy over just
 the changed files. Otherwise, apply these tables, then
@@ -800,7 +800,7 @@ Site Config:
 | `comments.theme`, `comments.theme_mode` | `theme.options.comments_theme`, `theme.options.comments_theme_mode` |
 | `site.thesis` | Removed; declare it as an option of your own Theme |
 
-The build names each old field and where it went.
+The build reports each old field as an unknown field.
 
 ## Migrating from API 1
 

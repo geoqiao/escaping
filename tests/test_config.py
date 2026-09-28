@@ -73,19 +73,6 @@ class _NoNetwork:
 @pytest.mark.parametrize(
     ("data", "problem"),
     [
-        (
-            {"site": {"featured_posts": [1]}},
-            "site.featured_posts: moved to theme.options.featured_posts",
-        ),
-        ({"profile": {"tagline": "x"}}, "profile.tagline: moved to theme.options"),
-        ({"branding": {}}, "branding: moved to the Theme's options, such as"),
-        (
-            {"comments": {"theme_mode": "auto"}},
-            "comments.theme_mode: moved to theme.options.comments_theme_mode",
-        ),
-        ({"theme": {"source": "local"}}, "theme.source: replaced by theme.use"),
-        ({"theme": {"name": "Quiet"}}, "theme.name: replaced by theme.use"),
-        ({"site": {"thesis": ["x"]}}, "site.thesis: removed"),
         ({"sitee": {}}, "sitee: unknown field; did you mean site?"),
         ({"site": {"titel": "x"}}, "site.titel: unknown field; did you mean title?"),
         ({"paths": {"zzz": 1}}, "paths.zzz: unknown field"),
