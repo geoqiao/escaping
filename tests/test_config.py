@@ -78,7 +78,7 @@ class _NoNetwork:
             "site.featured_posts: moved to theme.options.featured_posts",
         ),
         ({"profile": {"tagline": "x"}}, "profile.tagline: moved to theme.options"),
-        ({"branding": {}}, "branding: moved to theme.options.show_powered_by"),
+        ({"branding": {}}, "branding: moved to the Theme's options, such as"),
         (
             {"comments": {"theme_mode": "auto"}},
             "comments.theme_mode: moved to theme.options.comments_theme_mode",

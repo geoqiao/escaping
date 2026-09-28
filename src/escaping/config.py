@@ -56,7 +56,9 @@ _MOVED_FIELDS: dict[tuple[str, ...], str] = {
     ("site", "featured_posts"): "moved to theme.options.featured_posts",
     ("site", "thesis"): "removed; declare it as an option of your own Theme",
     ("profile", "tagline"): "moved to theme.options.tagline",
-    ("branding",): "moved to theme.options.show_powered_by",
+    (
+        "branding",
+    ): "moved to the Theme's options, such as theme.options.show_powered_by",
     ("comments", "theme"): "moved to theme.options.comments_theme",
     ("comments", "theme_mode"): "moved to theme.options.comments_theme_mode",
     ("theme", "source"): "replaced by theme.use (quiet, ./path or github.com/…)",

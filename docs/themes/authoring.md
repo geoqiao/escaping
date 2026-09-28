@@ -657,7 +657,7 @@ each Theme folder:
 - a README that says which escaping version it was made for, which pages it
   has templates for (and which `pages.*: false` a site needs otherwise), its
   options, and the `pages.extra` lines for any extra-page templates it ships;
-- a license (one at the repository root covers every folder).
+- a license in the folder itself, since people may copy just that folder.
 
 Before you publish, run `escpe theme check` with at least two configs, each
 with every page your Theme has templates for turned on and the rest off: one at
