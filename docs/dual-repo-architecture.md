@@ -34,7 +34,7 @@ flowchart TD
     RouteRegistry --> ContentCompiler
     RouteRegistry --> ProjectCompiler
     RouteRegistry --> SiteBuilder
-    ContentCompiler --> SiteBuilder["SiteBuilder：config.yaml 的 pages、extra 页面、redirects"]
+    ContentCompiler --> SiteBuilder["SiteBuilder：config.yaml 的 pages、extra 页面、redirects、Blog 分页与标签"]
     ProjectCompiler --> SiteBuilder
     SiteBuilder --> SiteModel
     SiteModel --> RenderService["RenderService：site / page / theme / t"]

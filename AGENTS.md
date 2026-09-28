@@ -132,15 +132,7 @@ tests/
 → review diff
 ```
 
-测试原则：
-
-- 每个 Ticket 默认 3–6 个高信号逻辑测试；
-- 一个行为只有一个主要 owner；上层只保留真实 tracer；
-- 多个主题使用参数化 contract（Quiet、继承 Quiet 的主题、独立 fixture 主题）；
-- 不测试 private helper、mock 调用形状或 getter；
-- 优先完整静态站点、真实链接、wheel consumer 和浏览器行为；
-- 重构测试本身无需先制造失败，但必须先记录通过基线；
-- 纯文档改动验证链接、路径和示例，不为制造红灯添加行为无关的测试。
+测试预算、每个行为的测试 owner 和默认不写的测试见[测试策略](docs/agents/testing.md)。
 
 ## 验证与本地构建
 
