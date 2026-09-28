@@ -2131,6 +2131,7 @@ def test_quiet_ui_strings_follow_the_site_language(
     browser: Browser, site_servers: dict[str, str]
 ) -> None:
     page = browser.new_page(viewport={"width": 390, "height": 844})
+    page.route("https://**/*", lambda route: route.abort())
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     origin = site_servers["Quiet-zh"]
