@@ -47,7 +47,10 @@ def _tag_names(labels: tuple[str, ...]) -> list[str]:
 
 
 class _VisibleBodyText(HTMLParser):
-    """Extract text from sanitized HTML, preserving inline adjacency."""
+    """Extract text from sanitized HTML, preserving inline adjacency.
+
+    Mermaid source is left out: readers see the diagram, not its source.
+    """
 
     _BREAKS = frozenset(
         [
@@ -94,17 +97,23 @@ class _VisibleBodyText(HTMLParser):
     def __init__(self) -> None:
         super().__init__(convert_charrefs=True)
         self.parts: list[str] = []
+        self._in_diagram = False
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
+        if tag == "code" and "language-mermaid" in (dict(attrs).get("class") or ""):
+            self._in_diagram = True
         if tag in self._BREAKS:
             self.parts.append(" ")
 
     def handle_endtag(self, tag: str) -> None:
+        if tag == "code":
+            self._in_diagram = False
         if tag in self._BREAKS:
             self.parts.append(" ")
 
     def handle_data(self, data: str) -> None:
-        self.parts.append(data)
+        if not self._in_diagram:
+            self.parts.append(data)
 
 
 def _body_description(body_html: str) -> str:
@@ -308,7 +317,6 @@ class ContentCompiler:
                 issue_number=snapshot.number,
                 title=snapshot.title,
                 description=description,
-                created_date=created_date,
                 body_html=body_html,
                 route=self._routes.about(),
             )

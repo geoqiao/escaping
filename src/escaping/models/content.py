@@ -39,13 +39,15 @@ class Idea:
 
 @dataclass(frozen=True)
 class AboutPage:
+    """About from an Issue. It shows no date, so ``created_date`` is empty."""
+
     issue_number: int
     title: str
     description: str
-    created_date: str
     body_html: str
     route: Route
     is_profile = False
+    created_date = ""
     tags = ()
 
     @property

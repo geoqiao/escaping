@@ -392,7 +392,7 @@ Posts, Ideas and About pages share the fields a single page needs, so one
 | --- | --- | --- | --- | --- |
 | `title`, `description`, `body_html`, `route`, `canonical_path`, `canonical_url` | ✓ | ✓ | ✓ | ✓ (`body_html` is the bio, may be empty) |
 | `issue_number` | ✓ | ✓ | ✓ | `none` |
-| `created_date` | ✓ | ✓ | ✓ | empty |
+| `created_date` | ✓ | ✓ | empty | empty |
 | `tags` (each `name`, `path`) | Blog tags | Idea tags | empty | empty |
 | `is_profile` | — | — | false | true |
 
@@ -402,8 +402,12 @@ Posts, Ideas and About pages share the fields a single page needs, so one
 - Blog posts also have `slug`, `published_at` and `updated_at`; Ideas have
   `published_at` and `updated_at`.
 - `created_date` is a `YYYY-MM-DD` string, fine for display and
-  `<time datetime>`. `published_at` and `updated_at` are timezone-aware
-  datetimes.
+  `<time datetime>`. About has none, because an About page shows no date; a
+  shared `post.html` shows the date only `{% if page.item.created_date %}`.
+  `published_at` and `updated_at` are timezone-aware datetimes.
+- `description` is the Issue's `description`, or else the first 50 characters
+  of the text a reader sees in the body (code and tables included, Mermaid
+  source not). See [Issue Content](../contracts/issue-content-v1.md#64-description).
 
 | Model | Fields |
 | --- | --- |
@@ -571,7 +575,7 @@ integrity:
 | --- | --- |
 | `MISSING_ROUTE` | A page has no file |
 | `UNREGISTERED_HTML` | An `.html` file that is not a page of the site (`404.html` is allowed) |
-| `BROKEN_INTERNAL_LINK` | A link or resource on this site that is neither a page nor a file |
+| `BROKEN_INTERNAL_LINK` | A link or resource on this site that is neither a page nor a file. A full URL into a folder this site does not write, such as `https://alice.github.io/tool/` next to a site at `https://alice.github.io/`, is taken to be another site on the same host and is not checked |
 | `LINK_OUTSIDE_SITE` | For a site under a path: a root-relative address outside it, usually a missing `url` filter |
 | `INVALID_INTERNAL_PATH` | An unsafe internal URL, such as `..` or control characters |
 
@@ -579,8 +583,10 @@ Checked references are `href` on `<a>` and `<link>`; `src` on `<script>`,
 `<img>` and `<source>`; `srcset`; `data-runtime-src` and `data-search-index`
 on `<script>`; and `og:image` / `twitter:image`. Relative links are resolved
 against the page URL. Links to other sites are not checked. A template error
-while rendering (such as an undefined variable) also fails the build. A failed
-build leaves the previously published output unchanged.
+while rendering also fails the build, with the file and line: an undefined
+variable, or printing a value that is `none` (such as `{{ tag.path }}` when
+the tag pages are off; check it with `{% if %}` first). A failed build leaves
+the previously published output unchanged.
 
 The build does not check titles, descriptions, canonical links or structured
 data. How a Theme writes its `<head>` is up to the Theme.
@@ -591,11 +597,13 @@ data. How a Theme writes its `<head>` is up to the Theme.
 escpe theme check --config config.yaml
 ```
 
-This renders the site offline with a few sample Issues (two Blog posts with
-tags, code, a table and a diagram, an Idea and an About Issue, for the pages
-that are on) and the site's own pages, options and projects. It needs no
-token. It reports everything a build would, plus these warnings for each page
-in the sitemap:
+This renders the site offline with sample Issues (enough Blog posts for two
+Blog pages, one with tags, code, a table and a diagram; an Idea and an About
+Issue, for the pages that are on) and the site's own pages, options and
+projects. It needs no token. It reports everything a build would, except the
+warnings about Issues the Config names (`THEME_OPTION_POST_MISSING`,
+`REDIRECT_LEFT_OUT`), which only real Issues can settle. It adds these
+warnings for each page in the sitemap:
 
 | Code | Meaning |
 | --- | --- |
@@ -624,10 +632,10 @@ example as its own Git repository, with:
   options, and the `pages.extra` lines for any extra-page templates it ships;
 - a license.
 
-Before you publish, run `escpe theme check` with at least two configs: one at
-the root of a host with every page on, and one under a path
-(`site.url: https://example.github.io/demo/`) with the pages you do not
-support turned off.
+Before you publish, run `escpe theme check` with at least two configs, each
+with every page your Theme has templates for turned on and the rest off: one at
+the root of a host, and one under a path
+(`site.url: https://example.github.io/demo/`).
 
 Someone who wants the Theme copies the folder into their site repository and
 selects it:
@@ -637,8 +645,8 @@ theme:
   use: ./themes/paper
 ```
 
-escaping never downloads a Theme, so updating is copying the new version over
-the folder. A Git submodule also works; then the site's workflow must check it
+escaping never downloads a Theme, so updating is replacing the folder with the
+new version (copying over it would keep files the new version removed). A Git submodule also works; then the site's workflow must check it
 out (`actions/checkout` with `submodules: true`). Only Quiet ships with
 escaping; there is no Theme registry.
 

@@ -275,6 +275,12 @@ pages:
 | `projects` | `/projects/` | the `projects` list can still feed Home or extra pages |
 | `about` | `/about/` | an About Issue is not published and gets `PAGE_OFF`; `about.issue_number` must not be set |
 
+Moving a section does not change links already written in Issues: after
+`blog: /posts/`, an Issue that links to `/blog/hello/` fails the build with
+`BROKEN_INTERNAL_LINK` until you add the old addresses to
+[redirects](#redirects) (`/blog/: /posts/` and one line per post) or edit
+the Issue.
+
 Home is always `/`. A path is lowercase segments ending with `/`. Two pages
 cannot share an address, one section cannot sit inside another, and nothing can
 start with `/assets/`, where static files live. The Blog, Ideas and Tags own
@@ -314,7 +320,8 @@ GitHub Pages cannot send real HTTP redirects). It is not in the sitemap.
   `/assets/…` cannot redirect. Non-ASCII paths may be written plainly or
   %-encoded.
 - The new address is a path of this site. It may be another old address;
-  the chain is followed to the page. A circle fails the build.
+  every old address in such a chain sends visitors straight to the page at
+  its end. A circle fails the build.
 - The same old address twice (ignoring case) fails the build.
 - A page always wins: if the old address is a page again, or the new address
   is no page (for example its Issue was unpublished), that redirect is left

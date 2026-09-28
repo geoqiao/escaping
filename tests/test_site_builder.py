@@ -103,7 +103,6 @@ def _content(
             issue_number=10,
             title="About",
             description="About description",
-            created_date="2026-01-03",
             body_html="<p>About.</p>",
             route=routes.about(),
         )

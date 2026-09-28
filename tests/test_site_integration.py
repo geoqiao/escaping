@@ -327,7 +327,7 @@ def test_validator_requires_every_route_file_and_no_stray_pages(
     ("reference", "broken"),
     [
         ('<a href="/Blog/">', "/Blog/"),
-        ('<a href="https://geoqiao.me/missing/">', "/missing/"),
+        ('<a href="https://geoqiao.me/blog/missing/">', "/blog/missing/"),
         ('<a href="missing/">', "/blog/hello/missing/"),
         ('<img src="pic.png">', "/blog/hello/pic.png"),
         ('<link rel="stylesheet" href="/assets/css/missing.css">', "missing.css"),
@@ -340,6 +340,8 @@ def test_validator_requires_every_route_file_and_no_stray_pages(
         ('<a href="/tags/示例-标签/">', None),
         ('<img src="/assets/images/favicon.png?v=1#icon">', None),
         ('<a href="https://example.org/missing/">', None),
+        # A folder this site does not write may be a project site on the host.
+        ('<a href="https://geoqiao.me/tool/">', None),
         ('<img src="//cdn.example.org/missing.png">', None),
         ('<a href="mailto:me@example.org">', None),
         ('<a href="#missing">', None),

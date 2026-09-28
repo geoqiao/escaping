@@ -26,6 +26,7 @@ from jinja2 import (
     PrefixLoader,
     StrictUndefined,
     TemplateError,
+    TemplateRuntimeError,
     TemplateSyntaxError,
 )
 from pydantic import BaseModel, ConfigDict, StrictInt, ValidationError
@@ -137,7 +138,10 @@ class LoadedTheme:
             for layer in self.layers[1:]
         )
         environment = Environment(
-            loader=ChoiceLoader(loaders), autoescape=True, undefined=StrictUndefined
+            loader=ChoiceLoader(loaders),
+            autoescape=True,
+            undefined=StrictUndefined,
+            finalize=_printable,
         )
         environment.filters["url"] = partial(_url, base)
         return environment
@@ -243,6 +247,16 @@ class LoadedTheme:
             target = assets / relative
             target.parent.mkdir(parents=True, exist_ok=True)
             shutil.copyfile(source, target)
+
+
+def _printable(value: object) -> object:
+    """Fail on ``{{ none }}`` rather than writing the word None into a page."""
+    if value is None:
+        raise TemplateRuntimeError(
+            "this value is none, so it cannot be printed; check it first with "
+            "{% if … %} (tag.path, for example, is none when the tags pages are off)"
+        )
+    return value
 
 
 def _url(base: str, value: str) -> str:

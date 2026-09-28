@@ -33,6 +33,9 @@ logger = structlog.get_logger()
 IssueSource = Callable[[], Sequence[IssueSnapshot]]
 ProjectEnricher = Callable[[str], ProjectEnrichment]
 
+#: Warnings about the Issues a Config names; sample Issues cannot match them.
+_NEEDS_REAL_ISSUES = frozenset({"THEME_OPTION_POST_MISSING", "REDIRECT_LEFT_OUT"})
+
 
 def prepare_theme(
     settings: Settings, config_root: Path
@@ -206,14 +209,11 @@ def check_theme(
                     )
                 )
             else:
-                diagnostics.extend(
-                    d
-                    for d in rendered.diagnostics
-                    # Sample Issues cannot match the Issue numbers in options.
-                    if not (sample and d.code == "THEME_OPTION_POST_MISSING")
-                )
+                diagnostics.extend(rendered.diagnostics)
                 diagnostics.extend(SiteArtifactValidator(site).validate(directory))
                 diagnostics.extend(audit_seo(site, directory))
+    if sample:
+        diagnostics = [d for d in diagnostics if d.code not in _NEEDS_REAL_ISSUES]
     success = not any(d.severity == "error" for d in diagnostics) and not (
         site.has_errors
     )
@@ -242,8 +242,12 @@ def _sample_content(settings: Settings) -> tuple[Settings, list[IssueSnapshot]]:
             "and `inline code`.\n\n```python\nprint('hello')\n```\n\n"
             "| A | B |\n| - | - |\n| 1 | 2 |\n\n```mermaid\ngraph LR\n  A --> B\n```\n",
         ),
-        issue(2, "Another sample post", ("type:blog", "tag:Sample"), "Short post."),
     ]
+    # One more post than fits on a Blog page, so page 2 is rendered too.
+    issues.extend(
+        issue(number, f"Sample post {number}", ("type:blog", "tag:Sample"), "Short.")
+        for number in range(100, 100 + settings.paths.page_size)
+    )
     if pages.ideas:
         issues.append(
             issue(3, "A sample idea", ("type:idea", "tag:Thought"), "A short thought.")

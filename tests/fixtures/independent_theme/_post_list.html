@@ -9,7 +9,7 @@
       {% if post.tags %}
       <ul class="tag-list" aria-label="Post tags">
         {% for tag in post.tags %}
-        <li><a href="{{ tag.path }}">{{ tag.name }}</a></li>
+        <li>{% if tag.path %}<a href="{{ tag.path }}">{{ tag.name }}</a>{% else %}{{ tag.name }}{% endif %}</li>
         {% endfor %}
       </ul>
       {% endif %}

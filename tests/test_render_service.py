@@ -13,7 +13,13 @@ from escaping.artifact_validation import SiteArtifactValidator
 from escaping.config import Settings
 from escaping.models.issue_snapshot import IssueSnapshot
 from escaping.services.render_service import RenderedSite
-from escaping.site_compiler import check_theme, compile_site, prepare_theme, render_site
+from escaping.site_compiler import (
+    _sample_content,
+    check_theme,
+    compile_site,
+    prepare_theme,
+    render_site,
+)
 
 _ROOT = Path(__file__).parent.parent.absolute()
 _NOW = datetime(2026, 1, 20, tzinfo=UTC)
@@ -244,10 +250,36 @@ def test_extra_pages_use_strings_from_every_layer(tmp_path: Path) -> None:
     assert '<a href="/projects/">全部项目</a>' in files["projects/alpha/index.html"]
 
 
-def test_theme_check_reports_a_template_that_fails_while_rendering(
+def test_theme_check_samples_fill_two_blog_pages_and_skip_real_issue_warnings(
     tmp_path: Path,
 ) -> None:
-    use = _home_probe(tmp_path, "<p>\n{{ t.no_such_key }}</p>")
+    settings = _settings(
+        "quiet",
+        paths={"page_size": 3},
+        redirects={"/old/": "/blog/a-real-post/"},
+        theme={"use": "quiet", "options": {"featured_posts": [41]}},
+    )
+
+    _, issues = _sample_content(settings)
+    result = check_theme(settings, config_root=tmp_path)
+
+    assert sum("type:blog" in issue.labels for issue in issues) == 4
+    # The redirect and the featured post name real Issues the samples lack.
+    assert result.success and result.diagnostics == ()
+
+
+@pytest.mark.parametrize(
+    ("expression", "reason"),
+    [
+        ("t.no_such_key", "no_such_key"),
+        # A missing value would otherwise print as the word None.
+        ("page.item", "this value is none"),
+    ],
+)
+def test_theme_check_reports_a_template_that_fails_while_rendering(
+    tmp_path: Path, expression: str, reason: str
+) -> None:
+    use = _home_probe(tmp_path, f"<p>\n{{{{ {expression} }}}}</p>")
 
     result = check_theme(_settings(use), config_root=tmp_path)
 
@@ -255,7 +287,7 @@ def test_theme_check_reports_a_template_that_fails_while_rendering(
     assert [d.code for d in result.diagnostics] == ["TEMPLATE_RENDER_FAILED"]
     # The author learns which file and line to fix.
     assert result.diagnostics[0].message.startswith("./theme/home.html line 2: ")
-    assert "no_such_key" in result.diagnostics[0].message
+    assert reason in result.diagnostics[0].message
 
 
 def test_a_theme_with_only_blog_and_post_renders_every_page(tmp_path: Path) -> None:
@@ -284,14 +316,16 @@ def test_a_theme_with_only_blog_and_post_renders_every_page(tmp_path: Path) -> N
     idea = files["ideas/3/index.html"]
     assert 'data-kind="idea"' in idea and '<a href="/ideas/4/">New idea</a>' in idea
     about = files["about/index.html"]
-    assert 'data-kind="about"' in about and "<time>" in about
+    # About shows no date (Issue Content v1, section 8.1).
+    assert 'data-kind="about"' in about and "<time>" not in about
     assert "tags/index.html" not in files and "projects/index.html" not in files
 
 
 def test_pages_that_are_off_have_no_route_and_no_file(tmp_path: Path) -> None:
     use = _home_probe(
         tmp_path,
-        "{{ site.routes.ideas }}|{{ site.routes.about }}|{{ site.about }}|"
+        "{{ site.routes.ideas is none }}|{{ site.routes.about is none }}|"
+        "{{ site.about is none }}|"
         "{{ site.routes.blog.canonical_path }}",
     )
     settings = _settings(
@@ -303,7 +337,7 @@ def test_pages_that_are_off_have_no_route_and_no_file(tmp_path: Path) -> None:
 
     files = _render(tmp_path, settings, [_issue(1, "blog", "First")]).files
 
-    assert files["index.html"] == "None|None|None|/notes/"
+    assert files["index.html"] == "True|True|True|/notes/"
     assert "notes/1/index.html" in files and "about/index.html" not in files
     assert not any(path.startswith(("ideas/", "blog/")) for path in files)
 

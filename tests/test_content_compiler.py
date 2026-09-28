@@ -117,12 +117,14 @@ def test_authored_calendar_dates_compile_to_ascii_without_changing_issue_time(
     result = _compiler().compile(
         [
             _snapshot(1, kind, metadata=f'created_date: "{authored}"'),
-            _snapshot(10, "about"),
+            _snapshot(10, "about", metadata=f'created_date: "{authored}"'),
         ]
     )
     assert not result.has_errors
     item = result.blogs[0] if kind == "blog" else result.ideas[0]
     assert item.created_date == canonical
+    # About shows no date (Issue Content v1, section 8.1).
+    assert result.about is not None and result.about.created_date == ""
     assert item.published_at == item.updated_at == _NOW
 
 
@@ -250,6 +252,10 @@ def test_missing_metadata_defaults_and_independent_overrides(
         (
             "slug: is a word.\n\n---\n\n```yaml\ndescription: literal\n```",
             "slug: is a word. description: literal",
+        ),
+        (
+            "| a | b |\n|---|---|\n\n```mermaid\ngraph TD; A-->B;\n```\nAfter.",
+            "a b After.",
         ),
     ],
 )

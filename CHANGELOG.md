@@ -60,6 +60,16 @@ escaping. Local Themes need a small update: read
 - The output check reports `LINK_OUTSIDE_SITE` for a Theme address that
   leaves a site under a path, and names the `url` filter.
 - `robots.txt` is written only for a site at the root of a host.
+- A template that prints `none` fails with its file and line instead of
+  writing the word None into the page.
+- An About page from an Issue has an empty `created_date`: About shows no
+  date.
+- A description taken from the body leaves out Mermaid diagram source.
+- A full URL into a folder the site does not write, such as a GitHub project
+  site on the same host, is not checked as a page of this site. A broken link
+  to a page suggests adding the old address to `redirects`.
+- `escpe theme check` renders enough sample posts for a second Blog page and
+  leaves out warnings about Issues that the Config names.
 - The platform context written by the Action loses `pages_base_path`.
 - Quiet uses the `url` filter and hides links to pages that are off.
 

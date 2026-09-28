@@ -206,9 +206,13 @@ def test_theme_contract_renders_every_page_with_valid_links(
     assert "404" not in files["sitemap.xml"]
 
 
+@pytest.mark.parametrize("pages", [{}, {"ideas": False, "tags": False}])
 @pytest.mark.parametrize("theme", list(_THEMES))
-def test_theme_check_passes_with_sample_content(theme: str) -> None:
-    result = check_theme(_settings(theme), config_root=_ROOT)
+def test_theme_check_passes_with_sample_content(
+    theme: str, pages: dict[str, bool]
+) -> None:
+    # With the tags pages off, tags have no path and show as text.
+    result = check_theme(_settings(theme, pages=pages), config_root=_ROOT)
 
     assert result.success, result.diagnostics
     assert result.diagnostics == ()
