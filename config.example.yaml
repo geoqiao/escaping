@@ -1,8 +1,9 @@
 # escaping site Config — a full reference; almost every field is optional.
 #
 # Two layers:
-#   * Site fields (github, site, profile, about, paths, pages, projects,
-#     comments, seo, security) keep their meaning whichever Theme you use.
+#   * Site fields (github, site, profile, about, paths, pages, redirects,
+#     projects, comments, seo, security) keep their meaning whichever Theme
+#     you use.
 #   * theme.options belong to the Theme; its theme.yaml lists them.
 #
 # In the GitHub Action, the repository, site.url, title, author, avatar and
@@ -72,6 +73,15 @@ profile:
 #   #     template: project.html
 #   #     for_each: projects
 #   extra: []
+
+# Old addresses that moved, each to a page of this site. escaping writes a
+# small page at the old address that sends visitors and search engines on.
+# End an old address with / (covers /old and /old/) or .html. A redirect to a
+# page that does not exist, or from an address that is a page again, is left
+# out with a warning.
+# redirects:
+#   /blog/old-slug/: /blog/new-slug/
+#   /old-about.html: /about/
 
 theme:
   use: quiet # A built-in Theme, or a directory next to this file: ./theme

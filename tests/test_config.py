@@ -134,6 +134,25 @@ class _NoNetwork:
             {**_BASE, "pages": {"about": False}},
             "about.issue_number is set but pages.about is false",
         ),
+        (
+            {"redirects": {"/blog/old": "/blog/new/"}},
+            "redirects: end the old address with / (it then covers /old and /old/)",
+        ),
+        ({"redirects": {"/assets/a/": "/"}}, "redirects: /assets/ is reserved"),
+        ({"redirects": {"/404.html": "/"}}, "redirects: /404.html cannot redirect"),
+        ({"redirects": {"/a b/": "/"}}, "redirects: use a path of this site"),
+        ({"redirects": {"/a/?x=1": "/"}}, "redirects: use a path of this site"),
+        ({"redirects": {"/a/": "https://x.example/"}}, "use a path of this site"),
+        ({"redirects": {"/a/../b/": "/"}}, "redirects: use a path of this site"),
+        ({"redirects": {"/%ff/": "/"}}, "redirects: a redirect address has an invalid"),
+        (
+            {"redirects": {"/Old/": "/", "/old/": "/"}},
+            "redirects: /old/ is listed twice (addresses ignore case here)",
+        ),
+        (
+            {"redirects": {"/a/": "/b/", "/b/": "/a/"}},
+            "redirects: /a/ redirects in a circle",
+        ),
     ],
 )
 def test_config_problems_name_the_field_and_the_fix(data: dict, problem: str) -> None:

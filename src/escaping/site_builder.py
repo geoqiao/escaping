@@ -4,7 +4,7 @@ from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime
 from html import escape
-from urllib.parse import urljoin
+from urllib.parse import quote, urljoin
 
 from .atom_feed import AtomFeedBuilder
 from .blog_archive import build_archives
@@ -15,6 +15,7 @@ from .models.projects import Project, ProjectCompilationResult
 from .models.site import (
     CommentsMetadata,
     ExtraPage,
+    Redirect,
     SeoMetadata,
     SiteLink,
     SiteMetadata,
@@ -90,6 +91,7 @@ class SiteBuilder:
             )
             navigation = self._navigation(validate=False)
         metadata = self._metadata(navigation)
+        redirects = self._redirects(diagnostics)
 
         feed = AtomFeedBuilder(
             metadata, build_start_time=build_start_time, route_registry=self.routes
@@ -106,6 +108,7 @@ class SiteBuilder:
             extra_pages=extra_pages,
             feed=feed.feed,
             routes=self.routes,
+            redirects=redirects,
             diagnostics=tuple(diagnostics),
             skipped_issues=content.skipped,
         )
@@ -149,6 +152,42 @@ class SiteBuilder:
         if any(page.route == route for page in registered):
             raise RouteCollisionError(f"two extra pages use the path {path}")
         return route
+
+    def _redirects(self, diagnostics: list[Diagnostic]) -> tuple[Redirect, ...]:
+        """Redirects to pages that exist; a page always wins over a redirect.
+
+        A redirect to another old address follows it to the page. One that
+        cannot be written is left out with a warning, because the pages it
+        depends on come from Issues.
+        """
+        configured = self.settings.redirects
+        outputs = {route.output_path.casefold() for route in self.routes.routes()}
+        redirects = []
+        for path, target in configured.items():
+            output = f"{path[1:]}index.html" if path.endswith("/") else path[1:]
+            route = self.routes.route_for_path(target)
+            while route is None and target in configured:
+                target = configured[target]
+                route = self.routes.route_for_path(target)
+            if output.casefold() in outputs:
+                problem = "is a page of this site now"
+            elif route is None:
+                problem = (
+                    f"points to {configured[path]}, which is not a page of this site"
+                )
+            else:
+                url = f"{self.routes.origin}{quote(path, safe='/')}"
+                redirects.append(Redirect(path, output, url, route))
+                continue
+            diagnostics.append(
+                Diagnostic(
+                    "warning",
+                    "REDIRECT_LEFT_OUT",
+                    f"redirects: {path} {problem}; the redirect is left out",
+                    field="redirects",
+                )
+            )
+        return tuple(redirects)
 
     def _navigation(self, *, validate: bool) -> tuple[SiteLink, ...]:
         links = []

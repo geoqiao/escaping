@@ -15,9 +15,10 @@ import json
 import re
 import types
 import typing
+import unicodedata
 from pathlib import Path, PurePosixPath
 from typing import Any, Literal, Self
-from urllib.parse import urlparse, urlunparse
+from urllib.parse import unquote, urlparse, urlunparse
 
 import yaml
 from pydantic import (
@@ -46,6 +47,7 @@ _EXTRA_PATH = re.compile(r"^/(?:[a-z0-9-]+/|\{slug\}/)+$")
 _SECTIONS = ("blog", "ideas", "tags", "projects", "about")
 _PREFIX_SECTIONS = ("blog", "ideas", "tags")
 _ASSETS = "/assets/"
+_UNSAFE_PATH_CHARS = re.compile(r"[\x00-\x20\x7f-\x9f\\?#\u2028\u2029\ufeff]")
 
 #: Fields removed by the Theme API 3 split, with where they went.
 _MOVED_FIELDS: dict[tuple[str, ...], str] = {
@@ -410,6 +412,54 @@ class PagesConfig(_Strict):
         )
 
 
+def _site_path(value: str, *, source: bool) -> str:
+    """A decoded, NFC path of this site; a source must name one HTML file."""
+    try:
+        path = unicodedata.normalize("NFC", unquote(value, errors="strict"))
+    except UnicodeDecodeError:
+        raise ValueError("a redirect address has an invalid %-escape") from None
+    parts = path.split("/")
+    if (
+        not path.startswith("/")
+        or path.startswith("//")
+        or _UNSAFE_PATH_CHARS.search(path)
+        or any(part in (".", "..") for part in parts)
+        or "" in parts[1:-1]
+    ):
+        raise ValueError(
+            "use a path of this site such as /blog/old-post/, without spaces, ? or #"
+        )
+    if not source:
+        return path
+    if path in ("/", "/index.html", "/404.html"):
+        raise ValueError(f"{path} cannot redirect")
+    if path.startswith(_ASSETS):
+        raise ValueError(f"{_ASSETS} is reserved for static files")
+    if not path.endswith(("/", ".html")):
+        raise ValueError(
+            "end the old address with / (it then covers /old and /old/) or .html"
+        )
+    return path
+
+
+def _check_redirects(value: dict[str, str]) -> dict[str, str]:
+    redirects: dict[str, str] = {}
+    folded: set[str] = set()
+    for old, new in value.items():
+        source = _site_path(old, source=True)
+        if source.casefold() in folded:
+            raise ValueError(f"{source} is listed twice (addresses ignore case here)")
+        folded.add(source.casefold())
+        redirects[source] = _site_path(new, source=False)
+    for start in redirects:
+        seen = [start]
+        while (target := redirects.get(seen[-1])) is not None:
+            if target in seen:
+                raise ValueError(f"{start} redirects in a circle")
+            seen.append(target)
+    return redirects
+
+
 class ThemeConfig(_Strict):
     """``use`` is a built-in name or a Config-relative directory (contains ``/``)."""
 
@@ -563,6 +613,13 @@ class Settings(_Strict):
     comments: CommentsConfig = Field(default_factory=CommentsConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     projects: list[ProjectCatalogEntry] = Field(default_factory=list)
+    #: Old address -> the page it moved to; see ``_check_redirects``.
+    redirects: dict[str, str] = Field(default_factory=dict)
+
+    @field_validator("redirects")
+    @classmethod
+    def validate_redirects(cls, v: dict[str, str]) -> dict[str, str]:
+        return _check_redirects(v)
 
     @field_validator("projects")
     @classmethod

@@ -63,6 +63,19 @@ class ExtraPage:
 
 
 @dataclass(frozen=True)
+class Redirect:
+    """An old address, from ``redirects`` in the Config, and where it went.
+
+    ``path`` is the decoded site path; ``url`` is its full, encoded address.
+    """
+
+    path: str
+    output_path: str
+    url: str
+    target: Route
+
+
+@dataclass(frozen=True)
 class SiteModel:
     """Complete immutable build model consumed by renderer and validator."""
 
@@ -76,6 +89,7 @@ class SiteModel:
     extra_pages: tuple[ExtraPage, ...]
     feed: AtomFeed
     routes: RouteRegistry
+    redirects: tuple[Redirect, ...] = field(default_factory=tuple)
     diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)
     skipped_issues: tuple[int, ...] = field(default_factory=tuple)
 

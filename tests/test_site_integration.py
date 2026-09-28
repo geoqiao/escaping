@@ -464,3 +464,39 @@ def test_theme_check_reports_seo_gaps_as_warnings(tmp_path: Path) -> None:
         ("warning", "SEO_URL"),
     ]
     assert all(d.message.startswith("ideas/index.html: ") for d in result.diagnostics)
+
+
+def test_redirects_send_old_addresses_to_pages_of_the_site(tmp_path: Path) -> None:
+    settings = _settings(
+        redirects={
+            "/blog/old-hello/": "/blog/older-hello/",  # follows the next one
+            "/blog/older-hello/": "/blog/hello/",
+            "/posts/%E4%BD%A0%E5%A5%BD.html": "/about/",
+            "/blog/gone/": "/blog/missing/",
+            "/blog/hello/": "/about/",
+        }
+    )
+
+    result, _ = _generate(tmp_path, _CONTENT, settings)
+
+    assert result.success, result.diagnostics
+    assert [d.message for d in result.diagnostics if d.code == "REDIRECT_LEFT_OUT"] == [
+        "redirects: /blog/gone/ points to /blog/missing/, which is not a page of "
+        "this site; the redirect is left out",
+        "redirects: /blog/hello/ is a page of this site now; the redirect is left out",
+    ]
+    output = tmp_path / "output"
+    old = (output / "blog/old-hello/index.html").read_text(encoding="utf-8")
+    assert '<link rel="canonical" href="https://geoqiao.me/blog/hello/">' in old
+    assert (
+        '<meta http-equiv="refresh" content="0; url=https://geoqiao.me/blog/hello/">'
+        in old
+    )
+    assert '<meta name="robots" content="noindex">' in old
+    assert (output / "blog/older-hello/index.html").read_text(encoding="utf-8") == old
+    assert "https://geoqiao.me/about/" in (output / "posts/你好.html").read_text(
+        encoding="utf-8"
+    )
+    assert "Hello." in (output / "blog/hello/index.html").read_text(encoding="utf-8")
+    assert not (output / "blog/gone").exists()
+    assert not any("old-hello" in url for url in _sitemap(output))

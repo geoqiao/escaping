@@ -87,11 +87,15 @@ class SiteArtifactValidator:
             route.output_path: route.canonical_url
             for route in self.site.routes.routes()
         }
-        for output_path in pages:
+        redirects = {
+            redirect.output_path: redirect.url for redirect in self.site.redirects
+        }
+        for output_path in [*pages, *redirects]:
             if output_path not in files:
                 diagnostics.append(
                     _error("MISSING_ROUTE", f"missing page file: {output_path}")
                 )
+        pages |= redirects
         if NOT_FOUND_TEMPLATE in files:
             # Served for any missing path; resolve its relative links at the root.
             pages[NOT_FOUND_TEMPLATE] = f"{self.site.routes.origin}/"

@@ -12,6 +12,7 @@ import xml.etree.ElementTree as ET
 from collections.abc import Sequence
 from dataclasses import dataclass
 from datetime import UTC
+from html import escape
 from pathlib import Path
 from types import SimpleNamespace
 from typing import Any
@@ -157,6 +158,10 @@ class RenderService:
                 extra.template,
                 description=(project.summary if project else "") or description,
                 project=project,
+            )
+        for redirect in site.redirects:
+            files[redirect.output_path] = _redirect_page(
+                redirect.target, site.metadata.language
             )
         if self.theme.has_template(NOT_FOUND_TEMPLATE):
             files[NOT_FOUND_TEMPLATE] = render("404", None, NOT_FOUND_TEMPLATE)
@@ -318,3 +323,22 @@ def _neighbours(items: Sequence[object], index: int) -> dict[str, object]:
         "newer": items[index - 1] if index else None,
         "older": items[index + 1] if index + 1 < len(items) else None,
     }
+
+
+def _redirect_page(target: Route, language: str) -> str:
+    """A page that sends visitors and search engines to ``target`` at once."""
+    url = escape(target.canonical_url)
+    return f"""<!DOCTYPE html>
+<html lang="{escape(language)}">
+<head>
+<meta charset="utf-8">
+<title>Moved</title>
+<meta name="robots" content="noindex">
+<link rel="canonical" href="{url}">
+<meta http-equiv="refresh" content="0; url={url}">
+</head>
+<body>
+<p>This page moved to <a href="{url}">{url}</a>.</p>
+</body>
+</html>
+"""
