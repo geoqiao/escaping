@@ -23,12 +23,8 @@ import shutil
 import uuid
 from pathlib import Path
 
-import structlog
-
 from .build_result import Diagnostic
 from .output_safety import OutputContainmentError, validate_output_containment
-
-logger = structlog.get_logger()
 
 #: Written into every output escaping publishes; proves the tree is ours.
 OUTPUT_MARKER = ".escaping-output"
@@ -251,11 +247,6 @@ class OutputStagingService:
                 shutil.rmtree(backup_dir)
             self._forget(backup_dir)
         except (OSError, OutputStagingError) as exc:
-            logger.warning(
-                "backup_cleanup_failed",
-                path=str(backup_dir),
-                error=str(exc),
-            )
             warnings.append(
                 Diagnostic(
                     severity="warning",
@@ -295,7 +286,6 @@ class OutputStagingService:
             shutil.rmtree(staging_dir)
             self._forget(staging_dir)
         except OSError as exc:
-            logger.error("cleanup_failed", path=str(staging_dir), error=str(exc))
             diagnostics.append(
                 Diagnostic(
                     severity="error",

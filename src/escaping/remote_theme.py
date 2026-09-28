@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import http.client
 import io
+import logging
 import re
 import tarfile
 import tempfile
@@ -17,9 +18,7 @@ import urllib.request
 from dataclasses import dataclass
 from pathlib import Path, PurePosixPath
 
-import structlog
-
-logger = structlog.get_logger()
+logger = logging.getLogger(__name__)
 
 PREFIX = "github.com/"
 #: Tests point this at a local server.
@@ -100,7 +99,7 @@ def download(theme: RemoteTheme, into: Path) -> Path:
             commit = archive.pax_headers.get("comment", "")
     except tarfile.TarError as exc:
         raise DownloadError(f"the archive could not be unpacked: {exc}") from None
-    logger.info("theme_downloaded", theme=str(theme), commit=commit)
+    logger.info("Downloaded %s at commit %s.", theme, commit)
     return root
 
 

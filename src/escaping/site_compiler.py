@@ -6,6 +6,7 @@ without it.
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
@@ -14,7 +15,6 @@ from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 
-import structlog
 from jinja2 import TemplateError, TemplateSyntaxError
 
 from .artifact_validation import SiteArtifactValidator, audit_seo
@@ -32,7 +32,7 @@ from .services.render_service import RenderedSite, RenderService
 from .site_builder import SiteBuilder, register_fixed_routes
 from .theme import Fetch, LoadedTheme, ThemeLoader
 
-logger = structlog.get_logger()
+logger = logging.getLogger(__name__)
 
 IssueSource = Callable[[], Sequence[IssueSnapshot]]
 ProjectEnricher = Callable[[str], ProjectEnrichment]
@@ -134,8 +134,7 @@ class SiteCompiler:
         try:
             snapshots = self.issues()
         except Exception as exc:
-            # Never log the exception text: client errors may echo request data.
-            logger.error("fetch_failed", error=type(exc).__name__)
+            # Never show the exception text: client errors may echo request data.
             return _failed(
                 "FETCH_FAILED",
                 "could not read the Issues of the content repository "
@@ -177,7 +176,7 @@ class SiteCompiler:
                 return BuildResult(False, tuple(diagnostics))
             return _cleanup(staging, staging_dir, diagnostics)
         except Exception as exc:
-            logger.exception("build_failed")
+            logger.exception("The build stopped on an unexpected error:")
             diagnostics.append(Diagnostic("error", "BUILD_FAILED", str(exc)))
             return _cleanup(staging, staging_dir, diagnostics)
 

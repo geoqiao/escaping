@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import io
+import logging
 import shutil
 import tarfile
 import threading
@@ -157,8 +158,12 @@ def test_a_site_theme_can_extend_a_github_theme_and_reuse_its_files(
 
 
 def test_theme_check_downloads_the_theme_and_removes_it_afterwards(
-    github: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+    github: Path,
+    tmp_path: Path,
+    monkeypatch: pytest.MonkeyPatch,
+    caplog: pytest.LogCaptureFixture,
 ) -> None:
+    caplog.set_level(logging.INFO, logger="escaping")
     _themes_repo(github)
     downloads: list[Path] = []
     real = remote_theme.download
@@ -185,6 +190,9 @@ def test_theme_check_downloads_the_theme_and_removes_it_afterwards(
 
     assert result.success, result.diagnostics
     assert len(downloads) == 1 and not downloads[0].exists()
+    assert caplog.messages == [
+        f"Downloaded github.com/alice/themes/plain@v1.0.0 at commit {_COMMIT}."
+    ]
 
 
 def test_a_failed_download_stops_the_theme_check_with_the_address(

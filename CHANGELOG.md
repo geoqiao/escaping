@@ -18,6 +18,10 @@ break things).
   error.** The message names the field, as in `site.title: contains U+0001, a
   character the Atom feed cannot hold`, and the build stops before it reads
   any Issue.
+- **escaping no longer depends on structlog.** The line that names a
+  downloaded Theme's commit, and the traceback of an unexpected crash, are
+  now plain lines on stderr. Log lines that repeated a reported error or
+  warning are gone.
 
 ### Removed
 
