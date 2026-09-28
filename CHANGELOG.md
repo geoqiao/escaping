@@ -14,6 +14,9 @@ break things).
   body or `description` used to fail the whole build, because the post goes
   into the Atom feed. Now only that post is skipped with an error that names
   the character, and the rest of the site is published (exit code 2).
+- **Quiet: a Theme that extends Quiet can drop the dark-mode button.** If its
+  `header.html` had no button, Quiet's script stopped early, so the table of
+  contents and the copy-code buttons were missing.
 
 ## [0.4.0] - 2026-09-28
 

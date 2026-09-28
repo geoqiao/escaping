@@ -1202,6 +1202,31 @@ def test_quiet_toc_unavailable_script_leaves_no_fake_control(
         context.close()
 
 
+def test_quiet_reading_tools_work_when_a_header_has_no_appearance_button(
+    browser: Browser, site_servers: dict[str, str]
+) -> None:
+    """A Theme that extends Quiet may replace header.html without the button."""
+
+    def without_button(route: Route) -> None:
+        html = route.fetch().text()
+        route.fulfill(
+            body=re.sub(r'<button class="theme-toggle".*?</button>', "", html)
+        )
+
+    page = browser.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.route("**/blog/a-blog/", without_button)
+    try:
+        page.goto(f"{site_servers['Quiet']}/blog/a-blog/", wait_until="load")
+        expect(page.locator(".theme-toggle")).to_have_count(0)
+        expect(page.locator("[data-toc] a").first).to_be_visible()
+        expect(page.locator(".copy-code").first).to_be_visible()
+        assert not errors
+    finally:
+        page.close()
+
+
 def test_quiet_without_javascript_keeps_content_and_navigation(
     browser: Browser, site_servers: dict[str, str]
 ) -> None:
