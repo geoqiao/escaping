@@ -48,6 +48,10 @@ _Avoid_: Visual style version, automatic compatibility adapter
 A Theme distributed with the Site Compiler. Quiet is the sole built-in and default Theme and uses the same Theme API as a local Theme, without special treatment.
 _Avoid_: Downloaded theme, compiler cache
 
+**GitHub Theme**:
+A Theme in a folder (or at the root) of a public GitHub repository, named as `github.com/OWNER/REPOSITORY/FOLDER@VERSION` by `theme.use` or `extends`. Each build downloads that version without a token and deletes it afterwards; one repository may hold several Themes, and one tag versions all of them.
+_Avoid_: Theme registry, theme package, installed theme
+
 **Theme Option**:
 A presentation choice declared with a type and default by a Theme's manifest and set by the site under `theme.options`. It has no meaning after switching to a Theme that does not declare it.
 _Avoid_: Site setting, generator config

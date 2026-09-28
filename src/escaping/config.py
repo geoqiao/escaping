@@ -34,6 +34,8 @@ from pydantic import (
     model_validator,
 )
 
+from .remote_theme import PREFIX as REMOTE_THEME_PREFIX
+from .remote_theme import RemoteTheme
 from .routes import SITE_PATH, Sections
 from .utils.frontmatter import _StrictYAMLLoader
 
@@ -57,9 +59,9 @@ _MOVED_FIELDS: dict[tuple[str, ...], str] = {
     ("branding",): "moved to theme.options.show_powered_by",
     ("comments", "theme"): "moved to theme.options.comments_theme",
     ("comments", "theme_mode"): "moved to theme.options.comments_theme_mode",
-    ("theme", "source"): "replaced by theme.use (quiet or ./path)",
-    ("theme", "name"): "replaced by theme.use (quiet or ./path)",
-    ("theme", "path"): "replaced by theme.use (quiet or ./path)",
+    ("theme", "source"): "replaced by theme.use (quiet, ./path or github.com/…)",
+    ("theme", "name"): "replaced by theme.use (quiet, ./path or github.com/…)",
+    ("theme", "path"): "replaced by theme.use (quiet, ./path or github.com/…)",
 }
 
 
@@ -463,7 +465,8 @@ def _check_redirects(value: dict[str, str]) -> dict[str, str]:
 
 
 class ThemeConfig(_Strict):
-    """``use`` is a built-in name or a Config-relative directory (contains ``/``)."""
+    """``use`` is a built-in name, ``github.com/OWNER/REPO[/FOLDER]@VERSION``
+    or a Config-relative directory (any other value with ``/``)."""
 
     use: str = "quiet"
     options: dict[str, Any] = Field(default_factory=dict)
@@ -471,11 +474,14 @@ class ThemeConfig(_Strict):
     @field_validator("use")
     @classmethod
     def validate_use(cls, v: str) -> str:
+        if v.startswith(REMOTE_THEME_PREFIX):
+            RemoteTheme.parse(v)
+            return v
         if "/" not in v:
             if not _BUILTIN_THEME_PATTERN.fullmatch(v):
                 raise ValueError(
-                    "use a built-in Theme name such as quiet, "
-                    "or a directory path such as ./theme"
+                    "use a built-in Theme name such as quiet, a directory path "
+                    "such as ./theme, or github.com/OWNER/REPOSITORY/FOLDER@VERSION"
                 )
             return v
         path = PurePosixPath(v)
@@ -485,7 +491,9 @@ class ThemeConfig(_Strict):
 
     @property
     def local_path(self) -> Path | None:
-        return Path(self.use) if "/" in self.use else None
+        if "/" not in self.use or self.use.startswith(REMOTE_THEME_PREFIX):
+            return None
+        return Path(self.use)
 
 
 class CommentsConfig(_Strict):

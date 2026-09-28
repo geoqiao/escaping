@@ -93,6 +93,8 @@ Three ways, from simplest to most complete:
 2. **Override one file.** Create a `theme/` directory with a `theme.yaml` containing `api: 4` and `extends: quiet`, add only the template or static file you want to replace, and set `theme: {use: ./theme}`. Everything else still comes from Quiet.
 3. **Write your own Theme.** It needs only `blog.html` and `post.html`; see the [Theme guide](docs/themes/authoring.md). A Theme can also declare its own options and interface text.
 
+You can also use a Theme someone put on GitHub: write `theme: {use: github.com/OWNER/REPOSITORY/FOLDER@v1.0.0}` in `config.yaml`. Each build downloads that version; to update, change the version. See the [Theme list](docs/themes/catalog.md) and [Using a Theme from GitHub](docs/themes/authoring.md#using-a-theme-from-github).
+
 Which pages the site has, and where, is up to your `config.yaml`: `pages` turns a page off, moves it or adds one such as `/now/`, and `redirects` keeps old addresses working. See [Pages](docs/site-inputs.md#pages).
 
 Then run `escpe theme check --config config.yaml`. It renders every page with sample content, offline and without a token, and reports Theme problems.

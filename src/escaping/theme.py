@@ -1,7 +1,9 @@
-"""Theme API 4: load a Theme directory, its built-in parent, options and strings.
+"""Theme API 4: load a Theme directory, its parent, options and strings.
 
-A Theme is templates, static files and ``theme.yaml``. Loading never touches
-the network and never executes Theme code. See docs/themes/authoring.md.
+A Theme is templates, static files and ``theme.yaml``. A Theme on GitHub is
+unpacked by a ``fetch`` function first (see remote_theme); loading itself never
+touches the network. Templates run in Jinja's sandbox. See
+docs/themes/authoring.md.
 """
 
 from __future__ import annotations
@@ -10,7 +12,7 @@ import difflib
 import os
 import re
 import shutil
-from collections.abc import Iterable, Mapping
+from collections.abc import Callable, Iterable, Mapping
 from dataclasses import dataclass
 from functools import partial
 from pathlib import Path
@@ -29,6 +31,7 @@ from jinja2 import (
     TemplateRuntimeError,
     TemplateSyntaxError,
 )
+from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel, ConfigDict, StrictInt, ValidationError
 
 from .config import (
@@ -37,6 +40,8 @@ from .config import (
     describe_validation_errors,
     validate_safe_href,
 )
+from .remote_theme import PREFIX as REMOTE_PREFIX
+from .remote_theme import DownloadError, RemoteTheme
 from .routes import with_base
 from .utils.frontmatter import _StrictYAMLLoader
 
@@ -69,6 +74,9 @@ _OPTION_NAME = re.compile(r"^[a-z][a-z0-9_]*$")
 _STRING_KEY = re.compile(r"^[a-z][a-z0-9_]*$")
 _COLOR = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 _RESERVED_STRING_KEYS = frozenset({"language"})
+
+#: Unpacks a Theme from GitHub and returns its directory.
+Fetch = Callable[[RemoteTheme], Path]
 
 OptionType = Literal[
     "string", "boolean", "integer", "color", "url", "choice", "list", "posts"
@@ -109,6 +117,8 @@ class OptionSpec:
 class ThemeLayer:
     name: str
     root: Path
+    #: Parent templates are reachable as ``@short_name/file.html``.
+    short_name: str = ""
 
 
 @dataclass(frozen=True)
@@ -134,10 +144,12 @@ class LoadedTheme:
             FileSystemLoader(str(layer.root)) for layer in self.layers
         ]
         loaders.extend(
-            PrefixLoader({f"@{layer.name}": FileSystemLoader(str(layer.root))})
+            PrefixLoader({f"@{layer.short_name}": FileSystemLoader(str(layer.root))})
             for layer in self.layers[1:]
         )
-        environment = Environment(
+        # The sandbox keeps a template away from Python internals, files and
+        # environment variables such as the token.
+        environment = SandboxedEnvironment(
             loader=ChoiceLoader(loaders),
             autoescape=True,
             undefined=StrictUndefined,
@@ -282,15 +294,19 @@ def _is_template(name: str) -> bool:
 
 
 class ThemeLoader:
-    """Load a built-in or Config-relative Theme without network I/O."""
+    """Load a built-in, Config-relative or GitHub Theme."""
 
-    def __init__(self, config_root: Path) -> None:
+    def __init__(self, config_root: Path, fetch: Fetch | None = None) -> None:
         if not config_root.is_absolute():
             raise ValueError("ThemeLoader config_root must be absolute")
         self.config_root = config_root
+        self.fetch = fetch
 
     def load(self, use: str) -> LoadedTheme:
-        if "/" in use:
+        if use.startswith(REMOTE_PREFIX):
+            layers = self._remote(use, seen=())
+            name = use
+        elif "/" in use:
             relative = Path(use)
             root = self.config_root / relative
             current = self.config_root
@@ -301,7 +317,7 @@ class ThemeLoader:
             if not root.is_dir():
                 raise ThemeError([f"theme.use: directory {use} does not exist"])
             # ``use`` contains "/", so a local layer never shadows a built-in.
-            layers = self._layers(use, root.resolve(), seen=())
+            layers = self._layers(use, root.resolve(), root.name, seen=())
             name = root.resolve().name
         else:
             layers = self._builtin(use, seen=())
@@ -321,21 +337,40 @@ class ThemeLoader:
             raise ThemeError(
                 [
                     f"theme: there is no built-in Theme named {name}{hint}"
-                    f" (built-in: {', '.join(available)}; a local Theme is ./path)"
+                    f" (built-in: {', '.join(available)}; a local Theme is ./path,"
+                    " a Theme on GitHub is github.com/OWNER/REPOSITORY/FOLDER@VERSION)"
                 ]
             )
-        return self._layers(name, root, seen=seen)
+        return self._layers(name, root, name, seen=seen)
+
+    def _remote(
+        self, name: str, *, seen: tuple[str, ...]
+    ) -> list[tuple[ThemeLayer, _ManifestModel]]:
+        try:
+            theme = RemoteTheme.parse(name)
+        except ValueError as exc:
+            raise ThemeError([f"{name}: {exc}"]) from None
+        if self.fetch is None:
+            raise ValueError("ThemeLoader needs fetch to load a Theme from GitHub")
+        try:
+            root = self.fetch(theme)
+        except DownloadError as exc:
+            raise ThemeError([f"{name}: {exc}"]) from None
+        return self._layers(name, root, theme.short_name, seen=seen)
 
     def _layers(
-        self, name: str, root: Path, *, seen: tuple[str, ...]
+        self, name: str, root: Path, short_name: str, *, seen: tuple[str, ...]
     ) -> list[tuple[ThemeLayer, _ManifestModel]]:
         _reject_symlinks(name, root)
         manifest = _read_manifest(name, root)
-        layers = [(ThemeLayer(name, root), manifest)]
-        if manifest.extends is not None:
-            if manifest.extends in (*seen, name):
-                raise ThemeError([f"{name}: extends {manifest.extends} forms a cycle"])
-            layers += self._builtin(manifest.extends, seen=(*seen, name))
+        layers = [(ThemeLayer(name, root, short_name), manifest)]
+        if (parent := manifest.extends) is not None:
+            if parent in (*seen, name):
+                raise ThemeError([f"{name}: extends {parent} forms a cycle"])
+            if parent.startswith(REMOTE_PREFIX):
+                layers += self._remote(parent, seen=(*seen, name))
+            else:
+                layers += self._builtin(parent, seen=(*seen, name))
         return layers
 
 

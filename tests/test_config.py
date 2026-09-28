@@ -210,17 +210,35 @@ def test_empty_config_file_is_all_defaults_and_token_env_is_a_name(
 @pytest.mark.parametrize(
     ("use", "problem"),
     [
-        ("Quiet", "use a built-in Theme name such as quiet, or a directory path"),
+        ("Quiet", "use a built-in Theme name such as quiet, a directory path"),
         ("my theme", "use a built-in Theme name"),
         ("../theme", "must stay inside the site repository"),
         ("/srv/theme", "must stay inside the site repository"),
         ("themes\\x/y", "must stay inside the site repository"),
+        ("github.com/alice/themes/paper", "add the version to use after @"),
+        ("github.com/alice@v1", "write github.com/OWNER/REPOSITORY/FOLDER@VERSION"),
+        ("github.com/alice/themes/../x@v1", "cannot be . or contain .."),
+        ("github.com/alice/themes@v1..2", "cannot be . or contain .."),
+        ("github.com/alice/themes/paper@", "write github.com/OWNER/REPOSITORY"),
     ],
 )
-def test_theme_use_is_a_builtin_name_or_a_config_relative_directory(
+def test_theme_use_is_a_builtin_name_a_directory_or_a_github_address(
     use: str, problem: str
 ) -> None:
     assert any(problem in p for p in _problems({"theme": {"use": use}}))
+
+
+@pytest.mark.parametrize(
+    "use",
+    [
+        "github.com/alice/themes@v1.0.0",
+        "github.com/alice/themes/paper@v1.0.0",
+        "github.com/a-b/my.themes/set/paper@0123456789abcdef0123456789abcdef01234567",
+    ],
+)
+def test_a_github_theme_is_not_a_local_directory(use: str) -> None:
+    theme = Settings.model_validate({**_BASE, "theme": {"use": use}}).theme
+    assert (theme.use, theme.local_path) == (use, None)
 
 
 def test_theme_defaults_to_quiet_and_keeps_options_for_the_theme() -> None:

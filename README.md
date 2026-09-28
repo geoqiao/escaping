@@ -96,6 +96,8 @@ theme:
 2. **只覆盖一个文件**：建一个 `theme/` 目录，放一个 `theme.yaml`（`api: 4` 和 `extends: quiet`）和你想替换的那个模板或静态文件，再设置 `theme: {use: ./theme}`。其余部分仍来自 Quiet。
 3. **写一个自己的 Theme**：最少只要 `blog.html` 和 `post.html` 两个模板，见 [Theme 编写指南](docs/themes/authoring.md)。Theme 还可以声明自己的选项和界面文字。
 
+也可以直接用别人放在 GitHub 上的 Theme：在 `config.yaml` 写 `theme: {use: github.com/作者/仓库/文件夹@v1.0.0}`，构建时自动下载这个版本，升级就改版本号。现有的 Theme 见 [Theme 列表](docs/themes/catalog.md)，用法见 [使用 GitHub 上的 Theme](docs/themes/authoring.md#using-a-theme-from-github)。
+
 网站有哪些页面、地址是什么，由你博客仓库里的 `config.yaml` 决定：`pages` 可以关掉或挪动某个页面、加上 `/now/` 这样的额外页面，`redirects` 让旧地址跳到新地址。见 [页面](docs/site-inputs.md#pages)。
 
 改完后运行 `escpe theme check --config config.yaml`：它用示例内容离线渲染每个页面，不需要 Token，并报告 Theme 的问题。
