@@ -5,7 +5,8 @@ import unicodedata
 from dataclasses import dataclass
 from urllib.parse import quote, unquote, urlsplit
 
-_KEBAB = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+#: Blog and project slugs: lowercase ASCII letters or digits, joined by single hyphens.
+SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 #: The path of a site below its origin, such as ``/`` or ``/notes/``.
 SITE_PATH = re.compile(r"^/(?:(?!\.\.?/)[A-Za-z0-9._~-]+/)*$")
 #: Tag keys may use any Unicode letters or digits, joined by single hyphens.
@@ -130,7 +131,7 @@ class RouteRegistry:
         return self._page(f"blog-page-{page_number}", f"{blog}page/{page_number}/")
 
     def blog_detail(self, slug: str) -> Route:
-        if not _KEBAB.fullmatch(slug) or slug == "page":
+        if not SLUG.fullmatch(slug) or slug == "page":
             raise RouteCollisionError(f"reserved or invalid Blog slug: {slug!r}")
         return self._page(f"blog-detail-{slug}", f"{self.sections.blog}{slug}/")
 

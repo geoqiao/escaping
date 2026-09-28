@@ -11,7 +11,6 @@ from .config import Settings
 from .content_validation import (
     CONTENT_TYPES,
     render_body,
-    reserved_blog_slug,
     tag_key,
     validate_authored_content,
 )
@@ -368,8 +367,6 @@ class ContentCompiler:
         return parsed
 
     def _claim_slug(self, snapshot: IssueSnapshot, slug: str) -> None:
-        if reserved := reserved_blog_slug(slug):
-            self._check(snapshot, [reserved])
         owner = self._slugs.setdefault(slug, snapshot.number)
         if owner != snapshot.number:
             self._fail(

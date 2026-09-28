@@ -37,12 +37,11 @@ from pydantic import (
 from .atom_feed import NOT_XML
 from .remote_theme import PREFIX as REMOTE_THEME_PREFIX
 from .remote_theme import RemoteTheme
-from .routes import SITE_PATH, Sections
+from .routes import SITE_PATH, SLUG, Sections
 from .utils.frontmatter import _StrictYAMLLoader
 
 _ENV_VAR_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9_.-]+$")
-_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _BUILTIN_THEME_PATTERN = re.compile(r"^[a-z][a-z0-9-]*$")
 _SECTION_PATH = re.compile(r"^/(?:[a-z0-9-]+/)+$")
 _EXTRA_PATH = re.compile(r"^/(?:[a-z0-9-]+/|\{slug\}/)+$")
@@ -590,7 +589,7 @@ class ProjectCatalogEntry(_Strict):
     def require_identity(self) -> Self:
         if not self.repository and not self.website:
             raise ValueError("a project needs a repository, a website, or both")
-        if not _SLUG_PATTERN.fullmatch(self.slug):
+        if not SLUG.fullmatch(self.slug):
             raise ValueError(
                 "slug must use lowercase letters, digits and single hyphens"
                 if self.slug or self.repository
