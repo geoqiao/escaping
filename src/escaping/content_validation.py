@@ -28,6 +28,8 @@ from .utils.html_sanitizer import HTMLSanitizationError, sanitize_html
 CONTENT_TYPES = frozenset({"blog", "idea", "about"})
 _KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+# Characters XML 1.0 forbids; the Atom feed is XML, and every Blog post is in it.
+_NOT_XML = re.compile("[^\t\n\r\x20-\ud7ff\ue000-\ufffd\U00010000-\U0010ffff]")
 
 
 class _SyntaxRenderer(HTMLRenderer):
@@ -156,6 +158,20 @@ def validate_authored_content(
                 field="created_date",
             )
         )
+
+    if content_type == "blog":
+        texts = {"title": title, "description": description, "body": parsed.body}
+        for field, text in texts.items():
+            if isinstance(text, str) and (match := _NOT_XML.search(text)):
+                errors.append(
+                    Diagnostic(
+                        "error",
+                        "CHARACTER_INVALID",
+                        f"{field} contains U+{ord(match.group()):04X}, a character "
+                        "the Atom feed cannot hold",
+                        field=field,
+                    )
+                )
 
     slug = fields.get("slug")
     if content_type == "blog":

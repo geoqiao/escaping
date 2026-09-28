@@ -277,6 +277,8 @@ A Blog Issue:
 - MUST have `type:blog` and `published`;
 - MUST have a non-empty GitHub Issue title;
 - MUST have a non-empty Markdown body;
+- MUST NOT have a character that XML 1.0 forbids, such as U+0001, in its title,
+  body or `description`, because the post goes into the Atom feed;
 - MAY override `slug`, `description`, and `created_date` independently;
 - MAY use `tag:*` labels;
 - enters Home recent posts, `/blog/`, `/tags/`, `/atom.xml`, and sitemap;

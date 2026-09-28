@@ -306,6 +306,32 @@ def test_explicit_invalid_metadata_skips_only_that_issue(
     assert result.about is not None
 
 
+@pytest.mark.parametrize(
+    "field,snapshot",
+    [
+        ("title", _snapshot(128, "blog", title="Bad\x01Title")),
+        ("body", replace(_snapshot(128, "blog"), body="Bad \x01 char.")),
+        ("body", replace(_snapshot(128, "blog"), body="Bad ￿ char.")),
+        ("description", _snapshot(128, "blog", metadata='description: "A\\uFFFE"')),
+    ],
+)
+def test_a_character_the_feed_cannot_hold_skips_only_that_blog(
+    field: str, snapshot: IssueSnapshot
+) -> None:
+    result = _compiler().compile(
+        [snapshot, _snapshot(1, "blog"), _snapshot(10, "about")]
+    )
+    [error] = [d for d in result.diagnostics if d.severity == "error"]
+    assert (error.code, error.issue_number, error.field) == (
+        "CHARACTER_INVALID",
+        128,
+        field,
+    )
+    assert "Bad" not in error.message
+    assert not result.has_errors and result.skipped == (128,)
+    assert [post.issue_number for post in result.blogs] == [1]
+
+
 def test_defaults_keep_publication_gates_and_collect_published_errors() -> None:
     plain = replace(
         _snapshot(128, "blog"),

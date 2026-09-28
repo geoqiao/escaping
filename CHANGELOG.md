@@ -5,6 +5,16 @@ All notable changes to escaping are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) (before 1.0, a minor version may
 break things).
 
+## [Unreleased]
+
+### Fixed
+
+- **One Blog post with a stray control character no longer stops the build.**
+  A character that XML 1.0 forbids, such as U+0001, in a Blog post's title,
+  body or `description` used to fail the whole build, because the post goes
+  into the Atom feed. Now only that post is skipped with an error that names
+  the character, and the rest of the site is published (exit code 2).
+
 ## [0.4.0] - 2026-09-28
 
 A site can use a Theme straight from a folder of a public GitHub repository,
