@@ -236,18 +236,16 @@ def test_theme_use_is_a_builtin_name_a_directory_or_a_github_address(
         "github.com/a-b/my.themes/set/paper@0123456789abcdef0123456789abcdef01234567",
     ],
 )
-def test_a_github_theme_is_not_a_local_directory(use: str) -> None:
-    theme = Settings.model_validate({**_BASE, "theme": {"use": use}}).theme
-    assert (theme.use, theme.local_path) == (use, None)
+def test_a_github_theme_address_is_accepted(use: str) -> None:
+    assert Settings.model_validate({**_BASE, "theme": {"use": use}}).theme.use == use
 
 
 def test_theme_defaults_to_quiet_and_keeps_options_for_the_theme() -> None:
     default = Settings.model_validate(_BASE).theme
-    assert (default.use, default.options, default.local_path) == ("quiet", {}, None)
+    assert (default.use, default.options) == ("quiet", {})
     local = Settings.model_validate(
         {**_BASE, "theme": {"use": "./site-theme", "options": {"anything": [1]}}}
     ).theme
-    assert local.local_path == Path("site-theme")
     # Options are checked against the Theme's theme.yaml later, not here.
     assert local.options == {"anything": [1]}
 

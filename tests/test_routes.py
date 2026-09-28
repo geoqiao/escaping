@@ -61,10 +61,8 @@ def test_lookup_requires_emitted_path_case_without_weakening_collisions() -> Non
     blog = registry.blog_archive()
     assert registry.route_for_path("/blog/") is blog
     assert registry.route_for_path("/%62log/") is blog  # same URL per RFC 3986
-    assert registry.route_for_url("https://example.com/blog/") is blog
     for path in ("/Blog/", "/BLOG/", "/%42log/", "/blog"):
         assert registry.route_for_path(path) is None
-        assert registry.route_for_url(f"https://example.com{path}") is None
     for output in ("other/index.html", blog.output_path):
         with pytest.raises(RouteCollisionError):
             registry.register("wrong-case", "/Blog/", output)
@@ -126,8 +124,6 @@ def test_a_site_under_a_path_adds_it_to_addresses_but_not_to_files() -> None:
     assert post.canonical_url == "https://alice.github.io/notes/blog/hello/"
     assert post.output_path == "blog/hello/index.html"
     assert registry.route_for_path("/blog/hello/") is post
-    assert registry.route_for_url("https://alice.github.io/notes/blog/hello/") is post
-    assert registry.route_for_url("https://alice.github.io/blog/hello/") is None
     assert registry.site_path("/notes/x/") == "/x/"
     assert registry.site_path("/notesx/") is None
 

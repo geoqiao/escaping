@@ -107,7 +107,6 @@ class SiteCompiler:
         config_root: Path,
         issues: IssueSource,
         project_enricher: ProjectEnricher | None = None,
-        output_staging: OutputStagingService | None = None,
     ) -> None:
         if not config_root.is_absolute():
             raise ValueError("SiteCompiler config_root must be absolute")
@@ -115,7 +114,6 @@ class SiteCompiler:
         self.config_root = config_root
         self.issues = issues
         self.project_enricher = project_enricher
-        self.output_staging = output_staging
 
     def generate(self) -> BuildResult:
         with theme_downloads() as fetch:
@@ -125,9 +123,7 @@ class SiteCompiler:
         build_start = datetime.now(UTC)
         try:
             theme, options = prepare_theme(self.settings, self.config_root, fetch)
-            staging = self.output_staging or OutputStagingService(
-                self.settings.paths.output, self.config_root
-            )
+            staging = OutputStagingService(self.settings.paths.output, self.config_root)
             _check_theme_outside_output(theme, staging.output)
             staging.check_replaceable()
         except ConfigError as exc:

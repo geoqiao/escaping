@@ -83,8 +83,6 @@ class RouteRegistry:
 
     def register(self, name: str, canonical_path: str, output_path: str) -> Route:
         path = quote(self._normalize_path(canonical_path), safe="/")
-        if ".html" in path:
-            raise RouteCollisionError("legacy .html routes are not supported")
         if (
             not output_path
             or output_path.startswith("/")
@@ -202,13 +200,6 @@ class RouteRegistry:
         if route is None or unquote(route.canonical_path) != f"{self.base}{decoded}":
             return None
         return route
-
-    def route_for_url(self, url: str) -> Route | None:
-        parsed = urlsplit(url)
-        if f"{parsed.scheme}://{parsed.netloc}" != self.origin:
-            return None
-        path = self.site_path(parsed.path)
-        return self.route_for_path(path) if path is not None else None
 
     def site_path(self, url_path: str) -> str | None:
         """The site path of a URL path on this origin; None outside the site."""

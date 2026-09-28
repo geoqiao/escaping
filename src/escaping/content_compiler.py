@@ -347,7 +347,7 @@ class ContentCompiler:
 
     def _parse(self, snapshot: IssueSnapshot) -> ParsedFrontMatter:
         try:
-            parsed = parse_front_matter(snapshot.body, collect_unknown_fields=True)
+            parsed = parse_front_matter(snapshot.body)
         except FrontMatterError as exc:
             self._fail(snapshot, exc.code, exc.message, exc.field)
         self._check(

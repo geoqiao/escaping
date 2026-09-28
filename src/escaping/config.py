@@ -491,12 +491,6 @@ class ThemeConfig(_Strict):
             raise ValueError("a local Theme path must stay inside the site repository")
         return v
 
-    @property
-    def local_path(self) -> Path | None:
-        if "/" not in self.use or self.use.startswith(REMOTE_THEME_PREFIX):
-            return None
-        return Path(self.use)
-
 
 class CommentsConfig(_Strict):
     """Utterances comments; ``repo`` falls back to ``github.repo`` when empty."""
