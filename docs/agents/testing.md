@@ -24,14 +24,23 @@
 
 | 行为 | 主要测试 owner |
 | --- | --- |
-| YAML envelope、size、safe loading | front matter parser |
-| 内容选择和 Blog/Idea/About 规则 | ContentCompiler |
-| HTML allowlist 与危险 URL | sanitizer |
-| 全站路径、碰撞和 output mapping | RouteRegistry |
-| 模板变量和评论兼容行为 | theme contract |
-| 完整内容到静态文件 | SiteCompiler integration tracer |
-| 构建失败保留旧产物 | output staging |
-| GitHub API 对象隔离 | GitHub adapter |
+| YAML envelope、size、safe loading | front matter parser（`test_frontmatter.py`） |
+| 内容选择、Blog/Idea/About 规则、坏 Issue 跳过 | ContentCompiler（`test_content_compiler.py`） |
+| HTML allowlist 与危险 URL | sanitizer（`test_html_sanitizer.py`） |
+| 全站路径、碰撞和 output mapping | RouteRegistry（`test_routes.py`） |
+| 固定页面、Theme pages、导航、项目 | SiteBuilder / ProjectCompiler（`test_site_builder.py`、`test_projects.py`） |
+| Config 两层、错误信息、字段迁移提示 | Config（`test_config.py`）；随包配置见 `test_shipped_configs.py` |
+| `theme.yaml`、`extends`、选项、字符串 | ThemeLoader（`test_theme.py`） |
+| 模板拿到的 `site`/`page`/`theme`/`t` | render context（`test_render_service.py`） |
+| 每个 Theme 渲染每个页面、评论与 404 | theme contract（`test_template_integrity.py`，参数化 quiet、extends、independent） |
+| 完整内容到静态文件、产物校验 | SiteCompiler integration tracer（`test_site_integration.py`） |
+| 构建失败保留旧产物、输出目录归属标记 | output staging / safety（`test_output_staging.py`、`test_output_safety.py`） |
+| GitHub API 对象隔离、`--issues-json` 读取 | GitHub adapter（`test_issue_ingestion.py`） |
+| 命令、退出码、Actions 注解/summary/outputs | CLI（`test_cli.py`） |
+| Action 与 starter workflow 的 shell 步骤 | delivery（`test_delivery.py`：假 `gh`/`uv` 跑步骤，另有一个真实 uv 的端到端构建） |
+| wheel 内容与安装后的 `escpe` | package consumer（`test_package_consumer.py`：从 git 文件快照构建 wheel） |
+| locked 源码安装与失败前提 | source consumer（`test_source_consumer.py`） |
+| 键盘、布局、搜索、评论等前端行为 | browser（`test_browser_navigation.py`） |
 
 上层测试可以证明组件已正确接线，但不得重复下层的完整输入矩阵。
 
@@ -62,7 +71,8 @@
 - front matter 未进入正文；
 - internal links 与 output paths 一致；
 - canonical、Atom、sitemap 和 Open Graph 使用同一 origin/route；
-- Quiet 与 `tests/fixtures/independent_theme` 可渲染；
+- Quiet、`tests/fixtures/extends_theme`（`extends: quiet`）与
+  `tests/fixtures/independent_theme` 都可渲染；
 - comments 绑定 Issue number。
 
 ## Review 成本约束
@@ -90,7 +100,8 @@ Reviewer 不应因为缺少理论 mutation coverage、低概率平台分支或�
 ## 验证命令
 
 [CI workflow](../../.github/workflows/ci.yml) 是自动检查的执行来源，以下命令用于本地复现。
-不要只检查 `src/escaping` 与 `tests` 而遗漏 starter 的隐藏脚本目录。
+starter 不再包含 Python 脚本；它的 workflow 与 `action.yml` 的 shell 步骤由
+`tests/test_delivery.py` 覆盖。
 
 ### 环境准备
 
@@ -109,11 +120,27 @@ uv run playwright install --with-deps chromium webkit
 uv run pytest -q tests/test_routes.py
 ```
 
-Theme 改动至少检查渲染、真实包消费及浏览器行为：
+Theme 改动至少检查加载、渲染、真实包消费及浏览器行为：
 
 ```bash
-uv run pytest -q tests/test_template_integrity.py tests/test_package_consumer.py tests/test_browser_navigation.py
+uv run pytest -q tests/test_theme.py tests/test_template_integrity.py tests/test_render_service.py tests/test_package_consumer.py tests/test_browser_navigation.py
 ```
+
+也可以直接检查一个站点的 Theme（离线，用示例内容渲染全部页面并报告 SEO 警告）：
+
+```bash
+uv run escpe theme check --config config.example.yaml
+```
+
+改动 `action.yml`、starter workflow 或打包配置时运行：
+
+```bash
+uv run pytest -q tests/test_delivery.py tests/test_package_consumer.py tests/test_source_consumer.py
+```
+
+这些测试会调用本机 `uv`，端到端用例还需要 `jq` 和 `git`。wheel 与 Action 用例从
+`git ls-files` 列出的文件快照构建（见 `tests/conftest.py` 的 `source_snapshot`），
+被忽略的 `build/`、`*.egg-info` 不会混入；新文件需未被 `.gitignore` 忽略才会进入快照。
 
 纯文档改动检查本地链接及锚点、示例路径、配置与命令；不要求为了文档措辞制造失败单测。
 若文档更正涉及公共行为，运行该行为已有的 owner 测试，不能仅凭改文档宣称实现符合契约。
@@ -125,9 +152,9 @@ uv run pytest -q tests/test_template_integrity.py tests/test_package_consumer.py
 ```bash
 uv lock --check
 CI=true uv run pytest -q -ra
-uv run ruff check src/escaping tests starter/.github/scripts
-uv run ruff format --check src/escaping tests starter/.github/scripts
-uv run ty check src/escaping tests starter/.github/scripts
+uv run ruff check src/escaping tests
+uv run ruff format --check src/escaping tests
+uv run ty check src/escaping tests
 git diff --check
 ```
 

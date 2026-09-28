@@ -60,8 +60,9 @@ def test_lookup_requires_emitted_path_case_without_weakening_collisions() -> Non
     registry = RouteRegistry("https://example.com")
     blog = registry.blog_archive()
     assert registry.route_for_path("/blog/") is blog
+    assert registry.route_for_path("/%62log/") is blog  # same URL per RFC 3986
     assert registry.route_for_url("https://example.com/blog/") is blog
-    for path in ("/Blog/", "/BLOG/", "/%62log/", "/blog"):
+    for path in ("/Blog/", "/BLOG/", "/%42log/", "/blog"):
         assert registry.route_for_path(path) is None
         assert registry.route_for_url(f"https://example.com{path}") is None
     for output in ("other/index.html", blog.output_path):
@@ -75,13 +76,42 @@ def test_lookup_requires_emitted_path_case_without_weakening_collisions() -> Non
             registry.route_for_path(path)
 
 
-def test_registry_sitemap_membership_excludes_operational_files() -> None:
+def test_sitemap_lists_each_page_once_in_registration_order() -> None:
     registry = RouteRegistry("https://geoqiao.me")
     registry.home()
     registry.blog_archive(1)
-    registry.blog_detail("post")
     registry.atom()
     registry.robots()
-    paths = registry.sitemap_routes()
-    assert "/" in paths and "/blog/post/" in paths
-    assert "/atom.xml" not in paths and "/robots.txt" not in paths
+    registry.search()
+    registry.blog_detail("post")
+    registry.home()  # registering the same route again is harmless
+    assert [route.canonical_path for route in registry.sitemap_routes()] == [
+        "/",
+        "/blog/",
+        "/blog/post/",
+    ]
+
+
+def test_unicode_tag_routes_encode_urls_and_keep_raw_file_names() -> None:
+    registry = RouteRegistry("https://geoqiao.me")
+    tag = registry.tag("示例-标签")
+    assert tag.canonical_path == "/tags/%E7%A4%BA%E4%BE%8B-%E6%A0%87%E7%AD%BE/"
+    assert tag.canonical_url == f"https://geoqiao.me{tag.canonical_path}"
+    assert tag.output_path == "tags/示例-标签/index.html"
+    assert registry.route_for_path(tag.canonical_path) is tag
+    assert registry.route_for_path("/tags/示例-标签/") is tag
+    for key in ("a_b", "a--b", "c++", "x" * 51):
+        with pytest.raises(RouteCollisionError):
+            registry.tag(key)
+
+
+def test_theme_pages_are_directory_routes_checked_for_collisions() -> None:
+    registry = RouteRegistry("https://geoqiao.me")
+    registry.projects()
+    page = registry.theme_page("/projects/escaping/")
+    assert page.output_path == "projects/escaping/index.html"
+    assert registry.route_for_path("/projects/escaping/") is page
+    assert registry.theme_page("/projects/escaping/") is page
+    for path in ("/Projects/Escaping/", "/now", "now/", "/../x/"):
+        with pytest.raises(RouteCollisionError):
+            registry.theme_page(path)

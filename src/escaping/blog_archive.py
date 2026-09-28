@@ -2,7 +2,7 @@ from __future__ import annotations
 
 from collections.abc import Sequence
 
-from .models.blog_archive import ArchiveEntry, ArchivePage
+from .models.blog_archive import ArchivePage
 from .models.blog_post import BlogPost, blog_post_sort_key
 from .routes import RouteRegistry
 
@@ -10,47 +10,21 @@ from .routes import RouteRegistry
 def build_archives(
     posts: Sequence[BlogPost], page_size: int, routes: RouteRegistry
 ) -> tuple[ArchivePage, ...]:
-    """Build paginated Blog archives; SiteBuilder is the only caller."""
-    sorted_posts = sorted(
-        posts,
-        key=blog_post_sort_key,
-        reverse=True,
-    )
-    page_slices = (
-        [
-            tuple(sorted_posts[start : start + page_size])
-            for start in range(0, len(sorted_posts), page_size)
-        ]
-        if sorted_posts
-        else [()]
-    )
-    total_pages = len(page_slices)
-    pages: list[ArchivePage] = []
-    for page_number, page_posts in enumerate(page_slices, start=1):
-        pages.append(
-            ArchivePage(
-                page_number=page_number,
-                total_pages=total_pages,
-                route=routes.blog_archive(page_number),
-                prev_route=(
-                    routes.blog_archive(page_number - 1) if page_number > 1 else None
-                ),
-                next_route=(
-                    routes.blog_archive(page_number + 1)
-                    if page_number < total_pages
-                    else None
-                ),
-                entries=tuple(
-                    ArchiveEntry(
-                        issue_number=post.issue_number,
-                        title=post.title,
-                        created_date=post.created_date,
-                        detail_path=post.route.canonical_path,
-                        tags=post.tags,
-                        description=post.description,
-                    )
-                    for post in page_posts
-                ),
-            )
+    """Paginate the Blog archive, newest first; an empty Blog has one page."""
+    ordered = sorted(posts, key=blog_post_sort_key, reverse=True)
+    slices = [
+        tuple(ordered[start : start + page_size])
+        for start in range(0, len(ordered), page_size)
+    ] or [()]
+    total = len(slices)
+    return tuple(
+        ArchivePage(
+            page_number=number,
+            total_pages=total,
+            route=routes.blog_archive(number),
+            prev_route=routes.blog_archive(number - 1) if number > 1 else None,
+            next_route=routes.blog_archive(number + 1) if number < total else None,
+            posts=page_posts,
         )
-    return tuple(pages)
+        for number, page_posts in enumerate(slices, start=1)
+    )

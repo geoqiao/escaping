@@ -43,6 +43,7 @@ class AboutPage:
     description: str
     body_html: str
     route: Route
+    is_profile = False
 
     @property
     def canonical_path(self) -> str:
@@ -60,6 +61,7 @@ class ProfileAbout:
     title: str
     description: str
     route: Route
+    is_profile = True
 
     @property
     def canonical_path(self) -> str:
@@ -72,11 +74,17 @@ class ProfileAbout:
 
 @dataclass(frozen=True)
 class ContentCompilationResult:
+    """Compiled content; ``skipped`` Issues are left out but do not stop the build."""
+
     blogs: tuple[BlogPost, ...] = field(default_factory=tuple)
     ideas: tuple[Idea, ...] = field(default_factory=tuple)
     about: AboutPage | None = None
     diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)
+    skipped: tuple[int, ...] = field(default_factory=tuple)
 
     @property
     def has_errors(self) -> bool:
-        return any(d.severity == "error" for d in self.diagnostics)
+        return any(
+            d.severity == "error" and d.issue_number not in self.skipped
+            for d in self.diagnostics
+        )

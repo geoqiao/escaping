@@ -1,219 +1,241 @@
 # Site deployment contract
 
-Production orchestration belongs to the site repository, not `escaping`.
-For setup and recovery steps, use the [starter instructions](../starter/README.md);
-this document defines the maintainer-facing delivery and safety contract.
+Production deployment belongs to the site repository, not to `escaping`. For
+setup and recovery steps, use the [starter instructions](../starter/README.md);
+this document is the maintainer-facing contract for delivery and safety.
 
 ## Ownership
 
-The site repository owns its real `config.yaml`, Pages workflow, custom domain, and any local
-Theme. The generator owns `config.example.yaml`, package resources, the compiler, and the
-reusable starter source.
+The site repository owns its real `config.yaml`, its Pages workflow, its custom
+domain and any local Theme. The generator owns the compiler, Quiet,
+`config.example.yaml`, the reusable [Action](../action.yml) and the
+[starter](../starter/) source.
 
-The canonical [starter tree](../starter/) contains the same workflow and scripts used by local
-delivery tests and template publication. Its workflow is not installed under this
-repository's root `.github/workflows/`. Once copied, the site repository owns that automation.
-Generator releases and template publication are separate steps; a generator release does not
-by itself verify or publish the template. Do not substitute a personal site's Config, migration
-history, or deployment workflow for the starter.
+The starter workflow is not installed in this repository's own
+`.github/workflows/`. Once copied into a site, the site owns it. A generator
+release does not publish or verify the template repository; that is a separate
+step. Do not replace the starter with a personal site's Config, migration
+history or workflow.
 
 ## Consumer naming contract
 
-The product and GitHub repository are named `escaping`. Its Python distribution and only console
-entry point are named `escpe`, while the import namespace remains `escaping`. The distribution is
-intentionally not named `escaping` because that name belongs to an unrelated PyPI project. The
-former `github-blog`/`github_blog` names and `blog-gen` command are not shipped, so external Pages
-workflows and local automation must update their install/import/invocation references together
-with the generator pin.
+The product and GitHub repository are named `escaping`. The Python
+distribution and its only console command are named `escpe`; the import
+package is `escaping`. The distribution is not called `escaping` because that
+name belongs to an unrelated PyPI project. The former `github-blog` /
+`github_blog` names and the `blog-gen` command are not shipped.
 
-## Starter orchestration
+## The reusable Action
 
-The [canonical workflow](../starter/.github/workflows/pages.yml) is the source of truth for
-reviewed action SHAs and executable steps; there is no separately maintained workflow template.
-All jobs are restricted to the trusted default branch, and checkouts use the event SHA or the
-resolved generator commit with `persist-credentials: false`. There is no PR/PR-target entry point.
-Pushes have no path filter so every Config-relative local Theme path is covered. Concurrency is
-isolated by ref with cancellation disabled, preventing other refs from replacing pending work
-for the default branch.
+A site workflow calls the generator as a GitHub Action:
 
-| Job | Permission and responsibility |
+```yaml
+- id: site
+  uses: geoqiao/escaping@v0.2.0   # or a full commit SHA
+  with:
+    config: config.yaml
+- uses: actions/upload-pages-artifact@<sha>
+  with:
+    path: ${{ steps.site.outputs.output }}
+```
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `config` | `config.yaml` | The site Config, relative to the repository root |
+| `token` | `${{ github.token }}` | Reads the repository, its Issues and its Pages settings |
+
+| Output | Meaning |
 | --- | --- |
-| Labels | Only `issues: write`; no checkout or repository scripts. On the first saved Issue (or another supported event), GET each of four labels and POST only missing labels. Never PATCH user labels, label Issues, create About content, or comment. A 422 requires a successful re-read before being treated as a race. |
-| Context | `contents: read`, `pages: read`; GET repository and actual Pages identity. Require GitHub Actions Pages source and a clean HTTPS root URL, even when Config overrides its URL. Never enable/configure Pages or modify domains. |
-| Build | `contents: read`, `issues: read`; depend on successful labels/context jobs, select one generator identity, verify checkout HEAD, install source/lock non-editably in an external environment, then run the installed console. |
-| Deploy | Only `pages: write`, `id-token: write`; depend on the successful build/upload, use the `github-pages` environment, and deploy only from the default branch. |
+| `output` | Absolute path of the built site; pass it to `upload-pages-artifact` |
+| `skipped-issues` | Comma-separated numbers of Issues left out because of their own errors; empty when none |
 
-Users save their Issue, wait for label preparation, refresh the selector, then add one `type:*`
-and `published` themselves. The same run can build after initialization; it does not depend on
-`GITHUB_TOKEN` writes recursively triggering workflows. No mandatory manual dispatch or hand-built
-labels are added to the normal journey. Actual template creation, event delivery, permissions,
-Linux execution and Pages publication must be verified before declaring the public template ready;
-a compatible existing site's deployment does not prove first-time template initialization.
-Local HTTP fixtures and YAML checks do not prove those platform behaviors.
+The Action runs three steps:
 
-The step-scoped compiler token is mapped by the installed-Python adapter using
-`read_config_overrides` and `security_from_config`, not a second YAML parser or Config format.
-Reserved startup/platform variables and existing non-default names are rejected; `GITHUB_TOKEN`
-is the explicit exception. Secrets are not put in argv, workflow outputs, Config, summaries or
-artifacts. The parent only reads security/path inputs; the real installed CLI owns default
-resolution and network reads, receiving the original `--config` plus non-secret `--context`.
+1. **Set up uv** 0.12.0 with a pinned `astral-sh/setup-uv`.
+2. **Read the repository and Pages settings** with `gh api`. If Pages is not
+   enabled, or its source is not GitHub Actions, the step fails with the
+   annotation *"In Settings → Pages, set Source to GitHub Actions, then run the
+   workflow again."* Otherwise it writes the
+   [platform context](site-inputs.md#cli-inputs) (repository, owner, Pages
+   root URL) to `$RUNNER_TEMP/escaping-context.json`.
+3. **Build the site** with
+   `uv run --project "$GITHUB_ACTION_PATH" --locked --python 3.14 … escpe build --config … --context … --token-env ESCAPING_TOKEN`.
+   uv installs the generator's locked dependencies into a fresh environment
+   under `$RUNNER_TEMP` and runs the pinned checkout of `escaping`. The token
+   travels only in the `ESCAPING_TOKEN` environment variable, never in
+   arguments or outputs. Exit status 2 (published with skipped Issues) becomes
+   success for this step; the `skipped-issues` output carries the numbers.
 
-`SITE_CONFIG` defaults to `config.yaml`; moving it requires updating that workflow environment
-value. The upload path comes from the same strict PathsConfig/containment rules used by the
-compiler, relative to the original Config directory, and is emitted only after successful
-publication. A failed install/build never uploads a partial or old output as a new deployment.
-Site-specific post-processing, when required, remains site-owned and must complete and validate
-before upload; it is not shipped in the general starter.
+Step scripts receive inputs through environment variables only, never by
+`${{ }}` interpolation into the script text.
 
-## Stable and fixed versions
+## Starter workflow
 
-`ESCAPING_VERSION: stable` selects GitHub's official latest formal release exactly once per build,
-rejecting drafts, prereleases, missing publication metadata and inconsistent identities. This is
-GitHub's latest-release policy, not a custom maximum-semver or commit-date algorithm. Tags are
-dereferenced through a bounded, cycle-checked Git-object chain to a full commit SHA; the actual
-checkout HEAD must match. API-provided URLs are validated as identities, not followed, and HTTP
-redirects cannot forward credentials to another origin. `target_commitish` is never treated as a
-commit SHA, and failures never fall back to `main`.
+The [starter workflow](../starter/.github/workflows/pages.yml) is the source of
+truth for the exact steps and pinned action SHAs.
 
-Advanced users can select a full lowercase 40-character SHA, or a matching formal release tag
-whose immutability GitHub confirms. Fixed selections skip latest. Each build records release/tag/
-commit identity, actual Python/uv versions, project/lock hashes, wheel builder and installed
-package versions. Source, resources and lock must come from that same reviewed revision.
+It runs on Issue events (opened, edited, labeled, unlabeled, closed, reopened,
+deleted, transferred), on every push and on manual dispatch. Jobs run only on
+the default branch. The concurrency group `pages` queues runs without
+cancelling a running one. The top-level `permissions` is empty; each job asks
+for what it needs:
 
-Stable updates happen on the next normal build, not through polling, upgrade PRs or repository
-write-back. The starter/workflow itself is site-owned and is not automatically upgraded with the
-generator. The first formal release needs a previously verified fixed candidate, followed by a
-real stable-resolution/install/build check before the public template is declared ready.
+| Job | Permissions | What it does |
+| --- | --- | --- |
+| `labels` | `issues: write` | Creates the missing labels `published`, `type:blog`, `type:idea`, `type:about`. It compares names without case and never edits, removes or applies labels. If creating one fails, it checks again (another run may have created it) and fails only if the label is still missing. |
+| `build` | `contents: read`, `issues: read`, `pages: read` | Checks out the site with `persist-credentials: false`, runs the Action and uploads its `output` as the Pages artifact. |
+| `deploy` | `pages: write`, `id-token: write` | Deploys the artifact to the `github-pages` environment. Its last step fails when `skipped-issues` is not empty, pointing to the build job summary. |
+
+So a run with one broken Issue still deploys everything else, and the run is
+marked failed with the Issue numbers. A failed build uploads nothing, so the
+site that is live stays as it was.
+
+A user saves an Issue, adds one `type:*` label and `published`. The first Issue
+event also creates the labels; the user may need to refresh the Issue page to
+see them. The template's first-run journey on a brand-new repository must still
+be verified on GitHub before calling the template ready; local tests do not
+prove GitHub's event delivery, permissions or Pages publication.
+
+## Versions
+
+A site pins the generator in the `uses:` line: a release tag such as
+`@v0.2.0`, or a full 40-character commit SHA. A SHA is the strongest pin,
+because a tag can be moved. There is no automatic "latest" lookup: a site
+changes version only when someone edits that line, after reading the
+[CHANGELOG](../CHANGELOG.md).
+
+The workflow itself is site-owned. Upgrading the generator does not update a
+site's workflow; the CHANGELOG says when a workflow change is needed.
+
+## Releasing the generator
+
+Generator and site repositories cannot change at the same time. Release in
+this order:
+
+1. Merge the change to `main` with the full verification passing
+   ([testing guide](agents/testing.md#验证命令)).
+2. Set the version in `pyproject.toml`, run `uv lock`, add the CHANGELOG entry
+   and tag the release (`vX.Y.Z`).
+3. Build a real consumer site with the new tag on a branch, with its migrated
+   Config, and check the output.
+4. Update the site's `uses:` pin (and its Config, if the release needs it).
+5. Deploy the site.
+
+To roll back, pin the previous version again. If the site's Config changed
+for the new version, revert that change in the same commit: every section
+rejects unknown fields, so an older generator may not load a newer Config.
+A rollback across 0.2.0 also needs the 0.1 workflow and scripts; see the
+[CHANGELOG](../CHANGELOG.md#upgrading-from-01).
+
+## Production changes
+
+Deploying a production site, merging its default branch and changing its
+Pages settings or domain are separate decisions from releasing the generator.
+Make each one on purpose, after the consumer check in step 3 above. Automation
+in this repository never enables or configures Pages, and never edits a site's
+domain.
 
 ## Locked source installation
 
-Use a reviewed source checkout/archive whose `pyproject.toml`, `uv.lock`, and package resources
-come from the same immutable revision. Use uv 0.12.0 with an explicitly selected Python and a fresh,
-dedicated environment outside the source directory. The starter's installer requires a pristine
-Git checkout: before uv runs it rejects all untracked inputs, including ignored files that package
-resource globs could include. It never cleans or deletes user files. Normal build-generated files
-are allowed after installation; tracked source/lock changes are still rejected by the post-check.
+The Action installs the generator from its pinned checkout with the committed
+`uv.lock`. To install from source elsewhere, use a checkout whose
+`pyproject.toml`, `uv.lock` and package files come from the same revision,
+uv 0.12.0, Python 3.14 and a fresh environment outside the source directory:
 
 ```bash
-export UV_PROJECT_ENVIRONMENT="/absolute/path/to/compiler-env"
-uv sync --project "/absolute/path/to/compiler-source" --python 3.14 \
+export UV_PROJECT_ENVIRONMENT="/absolute/path/to/escaping-env"
+uv sync --project "/absolute/path/to/escaping" --python 3.14 \
   --locked --no-default-groups --group build --no-editable \
   --no-build-isolation-package escpe
-"$UV_PROJECT_ENVIRONMENT/bin/escpe" --config "/absolute/path/to/site/config.yaml"
+"$UV_PROJECT_ENVIRONMENT/bin/escpe" build --config "/absolute/path/to/site/config.yaml"
 ```
 
-Use Python 3.14.x and pass `--python 3.14`; changing only the environment directory does not override
-`.python-version`. Use the installed console directly after sync, rather than an automatic
-`uv run` sync that could reinstall the project as editable. On Windows, the console is
-`Scripts/escpe.exe` instead of `bin/escpe`.
+On Windows the command is `Scripts/escpe.exe`.
 
-The generator's `build` dependency group locks its setuptools version and artifact hashes in
-`uv.lock`, without making setuptools a runtime requirement of the distributed wheel. uv's
-[package-specific isolation control](https://docs.astral.sh/uv/concepts/projects/config/#disabling-build-isolation)
-installs the selected dependencies first, then builds `escpe` using that environment's backend.
-A separate `--no-install-project` bootstrap is therefore unnecessary. A lone global
-`--no-build-isolation` is not equivalent: in a fresh environment it can build the project before
-setuptools is installed. This locks the generator backend, not unrelated third-party sdist build
-backends; dependency wheel availability still needs validation for the deployment Python/platform.
-
-Keep `build-system.requires` and the `build` group aligned and validate source installation before
-publishing a generator revision: disabling isolation assumes the declared build requirements are
-already satisfied. `--locked` rejects a missing/outdated lock without rewriting it and installation
-checks downloaded artifact hashes; it does not independently validate PEP 518 requirements.
-[`--frozen`](https://docs.astral.sh/uv/concepts/projects/sync/#checking-the-lockfile) skips lock
-freshness checks and can silently omit new requirements, so it is not a substitute here. This
-source-install contract does not change normal isolated wheel building or wheel consumption;
-the site-owned workflow must adopt it explicitly when updating its generator pin.
+- The `build` dependency group pins the setuptools version and hashes in
+  `uv.lock` without making setuptools a runtime dependency.
+  `--no-build-isolation-package escpe` builds `escpe` with that pinned backend;
+  uv installs the other packages first. A plain `--no-build-isolation` is not
+  the same: in a fresh environment it may build the project before setuptools
+  is installed. Keep `build-system.requires` and the `build` group identical.
+- `--locked` rejects a missing or outdated lock file without rewriting it, and
+  installation checks the downloaded hashes. Do not use `--frozen` instead: it
+  skips the freshness check and can silently leave out a new requirement.
+- `--python 3.14` is needed; changing only the environment directory does not
+  override `.python-version`.
 
 ## Site-owned attachments with immutable GitHub links
 
-A site may keep attachment originals in its own repository and reference them in Issue
-Content with full-commit GitHub URLs. Commit and push the files before updating Issue
-Content; check that the public URLs serve the expected bytes. Image URLs use
-`https://raw.githubusercontent.com/<owner>/<repo>/<full-sha>/<path>`. Downloads may use
-the same raw URL; GitHub file-view links use `/blob/<full-sha>/<path>`.
+A site may keep attachment originals in its own repository and link them from
+Issues with full-commit URLs:
+`https://raw.githubusercontent.com/<owner>/<repo>/<full-sha>/<path>` for images
+and downloads, `/blob/<full-sha>/<path>` for GitHub file views. Push the files
+first and check that the URLs serve the expected bytes, then edit the Issue.
 
-This policy does not add an attachment downloader, URL rewriter, or asset-copy step to the
-Site Compiler. Attachments remain external HTTPS resources in HTML and Atom. The compiler
-checks URL safety but does not prove external resource availability. The site owns byte
-verification, backups, migration maps, and keeping referenced commits reachable. Do not
-squash away or delete the only retained reference to a published attachment commit.
+The compiler does not download, rewrite or copy attachments; they stay
+external HTTPS links in HTML and Atom. It checks that URLs are safe, not that
+they exist. The site owns the files, their backups and keeping the referenced
+commits reachable: do not squash away the only commit a published link points
+to. A newer version of a file needs a new link; old links keep the old bytes.
 
-Attachment-only changes do not require compiler asset copying. The generic starter still builds
-on every default-branch push; the later Issue edit publishes changed references. Updating a file
-at a new commit does not update existing pinned links.
-Keep prior files and update references deliberately. Do not copy arbitrary `assets/` into
-`output/` or weaken the artifact validator to accommodate this policy.
-
-Historical migrations must back up Issue bodies, native metadata, labels, and comments;
-preserve Issue numbers, slugs, authored dates and original files; preview exact URL-only
-changes; and re-read the Issue before applying a patch to avoid overwriting intervening
-edits. GitHub updates `updated_at` on a body edit, so Atom modification dates will change.
-Issue edits can trigger production deployment and require the same production approval.
+When migrating old content, back up Issue bodies, labels and comments first;
+keep Issue numbers, slugs, dates and original files; preview URL-only changes;
+and re-read each Issue right before editing it. A body edit changes
+`updated_at`, so Atom dates change, and Issue edits can trigger a production
+deployment.
 
 ## Site-owned slug migration post-processing
 
-The compiler owns the current canonical routes. A site may keep an explicit, temporary
-mapping such as `/blog/old-slug/` → `/blog/new-slug/` and post-process the final Pages artifact
-after the compiler produces the new canonical page. The implementation, mapping filenames,
-migration history and retirement timing belong to that site; neither the compiler nor the
-generic starter ships a redirect script or a personal site's migration map.
+The compiler owns the current routes. A site may keep a temporary map such as
+`/blog/old-slug/` → `/blog/new-slug/` and add redirect pages to the built
+output after the Action step and before the upload step. The map, the script
+and when to retire it belong to that site; neither the compiler nor the starter
+ships them.
 
-Such post-processing must accept only non-`.html` slash-form Blog routes, verify that targets
-exist, skip a source that is still canonical, and fail on ambiguous or missing source/target
-state. Validate the redirect HTML, required smoke artifacts and complete artifact tree delta
-before upload. Do not infer slugs from titles, copy another site's operational command as a
-general setup step, or weaken the compiler's artifact validator.
-
-[ADR-0003](adr/0003-drop-legacy-html-urls.md) still rejects historical `.html` aliases and
-compatibility redirects; [ADR-0005](adr/0005-site-owned-blog-slug-migration-redirects.md)
-records this separate site-owned boundary.
+Such a step must accept only slash-form Blog routes (no `.html`), check that
+each target exists, skip a source that is still a real page, and fail on
+missing or ambiguous entries. Check the result before uploading. Do not guess
+slugs from titles or weaken the compiler's checks.
+[ADR-0003](adr/0003-drop-legacy-html-urls.md) still rejects `.html` aliases;
+[ADR-0005](adr/0005-site-owned-blog-slug-migration-redirects.md) records the
+site-owned boundary.
 
 ## Publication safety boundaries
 
-Live Pages protection and local output protection are separate:
+The live site and the local output are protected separately:
 
-- The Site Orchestrator deploy job depends on a successful build and artifact upload. A failed
-  build therefore leaves the currently deployed Pages artifact untouched.
-- The Site Compiler renders and validates a complete candidate in an owned staging directory
-  before local publication begins. Compile, render, or validation failures leave an existing local
-  output tree unchanged.
-- Local publication uses portable directory renames. When output already exists, the compiler
-  renames it to an owned sibling backup, promotes staging, and restores the backup if promotion
-  fails. A successful local rebuild may briefly have no output path between those renames; it never
-  copies a partial candidate into output file by file.
+- **Live site.** The deploy job runs only after a successful build and upload.
+  A failed build leaves the deployed Pages artifact untouched.
+- **Local output.** The compiler renders and checks a complete candidate in a
+  staging directory first. If compiling, rendering or checking fails, the
+  existing output is unchanged.
+- **Replacing output.** The compiler renames the old output to a backup,
+  moves the candidate into place and restores the backup if that fails. The
+  output path may be missing for a moment between the renames; it is never
+  filled file by file.
+- **Ownership.** The output holds a `.escaping-output` marker. A non-empty
+  directory without it is never replaced, so files escaping did not write are
+  never deleted.
 
-Backup cleanup failure is reported as a warning after the complete new output is published. If
-rollback also fails, the build fails with explicit final, candidate, and backup paths and preserves
-the recoverable trees for manual recovery.
-
-Staging ownership checks run before each mutation. The interval between a check and its mutation is
-a known local TOCTOU window and is not closed by this design. Concurrent local builds targeting the
-same output directory are unsupported; the compiler does not provide a build lock.
-
-## Why the compiler is pinned
-
-Generator and site repositories cannot change atomically. A full SHA makes templates, Config
-schema, routing, sanitization, and output validation reproducible. The release maintainer must
-pass compatible consumer builds before publishing a stable release; fixed-version sites change
-their selection only after consumer verification. Rollback selects the previously verified SHA
-and runs the workflow again. If the site PR also changed `config.yaml` in a way the older generator rejects,
-the rollback must revert that site Config commit together with the pin: `extra="forbid"` means
-unknown fields fail, so re-pinning alone can leave a Config that the previous generator cannot load.
+If removing the backup fails after a successful build, the build warns. If
+restoring the backup also fails, the build fails and prints the output,
+candidate and backup paths for manual recovery. Two builds writing to the same
+output at once are not supported; there is no lock.
 
 ## Artifact verification
 
-Before production cutover, verify at least:
+Before switching a production site to a new generator version, check at least:
 
-- Home, Blog archive/detail, Ideas, About, Projects, and Tags routes;
-- Theme CSS/JS/images and shared `comments.js`;
-- canonical, Open Graph, Twitter, and JSON-LD URLs;
-- Atom entry/self links, sitemap membership, and robots sitemap URL;
-- no comment widget/script in rendered HTML by default; when enabled, Issue-number binding
-  and light/dark synchronization;
-- explicit site-owned slug migration pages, when a migration map is present;
-- Site Orchestrator gating leaves the currently deployed artifact untouched when a build fails;
-- compiler staging leaves existing local output unchanged when compilation or validation fails.
+- Home, Blog archive and posts, Ideas, About, Projects, Tags and `404.html`;
+- Theme files under `/assets/` and shared scripts under `/assets/escaping/`
+  (`comments.js`, `mermaid.js`, `mermaid/mermaid.min.js`);
+- canonical, Open Graph, Twitter and JSON-LD URLs;
+- Atom entry and self links, sitemap entries and the sitemap URL in
+  `robots.txt`;
+- no comment widget by default; when comments are enabled, the widget is bound
+  to the Issue number and follows light/dark mode;
+- redirect pages from a site-owned slug map, if the site has one;
+- a failed build leaves the deployed site and the local output unchanged.
 
-The site must be served from the artifact root. `output/` is a filesystem directory, not a URL
-prefix.
+Serve the output directory as the web root. `output/` is a directory on disk,
+not a URL prefix.

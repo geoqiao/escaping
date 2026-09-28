@@ -70,7 +70,7 @@ def test_draft_payload_preserves_body_and_only_authored_metadata(
         ("title: Draft\ntype: blog\ntags: notes", "Body", "TAGS_INVALID"),
         ("title: Draft\ntype: blog\ntags: [42]", "Body", "TAGS_INVALID"),
         ("title: Draft\ntype: blog\ntags: [notes, notes]", "Body", "TAG_DUPLICATE"),
-        ("title: Draft\ntype: idea\ntags: [Notes]", "Body", "TAG_INVALID"),
+        ("title: Draft\ntype: idea\ntags: ['C++']", "Body", "TAG_INVALID"),
         ("title: Draft\ntype: blog\ntags: ['tag:notes']", "Body", "TAG_INVALID"),
         ("title: Draft\ntype: about\ntags: []", "Body", "ABOUT_TAG_FORBIDDEN"),
         ("title: Draft\ntype: idea\nslug: null", "Body", "SLUG_FORBIDDEN"),

@@ -115,10 +115,15 @@ multiple, or unknown `type:*` labels are validation errors.
 
 A Blog or Idea MAY use zero or more `tag:<key>` labels.
 
-For v1, `<key>` MUST:
+`<key>` is compared after Unicode NFC normalization and case folding, with runs
+of spaces, underscores and hyphens turned into one hyphen. The result MUST:
 
-- match `^[a-z0-9]+(?:-[a-z0-9]+)*$`;
+- consist of letters or digits in any script, joined by single hyphens
+  (`^[^\W_]+(?:-[^\W_]+)*$`);
 - contain 1–50 characters.
+
+Two labels with the same key are the same tag; the first spelling seen is the
+display name. The tag page lives at `/tags/<key>/`, percent-encoded in links.
 
 Reserved label matching and allowed-author login matching MUST use Unicode NFC
 normalization followed by case-insensitive comparison. The emitted canonical
@@ -131,7 +136,8 @@ Examples:
 ```text
 tag:python
 tag:risk-management
-tag:daily-life
+tag:Daily Life      # key daily-life
+tag:机器学习
 ```
 
 Idea tags MAY be displayed with Idea content but MUST NOT contribute to the Blog
@@ -318,8 +324,9 @@ An About Issue:
 An explicit selection has priority over discovery and Profile About. If the
 selected Issue is missing, is a Pull Request, is unauthorized, lacks `published`,
 has the wrong type, or fails validation, the build MUST fail rather than fall
-back. More than one published, allowed-author `type:about` Issue remains a
-validation error; the compiler MUST NOT silently pick the newest.
+back. Without an explicit selection, the oldest published, allowed-author
+`type:about` Issue is used; every other one is skipped and reported as an error
+(`ABOUT_DUPLICATE`).
 
 Profile About has no Issue number, authored date, or comment thread and MUST NOT
 be represented as a fabricated Article or Issue. Failure to fetch necessary
@@ -410,7 +417,10 @@ Canonical links, internal links, sitemap entries, feed URLs, Open Graph URLs,
 and output filesystem paths MUST be produced from that same route registry.
 Every validation error SHOULD include a stable error code and Issue number when
 an Issue caused the error. The compiler MUST collect and report all detectable
-content validation errors in one run before failing the build.
+content validation errors in one run. A Blog or Idea Issue with its own content
+error is skipped and reported, and the rest of the site is still published (the
+CLI exits with status 2). Config, Theme, About-selection and site-wide route
+errors fail the build and publish nothing.
 
 ## 12. Single current format
 

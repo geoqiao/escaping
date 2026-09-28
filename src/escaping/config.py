@@ -1,32 +1,22 @@
-"""Strict Pydantic configuration models for the Site Compiler.
+"""Site Config: the site layer shared by every Theme, plus the Theme selection.
 
-All models reject unknown fields (``extra="forbid"``) so that misspelled or
-unrecognized settings fail loudly instead of being silently ignored.
+A value belongs here when it still means something after switching Themes.
+Presentation choices are Theme options: ``theme.options`` is kept as raw data
+and validated against the selected Theme's ``theme.yaml`` (see ``theme.py``).
 
-Configuration contract (per accepted spec):
-- ``github``: repository identity and a non-empty ``allowed_authors`` list.
-- ``site``: top-level site identity — title, author/display name, canonical
-  HTTPS origin, description, language, optional Theme presentation hints, and
-  navigation.
-- ``profile``: Site Profile — avatar, optional Theme-specific copy, and links.
-- ``about``: optional immutable About Issue selection by ``issue_number``.
-- ``paths``: output and page-size configuration (positive, default 10).
-- ``theme``: explicit built-in package resource or Config-relative local source.
-- ``comments``: explicit opt-in, Utterances repository fallback, and theme mode.
-- ``security``: dynamic token environment-variable name (default GITHUB_TOKEN).
-- ``projects``: repository-owned project catalog entries with strict fields.
-- ``seo`` / ``branding``: verification, shared social-preview, and attribution fields.
-
-Settings are explicitly injected into compiler and rendering collaborators.
-No global settings singleton is introduced.
+All models reject unknown fields. Errors name the field and the reason and
+never echo the supplied value.
 """
 
 from __future__ import annotations
 
+import difflib
 import json
 import re
-from pathlib import Path
-from typing import Annotated, Literal
+import types
+import typing
+from pathlib import Path, PurePosixPath
+from typing import Any, Literal, Self
 from urllib.parse import urlparse, urlunparse
 
 import yaml
@@ -36,39 +26,49 @@ from pydantic import (
     Field,
     HttpUrl,
     StrictBool,
+    StrictInt,
     ValidationError,
     field_validator,
     model_validator,
 )
 
-from .output_safety import validate_output_child_name
 from .utils.frontmatter import _StrictYAMLLoader
 
-#: Valid POSIX shell environment-variable identifier pattern.
 _ENV_VAR_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9_.-]+$")
-_UTTERANCES_THEMES = frozenset(
-    {
-        "boxy-light",
-        "dark-blue",
-        "github-dark",
-        "github-dark-orange",
-        "github-light",
-        "gruvbox-dark",
-        "icy-dark",
-        "photon-dark",
-        "preferred-color-scheme",
-    }
-)
+_SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+_BUILTIN_THEME_PATTERN = re.compile(r"^[a-z][a-z0-9-]*$")
+
+#: Fields removed by the Theme API 3 split, with where they went.
+_MOVED_FIELDS: dict[tuple[str, ...], str] = {
+    ("site", "featured_posts"): "moved to theme.options.featured_posts",
+    ("site", "thesis"): "removed; declare it as an option of your own Theme",
+    ("profile", "tagline"): "moved to theme.options.tagline",
+    ("branding",): "moved to theme.options.show_powered_by",
+    ("comments", "theme"): "moved to theme.options.comments_theme",
+    ("comments", "theme_mode"): "moved to theme.options.comments_theme_mode",
+    ("theme", "source"): "replaced by theme.use (quiet or ./path)",
+    ("theme", "name"): "replaced by theme.use (quiet or ./path)",
+    ("theme", "path"): "replaced by theme.use (quiet or ./path)",
+}
+
+
+class ConfigError(ValueError):
+    """One or more Config problems, each naming its field and reason."""
+
+    def __init__(self, problems: list[str]) -> None:
+        self.problems = problems
+        super().__init__("\n".join(problems))
 
 
 def _validate_repository(value: str) -> str:
     if not _REPOSITORY_PATTERN.fullmatch(value):
-        raise ValueError("repository must be in valid 'owner/repo' format")
+        raise ValueError("repository must use the owner/repo format")
     return value
 
 
-def _validate_safe_href(value: str) -> str:
+def validate_safe_href(value: str) -> str:
+    """Accept HTTPS, mailto:, root-relative and fragment links only."""
     if (
         not value
         or "\\" in value
@@ -101,20 +101,42 @@ def _validate_safe_href(value: str) -> str:
     raise ValueError("link URL must be HTTPS, mailto, root-relative, or a fragment")
 
 
-def _validate_safe_resource_url(value: str) -> str:
+def validate_safe_resource_url(value: str) -> str:
+    """Accept an empty value, an HTTPS URL or a root-relative path."""
     if not value:
         return value
-    validated = _validate_safe_href(value)
+    validated = validate_safe_href(value)
     if validated.startswith("#") or urlparse(validated).scheme == "mailto":
         raise ValueError("resource URL must be HTTPS or root-relative")
     return validated
 
 
-class GithubConfig(BaseModel):
-    """GitHub repository and content-selection configuration."""
+def _canonical_origin(value: object) -> str:
+    if isinstance(value, HttpUrl):
+        value = str(value)
+    if not isinstance(value, str):
+        raise ValueError("site URL must be a string")
+    validate_safe_href(value)
+    parsed = urlparse(value)
+    if parsed.scheme != "https":
+        raise ValueError("site URL must use HTTPS")
+    if parsed.username or parsed.password:
+        raise ValueError("site URL must not contain userinfo")
+    if parsed.path not in ("", "/"):
+        raise ValueError(
+            "site URL must be a root origin such as https://example.com/ "
+            "(sites under a sub-path are not supported)"
+        )
+    if parsed.query or parsed.fragment or parsed.params:
+        raise ValueError("site URL must not contain a query or fragment")
+    return urlunparse(("https", parsed.netloc, "/", "", "", ""))
 
+
+class _Strict(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
+
+class GithubConfig(_Strict):
     repo: str
     allowed_authors: list[str] = Field(min_length=1)
 
@@ -132,22 +154,17 @@ class GithubConfig(BaseModel):
                 raise ValueError("allowed_authors must not contain blank entries")
             key = author.strip().casefold()
             if key in seen:
-                raise ValueError(f"duplicate allowed_author: {author!r}")
+                raise ValueError("allowed_authors lists the same author twice")
             seen.add(key)
         return [author.strip() for author in v]
 
     @property
-    def username(self) -> str:
-        """Derive username from the ``repo`` field (``user/repo``)."""
-        if "/" in self.repo:
-            return self.repo.split("/")[0]
-        return self.repo
+    def owner(self) -> str:
+        return self.repo.split("/")[0]
 
 
-class Link(BaseModel):
-    """A named link whose rendered destination cannot execute script."""
-
-    model_config = ConfigDict(extra="forbid")
+class Link(_Strict):
+    """A named link whose destination cannot execute script."""
 
     name: str
     url: str
@@ -156,102 +173,52 @@ class Link(BaseModel):
     @classmethod
     def validate_name(cls, v: str) -> str:
         if not v.strip():
-            raise ValueError("link name must not be empty or blank")
+            raise ValueError("link name must not be blank")
         return v
 
     @field_validator("url")
     @classmethod
     def validate_url(cls, v: str) -> str:
-        return _validate_safe_href(v)
+        return validate_safe_href(v)
 
 
-class NavigationConfig(BaseModel):
-    """Site navigation configuration."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    items: list[Link] = Field(
-        default_factory=lambda: [
-            Link(name=name, url=url)
-            for name, url in (
-                ("Home", "/"),
-                ("Blog", "/blog/"),
-                ("Projects", "/projects/"),
-                ("Tags", "/tags/"),
-                ("About", "/about/"),
-                ("RSS", "/atom.xml"),
-            )
-        ]
-    )
+def _default_navigation() -> list[Link]:
+    return [
+        Link(name=name, url=url)
+        for name, url in (
+            ("Home", "/"),
+            ("Blog", "/blog/"),
+            ("Projects", "/projects/"),
+            ("Tags", "/tags/"),
+            ("About", "/about/"),
+            ("RSS", "/atom.xml"),
+        )
+    ]
 
 
-class SiteConfig(BaseModel):
-    """Top-level site identity.
+class NavigationConfig(_Strict):
+    items: list[Link] = Field(default_factory=_default_navigation)
 
-    Owns display name, canonical HTTPS origin, description, language, optional
-    Site Thesis lines made available to Themes, and navigation. The canonical
-    origin must use HTTPS.
-    """
 
-    model_config = ConfigDict(extra="forbid")
-
+class SiteConfig(_Strict):
     title: str
     author: str
     url: HttpUrl
     description: str = ""
     language: str = "en"
-    thesis: list[str] = Field(default_factory=list)
     navigation: NavigationConfig = Field(default_factory=NavigationConfig)
-    featured_posts: list[Annotated[int, Field(strict=True, gt=0)]] = Field(
-        default_factory=list
-    )
-
-    @field_validator("featured_posts")
-    @classmethod
-    def validate_featured_posts(cls, v: list[int]) -> list[int]:
-        if len(v) != len(set(v)):
-            raise ValueError("featured_posts must not contain duplicate Issue numbers")
-        return v
-
-    @field_validator("thesis")
-    @classmethod
-    def validate_thesis(cls, v: list[str]) -> list[str]:
-        if any(not line.strip() for line in v):
-            raise ValueError("thesis must not contain blank lines")
-        return v
 
     @field_validator("url", mode="before")
     @classmethod
-    def validate_canonical_origin(cls, v: str | HttpUrl) -> str:
-        """Validate that the canonical origin is a true HTTPS origin.
+    def validate_canonical_origin(cls, v: object) -> str:
+        return _canonical_origin(v)
 
-        No userinfo, non-root path, query, or fragment is allowed.  The
-        root-slash form is normalized when the trailing slash is omitted.
-        """
-        if isinstance(v, HttpUrl):
-            v = str(v)
-        if not isinstance(v, str):
-            raise ValueError("canonical origin must be a URL string")
-        _validate_safe_href(v)
-
-        parsed = urlparse(v)
-        if parsed.scheme != "https":
-            raise ValueError("canonical origin must use HTTPS")
-        if parsed.username or parsed.password:
-            raise ValueError("canonical origin must not contain userinfo")
-        if parsed.path not in ("", "/"):
-            raise ValueError(
-                "canonical origin must be a root path only (no non-root path)"
-            )
-        if parsed.query:
-            raise ValueError("canonical origin must not contain a query string")
-        if parsed.fragment:
-            raise ValueError("canonical origin must not contain a fragment")
-        if parsed.params:
-            raise ValueError("canonical origin must not contain path parameters")
-
-        # Normalize to root-slash form.
-        return urlunparse(("https", parsed.netloc, "/", "", "", ""))
+    @field_validator("language")
+    @classmethod
+    def validate_language(cls, v: str) -> str:
+        if not re.fullmatch(r"[A-Za-z]{2,8}(?:-[A-Za-z0-9]{1,8})*", v):
+            raise ValueError("language must be a language tag such as en or zh-CN")
+        return v
 
 
 class RepositoryIdentity(BaseModel):
@@ -269,166 +236,101 @@ class RepositoryIdentity(BaseModel):
         return _validate_repository(value)
 
     @model_validator(mode="after")
-    def coherent_owner(self) -> RepositoryIdentity:
+    def coherent_owner(self) -> Self:
         if self.repository.split("/")[0].casefold() != self.owner_login.casefold():
             raise ValueError("repository and owner_login must identify the same owner")
         return self
 
 
 class PlatformContext(RepositoryIdentity):
-    """Non-secret platform snapshot, not another Site Config."""
+    """Non-secret platform snapshot supplied by the Action, not another Config."""
 
     pages_base_url: HttpUrl
     pages_base_path: Literal["", "/"]
 
     @field_validator("pages_base_url", mode="before")
     @classmethod
-    def validate_pages_origin(cls, value: str | HttpUrl) -> str:
-        return SiteConfig.validate_canonical_origin(value)
+    def validate_pages_origin(cls, value: object) -> str:
+        return _canonical_origin(value)
 
 
-class SiteProfileConfig(BaseModel):
-    """Site Profile — avatar, optional Theme-specific copy, and links.
-
-    The detailed About narrative belongs to About Issue Content, not this
-    section. Themes decide whether and where to render tagline and bio.
-    """
-
-    model_config = ConfigDict(extra="forbid")
+class ProfileConfig(_Strict):
+    """Site Profile; the About narrative belongs to the About Issue."""
 
     avatar: str = ""
-    tagline: str = ""
     bio: str = ""
     links: list[Link] = Field(default_factory=list)
 
     @field_validator("avatar")
     @classmethod
     def validate_avatar(cls, v: str) -> str:
-        return _validate_safe_resource_url(v)
+        return validate_safe_resource_url(v)
 
 
-class AboutConfig(BaseModel):
-    """About Issue selection — immutable by configured Issue number."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    issue_number: int | None = Field(default=None, gt=0)
-
-    @field_validator("issue_number", mode="before")
-    @classmethod
-    def reject_explicit_null(cls, value: object) -> object:
-        if value is None:
-            raise ValueError("omit issue_number for About discovery; null is invalid")
-        return value
+class AboutConfig(_Strict):
+    issue_number: StrictInt | None = Field(default=None, gt=0)
 
 
-class PathsConfig(BaseModel):
-    """Strict output and pagination configuration."""
-
-    model_config = ConfigDict(extra="forbid")
-
+class PathsConfig(_Strict):
     output: str = "output"
-    page_size: int = Field(default=10, gt=0)
+    page_size: StrictInt = Field(default=10, gt=0)
 
 
-class BuiltinThemeConfig(BaseModel):
-    """A reference Theme shipped as a generator package resource."""
+class ThemeConfig(_Strict):
+    """``use`` is a built-in name or a Config-relative directory (contains ``/``)."""
 
-    model_config = ConfigDict(extra="forbid")
+    use: str = "quiet"
+    options: dict[str, Any] = Field(default_factory=dict)
 
-    source: Literal["builtin"] = "builtin"
-    name: str = "Quiet"
-
-    @field_validator("name")
+    @field_validator("use")
     @classmethod
-    def validate_name(cls, v: str) -> str:
-        return validate_output_child_name(v, "theme name")
-
-
-class LocalThemeConfig(BaseModel):
-    """A site-owned Theme directory relative to the Config root."""
-
-    model_config = ConfigDict(extra="forbid")
-
-    source: Literal["local"] = "local"
-    name: str
-    path: Path
-
-    @field_validator("name")
-    @classmethod
-    def validate_name(cls, v: str) -> str:
-        return validate_output_child_name(v, "theme name")
-
-    @field_validator("path")
-    @classmethod
-    def validate_path(cls, v: Path) -> Path:
-        if v.is_absolute() or not v.parts or ".." in v.parts:
-            raise ValueError("local theme path must stay relative to the Config root")
+    def validate_use(cls, v: str) -> str:
+        if "/" not in v:
+            if not _BUILTIN_THEME_PATTERN.fullmatch(v):
+                raise ValueError(
+                    "use a built-in Theme name such as quiet, "
+                    "or a directory path such as ./theme"
+                )
+            return v
+        path = PurePosixPath(v)
+        if path.is_absolute() or ".." in path.parts or "\\" in v:
+            raise ValueError("a local Theme path must stay inside the site repository")
         return v
 
+    @property
+    def local_path(self) -> Path | None:
+        return Path(self.use) if "/" in self.use else None
 
-ThemeConfig = Annotated[
-    BuiltinThemeConfig | LocalThemeConfig, Field(discriminator="source")
-]
 
-
-class CommentsConfig(BaseModel):
-    """Utterances comments configuration.
-
-    ``repo`` falls back to ``github.repo`` when empty.  ``theme_mode: auto``
-    follows the blog theme via postMessage / MutationObserver.
-    """
-
-    model_config = ConfigDict(extra="forbid")
+class CommentsConfig(_Strict):
+    """Utterances comments; ``repo`` falls back to ``github.repo`` when empty."""
 
     enabled: StrictBool = False
     repo: str = ""
-    theme: str = "github-light"
-    theme_mode: Literal["auto", "fixed"] = "auto"
 
     @field_validator("repo")
     @classmethod
     def validate_repo(cls, v: str) -> str:
         return _validate_repository(v) if v else v
 
-    @field_validator("theme")
-    @classmethod
-    def validate_theme(cls, v: str) -> str:
-        if v not in _UTTERANCES_THEMES:
-            raise ValueError("unsupported Utterances theme")
-        return v
 
+class SecurityConfig(_Strict):
+    """The NAME of the token environment variable, never the token."""
 
-class SecurityConfig(BaseModel):
-    """Security settings - the token environment-variable name.
-
-    Configuration selects the name, defaulting to GITHUB_TOKEN. The secret
-    value itself is read only from process environment by the CLI.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    token_env: str = "GITHUB_TOKEN"  # noqa: S105 - environment variable name, not a secret
+    token_env: str = "GITHUB_TOKEN"  # noqa: S105 - environment variable name
 
     @field_validator("token_env")
     @classmethod
     def validate_token_env(cls, v: str) -> str:
-        if not v.strip():
-            raise ValueError("token_env must not be empty or blank")
         if not _ENV_VAR_PATTERN.fullmatch(v):
             raise ValueError(
-                "token_env must be a valid environment variable identifier "
-                "(start with a letter or underscore; contain only letters, "
-                "digits, and underscores)"
+                "token_env must be an environment variable name "
+                "(letters, digits and underscores; not starting with a digit)"
             )
         return v
 
 
-class SeoConfig(BaseModel):
-    """SEO verification and optional shared social-preview configuration."""
-
-    model_config = ConfigDict(extra="forbid")
-
+class SeoConfig(_Strict):
     google_search_console: str = ""
     social_image: str = ""
     social_image_alt: str = ""
@@ -436,63 +338,47 @@ class SeoConfig(BaseModel):
     @field_validator("social_image")
     @classmethod
     def validate_social_image(cls, v: str) -> str:
-        return _validate_safe_resource_url(v)
+        return validate_safe_resource_url(v)
 
 
-class BrandingConfig(BaseModel):
-    """Branding and footer configuration."""
+class ProjectFallbackMetadata(_Strict):
+    """Values used when GitHub repository metadata cannot be read."""
 
-    model_config = ConfigDict(extra="forbid")
-
-    show_powered_by: bool = True
-    powered_by_text: str = "Powered by"
-    powered_by_url: str = "https://github.com/geoqiao/escaping"
-    source_link_url: str = ""
-
-    @field_validator("powered_by_url", "source_link_url")
-    @classmethod
-    def validate_link_url(cls, v: str) -> str:
-        return _validate_safe_href(v) if v else v
-
-
-class ProjectFallbackMetadata(BaseModel):
-    """Optional fallback metadata for a project catalog entry.
-
-    Used when GitHub API enrichment fails.  ``stars`` and ``forks`` must be
-    non-negative.
-    """
-
-    model_config = ConfigDict(extra="forbid")
-
-    stars: int | None = Field(default=None, ge=0)
-    forks: int | None = Field(default=None, ge=0)
+    stars: StrictInt | None = Field(default=None, ge=0)
+    forks: StrictInt | None = Field(default=None, ge=0)
     language: str | None = None
     topics: list[str] | None = None
 
 
-class ProjectCatalogEntry(BaseModel):
-    """A curated project catalog entry — repository-owned, not Issue-authored.
+def _default_project_slug(data: dict[str, Any]) -> str:
+    repository = data.get("repository")
+    if not isinstance(repository, str) or not repository:
+        return ""
+    name = repository.rsplit("/", 1)[-1].casefold()
+    return re.sub(r"[^a-z0-9]+", "-", name).strip("-")
 
-    Only ``repository`` is required. Missing keys use its complete casefolded
-    identity; title/summary are optionally enriched by ProjectCompiler. Pydantic
-    model_fields_set preserves explicit title/summary (including empty values).
-    Entries sort deterministically by ``order`` then ``slug``. ``image`` is an
-    optional safe resource URL; ``links`` are optional named safe links.
+
+def _default_project_title(data: dict[str, Any]) -> str:
+    repository = data.get("repository")
+    if not isinstance(repository, str):
+        return ""
+    return repository.rsplit("/", 1)[-1]
+
+
+class ProjectCatalogEntry(_Strict):
+    """A curated project: a public repository, a website, or both.
+
+    ``slug`` defaults to the repository name in kebab case. Explicit
+    ``title``/``summary`` win over repository metadata, including empty values.
     """
 
-    model_config = ConfigDict(extra="forbid")
-
-    repository: str
-    # Factories may run while the required repository error is being collected.
-    slug: str = Field(
-        default_factory=lambda data: data.get("repository", "").casefold()
-    )
-    title: str = Field(
-        default_factory=lambda data: data.get("repository", "").rsplit("/", 1)[-1]
-    )
+    repository: str = ""
+    website: str = ""
+    slug: str = Field(default_factory=_default_project_slug)
+    title: str = Field(default_factory=_default_project_title)
     summary: str = ""
-    featured: bool = False
-    order: int = 0
+    featured: StrictBool = False
+    order: StrictInt = 0
     fallback_metadata: ProjectFallbackMetadata | None = None
     image: str = ""
     links: list[Link] = Field(default_factory=list)
@@ -500,102 +386,181 @@ class ProjectCatalogEntry(BaseModel):
     @field_validator("repository")
     @classmethod
     def validate_repository(cls, v: str) -> str:
-        return _validate_repository(v)
+        return _validate_repository(v) if v else v
+
+    @field_validator("website")
+    @classmethod
+    def validate_website(cls, v: str) -> str:
+        if v and urlparse(validate_safe_href(v)).scheme != "https":
+            raise ValueError("website must be an HTTPS URL")
+        return v
 
     @field_validator("image")
     @classmethod
     def validate_image(cls, v: str) -> str:
-        return _validate_safe_resource_url(v)
+        return validate_safe_resource_url(v)
+
+    @model_validator(mode="after")
+    def require_identity(self) -> Self:
+        if not self.repository and not self.website:
+            raise ValueError("a project needs a repository, a website, or both")
+        if not _SLUG_PATTERN.fullmatch(self.slug):
+            raise ValueError(
+                "slug must use lowercase letters, digits and single hyphens"
+                if self.slug or self.repository
+                else "a project without a repository needs a slug"
+            )
+        if not self.title.strip():
+            raise ValueError("a project without a repository needs a title")
+        return self
 
 
-class Settings(BaseModel):
-    """Application settings composing all configuration sections.
-
-    All sections reject unknown fields.  Settings are explicitly injected into
-    compiler and rendering collaborators; no global singleton is introduced.
-    """
-
-    model_config = ConfigDict(extra="forbid")
+class Settings(_Strict):
+    """Complete Site Config, explicitly injected; never a global singleton."""
 
     github: GithubConfig
     site: SiteConfig
-    profile: SiteProfileConfig = Field(default_factory=SiteProfileConfig)
+    profile: ProfileConfig = Field(default_factory=ProfileConfig)
     about: AboutConfig = Field(default_factory=AboutConfig)
-    branding: BrandingConfig = Field(default_factory=BrandingConfig)
     paths: PathsConfig = Field(default_factory=PathsConfig)
-    theme: ThemeConfig = Field(default_factory=BuiltinThemeConfig)
+    theme: ThemeConfig = Field(default_factory=ThemeConfig)
     seo: SeoConfig = Field(default_factory=SeoConfig)
     comments: CommentsConfig = Field(default_factory=CommentsConfig)
     security: SecurityConfig = Field(default_factory=SecurityConfig)
     projects: list[ProjectCatalogEntry] = Field(default_factory=list)
 
-    @field_validator("theme", mode="before")
+    @field_validator("projects")
     @classmethod
-    def default_builtin_source(cls, value: object) -> object:
-        if isinstance(value, dict) and "source" not in value:
-            return {"source": "builtin", **value}
-        return value
+    def unique_project_slugs(
+        cls, v: list[ProjectCatalogEntry]
+    ) -> list[ProjectCatalogEntry]:
+        slugs = [project.slug for project in v]
+        duplicates = sorted({slug for slug in slugs if slugs.count(slug) > 1})
+        if duplicates:
+            raise ValueError(
+                f"projects share the slug {', '.join(duplicates)}; "
+                "set a distinct slug for each"
+            )
+        return v
 
-    @classmethod
-    def load_from_yaml(cls, yaml_path: Path) -> Settings:
-        """Load settings from a YAML file."""
-        return cls.model_validate(read_config_overrides(yaml_path))
+
+# Only these identities can be supplied later by resolve_settings.
+_RESOLVABLE_MISSING = {
+    ("github",),
+    ("github", "repo"),
+    ("github", "allowed_authors"),
+    ("site",),
+    ("site", "title"),
+    ("site", "author"),
+    ("site", "url"),
+}
 
 
-def read_config_overrides(path: Path) -> dict:
-    """Read the original Config once using the existing strict safe YAML loader.
-
-    Also usable by orchestration before Settings exist. No token values are read
-    here and relative paths are not rebased to a temporary context directory.
-    """
+def read_config_overrides(path: Path) -> dict[str, Any]:
+    """Read and validate the Site Config file; an empty file means ``{}``."""
     try:
-        data = yaml.load(path.read_text(encoding="utf-8"), Loader=_StrictYAMLLoader)  # noqa: S506 - SafeLoader subclass rejects duplicate keys
-    except yaml.YAMLError:
-        raise ValueError("Config must be valid safe YAML with unique keys") from None
+        text = path.read_text(encoding="utf-8")
+    except FileNotFoundError:
+        raise ConfigError([f"Config file not found: {path}"]) from None
+    try:
+        data = yaml.load(text, Loader=_StrictYAMLLoader)  # noqa: S506 - SafeLoader subclass
+    except yaml.YAMLError as exc:
+        raise ConfigError([_yaml_problem(path, exc)]) from None
+    if data is None:
+        data = {}
     validate_config_overrides(data)
     return data
 
 
+def _yaml_problem(path: Path, exc: yaml.YAMLError) -> str:
+    mark = getattr(exc, "problem_mark", None)
+    where = f"{path.name}:{mark.line + 1}:{mark.column + 1}" if mark else path.name
+    problem = getattr(exc, "problem", None) or "invalid YAML"
+    if "duplicate key" in str(exc).lower():
+        problem = "the same key appears twice"
+    elif "constructor for the tag" in str(problem):
+        problem = "YAML tags such as !!python are not allowed"
+    return f"{where}: {problem}"
+
+
 def validate_config_overrides(data: object) -> None:
-    """Validate supplied fields, deferring only resolvable missing identity fields.
-
-    There is deliberately no parallel tree of optional configuration models.
-    """
-
-    def reject_null(value: object, field: str, parents: frozenset[int]) -> None:
-        if value is None:
-            raise ValueError(f"{field}: explicit null is invalid; omit the field")
-        if isinstance(value, (dict, list)):
-            if id(value) in parents:
-                raise ValueError(f"{field}: recursive Config is invalid")
-            items = value.items() if isinstance(value, dict) else enumerate(value)
-            for key, child in items:
-                reject_null(child, f"{field}.{key}", parents | {id(value)})
-
-    reject_null(data, "Config", frozenset())
+    """Validate supplied fields, deferring only resolvable missing identities."""
+    if not isinstance(data, dict):
+        raise ConfigError(["Config must be a mapping of sections such as site:"])
+    problems = [
+        f"{'.'.join(map(str, loc))}: is empty; remove the line or add values under it"
+        for loc in _null_locations(data, ())
+    ]
+    if problems:
+        raise ConfigError(problems)
     try:
         Settings.model_validate(data)
     except ValidationError as exc:
-        # Only these identities can be supplied later by resolve_settings.
-        # Required fields inside selected projects, links, and local Themes cannot.
-        resolvable = {
-            ("github",),
-            ("github", "repo"),
-            ("github", "allowed_authors"),
-            ("site",),
-            ("site", "title"),
-            ("site", "author"),
-            ("site", "url"),
-        }
         errors = [
             error
             for error in exc.errors()
-            if error["type"] != "missing" or error["loc"] not in resolvable
+            if error["type"] != "missing" or error["loc"] not in _RESOLVABLE_MISSING
         ]
         if errors:
-            # Do not echo arbitrary Config values (or secrets) into CLI logs.
-            fields = ", ".join(".".join(map(str, e["loc"])) or "Config" for e in errors)
-            raise ValueError(f"Invalid Config fields: {fields}") from None
+            raise ConfigError(describe_validation_errors(errors, Settings)) from None
+
+
+def _null_locations(value: object, loc: tuple[str | int, ...]) -> list[tuple]:
+    if value is None:
+        return [loc]
+    items: list[tuple[str | int, object]] = []
+    if isinstance(value, dict):
+        items = [(str(key), child) for key, child in value.items()]
+    elif isinstance(value, list):
+        items = list(enumerate(value))
+    return [
+        found for key, child in items for found in _null_locations(child, (*loc, key))
+    ]
+
+
+def describe_validation_errors(errors: list[Any], model: type[BaseModel]) -> list[str]:
+    """Turn Pydantic errors into ``field: reason`` lines without input values."""
+    problems: list[str] = []
+    for error in errors:
+        if error["type"] == "default_factory_not_called":
+            continue  # A consequence of another reported error.
+        loc = tuple(error["loc"])
+        field = ".".join(map(str, loc)) or "Config"
+        if error["type"] == "extra_forbidden":
+            key_path = tuple(part for part in loc if isinstance(part, str))
+            if key_path in _MOVED_FIELDS:
+                problems.append(f"{field}: {_MOVED_FIELDS[key_path]}")
+                continue
+            known = _fields_at(model, loc[:-1])
+            match = difflib.get_close_matches(str(loc[-1]), known, n=1)
+            hint = f"; did you mean {match[0]}?" if match else ""
+            problems.append(f"{field}: unknown field{hint}")
+        elif error["type"] == "missing":
+            problems.append(f"{field}: required")
+        else:
+            message = str(error["msg"]).removeprefix("Value error, ")
+            problems.append(f"{field}: {message}")
+    return problems
+
+
+def _fields_at(model: type[BaseModel], loc: tuple[str | int, ...]) -> list[str]:
+    current: type[BaseModel] | None = model
+    for part in loc:
+        if isinstance(part, int) or current is None:
+            continue
+        field = current.model_fields.get(part)
+        current = _model_in(field.annotation) if field is not None else None
+    return list(current.model_fields) if current is not None else []
+
+
+def _model_in(annotation: object) -> type[BaseModel] | None:
+    if isinstance(annotation, type) and issubclass(annotation, BaseModel):
+        return annotation
+    if isinstance(annotation, types.UnionType) or typing.get_origin(annotation):
+        for arg in typing.get_args(annotation):
+            if found := _model_in(arg):
+                return found
+    return None
 
 
 def read_platform_context(path: Path) -> PlatformContext:
@@ -609,19 +574,20 @@ def read_platform_context(path: Path) -> PlatformContext:
             result[key] = value
         return result
 
-    return PlatformContext.model_validate(
-        json.loads(
-            path.read_text(encoding="utf-8"),
-            object_pairs_hook=unique_keys,
+    try:
+        data = json.loads(
+            path.read_text(encoding="utf-8"), object_pairs_hook=unique_keys
         )
-    )
+        return PlatformContext.model_validate(data)
+    except ValidationError as exc:
+        problems = describe_validation_errors(exc.errors(), PlatformContext)
+        raise ConfigError(
+            [f"{path.name}: {p.removeprefix('Config: ')}" for p in problems]
+        ) from None
+    except ValueError as exc:
+        raise ConfigError([f"{path.name}: {exc}"]) from None
 
 
-def security_from_config(overrides: dict) -> SecurityConfig:
-    """Orchestrator interface: validate Config and read only the token variable name.
-
-    The caller owns any child-process secret mapping; no env mutation or shell
-    evaluation is performed here.
-    """
-    validate_config_overrides(overrides)
+def security_from_config(overrides: dict[str, Any]) -> SecurityConfig:
+    """Read only the token variable name from already validated overrides."""
     return SecurityConfig.model_validate(overrides.get("security", {}))

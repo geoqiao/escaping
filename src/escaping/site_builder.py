@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from collections.abc import Sequence
+from dataclasses import replace
 from datetime import datetime
 from urllib.parse import urljoin
 
@@ -7,25 +9,38 @@ from .atom_feed import AtomFeedBuilder
 from .blog_archive import build_archives
 from .build_result import Diagnostic
 from .config import Settings
-from .home_builder import build_home
 from .models.content import ContentCompilationResult, ProfileAbout
-from .models.projects import ProjectCompilationResult, ProjectsPage
+from .models.projects import Project, ProjectCompilationResult
 from .models.site import (
-    BrandingMetadata,
     CommentsMetadata,
-    IdeasPage,
+    SeoMetadata,
     SiteLink,
     SiteMetadata,
     SiteModel,
     SiteProfile,
-    ThemeMetadata,
+    ThemePage,
 )
-from .routes import RouteCollisionError, RouteRegistry
+from .routes import Route, RouteCollisionError, RouteRegistry
 from .tag_taxonomy import build_tag_taxonomy
+from .theme import PageSpec
+
+
+def register_fixed_routes(routes: RouteRegistry) -> None:
+    """Register the compiler's own pages; repeating it is harmless."""
+    routes.home()
+    routes.blog_archive()
+    routes.ideas()
+    routes.about()
+    routes.projects()
+    routes.tags()
+    routes.atom()
+    routes.sitemap()
+    routes.robots()
+    routes.search()
 
 
 class SiteBuilder:
-    """Build the complete SiteModel by coordinating modular page builders."""
+    """Assemble the SiteModel: fixed routes, Theme pages, metadata and feed."""
 
     def __init__(self, settings: Settings, route_registry: RouteRegistry) -> None:
         self.settings = settings
@@ -36,161 +51,130 @@ class SiteBuilder:
         content: ContentCompilationResult,
         projects: ProjectCompilationResult,
         *,
+        pages: Sequence[PageSpec] = (),
         build_start_time: datetime,
     ) -> SiteModel:
         diagnostics = [*content.diagnostics, *projects.diagnostics]
-        projects_page = projects.page
-        self._register_fixed_routes()
+        register_fixed_routes(self.routes)
+        archives = build_archives(
+            content.blogs, self.settings.paths.page_size, self.routes
+        )
+        tags = build_tag_taxonomy(content.blogs)
+        diagnostics.extend(tags.diagnostics)
 
         try:
-            self._require_registered_content(content, projects_page)
-            archives = build_archives(
-                content.blogs, self.settings.paths.page_size, self.routes
-            )
-            tags_result = build_tag_taxonomy(content.blogs, self.routes)
-            diagnostics.extend(tags_result.diagnostics)
-        except (RouteCollisionError, ValueError) as exc:
-            diagnostics.append(
-                Diagnostic("error", "ROUTE_COLLISION", str(exc), field="route")
-            )
-            archives = build_archives((), self.settings.paths.page_size, self.routes)
-            tags_result = build_tag_taxonomy((), self.routes)
-
-        try:
-            metadata = self._build_metadata(validate_navigation=True)
+            project_items, theme_pages = self._theme_pages(pages, projects.projects)
         except RouteCollisionError as exc:
             diagnostics.append(
-                Diagnostic("error", "ROUTE_COLLISION", str(exc), field="navigation")
+                Diagnostic("error", "ROUTE_COLLISION", str(exc), field="theme.pages")
             )
-            metadata = self._build_metadata(validate_navigation=False)
+            project_items, theme_pages = projects.projects, ()
 
         try:
-            home = build_home(
-                content.blogs, self.routes, self.settings.site.featured_posts
-            )
-        except ValueError as exc:
+            navigation = self._navigation(validate=True)
+        except RouteCollisionError as exc:
             diagnostics.append(
                 Diagnostic(
-                    "error",
-                    "FEATURED_POST_INVALID",
-                    str(exc),
-                    field="site.featured_posts",
+                    "error", "ROUTE_COLLISION", str(exc), field="site.navigation"
                 )
             )
-            home = build_home(content.blogs, self.routes)
-        feed_result = AtomFeedBuilder(
-            metadata,
-            build_start_time=build_start_time,
-            route_registry=self.routes,
+            navigation = self._navigation(validate=False)
+        metadata = self._metadata(navigation)
+
+        feed = AtomFeedBuilder(
+            metadata, build_start_time=build_start_time, route_registry=self.routes
         ).build(content.blogs)
-        diagnostics.extend(feed_result.diagnostics)
+        diagnostics.extend(feed.diagnostics)
         return SiteModel(
             metadata=metadata,
-            home=home,
             blogs=content.blogs,
             archives=archives,
-            ideas_page=IdeasPage(self.routes.ideas(), content.ideas),
             ideas=content.ideas,
+            # A configured but missing About is a fatal error; this is only a
+            # placeholder then, never published.
             about=content.about
-            if content.about is not None or content.has_errors
-            else ProfileAbout(
+            or ProfileAbout(
                 title=self.settings.site.author,
-                description=self.settings.profile.bio,
+                description=self.settings.profile.bio or self.settings.site.description,
                 route=self.routes.about(),
             ),
-            projects=projects_page,
-            tags=tags_result.index,
-            tag_archives=tags_result.archives,
-            feed=feed_result.feed,
+            projects=project_items,
+            tags=tags.tags,
+            theme_pages=theme_pages,
+            feed=feed.feed,
             routes=self.routes,
             diagnostics=tuple(diagnostics),
+            skipped_issues=content.skipped,
         )
 
-    def _register_fixed_routes(self) -> None:
-        self.routes.home()
-        self.routes.ideas()
-        self.routes.about()
-        self.routes.projects()
-        self.routes.tags()
-        self.routes.atom()
-        self.routes.sitemap()
-        self.routes.robots()
-        self.routes.search()
+    def _theme_pages(
+        self, pages: Sequence[PageSpec], projects: tuple[Project, ...]
+    ) -> tuple[tuple[Project, ...], tuple[ThemePage, ...]]:
+        """Register Theme pages; a project's first detail page becomes its ``page``."""
+        items = list(projects)
+        theme_pages: list[ThemePage] = []
+        for spec in pages:
+            if spec.for_each != "projects":
+                route = self._theme_route(spec.path, theme_pages)
+                theme_pages.append(ThemePage(route, spec.template))
+                continue
+            for index, project in enumerate(items):
+                route = self._theme_route(spec.path_for(project.slug), theme_pages)
+                if items[index].page is None:
+                    items[index] = replace(project, page=route)
+                theme_pages.append(
+                    ThemePage(route, spec.template_for(project.slug), items[index])
+                )
+        return tuple(items), tuple(theme_pages)
 
-    def _build_metadata(self, *, validate_navigation: bool) -> SiteMetadata:
-        settings = self.settings
-        theme_path = f"/templates/{settings.theme.name}"
-        social_image = settings.seo.social_image
-        if social_image.startswith("/"):
-            social_image = urljoin(f"{self.routes.origin}/", social_image)
-        navigation: list[SiteLink] = []
-        for item in settings.site.navigation.items:
+    def _theme_route(self, path: str, registered: list[ThemePage]) -> Route:
+        """Register one Theme page; two Theme pages may not share a path."""
+        route = self.routes.theme_page(path)
+        if any(page.route == route for page in registered):
+            raise RouteCollisionError(f"two Theme pages use the path {path}")
+        return route
+
+    def _navigation(self, *, validate: bool) -> tuple[SiteLink, ...]:
+        links = []
+        for item in self.settings.site.navigation.items:
             url = item.url
-            if validate_navigation and url.startswith("/"):
+            if validate and url.startswith("/"):
                 route = self.routes.route_for_path(url)
                 if route is None:
                     raise RouteCollisionError(
-                        f"navigation points to an unregistered route: {url}"
+                        f"navigation item {item.name} points to {url}, "
+                        "which is not a page of this site"
                     )
                 url = route.canonical_path
-            navigation.append(SiteLink(item.name, url))
+            links.append(SiteLink(item.name, url))
+        return tuple(links)
 
+    def _metadata(self, navigation: tuple[SiteLink, ...]) -> SiteMetadata:
+        settings = self.settings
+        social_image = settings.seo.social_image
+        if social_image.startswith("/"):
+            social_image = urljoin(f"{self.routes.origin}/", social_image)
         return SiteMetadata(
             title=settings.site.title,
             author=settings.site.author,
             description=settings.site.description,
             language=settings.site.language,
-            github_name=settings.github.username,
-            github_repo=settings.github.repo,
-            navigation=tuple(navigation),
-            thesis=tuple(settings.site.thesis),
+            repo=settings.github.repo,
+            navigation=navigation,
             profile=SiteProfile(
                 avatar=settings.profile.avatar,
-                tagline=settings.profile.tagline,
                 bio=settings.profile.bio,
                 links=tuple(
                     SiteLink(link.name, link.url) for link in settings.profile.links
                 ),
             ),
-            branding=BrandingMetadata(
-                show_powered_by=settings.branding.show_powered_by,
-                powered_by_text=settings.branding.powered_by_text,
-                powered_by_url=settings.branding.powered_by_url,
-                source_link_url=settings.branding.source_link_url,
-            ),
             comments=CommentsMetadata(
                 enabled=settings.comments.enabled,
                 repo=settings.comments.repo or settings.github.repo,
-                theme=settings.comments.theme,
-                theme_mode=settings.comments.theme_mode,
             ),
-            google_search_verification=settings.seo.google_search_console,
-            theme=ThemeMetadata(
-                name=settings.theme.name,
-                asset_path=theme_path,
-                favicon_url=(
-                    f"{self.routes.origin}{theme_path}/static/images/favicon.png"
-                ),
+            seo=SeoMetadata(
+                google_search_console=settings.seo.google_search_console,
+                social_image=social_image,
+                social_image_alt=settings.seo.social_image_alt,
             ),
-            social_image=social_image,
-            social_image_alt=settings.seo.social_image_alt,
         )
-
-    def _require_registered_content(
-        self, content: ContentCompilationResult, projects: ProjectsPage
-    ) -> None:
-        page_routes = [page.route for page in (*content.blogs, *content.ideas)]
-        if content.about is not None:
-            page_routes.append(content.about.route)
-        for route in page_routes:
-            if self.routes.route_for_path(route.canonical_path) is not route:
-                raise RouteCollisionError(
-                    f"page Route does not belong to the shared registry: {route.name}"
-                )
-        if (
-            self.routes.route_for_path(projects.route.canonical_path)
-            is not projects.route
-        ):
-            raise RouteCollisionError(
-                "Projects Route does not belong to the shared registry"
-            )

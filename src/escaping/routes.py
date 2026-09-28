@@ -3,9 +3,12 @@ from __future__ import annotations
 import re
 import unicodedata
 from dataclasses import dataclass
-from urllib.parse import urlsplit
+from urllib.parse import quote, unquote, urlsplit
 
 _KEBAB = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+#: Tag keys may use any Unicode letters or digits, joined by single hyphens.
+TAG_KEY = re.compile(r"^[^\W_]+(?:-[^\W_]+)*$")
+TAG_KEY_MAX_LENGTH = 50
 
 
 class RouteCollisionError(ValueError):
@@ -14,6 +17,9 @@ class RouteCollisionError(ValueError):
 
 @dataclass(frozen=True)
 class Route:
+    """One page address. ``canonical_path`` and ``canonical_url`` are
+    percent-encoded; ``output_path`` is the file path relative to the output."""
+
     name: str
     canonical_path: str
     output_path: str
@@ -41,7 +47,7 @@ class RouteRegistry:
         self._output_paths: dict[str, Route] = {}
 
     def register(self, name: str, canonical_path: str, output_path: str) -> Route:
-        path = self._normalize_path(canonical_path)
+        path = quote(self._normalize_path(canonical_path), safe="/")
         if ".html" in path:
             raise RouteCollisionError("legacy .html routes are not supported")
         if (
@@ -55,11 +61,14 @@ class RouteRegistry:
             )
         ):
             raise RouteCollisionError(f"unsafe output path: {output_path!r}")
-        canonical_key = path.casefold()
+        canonical_key = unquote(path).casefold()
         existing = self._canonical_keys.get(canonical_key)
         if existing is not None:
-            if existing.canonical_path == path and existing.output_path == output_path:
-                self._routes[name] = existing
+            if (
+                existing.name == name
+                and existing.canonical_path == path
+                and existing.output_path == output_path
+            ):
                 return existing
             raise RouteCollisionError(
                 f"canonical route collision: {path!r} ({existing.name}, {name})"
@@ -120,13 +129,19 @@ class RouteRegistry:
         return self.register("tags", "/tags/", "tags/index.html")
 
     def tag(self, tag_key: str) -> Route:
-        if not _KEBAB.fullmatch(tag_key) or len(tag_key) > 50:
+        if not TAG_KEY.fullmatch(tag_key) or len(tag_key) > TAG_KEY_MAX_LENGTH:
             raise RouteCollisionError(f"invalid tag key: {tag_key!r}")
         return self.register(
             f"tag-{tag_key}",
             f"/tags/{tag_key}/",
             f"tags/{tag_key}/index.html",
         )
+
+    def theme_page(self, path: str) -> Route:
+        """Register a page declared by the Theme at a directory-style path."""
+        if not path.startswith("/") or not path.endswith("/"):
+            raise RouteCollisionError(f"Theme page path must end with '/': {path!r}")
+        return self.register(f"page-{path}", path, f"{path[1:]}index.html")
 
     def atom(self) -> Route:
         return self.register("atom", "/atom.xml", "atom.xml")
@@ -144,10 +159,13 @@ class RouteRegistry:
         return self._routes[name]
 
     def route_for_path(self, path: str) -> Route | None:
-        """Look up an emitted URL, not merely a case-insensitive collision key."""
-        self._normalize_path(path)  # Retain path validation without rewriting the URL.
-        route = self._canonical_keys.get(path.casefold())
-        return route if route is not None and route.canonical_path == path else None
+        """Look up an emitted URL path (raw or percent-encoded), case-sensitively."""
+        decoded = unicodedata.normalize("NFC", unquote(path))
+        self._normalize_path(decoded)
+        route = self._canonical_keys.get(decoded.casefold())
+        if route is None or unquote(route.canonical_path) != decoded:
+            return None
+        return route
 
     def route_for_url(self, url: str) -> Route | None:
         parsed = urlsplit(url)
@@ -158,10 +176,11 @@ class RouteRegistry:
     def routes(self) -> tuple[Route, ...]:
         return tuple(self._routes.values())
 
-    def sitemap_routes(self) -> tuple[str, ...]:
+    def sitemap_routes(self) -> tuple[Route, ...]:
+        """Every page Route once, in registration order; no machine files."""
         return tuple(
-            route.canonical_path
-            for route in self._routes.values()
+            route
+            for route in self._canonical_keys.values()
             if route.name not in {"atom", "sitemap", "robots", "search"}
         )
 

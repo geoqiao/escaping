@@ -25,7 +25,12 @@ from github import Github
 from github.Issue import Issue as PyGithubIssue
 
 from escaping.config import Settings
-from escaping.services.github_service import GitHubService, _to_issue_snapshot
+from escaping.output_staging import OUTPUT_MARKER
+from escaping.services.github_service import (
+    GitHubService,
+    _to_issue_snapshot,
+    read_issues_json,
+)
 from escaping.site_compiler import SiteCompiler
 
 
@@ -207,15 +212,16 @@ def test_request_retries_recover_pagination_or_preserve_previous_output(
     )
     output = tmp_path / "output"
     output.mkdir()
+    (output / OUTPUT_MARKER).write_text("previous build", encoding="utf-8")
     sentinel = output / "index.html"
     sentinel.write_bytes(b"Previous site")
     try:
         result = SiteCompiler(
-            "unused",
-            "owner/site",
             settings,
             config_root=tmp_path,
-            github_service=service,
+            issues=lambda: service.fetch_issue_snapshots(
+                service.get_repo("owner/site")
+            ),
         ).generate()
         assert requests["/repos/owner/site"] == 1
         if scenario == "recover":
@@ -227,7 +233,7 @@ def test_request_retries_recover_pagination_or_preserve_previous_output(
         else:
             assert not result.success
             assert [d.code for d in result.diagnostics] == ["FETCH_FAILED"]
-            assert list(output.iterdir()) == [sentinel]
+            assert sorted(output.iterdir()) == [output / OUTPUT_MARKER, sentinel]
             assert sentinel.read_bytes() == b"Previous site"
             assert not list(tmp_path.glob(".output.staging.*"))
             if scenario == "exhausted":
@@ -331,7 +337,6 @@ def test_pr_identity_without_detail_request() -> None:
 def test_public_profile_and_repository_identity_are_plain_verified_snapshots(
     mock_github_class: MagicMock,
 ) -> None:
-    import pytest
     from github.NamedUser import NamedUser
     from github.Repository import Repository
     from pydantic import ValidationError
@@ -380,3 +385,70 @@ def test_public_profile_and_repository_identity_are_plain_verified_snapshots(
         )
         with pytest.raises((ValueError, ValidationError)):
             service.fetch_repository_identity("alice/site")
+
+
+# ---------------------------------------------------------------------------
+# --issues-json: Issues saved with gh api, read offline
+# ---------------------------------------------------------------------------
+
+
+def _raw_issue(number: int, **extra: object) -> dict[str, object]:
+    return {
+        "number": number,
+        "title": f"Post {number}",
+        "body": None,
+        "user": {"login": "alice"},
+        "labels": [{"name": "type:blog"}, {"name": "published"}],
+        "created_at": "2026-01-01T00:00:00Z",
+        "updated_at": "2026-01-02T00:00:00+00:00",
+        **extra,
+    }
+
+
+def test_read_issues_json_accepts_gh_slurp_pages_and_a_flat_list(
+    tmp_path: Path,
+) -> None:
+    path = tmp_path / "issues.json"
+    pr = _raw_issue(3, pull_request={"url": "https://api.github.com/x"})
+    path.write_text(
+        json.dumps([[_raw_issue(1), _raw_issue(2, pull_request=None)], [pr]]),
+        encoding="utf-8",
+    )
+    pages = read_issues_json(path)
+    assert [(s.number, s.is_pull_request) for s in pages] == [
+        (1, False),
+        (2, False),
+        (3, True),
+    ]
+    first = pages[0]
+    assert (first.author, first.body, first.labels) == (
+        "alice",
+        "",
+        ("type:blog", "published"),
+    )
+    assert first.created_at == datetime(2026, 1, 1, tzinfo=UTC)
+
+    path.write_text(json.dumps([_raw_issue(1), _raw_issue(2), pr]), encoding="utf-8")
+    assert read_issues_json(path) == pages
+    path.write_text("[]", encoding="utf-8")
+    assert read_issues_json(path) == []
+
+
+@pytest.mark.parametrize(
+    ("data", "message"),
+    [
+        ({"message": "Bad credentials"}, "issues.json: expected a JSON list of Issues"),
+        ([[_raw_issue(1)], ["secret-text"]], "issues.json: item 1 is not a GitHub"),
+        ([{"title": "no number"}], "issues.json: item 0 is not a GitHub Issue"),
+        ([_raw_issue(1, created_at="yesterday")], "item 0 is not a GitHub Issue"),
+        ([_raw_issue(1, labels=["type:blog"])], "item 0 is not a GitHub Issue"),
+    ],
+)
+def test_read_issues_json_names_the_bad_item_without_echoing_it(
+    data: object, message: str, tmp_path: Path
+) -> None:
+    path = tmp_path / "issues.json"
+    path.write_text(json.dumps(data), encoding="utf-8")
+    with pytest.raises(ValueError, match=message) as error:
+        read_issues_json(path)
+    assert "secret" not in str(error.value) and "yesterday" not in str(error.value)

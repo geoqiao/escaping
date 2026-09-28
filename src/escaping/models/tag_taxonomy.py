@@ -4,41 +4,25 @@ from dataclasses import dataclass, field
 
 from ..build_result import Diagnostic
 from ..routes import Route
-from .blog_post import BlogTag
+from .blog_post import BlogPost
 
 
 @dataclass(frozen=True)
-class TagSummary:
+class Tag:
+    """One Blog tag archive: display name, route key and its posts, newest first."""
+
     name: str
-    count: int
+    key: str
     route: Route
-
-
-@dataclass(frozen=True)
-class TagArchiveEntry:
-    issue_number: int
-    title: str
-    created_date: str
-    detail_path: str
-    tags: tuple[BlogTag, ...] = field(default_factory=tuple)
-
-
-@dataclass(frozen=True)
-class TagsIndex:
-    route: Route
-    tags: tuple[TagSummary, ...] = field(default_factory=tuple)
+    posts: tuple[BlogPost, ...]
 
     @property
-    def canonical_url(self) -> str:
-        return self.route.canonical_url
+    def count(self) -> int:
+        return len(self.posts)
 
-
-@dataclass(frozen=True)
-class TagArchive:
-    route: Route
-    tag_name: str
-    index_route: Route
-    entries: tuple[TagArchiveEntry, ...] = field(default_factory=tuple)
+    @property
+    def canonical_path(self) -> str:
+        return self.route.canonical_path
 
     @property
     def canonical_url(self) -> str:
@@ -47,6 +31,5 @@ class TagArchive:
 
 @dataclass(frozen=True)
 class TagTaxonomyResult:
-    index: TagsIndex
-    archives: tuple[TagArchive, ...] = field(default_factory=tuple)
+    tags: tuple[Tag, ...] = field(default_factory=tuple)
     diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)

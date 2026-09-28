@@ -5,13 +5,7 @@ from dataclasses import dataclass
 
 from .build_result import Diagnostic
 from .config import ProjectCatalogEntry
-from .models.projects import (
-    Project,
-    ProjectCompilationResult,
-    ProjectLink,
-    ProjectsPage,
-)
-from .routes import Route
+from .models.projects import Project, ProjectCompilationResult, ProjectLink
 
 
 @dataclass(frozen=True)
@@ -33,23 +27,12 @@ class ProjectCompiler:
         self._enrich = enrich
 
     def compile(
-        self, entries: Sequence[ProjectCatalogEntry], *, route: Route
+        self, entries: Sequence[ProjectCatalogEntry]
     ) -> ProjectCompilationResult:
         projects: list[Project] = []
         diagnostics: list[Diagnostic] = []
-        seen: set[str] = set()
         enrichment: dict[str, ProjectEnrichment | None] = {}
         for entry in sorted(entries, key=lambda value: (value.order, value.slug)):
-            if entry.slug in seen:
-                diagnostics.append(
-                    Diagnostic(
-                        "error",
-                        "PROJECT_KEY_DUPLICATE",
-                        "Duplicate project catalog key",
-                        field=f"projects.{entry.slug}",
-                    )
-                )
-            seen.add(entry.slug)
             fallback = entry.fallback_metadata
             values = ProjectEnrichment(
                 stars=fallback.stars if fallback else None,
@@ -57,7 +40,7 @@ class ProjectCompiler:
                 language=fallback.language if fallback else None,
                 topics=tuple(fallback.topics or ()) if fallback else (),
             )
-            if self._enrich is not None:
+            if self._enrich is not None and entry.repository:
                 try:
                     key = entry.repository.casefold()
                     if key not in enrichment:
@@ -108,7 +91,8 @@ class ProjectCompiler:
                         if "summary" in entry.model_fields_set
                         else values.description or entry.summary
                     ),
-                    url=f"https://github.com/{entry.repository}",
+                    url=entry.website or f"https://github.com/{entry.repository}",
+                    website=entry.website,
                     featured=entry.featured,
                     order=entry.order,
                     stars=values.stars,
@@ -121,8 +105,4 @@ class ProjectCompiler:
                     ),
                 )
             )
-        items = tuple(projects)
-        page = ProjectsPage(
-            items, tuple(project for project in items if project.featured), route
-        )
-        return ProjectCompilationResult(page, tuple(diagnostics))
+        return ProjectCompilationResult(tuple(projects), tuple(diagnostics))

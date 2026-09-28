@@ -1,237 +1,241 @@
+"""Render one SiteModel through one loaded Theme.
+
+Templates receive exactly four names: ``site``, ``page``, ``theme`` (resolved
+options) and ``t`` (UI strings). See docs/themes/authoring.md.
+"""
+
 from __future__ import annotations
 
 import json
+import shutil
 import xml.etree.ElementTree as ET
+from dataclasses import dataclass
 from datetime import UTC
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from jinja2 import Environment
 
 from ..atom_feed import render_atom_xml
+from ..build_result import Diagnostic
 from ..models.blog_post import BlogPost, blog_post_sort_key
 from ..models.content import AboutPage, Idea, ProfileAbout
-from ..models.home_page import HomePage
-from ..models.site import SiteMetadata, SiteModel
+from ..models.site import SiteModel
+from ..routes import Route
 from ..search import build_search_index
-from ..theme import LoadedTheme
+from ..theme import NOT_FOUND_TEMPLATE, SHARED_ASSET_DIR, LoadedTheme
+
+#: Scripts shared by every Theme, published at ``/assets/escaping/``.
+SHARED_STATIC = Path(__file__).resolve().parent.parent / "static"
+
+_SITE_ROUTES = ("home", "blog", "ideas", "about", "projects", "tags", "atom", "search")
+_PAGE_FIELDS = (
+    "post",
+    "newer",
+    "older",
+    "idea",
+    "archive",
+    "tag",
+    "about",
+    "project",
+)
+
+
+@dataclass(frozen=True)
+class RenderedSite:
+    """Output-relative path -> text, plus warnings found while rendering."""
+
+    files: dict[str, str]
+    diagnostics: tuple[Diagnostic, ...] = ()
 
 
 class RenderService:
-    """Render one immutable SiteModel with one injected loaded Theme."""
+    """Render every page and machine-readable file for one SiteModel."""
 
-    def __init__(self, theme: LoadedTheme) -> None:
+    def __init__(self, theme: LoadedTheme, options: SimpleNamespace) -> None:
         self.theme = theme
+        self.options = options
         self.env: Environment = theme.environment()
 
-    def copy_theme_assets(self, output_dir: Path) -> None:
-        self.theme.copy_assets(output_dir)
-
-    def render_site(self, site: SiteModel) -> dict[str, str]:
-        """Render every page and machine-readable artifact in one model pass."""
-        if site.about is None:
-            raise ValueError("strict SiteModel requires AboutPage")
-        if self.theme.name != site.metadata.theme.name:
-            raise ValueError(
-                f"loaded Theme {self.theme.name!r} does not match SiteModel Theme "
-                f"{site.metadata.theme.name!r}"
-            )
-
-        artifacts: dict[str, str] = {
-            site.home.route.output_path: self._render_home(site, site.home),
-            site.about.route.output_path: self._render_about(site, site.about),
-            site.projects.route.output_path: self._render_projects(site),
-            site.tags.route.output_path: self._render_tag_index(site),
-            site.feed.route.output_path: render_atom_xml(
-                site.feed, site.metadata, site.home.route.canonical_url
-            ),
-            site.routes.route("sitemap").output_path: self._render_sitemap(site),
-            site.routes.route("robots").output_path: self._render_robots(site),
-            site.ideas_page.route.output_path: self._render_ideas(site),
-            site.routes.route("search").output_path: json.dumps(
-                build_search_index(site), ensure_ascii=False, separators=(",", ":")
-            ),
-        }
-        for page in site.archives:
-            artifacts[page.route.output_path] = self.env.get_template(
-                "index.html"
-            ).render(
-                archive_page=page,
-                page_canonical_url=page.route.canonical_url,
-                **self._common_context(site),
-            )
-        sorted_blogs = sorted(
-            site.blogs,
-            key=blog_post_sort_key,
-            reverse=True,
+    def copy_assets(self, output_dir: Path) -> None:
+        """Theme static files to ``/assets/``, shared scripts to ``/assets/escaping/``."""
+        self.theme.copy_static(output_dir)
+        shutil.copytree(
+            SHARED_STATIC,
+            output_dir / "assets" / SHARED_ASSET_DIR,
+            ignore=shutil.ignore_patterns(".*", "__pycache__"),
+            dirs_exist_ok=True,
         )
-        for index, post in enumerate(sorted_blogs):
-            artifacts[post.route.output_path] = self._render_blog(
-                site,
-                post,
-                prev_post=sorted_blogs[index - 1] if index else None,
-                next_post=(
-                    sorted_blogs[index + 1] if index + 1 < len(sorted_blogs) else None
-                ),
+
+    def render_site(self, site: SiteModel) -> RenderedSite:
+        diagnostics: list[Diagnostic] = []
+        context = {
+            "site": self._site_context(site),
+            "theme": self._theme_context(site, diagnostics),
+            "t": self.theme.strings_for(site.metadata.language),
+        }
+        description = site.metadata.description
+
+        def render(
+            template: str, kind: str, route: Route | None, **page: object
+        ) -> str:
+            page.setdefault("description", description)
+            page.setdefault("json_ld", None)
+            for name in _PAGE_FIELDS:
+                page.setdefault(name, None)
+            return self.env.get_template(template).render(
+                page=SimpleNamespace(kind=kind, route=route, **page), **context
             )
+
+        routes = site.routes
+        home = routes.route("home")
+        files = {
+            home.output_path: render(
+                "home.html", "home", home, json_ld=self._home_json_ld(site, home)
+            )
+        }
+        for archive in site.archives:
+            files[archive.route.output_path] = render(
+                "blog.html", "blog", archive.route, archive=archive
+            )
+        posts: tuple[BlogPost, ...] = context["site"].posts
+        for index, post in enumerate(posts):
+            files[post.route.output_path] = render(
+                "post.html",
+                "post",
+                post.route,
+                description=post.description,
+                json_ld=self._blog_json_ld(site, post),
+                post=post,
+                newer=posts[index - 1] if index else None,
+                older=posts[index + 1] if index + 1 < len(posts) else None,
+            )
+        ideas = routes.route("ideas")
+        files[ideas.output_path] = render("ideas.html", "ideas", ideas)
         for idea in site.ideas:
-            artifacts[idea.route.output_path] = self._render_idea(site, idea)
-        for archive in site.tag_archives:
-            artifacts[archive.route.output_path] = self.env.get_template(
-                "tag.html"
-            ).render(
-                tag_archive=archive,
-                page_canonical_url=archive.route.canonical_url,
-                **self._common_context(site),
+            files[idea.route.output_path] = render(
+                "idea.html",
+                "idea",
+                idea.route,
+                description=idea.description,
+                json_ld=self._idea_json_ld(idea),
+                idea=idea,
             )
-        return artifacts
+        about = site.about
+        files[about.route.output_path] = render(
+            "about.html",
+            "about",
+            about.route,
+            description=about.description,
+            json_ld=self._about_json_ld(site, about),
+            about=about,
+        )
+        for name in ("projects", "tags"):
+            route = routes.route(name)
+            files[route.output_path] = render(f"{name}.html", name, route)
+        for tag in site.tags:
+            files[tag.route.output_path] = render("tag.html", "tag", tag.route, tag=tag)
+        for theme_page in site.theme_pages:
+            project = theme_page.project
+            files[theme_page.route.output_path] = render(
+                theme_page.template,
+                "page",
+                theme_page.route,
+                description=(project.summary if project else "") or description,
+                project=project,
+            )
+        if self.theme.has_template(NOT_FOUND_TEMPLATE):
+            files[NOT_FOUND_TEMPLATE] = render(NOT_FOUND_TEMPLATE, "404", None)
 
-    def _common_context(self, site: SiteModel) -> dict[str, Any]:
+        files[site.feed.route.output_path] = render_atom_xml(
+            site.feed, site.metadata, home.canonical_url
+        )
+        files[routes.route("sitemap").output_path] = self._sitemap(site)
+        files[routes.route("robots").output_path] = (
+            f"User-agent: *\nAllow: /\nSitemap: {routes.route('sitemap').canonical_url}\n"
+        )
+        files[routes.route("search").output_path] = json.dumps(
+            build_search_index(site), ensure_ascii=False, separators=(",", ":")
+        )
+        return RenderedSite(files, tuple(diagnostics))
+
+    @staticmethod
+    def _site_context(site: SiteModel) -> SimpleNamespace:
         metadata = site.metadata
-        home = site.routes.route("home")
-        atom = site.routes.route("atom")
-        return {
-            "blog_title": metadata.title,
-            "github_name": metadata.github_name,
-            "github_repo": metadata.github_repo,
-            "blog_url": home.canonical_url,
-            "home_path": home.canonical_path,
-            "atom_url": atom.canonical_url,
-            "theme_favicon_url": metadata.theme.favicon_url,
-            "author_name": metadata.author,
-            "author_initials": self._author_initials(metadata.author),
-            "meta_description": metadata.description,
-            "google_search_verification": metadata.google_search_verification,
-            "theme_path": metadata.theme.asset_path,
-            "language": metadata.language,
-            "skip_link_text": "Skip to main content",
-            "navigation_items": metadata.navigation,
-            "branding": metadata.branding,
-            "comments": metadata.comments,
-            "featured_projects": site.projects.featured,
-            "metadata": metadata,
-            "site_routes": {
-                name: site.routes.route(name)
-                for name in (
-                    "home",
-                    "blog",
-                    "ideas",
-                    "about",
-                    "projects",
-                    "tags",
-                    "atom",
-                    "search",
-                )
-            },
-        }
+        routes = SimpleNamespace(
+            **{name: site.routes.route(name) for name in _SITE_ROUTES}
+        )
+        return SimpleNamespace(
+            title=metadata.title,
+            author=metadata.author,
+            description=metadata.description,
+            language=metadata.language,
+            url=routes.home.canonical_url,
+            repo=metadata.repo,
+            profile=metadata.profile,
+            navigation=metadata.navigation,
+            comments=metadata.comments,
+            seo=metadata.seo,
+            routes=routes,
+            posts=tuple(sorted(site.blogs, key=blog_post_sort_key, reverse=True)),
+            ideas=site.ideas,
+            projects=site.projects,
+            featured_projects=tuple(p for p in site.projects if p.featured),
+            tags=site.tags,
+            about=site.about,
+        )
+
+    def _theme_context(
+        self, site: SiteModel, diagnostics: list[Diagnostic]
+    ) -> SimpleNamespace:
+        """Resolved options; ``posts`` options become the Blog posts they name."""
+        values = dict(vars(self.options))
+        by_number = {post.issue_number: post for post in site.blogs}
+        for name, spec in self.theme.options.items():
+            if spec.type != "posts":
+                continue
+            found = []
+            for number in values[name]:
+                if number in by_number:
+                    found.append(by_number[number])
+                else:
+                    diagnostics.append(
+                        Diagnostic(
+                            "warning",
+                            "THEME_OPTION_POST_MISSING",
+                            f"theme.options.{name}: Issue #{number} is not a "
+                            "published Blog post; it is left out",
+                            issue_number=number,
+                            field=f"theme.options.{name}",
+                        )
+                    )
+            values[name] = tuple(found)
+        return SimpleNamespace(**values)
 
     @staticmethod
-    def _author_initials(author_name: str) -> str:
-        words = author_name.split()
-        if not words:
-            return ""
-        if len(words) == 1:
-            return words[0][:2].upper()
-        return f"{words[0][0]}{words[-1][0]}".upper()
-
-    def _render_home(self, site: SiteModel, home: HomePage) -> str:
-        context = self._common_context(site)
-        context.update(
-            {
-                "page_canonical_url": home.route.canonical_url,
-                "structured_data": self._home_json_ld(site.metadata, home),
-                "top_projects": site.projects.top_by_stars(),
-                "projects_path": site.projects.route.canonical_path,
-            }
-        )
-        return self.env.get_template("home.html").render(home_page=home, **context)
-
-    def _render_blog(
-        self,
-        site: SiteModel,
-        post: BlogPost,
-        *,
-        prev_post: BlogPost | None,
-        next_post: BlogPost | None,
-    ) -> str:
-        context = self._common_context(site)
-        context["page_canonical_url"] = post.route.canonical_url
-        context["structured_data"] = self._blog_json_ld(site.metadata, post)
-        context["prev_post"] = prev_post
-        context["next_post"] = next_post
-        return self.env.get_template("post.html").render(post=post, **context)
-
-    def _render_tag_index(self, site: SiteModel) -> str:
-        context = self._common_context(site)
-        context["page_canonical_url"] = site.tags.route.canonical_url
-        return self.env.get_template("tags.html").render(
-            tags_index=site.tags, **context
-        )
-
-    def _render_ideas(self, site: SiteModel) -> str:
-        context = self._common_context(site)
-        canonical_url = site.ideas_page.route.canonical_url
-        context["page_canonical_url"] = canonical_url
-        context["ideas_canonical_url"] = canonical_url
-        return self.env.get_template("ideas.html").render(
-            ideas=site.ideas_page.ideas, **context
-        )
-
-    def _render_idea(self, site: SiteModel, idea: Idea) -> str:
-        context = self._common_context(site)
-        context["page_canonical_url"] = idea.route.canonical_url
-        context["structured_data"] = self._article_json_ld(
-            idea.title, idea.description, idea.route.canonical_url
-        )
-        return self.env.get_template("idea.html").render(idea=idea, **context)
-
-    def _render_about(self, site: SiteModel, about: AboutPage | ProfileAbout) -> str:
-        context = self._common_context(site)
-        context["about_is_profile"] = isinstance(about, ProfileAbout)
-        context["page_canonical_url"] = about.route.canonical_url
-        context["structured_data"] = self._about_json_ld(site.metadata, about)
-        return self.env.get_template("about.html").render(about_page=about, **context)
-
-    def _render_projects(self, site: SiteModel) -> str:
-        context = self._common_context(site)
-        context["page_canonical_url"] = site.projects.route.canonical_url
-        return self.env.get_template("projects.html").render(
-            projects=site.projects, **context
-        )
-
-    @staticmethod
-    def _render_sitemap(site: SiteModel) -> str:
+    def _sitemap(site: SiteModel) -> str:
         urlset = ET.Element(
             "urlset", xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"
         )
-        for path in site.routes.sitemap_routes():
-            route = site.routes.route_for_path(path)
-            if route is None:
-                raise ValueError(f"sitemap contains unregistered route: {path}")
-            ET.SubElement(urlset, "url").append(ET.Element("loc"))
-            urlset[-1][0].text = route.canonical_url
+        for route in site.routes.sitemap_routes():
+            ET.SubElement(
+                ET.SubElement(urlset, "url"), "loc"
+            ).text = route.canonical_url
         return ET.tostring(urlset, encoding="unicode", xml_declaration=True)
 
     @staticmethod
-    def _render_robots(site: SiteModel) -> str:
-        sitemap = site.routes.route("sitemap").canonical_url
-        return f"User-agent: *\nAllow: /\nSitemap: {sitemap}\n"
-
-    @staticmethod
-    def _home_json_ld(metadata: SiteMetadata, home: HomePage) -> dict[str, Any]:
+    def _home_json_ld(site: SiteModel, home: Route) -> dict[str, Any]:
+        metadata = site.metadata
         return {
             "@context": "https://schema.org",
             "@graph": [
-                {
-                    "@type": "Person",
-                    "name": metadata.author,
-                    "url": home.route.canonical_url,
-                },
+                {"@type": "Person", "name": metadata.author, "url": home.canonical_url},
                 {
                     "@type": "WebSite",
-                    "@id": home.route.canonical_url,
+                    "@id": home.canonical_url,
                     "name": metadata.title,
-                    "url": home.route.canonical_url,
+                    "url": home.canonical_url,
                     "description": metadata.description,
                 },
             ],
@@ -239,26 +243,26 @@ class RenderService:
 
     @staticmethod
     def _about_json_ld(
-        metadata: SiteMetadata, about: AboutPage | ProfileAbout
+        site: SiteModel, about: AboutPage | ProfileAbout
     ) -> dict[str, Any]:
         if isinstance(about, ProfileAbout):
             return {
                 "@context": "https://schema.org",
                 "@type": "AboutPage",
-                "url": about.route.canonical_url,
+                "url": about.canonical_url,
                 "description": about.description,
                 "name": about.title,
             }
         return {
             "@context": "https://schema.org",
             "@type": "Person",
-            "name": metadata.author,
-            "url": about.route.canonical_url,
+            "name": site.metadata.author,
+            "url": about.canonical_url,
             "description": about.description,
         }
 
     @staticmethod
-    def _blog_json_ld(metadata: SiteMetadata, post: BlogPost) -> dict[str, Any]:
+    def _blog_json_ld(site: SiteModel, post: BlogPost) -> dict[str, Any]:
         return {
             "@context": "https://schema.org",
             "@type": "BlogPosting",
@@ -267,17 +271,15 @@ class RenderService:
             "url": post.route.canonical_url,
             "datePublished": post.published_at.astimezone(UTC).isoformat(),
             "dateModified": post.updated_at.astimezone(UTC).isoformat(),
-            "author": {"@type": "Person", "name": metadata.author},
+            "author": {"@type": "Person", "name": site.metadata.author},
         }
 
     @staticmethod
-    def _article_json_ld(
-        title: str, description: str, canonical_url: str
-    ) -> dict[str, str]:
+    def _idea_json_ld(idea: Idea) -> dict[str, str]:
         return {
             "@context": "https://schema.org",
             "@type": "Article",
-            "headline": title,
-            "description": description,
-            "url": canonical_url,
+            "headline": idea.title,
+            "description": idea.description,
+            "url": idea.canonical_url,
         }

@@ -1,0 +1,9 @@
+{#- Home introduction. Override this file in a Theme that extends Quiet to write your own. -#}
+{% set blog_link %}<a class="intro-link" href="{{ site.routes.blog.canonical_path }}">{{ t.home_intro_blog }}</a>{% endset %}
+{% set projects_link %}<a class="intro-link" href="{{ site.routes.projects.canonical_path }}">{{ t.home_intro_projects }}</a>{% endset %}
+{% set about_link %}<a class="intro-link" href="{{ site.routes.about.canonical_path }}">{{ t.home_intro_about }}</a>{% endset %}
+<div class="home-intro">
+  {% if theme.tagline %}<p class="home-tagline">{{ theme.tagline }}</p>{% endif %}
+  {% if site.profile.bio %}<p>{{ site.profile.bio }}</p>{% endif %}
+  <p lang="{{ t.language }}">{{ t.home_intro|e|replace('{blog}', blog_link)|replace('{projects}', projects_link)|replace('{about}', about_link) }}</p>
+</div>

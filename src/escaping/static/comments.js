@@ -94,13 +94,15 @@
     function showError() {
         if (!loadingMsg) return;
         loadingMsg.textContent =
+            container.dataset.unavailableText ||
             "Comments may not be available. Your network or browser privacy settings may block third-party content.";
         var link = document.createElement("a");
         link.href =
             "https://github.com/" + sourceRepo + "/issues/" + issueNumber;
         link.target = "_blank";
         link.rel = "noopener";
-        link.textContent = "View or add comment on GitHub →";
+        link.textContent =
+            container.dataset.issueLinkText || "View or add comment on GitHub →";
         loadingMsg.appendChild(document.createElement("br"));
         loadingMsg.appendChild(link);
         loadingMsg.className = "comments-error";

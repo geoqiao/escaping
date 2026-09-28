@@ -6,6 +6,7 @@ No Issue identity, defaults, publication selection, configuration or network I/O
 from __future__ import annotations
 
 import re
+import unicodedata
 from collections.abc import Sequence
 from datetime import datetime
 from typing import cast
@@ -20,6 +21,7 @@ from pygments.lexers import get_lexer_by_name
 from pygments.util import ClassNotFound
 
 from .build_result import Diagnostic
+from .routes import TAG_KEY, TAG_KEY_MAX_LENGTH
 from .utils.frontmatter import ParsedFrontMatter
 from .utils.html_sanitizer import HTMLSanitizationError, sanitize_html
 
@@ -55,6 +57,17 @@ class _SyntaxRenderer(HTMLRenderer):
 
 
 _MARKDOWN = Markdown(renderer=_SyntaxRenderer, extensions=[GFM])
+
+
+def tag_key(name: str) -> str:
+    """Route key for a tag name: NFC, casefolded, spaces/underscores to hyphens."""
+    folded = unicodedata.normalize("NFC", name).casefold()
+    return re.sub(r"[\s_-]+", "-", folded).strip("-")
+
+
+def valid_tag(name: str) -> bool:
+    key = tag_key(name)
+    return bool(TAG_KEY.fullmatch(key)) and len(key) <= TAG_KEY_MAX_LENGTH
 
 
 def valid_slug(value: str) -> bool:
@@ -96,10 +109,10 @@ def _valid_date(value: object, style: str | None) -> bool:
 def validate_authored_content(
     title: str,
     content_type: str,
-    tag_keys: Sequence[str],
+    tags: Sequence[str],
     parsed: ParsedFrontMatter,
 ) -> tuple[Diagnostic, ...]:
-    """Validate native title, resolved type/tags and explicit metadata only.
+    """Validate native title, resolved type/tag names and explicit metadata only.
 
     Callers own input shape and type selection. Missing metadata stays missing;
     Issue label normalization and Local Draft field restrictions stay at intake.
@@ -165,14 +178,18 @@ def validate_authored_content(
             )
         )
 
-    for tag in tag_keys:
-        if not _KEBAB_RE.fullmatch(tag) or len(tag) > 50:
+    for tag in tags:
+        if not valid_tag(tag):
             errors.append(
                 Diagnostic(
-                    "error", "TAG_INVALID", f"Invalid tag: {tag!r}", field="tags"
+                    "error",
+                    "TAG_INVALID",
+                    f"Tag {tag!r} must use letters, digits, spaces or hyphens "
+                    f"(at most {TAG_KEY_MAX_LENGTH} characters)",
+                    field="tags",
                 )
             )
-    if content_type == "about" and tag_keys:
+    if content_type == "about" and tags:
         errors.append(
             Diagnostic(
                 "error", "ABOUT_TAG_FORBIDDEN", "About must not have tags", field="tags"

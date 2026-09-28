@@ -8,10 +8,15 @@ from ..routes import Route
 
 @dataclass(frozen=True)
 class BlogTag:
-    """Display name and registered canonical path for one Blog tag."""
+    """A Blog tag as shown on one post: display name plus its archive Route."""
 
     name: str
-    path: str
+    key: str
+    route: Route
+
+    @property
+    def path(self) -> str:
+        return self.route.canonical_path
 
 
 @dataclass(frozen=True)

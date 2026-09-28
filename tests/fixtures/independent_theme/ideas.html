@@ -1,19 +1,18 @@
 {% extends "base.html" %}
 {% set page_title = "Ideas" %}
-{% set page_description = meta_description %}
-{% set active_destination = site_routes.ideas.canonical_path %}
+{% set active_destination = site.routes.ideas.canonical_path %}
 
 {% block content %}
 <div class="page-shell">
   <header class="page-heading">
     <p class="eyebrow">Notes in progress</p>
     <h1>Ideas</h1>
-    <p>{{ meta_description }}</p>
+    <p>{{ site.description }}</p>
   </header>
 
-  {% if ideas %}
+  {% if site.ideas %}
   <ol class="post-list">
-    {% for idea in ideas %}
+    {% for idea in site.ideas %}
     <li>
       <article>
         <h2><a href="{{ idea.canonical_path }}">{{ idea.title }}</a></h2>

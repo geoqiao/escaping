@@ -1,19 +1,18 @@
 {% extends "base.html" %}
 {% set page_title = "Projects" %}
-{% set page_description = meta_description %}
-{% set active_destination = site_routes.projects.canonical_path %}
+{% set active_destination = site.routes.projects.canonical_path %}
 
 {% block content %}
 <div class="page-shell">
   <header class="page-heading">
     <p class="eyebrow">Work</p>
     <h1>Projects</h1>
-    <p>{{ meta_description }}</p>
+    <p>{{ site.description }}</p>
   </header>
 
-  {% if projects.projects %}
+  {% if site.projects %}
   <div class="project-grid">
-    {% for project in projects.projects %}
+    {% for project in site.projects %}
     <article class="project-card">
       <h2><a href="{{ project.url }}">{{ project.title }}</a></h2>
       <p>{{ project.summary }}</p>

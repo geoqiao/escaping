@@ -41,15 +41,27 @@ A trusted presentation of the site's pages and content, selected independently f
 _Avoid_: Publishing plugin, content source
 
 **Theme API**:
-The versioned compatibility agreement defining the page information, assets and presentation behavior a Theme can rely on. Its version is distinct from the Site Compiler's release identity.
+The versioned agreement between the Site Compiler and a Theme: the `theme.yaml` manifest, the four template names (`site`, `page`, `theme`, `t`), the page templates the compiler renders and the `/assets/` URL space. Its version is distinct from the Site Compiler's release identity.
 _Avoid_: Visual style version, automatic compatibility adapter
 
 **Built-in Theme**:
-A Theme distributed with the Site Compiler. Quiet is the sole built-in and default Theme; other presentations are independently maintained local Themes.
+A Theme distributed with the Site Compiler. Quiet is the sole built-in and default Theme and uses the same Theme API as a local Theme, without special treatment.
 _Avoid_: Downloaded theme, compiler cache
 
+**Theme Option**:
+A presentation choice declared with a type and default by a Theme's manifest and set by the site under `theme.options`. It has no meaning after switching to a Theme that does not declare it.
+_Avoid_: Site setting, generator config
+
+**Theme Page**:
+An extra page declared by a Theme, either at one fixed route or once per Project Catalog Entry. Its route is registered with the same registry as compiler pages.
+_Avoid_: Plugin page, site script
+
+**Skipped Issue**:
+Published Issue Content whose own content is invalid. It is left out of one build and reported by Issue number while the rest of the site is published.
+_Avoid_: Draft, unpublished Issue
+
 **Site Orchestrator**:
-The site-repository automation that prepares publishing labels, reacts to repository events, and builds and deploys the site. It selects a stable release or an explicit fixed version and fixes the actual Site Compiler identity for each build.
+The site-repository automation that prepares publishing labels, reacts to repository events, and builds and deploys the site. It pins the Site Compiler by release tag or full commit SHA in `uses:` and calls the generator's reusable Action; it changes version only when the site edits that pin.
 _Avoid_: escaping daemon, watcher, compiler workflow
 
 **Published Content**:
@@ -73,13 +85,9 @@ A repository-owned, curated description of a project displayed by the personal s
 _Avoid_: Project issue, repository mirror
 
 **Site Profile**:
-The site's structured identity and presentation data, supplied by repository-owned choices with missing values drawn from public GitHub profile data. It is distinct from an author's About Issue narrative.
+The site's structured identity data (avatar, bio, links), supplied by repository-owned choices with missing values drawn from public GitHub profile data. It is distinct from an author's About Issue narrative and from Theme Options.
 _Avoid_: About Issue metadata
 
 **Profile About**:
 An About page presenting profile information when no About Issue is selected. It is not Issue Content and has no Issue identity or discussion thread.
 _Avoid_: Placeholder Issue, generated About Issue
-
-**Site Thesis**:
-A repository-owned statement arranged in one or more deliberate lines and made available as an optional Theme presentation hint; configuring it does not require a Theme to place slogan copy on Home.
-_Avoid_: Theme copy, Site Profile bio, hero placeholder

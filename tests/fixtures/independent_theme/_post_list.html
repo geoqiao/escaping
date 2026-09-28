@@ -1,0 +1,22 @@
+{% if posts %}
+<ol class="post-list">
+  {% for post in posts %}
+  <li>
+    <article>
+      <h2><a href="{{ post.canonical_path }}">{{ post.title }}</a></h2>
+      <p class="meta"><time>{{ post.created_date }}</time></p>
+      {% if show_descriptions %}<p>{{ post.description }}</p>{% endif %}
+      {% if post.tags %}
+      <ul class="tag-list" aria-label="Post tags">
+        {% for tag in post.tags %}
+        <li><a href="{{ tag.path }}">{{ tag.name }}</a></li>
+        {% endfor %}
+      </ul>
+      {% endif %}
+    </article>
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<p class="empty-state">{{ t.no_posts }}</p>
+{% endif %}

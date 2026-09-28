@@ -1,0 +1,10 @@
+{% extends 'base.html' %}
+{% set page_title = t.ideas %}
+{% set active_section = site.routes.ideas.canonical_path %}
+{% block content %}
+<div class="page-heading"><p class="eyebrow">{{ t.ideas_eyebrow }}</p><h1>{{ t.ideas }}<span class="heading-dot" aria-hidden="true">.</span></h1><p>{{ t.ideas_caption }}</p></div>
+<div class="idea-list">
+{% for idea in site.ideas %}<article class="idea-entry"><time datetime="{{ idea.created_date }}">{{ idea.created_date }}</time><h2><a href="{{ idea.route.canonical_path }}">{{ idea.title }} ↗</a></h2><p>{{ idea.description }}</p></article>
+{% else %}<section class="empty-state"><span class="empty-mark" aria-hidden="true">…</span><h2>{{ t.ideas_empty_title }}</h2><p>{{ t.ideas_empty_body }}</p><a class="read-link" href="{{ site.routes.blog.canonical_path }}">{{ t.explore_writing }} ↗</a></section>{% endfor %}
+</div>
+{% endblock %}

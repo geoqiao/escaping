@@ -1,0 +1,69 @@
+name: escaping
+description: Build a personal website from the GitHub Issues of this repository.
+author: geoqiao
+branding:
+  icon: book-open
+  color: purple
+
+inputs:
+  config:
+    description: Site Config file, relative to the repository root.
+    default: config.yaml
+  token:
+    description: Token that can read this repository's Issues and Pages settings.
+    default: ${{ github.token }}
+
+outputs:
+  output:
+    description: Directory of the built site; pass it to actions/upload-pages-artifact.
+    value: ${{ steps.build.outputs.output }}
+  skipped-issues:
+    description: Comma-separated Issues left out because of their own errors; empty when none.
+    value: ${{ steps.build.outputs.skipped-issues }}
+
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@20cfd1bf945f4377ade1205e4dbc17946fc9a30d # v10.0.1
+      with:
+        version: "0.12.0"
+        enable-cache: false
+
+    - name: Read the repository and Pages settings
+      shell: bash
+      env:
+        GH_TOKEN: ${{ inputs.token }}
+      run: |
+        set -euo pipefail
+        repo=$(gh api "repos/$GITHUB_REPOSITORY")
+        if ! pages=$(gh api "repos/$GITHUB_REPOSITORY/pages" 2>/dev/null) \
+          || [ "$(jq -r .build_type <<<"$pages")" != workflow ]; then
+          echo "::error title=GitHub Pages::In Settings → Pages, set Source to GitHub Actions, then run the workflow again."
+          exit 1
+        fi
+        jq -n --argjson repo "$repo" --argjson pages "$pages" '{
+          repository: $repo.full_name,
+          owner_login: $repo.owner.login,
+          owner_type: $repo.owner.type,
+          pages_base_url: $pages.html_url,
+          pages_base_path: "/"
+        }' > "$RUNNER_TEMP/escaping-context.json"
+
+    - name: Build the site
+      id: build
+      shell: bash
+      env:
+        ESCAPING_CONFIG: ${{ inputs.config }}
+        ESCAPING_TOKEN: ${{ inputs.token }}
+        UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/escaping-venv
+      run: |
+        set -euo pipefail
+        status=0
+        uv run --project "$GITHUB_ACTION_PATH" --locked --python 3.14 \
+          --no-default-groups --group build --no-build-isolation-package escpe \
+          escpe build --config "$ESCAPING_CONFIG" \
+          --context "$RUNNER_TEMP/escaping-context.json" --token-env ESCAPING_TOKEN \
+          || status=$?
+        # 2: published, but some Issues were skipped; the skipped-issues output says which.
+        if [ "$status" -eq 2 ]; then exit 0; fi
+        exit "$status"
