@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% set page_title = page.about.title %}
+{% set page_title = page.item.title %}
 {% set active_destination = site.routes.about.canonical_path %}
 
 {% block content %}
@@ -7,13 +7,13 @@
   <article class="detail-page">
     <header class="page-heading">
       <p class="eyebrow">About</p>
-      <h1>{{ page.about.title }}</h1>
+      <h1>{{ page.item.title }}</h1>
     </header>
-    {% if page.about.is_profile %}
-    <p class="lead">{{ page.about.description }}</p>
+    {% if page.item.is_profile %}
+    <p class="lead">{{ page.item.description }}</p>
     {% else %}
-    <div class="rich-content" tabindex="0" role="region" aria-label="About content">{{ page.about.body_html|safe }}</div>
-    {% set comments_issue_number = page.about.issue_number %}
+    <div class="rich-content" tabindex="0" role="region" aria-label="About content">{{ page.item.body_html|safe }}</div>
+    {% set comments_issue_number = page.item.issue_number %}
     {% include "_comments.html" %}
     {% endif %}
   </article>

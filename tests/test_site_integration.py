@@ -112,7 +112,7 @@ def _theme(
     theme = root / where
     theme.mkdir(parents=True)
     (theme / "theme.yaml").write_text(
-        manifest or "api: 3\nextends: quiet\n", encoding="utf-8"
+        manifest or "api: 4\nextends: quiet\n", encoding="utf-8"
     )
     for name, text in files.items():
         (theme / name).write_text(text, encoding="utf-8")
@@ -201,9 +201,9 @@ def _theme_in_output(root: Path) -> dict[str, Any]:
             "theme.options.taglin",
         ),
         (
-            lambda root: {"theme": {"use": _theme(root, {}, "api: 3\n")}},
+            lambda root: {"theme": {"use": _theme(root, {}, "api: 4\n")}},
             "THEME_INVALID",
-            "missing template home.html",
+            "missing template blog.html",
         ),
         (lambda root: {"paths": {"output": ".."}}, "OUTPUT_UNSAFE", "(..)"),
         (_unowned_output, "OUTPUT_UNSAFE", "did not create"),
@@ -228,24 +228,28 @@ def test_local_problems_fail_before_any_issue_is_read(
     assert sorted(tmp_path.rglob("*")) == before
 
 
-def test_theme_pages_and_navigation_reach_the_output(tmp_path: Path) -> None:
+def test_extra_pages_and_navigation_reach_the_output(tmp_path: Path) -> None:
     template = (
         '{% extends "base.html" %}{% block content %}'
         '<h1>{{ page.project.title if page.project else "Now" }}</h1>'
         "{% endblock %}"
     )
-    use = _theme(
-        tmp_path,
-        {"now.html": template, "work.html": template},
-        "api: 3\nextends: quiet\npages:\n"
-        "  - path: /now/\n    template: now.html\n"
-        "  - path: /work/{slug}/\n    template: work.html\n    for_each: projects\n",
-    )
+    use = _theme(tmp_path, {"now.html": template, "work.html": template})
     site = _settings().model_dump()["site"]
     site["navigation"] = {"items": [{"name": "Now", "url": "/now/"}]}
     settings = _settings(
         site=site,
         theme={"use": use},
+        pages={
+            "extra": [
+                {"path": "/now/", "template": "now.html"},
+                {
+                    "path": "/work/{slug}/",
+                    "template": "work.html",
+                    "for_each": "projects",
+                },
+            ]
+        },
         projects=[
             {"repository": "geoqiao/escaping"},
             {"website": "https://example.org/", "slug": "site", "title": "Site"},

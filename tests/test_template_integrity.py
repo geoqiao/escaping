@@ -261,7 +261,11 @@ def test_profile_about_is_escaped_and_has_no_issue_features(
 def test_a_theme_extending_quiet_overrides_partials_strings_and_assets(
     tmp_path: Path,
 ) -> None:
-    settings = _settings("extends", options={"now_text": "Reading <books>."})
+    settings = _settings(
+        "extends",
+        options={"now_text": "Reading <books>."},
+        pages={"extra": [{"path": "/now/", "template": "now.html"}]},
+    )
 
     pages = _pages(tmp_path, settings)
 

@@ -389,7 +389,7 @@ def test_unicode_tags_keep_display_names_and_share_keys() -> None:
         ("Machine Learning", "machine-learning"),
         ("示例 标签", "示例-标签"),
     ]
-    assert tags[1].route.output_path == "tags/示例-标签/index.html"
+    assert tags[1].path == "/tags/%E7%A4%BA%E4%BE%8B-%E6%A0%87%E7%AD%BE/"
 
 
 @pytest.mark.parametrize("kind,number", [("idea", 2), ("about", 10)])
@@ -548,3 +548,39 @@ def test_about_discovery_requires_a_unique_valid_published_candidate() -> None:
     invalid = discover([_snapshot(42, "about", metadata="slug: forbidden")])
     assert "SLUG_FORBIDDEN" in _codes(invalid) and invalid.about is None
     assert not invalid.has_errors and invalid.skipped == (42,)
+
+
+def test_issues_of_a_section_that_is_off_are_left_out_with_a_warning() -> None:
+    settings = Settings.model_validate(
+        {
+            **_settings().model_dump(),
+            "about": {},
+            "pages": {"ideas": False, "about": False, "tags": False},
+        }
+    )
+    routes = RouteRegistry(str(settings.site.url), settings.pages.sections())
+
+    result = ContentCompiler(settings, route_registry=routes).compile(
+        [
+            _snapshot(1, "blog", labels=("tag:Python",)),
+            _snapshot(2, "idea"),
+            _snapshot(3, "about"),
+        ]
+    )
+
+    assert not result.has_errors and result.skipped == ()
+    assert [post.issue_number for post in result.blogs] == [1]
+    assert result.ideas == () and result.about is None
+    assert [(tag.name, tag.path) for tag in result.blogs[0].tags] == [("Python", None)]
+    assert [(d.severity, d.code, d.message) for d in result.diagnostics] == [
+        (
+            "warning",
+            "PAGE_OFF",
+            "Issue #2: is type:idea but pages.ideas is false; it is not published",
+        ),
+        (
+            "warning",
+            "PAGE_OFF",
+            "Issue #3: is type:about but pages.about is false; it is not published",
+        ),
+    ]

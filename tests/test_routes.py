@@ -105,13 +105,13 @@ def test_unicode_tag_routes_encode_urls_and_keep_raw_file_names() -> None:
             registry.tag(key)
 
 
-def test_theme_pages_are_directory_routes_checked_for_collisions() -> None:
+def test_extra_pages_are_directory_routes_checked_for_collisions() -> None:
     registry = RouteRegistry("https://geoqiao.me")
     registry.projects()
-    page = registry.theme_page("/projects/escaping/")
+    page = registry.extra_page("/projects/escaping/")
     assert page.output_path == "projects/escaping/index.html"
     assert registry.route_for_path("/projects/escaping/") is page
-    assert registry.theme_page("/projects/escaping/") is page
+    assert registry.extra_page("/projects/escaping/") is page
     for path in ("/Projects/Escaping/", "/now", "now/", "/../x/"):
         with pytest.raises(RouteCollisionError):
-            registry.theme_page(path)
+            registry.extra_page(path)

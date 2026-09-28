@@ -1,6 +1,7 @@
-# Extends the built-in Quiet: overrides two partials, adds an option, a
-# static page and one page per configured project.
-api: 3
+# Extends the built-in Quiet: overrides two partials, adds an option and the
+# templates for two extra pages (now.html, project.html). The site turns those
+# pages on under pages.extra in its config.yaml.
+api: 4
 extends: quiet
 
 options:
@@ -8,13 +9,6 @@ options:
     type: string
     default: Working on escaping.
     description: Shown on /now/ and in a head meta tag.
-
-pages:
-  - path: /now/
-    template: now.html
-  - path: /projects/{slug}/
-    template: project.html
-    for_each: projects
 
 strings:
   en:

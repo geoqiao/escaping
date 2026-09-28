@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% set page_title = page.post.title %}
+{% set page_title = page.item.title %}
 {% set active_destination = site.routes.blog.canonical_path %}
 
 {% block content %}
@@ -7,19 +7,19 @@
   <article class="detail-page">
     <header class="page-heading">
       <p class="eyebrow">Blog</p>
-      <h1>{{ page.post.title }}</h1>
-      <p class="meta"><time>{{ page.post.created_date }}</time></p>
-      {% if page.post.tags %}
+      <h1>{{ page.item.title }}</h1>
+      <p class="meta"><time>{{ page.item.created_date }}</time></p>
+      {% if page.item.tags %}
       <ul class="tag-list" aria-label="Post tags">
-        {% for tag in page.post.tags %}
+        {% for tag in page.item.tags %}
         <li><a href="{{ tag.path }}">{{ tag.name }}</a></li>
         {% endfor %}
       </ul>
       {% endif %}
     </header>
-    <div class="rich-content" tabindex="0" role="region" aria-label="Post content">{{ page.post.body_html|safe }}</div>
+    <div class="rich-content" tabindex="0" role="region" aria-label="Post content">{{ page.item.body_html|safe }}</div>
 
-    {% set comments_issue_number = page.post.issue_number %}
+    {% set comments_issue_number = page.item.issue_number %}
     {% include "_comments.html" %}
   </article>
 

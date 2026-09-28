@@ -28,16 +28,24 @@ from pydantic import (
     StrictBool,
     StrictInt,
     ValidationError,
+    ValidationInfo,
     field_validator,
     model_validator,
 )
 
+from .routes import Sections
 from .utils.frontmatter import _StrictYAMLLoader
 
 _ENV_VAR_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9_.-]+$")
 _SLUG_PATTERN = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _BUILTIN_THEME_PATTERN = re.compile(r"^[a-z][a-z0-9-]*$")
+_SECTION_PATH = re.compile(r"^/(?:[a-z0-9-]+/)+$")
+_EXTRA_PATH = re.compile(r"^/(?:[a-z0-9-]+/|\{slug\}/)+$")
+#: Sections in navigation order; the first three own every address below them.
+_SECTIONS = ("blog", "ideas", "tags", "projects", "about")
+_PREFIX_SECTIONS = ("blog", "ideas", "tags")
+_ASSETS = "/assets/"
 
 #: Fields removed by the Theme API 3 split, with where they went.
 _MOVED_FIELDS: dict[tuple[str, ...], str] = {
@@ -182,22 +190,21 @@ class Link(_Strict):
         return validate_safe_href(v)
 
 
-def _default_navigation() -> list[Link]:
-    return [
-        Link(name=name, url=url)
-        for name, url in (
-            ("Home", "/"),
-            ("Blog", "/blog/"),
-            ("Projects", "/projects/"),
-            ("Tags", "/tags/"),
-            ("About", "/about/"),
-            ("RSS", "/atom.xml"),
-        )
+def default_navigation(sections: Sections) -> list[Link]:
+    """Home, Blog, then Projects, Tags and About when they are on, then RSS."""
+    items = [("Home", "/"), ("Blog", sections.blog)]
+    items += [
+        (name.title(), path)
+        for name in ("projects", "tags", "about")
+        if (path := getattr(sections, name))
     ]
+    return [Link(name=name, url=url) for name, url in (*items, ("RSS", "/atom.xml"))]
 
 
 class NavigationConfig(_Strict):
-    items: list[Link] = Field(default_factory=_default_navigation)
+    """``items`` left out means the default for the pages that are on."""
+
+    items: list[Link] | None = None
 
 
 class SiteConfig(_Strict):
@@ -274,6 +281,133 @@ class AboutConfig(_Strict):
 class PathsConfig(_Strict):
     output: str = "output"
     page_size: StrictInt = Field(default=10, gt=0)
+
+
+def _section_path(value: object, name: str) -> str | None:
+    default = getattr(Sections(), name)
+    if value is True:
+        return default
+    if value is False:
+        if name == "blog":
+            raise ValueError("the Blog cannot be turned off")
+        return None
+    if not isinstance(value, str) or not _SECTION_PATH.fullmatch(value):
+        off = "" if name == "blog" else ", or false to turn the page off"
+        raise ValueError(
+            f"use a path of lowercase segments ending with /, like {default}{off}"
+        )
+    if value.startswith(_ASSETS):
+        raise ValueError(f"{_ASSETS} is reserved for static files")
+    return value
+
+
+class ExtraPageConfig(_Strict):
+    """A page the Theme renders with its own template, once or per project."""
+
+    path: str
+    template: str
+    for_each: Literal["projects"] | None = None
+
+    @field_validator("path")
+    @classmethod
+    def validate_path(cls, v: str) -> str:
+        if not _EXTRA_PATH.fullmatch(v):
+            raise ValueError("use lowercase segments ending with /, like /now/")
+        if v.startswith(_ASSETS):
+            raise ValueError(f"{_ASSETS} is reserved for static files")
+        return v
+
+    @field_validator("template")
+    @classmethod
+    def validate_template(cls, v: str) -> str:
+        template = PurePosixPath(v)
+        if (
+            template.is_absolute()
+            or ".." in template.parts
+            or "\\" in v
+            or template.suffix != ".html"
+        ):
+            raise ValueError("use a template file name in the Theme, like now.html")
+        return v
+
+    @model_validator(mode="after")
+    def slug_with_for_each(self) -> Self:
+        per_project = self.for_each == "projects"
+        if (self.path.count("{slug}") == 1) != per_project:
+            raise ValueError(
+                "use {slug} in path exactly once with for_each: projects, "
+                "and not otherwise"
+            )
+        if "{slug}" in self.template and not per_project:
+            raise ValueError("template may use {slug} only with for_each: projects")
+        return self
+
+    def path_for(self, slug: str | None) -> str:
+        return self.path.replace("{slug}", slug) if slug else self.path
+
+    def template_for(self, slug: str | None) -> str:
+        return self.template.replace("{slug}", slug) if slug else self.template
+
+
+class PagesConfig(_Strict):
+    """Which pages the site has and where. Home is always ``/``.
+
+    A section is a path such as ``/notes/``, ``true`` for its default path, or
+    ``false`` to turn it off. The Blog cannot be turned off.
+    """
+
+    blog: str = "/blog/"
+    ideas: str | None = "/ideas/"
+    tags: str | None = "/tags/"
+    projects: str | None = "/projects/"
+    about: str | None = "/about/"
+    extra: list[ExtraPageConfig] = Field(default_factory=list)
+
+    @field_validator(*_SECTIONS, mode="before")
+    @classmethod
+    def validate_section(cls, v: object, info: ValidationInfo) -> str | None:
+        return _section_path(v, str(info.field_name))
+
+    @model_validator(mode="after")
+    def distinct_paths(self) -> Self:
+        sections = [(name, getattr(self, name)) for name in _SECTIONS]
+        on = [(name, path) for name, path in sections if path]
+        problems = []
+        for index, (name, path) in enumerate(on):
+            for other, other_path in on[index + 1 :]:
+                if path == other_path:
+                    problems.append(f"{name} and {other} use the same path {path}")
+                elif other_path.startswith(path) or path.startswith(other_path):
+                    problems.append(
+                        f"{name} ({path}) and {other} ({other_path}) must not be "
+                        "inside each other"
+                    )
+        seen: set[str] = set()
+        for index, page in enumerate(self.extra):
+            where = f"extra.{index}.path {page.path}"
+            if page.path in seen:
+                problems.append(f"{where} is listed twice")
+            seen.add(page.path)
+            for name, path in on:
+                if page.path == path:
+                    problems.append(f"{where} is already the {name} page")
+                elif name in _PREFIX_SECTIONS and page.path.startswith(path):
+                    problems.append(
+                        f"{where} is inside {name} ({path}), which owns every "
+                        "address below it"
+                    )
+        if problems:
+            raise ValueError("; ".join(problems))
+        return self
+
+    def sections(self) -> Sections:
+        return Sections(
+            blog=self.blog,
+            ideas=self.ideas,
+            tags=self.tags,
+            projects=self.projects,
+            about=self.about,
+        )
 
 
 class ThemeConfig(_Strict):
@@ -423,6 +557,7 @@ class Settings(_Strict):
     profile: ProfileConfig = Field(default_factory=ProfileConfig)
     about: AboutConfig = Field(default_factory=AboutConfig)
     paths: PathsConfig = Field(default_factory=PathsConfig)
+    pages: PagesConfig = Field(default_factory=PagesConfig)
     theme: ThemeConfig = Field(default_factory=ThemeConfig)
     seo: SeoConfig = Field(default_factory=SeoConfig)
     comments: CommentsConfig = Field(default_factory=CommentsConfig)
@@ -442,6 +577,20 @@ class Settings(_Strict):
                 "set a distinct slug for each"
             )
         return v
+
+    @model_validator(mode="after")
+    def about_page_on(self) -> Self:
+        if self.about.issue_number is not None and self.pages.about is None:
+            raise ValueError(
+                "about.issue_number is set but pages.about is false; remove one of them"
+            )
+        return self
+
+    @property
+    def navigation(self) -> list[Link]:
+        """The configured navigation, or the default for the pages that are on."""
+        items = self.site.navigation.items
+        return items if items is not None else default_navigation(self.pages.sections())
 
 
 # Only these identities can be supplied later by resolve_settings.

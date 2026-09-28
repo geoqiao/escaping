@@ -1,8 +1,8 @@
 # escaping site Config — a full reference; almost every field is optional.
 #
 # Two layers:
-#   * Site fields (github, site, profile, about, paths, projects, comments,
-#     seo, security) keep their meaning whichever Theme you use.
+#   * Site fields (github, site, profile, about, paths, pages, projects,
+#     comments, seo, security) keep their meaning whichever Theme you use.
 #   * theme.options belong to the Theme; its theme.yaml lists them.
 #
 # In the GitHub Action, the repository, site.url, title, author, avatar and
@@ -22,8 +22,9 @@ site:
   author: Your Name
   description: Short description
   language: en # Also picks the Theme's UI strings, e.g. zh for Chinese.
-  # The full default menu. An explicit items list replaces it; use items: []
-  # for none. Links to site pages must point at pages that exist.
+  # Left out, the menu is Home, Blog, then Projects, Tags and About when those
+  # pages are on, then RSS. An items list replaces it; use items: [] for none.
+  # Links to site pages must point at pages that exist.
   # navigation:
   #   items:
   #     - name: Home
@@ -54,6 +55,23 @@ profile:
 # paths:
 #   output: output   # Replaced on every build; keep your own files elsewhere.
 #   page_size: 10
+
+# Which pages the site has and at which address. Home is always /. Each
+# section is a path, or false to turn it off; the Blog is always on. The Theme
+# needs tags.html and projects.html while those pages are on.
+# pages:
+#   blog: /blog/ # posts at /blog/<slug>/, older pages at /blog/page/2/
+#   ideas: /ideas/ # Ideas at /ideas/<number>/
+#   tags: /tags/ # one page per tag at /tags/<tag>/
+#   projects: /projects/
+#   about: /about/
+#   # More pages, each rendered by a template of your Theme, e.g.:
+#   #   - path: /now/
+#   #     template: now.html
+#   #   - path: /projects/{slug}/ # one page per project
+#   #     template: project.html
+#   #     for_each: projects
+#   extra: []
 
 theme:
   use: quiet # A built-in Theme, or a directory next to this file: ./theme

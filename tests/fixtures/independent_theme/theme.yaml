@@ -1,5 +1,5 @@
-# A small Theme written only against the public Theme API 3 contract.
-api: 3
+# A small Theme written only against the public Theme API 4 contract.
+api: 4
 
 options:
   footer_note:

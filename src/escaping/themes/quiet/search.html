@@ -12,7 +12,7 @@
   <div class="search-error" hidden>
     <button type="button" class="search-retry">{{ t.search_retry }}</button>
     <a href="{{ site.routes.blog.canonical_path }}">{{ t.browse_blog }}</a>
-    <a href="{{ site.routes.tags.canonical_path }}">{{ t.browse_tags }}</a>
+    {% if site.routes.tags %}<a href="{{ site.routes.tags.canonical_path }}">{{ t.browse_tags }}</a>{% endif %}
   </div>
   <ul class="search-results" aria-label="{{ t.search_results }}"></ul>
   <div class="search-footer"><span>{{ t.search_select_hint }}</span><span>{{ t.search_close_hint }}</span></div>

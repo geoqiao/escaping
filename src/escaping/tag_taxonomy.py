@@ -16,5 +16,7 @@ def build_tag_taxonomy(posts: Sequence[BlogPost]) -> TagTaxonomyResult:
     for key in sorted(grouped):
         members = grouped[key]
         first = next(tag for tag in members[0].tags if tag.key == key)
+        if first.route is None:
+            raise ValueError("tag pages are off; there is no taxonomy to build")
         tags.append(Tag(first.name, key, first.route, tuple(members)))
     return TagTaxonomyResult(tags=tuple(tags))

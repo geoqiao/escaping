@@ -16,6 +16,20 @@ class RouteCollisionError(ValueError):
 
 
 @dataclass(frozen=True)
+class Sections:
+    """Where each section lives, from ``pages`` in the Config.
+
+    ``None`` turns a section off. The Blog is always on; Home is always ``/``.
+    """
+
+    blog: str = "/blog/"
+    ideas: str | None = "/ideas/"
+    tags: str | None = "/tags/"
+    projects: str | None = "/projects/"
+    about: str | None = "/about/"
+
+
+@dataclass(frozen=True)
 class Route:
     """One page address. ``canonical_path`` and ``canonical_url`` are
     percent-encoded; ``output_path`` is the file path relative to the output."""
@@ -29,7 +43,7 @@ class Route:
 class RouteRegistry:
     """The single route/origin registry used by pages, links, and SEO outputs."""
 
-    def __init__(self, origin: str) -> None:
+    def __init__(self, origin: str, sections: Sections | None = None) -> None:
         parsed = urlsplit(origin)
         if (
             parsed.scheme != "https"
@@ -42,6 +56,7 @@ class RouteRegistry:
         ):
             raise ValueError("RouteRegistry origin must be an HTTPS origin")
         self.origin = f"https://{parsed.netloc}"
+        self.sections = sections or Sections()
         self._routes: dict[str, Route] = {}
         self._canonical_keys: dict[str, Route] = {}
         self._output_paths: dict[str, Route] = {}
@@ -90,58 +105,54 @@ class RouteRegistry:
     def blog_archive(self, page_number: int = 1) -> Route:
         if page_number < 1:
             raise ValueError("blog archive page number must be positive")
+        blog = self.sections.blog
         if page_number == 1:
-            return self.register("blog", "/blog/", "blog/index.html")
-        return self.register(
-            f"blog-page-{page_number}",
-            f"/blog/page/{page_number}/",
-            f"blog/page/{page_number}/index.html",
-        )
+            return self._page("blog", blog)
+        return self._page(f"blog-page-{page_number}", f"{blog}page/{page_number}/")
 
     def blog_detail(self, slug: str) -> Route:
         if not _KEBAB.fullmatch(slug) or slug == "page":
             raise RouteCollisionError(f"reserved or invalid Blog slug: {slug!r}")
-        return self.register(
-            f"blog-detail-{slug}",
-            f"/blog/{slug}/",
-            f"blog/{slug}/index.html",
-        )
+        return self._page(f"blog-detail-{slug}", f"{self.sections.blog}{slug}/")
 
     def ideas(self) -> Route:
-        return self.register("ideas", "/ideas/", "ideas/index.html")
+        return self._page("ideas", self._section("ideas"))
 
     def idea(self, issue_number: int) -> Route:
         if issue_number <= 0:
             raise ValueError("Idea Issue number must be positive")
-        return self.register(
-            f"idea-{issue_number}",
-            f"/ideas/{issue_number}/",
-            f"ideas/{issue_number}/index.html",
+        return self._page(
+            f"idea-{issue_number}", f"{self._section('ideas')}{issue_number}/"
         )
 
     def about(self) -> Route:
-        return self.register("about", "/about/", "about/index.html")
+        return self._page("about", self._section("about"))
 
     def projects(self) -> Route:
-        return self.register("projects", "/projects/", "projects/index.html")
+        return self._page("projects", self._section("projects"))
 
     def tags(self) -> Route:
-        return self.register("tags", "/tags/", "tags/index.html")
+        return self._page("tags", self._section("tags"))
 
     def tag(self, tag_key: str) -> Route:
         if not TAG_KEY.fullmatch(tag_key) or len(tag_key) > TAG_KEY_MAX_LENGTH:
             raise RouteCollisionError(f"invalid tag key: {tag_key!r}")
-        return self.register(
-            f"tag-{tag_key}",
-            f"/tags/{tag_key}/",
-            f"tags/{tag_key}/index.html",
-        )
+        return self._page(f"tag-{tag_key}", f"{self._section('tags')}{tag_key}/")
 
-    def theme_page(self, path: str) -> Route:
-        """Register a page declared by the Theme at a directory-style path."""
+    def extra_page(self, path: str) -> Route:
+        """Register a page from ``pages.extra`` at a directory-style path."""
         if not path.startswith("/") or not path.endswith("/"):
-            raise RouteCollisionError(f"Theme page path must end with '/': {path!r}")
-        return self.register(f"page-{path}", path, f"{path[1:]}index.html")
+            raise RouteCollisionError(f"page path must end with '/': {path!r}")
+        return self._page(f"page-{path}", path)
+
+    def _section(self, name: str) -> str:
+        path = getattr(self.sections, name)
+        if path is None:
+            raise RouteCollisionError(f"pages.{name} is off")
+        return path
+
+    def _page(self, name: str, path: str) -> Route:
+        return self.register(name, path, f"{path[1:]}index.html")
 
     def atom(self) -> Route:
         return self.register("atom", "/atom.xml", "atom.xml")
@@ -157,6 +168,10 @@ class RouteRegistry:
 
     def route(self, name: str) -> Route:
         return self._routes[name]
+
+    def get(self, name: str) -> Route | None:
+        """The Route called ``name``, or None when that page is off."""
+        return self._routes.get(name)
 
     def route_for_path(self, path: str) -> Route | None:
         """Look up an emitted URL path (raw or percent-encoded), case-sensitively."""

@@ -44,7 +44,7 @@ def prepare_theme(
     """
     theme = ThemeLoader(config_root).load(settings.theme.use)
     options = theme.resolve_options(settings.theme.options)
-    theme.check(project.slug for project in settings.projects)
+    theme.check(settings.pages, (project.slug for project in settings.projects))
     return theme, options
 
 
@@ -56,12 +56,12 @@ def compile_site(
     project_enricher: ProjectEnricher | None,
     build_start_time: datetime,
 ) -> SiteModel:
-    routes = RouteRegistry(str(settings.site.url))
+    routes = RouteRegistry(str(settings.site.url), settings.pages.sections())
     register_fixed_routes(routes)  # the sitemap lists them first
     content = ContentCompiler(settings, route_registry=routes).compile(snapshots)
     projects = ProjectCompiler(project_enricher).compile(settings.projects)
     return SiteBuilder(settings, route_registry=routes).build(
-        content, projects, pages=theme.pages, build_start_time=build_start_time
+        content, projects, pages=settings.pages.extra, build_start_time=build_start_time
     )
 
 
@@ -229,21 +229,30 @@ def _sample_content(settings: Settings) -> tuple[Settings, list[IssueSnapshot]]:
             number, title, author, body, ("published", *labels), created, created, False
         )
 
-    about = 4
-    return settings.model_copy(update={"about": AboutConfig(issue_number=about)}), [
+    pages = settings.pages
+    issues = [
         issue(
             1,
             "A sample post",
             ("type:blog", "tag:Sample", "tag:示例 标签"),
             '---\ndescription: "A sample post with code, a table and a diagram."\n'
-            "---\n## A heading\n\nText with a [link to About](/about/) and "
-            "`inline code`.\n\n```python\nprint('hello')\n```\n\n"
+            f"---\n## A heading\n\nText with a [link to the Blog]({pages.blog}) "
+            "and `inline code`.\n\n```python\nprint('hello')\n```\n\n"
             "| A | B |\n| - | - |\n| 1 | 2 |\n\n```mermaid\ngraph LR\n  A --> B\n```\n",
         ),
         issue(2, "Another sample post", ("type:blog", "tag:Sample"), "Short post."),
-        issue(3, "A sample idea", ("type:idea", "tag:Thought"), "A short thought."),
-        issue(about, "About", ("type:about",), "A sample About page."),
     ]
+    if pages.ideas:
+        issues.append(
+            issue(3, "A sample idea", ("type:idea", "tag:Thought"), "A short thought.")
+        )
+    if not pages.about:
+        return settings, issues
+    about = 4
+    issues.append(issue(about, "About", ("type:about",), "A sample About page."))
+    return settings.model_copy(
+        update={"about": AboutConfig(issue_number=about)}
+    ), issues
 
 
 def _check_theme_outside_output(theme: LoadedTheme, output: Path) -> None:

@@ -10,7 +10,7 @@
     <p><a href="{{ site.routes.tags.canonical_path }}">All tags</a></p>
   </header>
 
-  {% set posts = page.tag.posts %}{% set show_descriptions = false %}
+  {% set posts = page.items %}{% set show_descriptions = false %}
   {% include "_post_list.html" %}
 </div>
 {% endblock %}

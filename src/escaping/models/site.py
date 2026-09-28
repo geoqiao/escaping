@@ -54,8 +54,8 @@ class SiteMetadata:
 
 
 @dataclass(frozen=True)
-class ThemePage:
-    """An extra page declared by the Theme; ``project`` is set for ``for_each``."""
+class ExtraPage:
+    """A page from ``pages.extra``; ``project`` is set for ``for_each``."""
 
     route: Route
     template: str
@@ -70,10 +70,10 @@ class SiteModel:
     blogs: tuple[BlogPost, ...]
     archives: tuple[ArchivePage, ...]
     ideas: tuple[Idea, ...]
-    about: AboutPage | ProfileAbout
+    about: AboutPage | ProfileAbout | None
     projects: tuple[Project, ...]
     tags: tuple[Tag, ...]
-    theme_pages: tuple[ThemePage, ...]
+    extra_pages: tuple[ExtraPage, ...]
     feed: AtomFeed
     routes: RouteRegistry
     diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)

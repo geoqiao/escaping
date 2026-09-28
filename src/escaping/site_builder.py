@@ -3,36 +3,44 @@ from __future__ import annotations
 from collections.abc import Sequence
 from dataclasses import replace
 from datetime import datetime
+from html import escape
 from urllib.parse import urljoin
 
 from .atom_feed import AtomFeedBuilder
 from .blog_archive import build_archives
 from .build_result import Diagnostic
-from .config import Settings
-from .models.content import ContentCompilationResult, ProfileAbout
+from .config import ExtraPageConfig, Settings
+from .models.content import AboutPage, ContentCompilationResult, ProfileAbout
 from .models.projects import Project, ProjectCompilationResult
 from .models.site import (
     CommentsMetadata,
+    ExtraPage,
     SeoMetadata,
     SiteLink,
     SiteMetadata,
     SiteModel,
     SiteProfile,
-    ThemePage,
 )
 from .routes import Route, RouteCollisionError, RouteRegistry
 from .tag_taxonomy import build_tag_taxonomy
-from .theme import PageSpec
 
 
 def register_fixed_routes(routes: RouteRegistry) -> None:
-    """Register the compiler's own pages; repeating it is harmless."""
+    """Register Home, the sections that are on and the machine files.
+
+    Repeating it is harmless.
+    """
     routes.home()
     routes.blog_archive()
-    routes.ideas()
-    routes.about()
-    routes.projects()
-    routes.tags()
+    sections = routes.sections
+    for name, register in (
+        ("ideas", routes.ideas),
+        ("about", routes.about),
+        ("projects", routes.projects),
+        ("tags", routes.tags),
+    ):
+        if getattr(sections, name) is not None:
+            register()
     routes.atom()
     routes.sitemap()
     routes.robots()
@@ -40,7 +48,7 @@ def register_fixed_routes(routes: RouteRegistry) -> None:
 
 
 class SiteBuilder:
-    """Assemble the SiteModel: fixed routes, Theme pages, metadata and feed."""
+    """Assemble the SiteModel: fixed routes, extra pages, metadata and feed."""
 
     def __init__(self, settings: Settings, route_registry: RouteRegistry) -> None:
         self.settings = settings
@@ -51,7 +59,7 @@ class SiteBuilder:
         content: ContentCompilationResult,
         projects: ProjectCompilationResult,
         *,
-        pages: Sequence[PageSpec] = (),
+        pages: Sequence[ExtraPageConfig] = (),
         build_start_time: datetime,
     ) -> SiteModel:
         diagnostics = [*content.diagnostics, *projects.diagnostics]
@@ -59,16 +67,18 @@ class SiteBuilder:
         archives = build_archives(
             content.blogs, self.settings.paths.page_size, self.routes
         )
-        tags = build_tag_taxonomy(content.blogs)
-        diagnostics.extend(tags.diagnostics)
+        sections = self.routes.sections
+        tags = build_tag_taxonomy(content.blogs) if sections.tags else None
+        if tags is not None:
+            diagnostics.extend(tags.diagnostics)
 
         try:
-            project_items, theme_pages = self._theme_pages(pages, projects.projects)
+            project_items, extra_pages = self._extra_pages(pages, projects.projects)
         except RouteCollisionError as exc:
             diagnostics.append(
-                Diagnostic("error", "ROUTE_COLLISION", str(exc), field="theme.pages")
+                Diagnostic("error", "ROUTE_COLLISION", str(exc), field="pages.extra")
             )
-            project_items, theme_pages = projects.projects, ()
+            project_items, extra_pages = projects.projects, ()
 
         try:
             navigation = self._navigation(validate=True)
@@ -90,64 +100,77 @@ class SiteBuilder:
             blogs=content.blogs,
             archives=archives,
             ideas=content.ideas,
-            # A configured but missing About is a fatal error; this is only a
-            # placeholder then, never published.
-            about=content.about
-            or ProfileAbout(
-                title=self.settings.site.author,
-                description=self.settings.profile.bio or self.settings.site.description,
-                route=self.routes.about(),
-            ),
+            about=self._about(content) if sections.about else None,
             projects=project_items,
-            tags=tags.tags,
-            theme_pages=theme_pages,
+            tags=tags.tags if tags is not None else (),
+            extra_pages=extra_pages,
             feed=feed.feed,
             routes=self.routes,
             diagnostics=tuple(diagnostics),
             skipped_issues=content.skipped,
         )
 
-    def _theme_pages(
-        self, pages: Sequence[PageSpec], projects: tuple[Project, ...]
-    ) -> tuple[tuple[Project, ...], tuple[ThemePage, ...]]:
-        """Register Theme pages; a project's first detail page becomes its ``page``."""
+    def _about(self, content: ContentCompilationResult) -> AboutPage | ProfileAbout:
+        # A configured but missing About is a fatal error; the Profile About is
+        # then only a placeholder, never published.
+        if content.about is not None:
+            return content.about
+        bio = self.settings.profile.bio
+        return ProfileAbout(
+            title=self.settings.site.author,
+            description=bio or self.settings.site.description,
+            body_html=f"<p>{escape(bio)}</p>" if bio else "",
+            route=self.routes.about(),
+        )
+
+    def _extra_pages(
+        self, pages: Sequence[ExtraPageConfig], projects: tuple[Project, ...]
+    ) -> tuple[tuple[Project, ...], tuple[ExtraPage, ...]]:
+        """Register extra pages; a project's first detail page becomes its ``page``."""
         items = list(projects)
-        theme_pages: list[ThemePage] = []
+        extra_pages: list[ExtraPage] = []
         for spec in pages:
             if spec.for_each != "projects":
-                route = self._theme_route(spec.path, theme_pages)
-                theme_pages.append(ThemePage(route, spec.template))
+                route = self._extra_route(spec.path, extra_pages)
+                extra_pages.append(ExtraPage(route, spec.template))
                 continue
             for index, project in enumerate(items):
-                route = self._theme_route(spec.path_for(project.slug), theme_pages)
+                route = self._extra_route(spec.path_for(project.slug), extra_pages)
                 if items[index].page is None:
                     items[index] = replace(project, page=route)
-                theme_pages.append(
-                    ThemePage(route, spec.template_for(project.slug), items[index])
+                extra_pages.append(
+                    ExtraPage(route, spec.template_for(project.slug), items[index])
                 )
-        return tuple(items), tuple(theme_pages)
+        return tuple(items), tuple(extra_pages)
 
-    def _theme_route(self, path: str, registered: list[ThemePage]) -> Route:
-        """Register one Theme page; two Theme pages may not share a path."""
-        route = self.routes.theme_page(path)
+    def _extra_route(self, path: str, registered: list[ExtraPage]) -> Route:
+        """Register one extra page; two extra pages may not share a path."""
+        route = self.routes.extra_page(path)
         if any(page.route == route for page in registered):
-            raise RouteCollisionError(f"two Theme pages use the path {path}")
+            raise RouteCollisionError(f"two extra pages use the path {path}")
         return route
 
     def _navigation(self, *, validate: bool) -> tuple[SiteLink, ...]:
         links = []
-        for item in self.settings.site.navigation.items:
+        for item in self.settings.navigation:
             url = item.url
             if validate and url.startswith("/"):
                 route = self.routes.route_for_path(url)
                 if route is None:
                     raise RouteCollisionError(
                         f"navigation item {item.name} points to {url}, "
-                        "which is not a page of this site"
+                        f"which is not a page of this site{self._off_hint(url)}"
                     )
                 url = route.canonical_path
             links.append(SiteLink(item.name, url))
         return tuple(links)
+
+    def _off_hint(self, url: str) -> str:
+        sections = self.routes.sections
+        for name in ("ideas", "tags", "projects", "about"):
+            if url == f"/{name}/" and getattr(sections, name) is None:
+                return f" (pages.{name} is false)"
+        return ""
 
     def _metadata(self, navigation: tuple[SiteLink, ...]) -> SiteMetadata:
         settings = self.settings

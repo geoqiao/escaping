@@ -1,5 +1,5 @@
-{% macro tags(items, linked=true) -%}
-{% if items %}<ul class="tag-links" aria-label="{{ t.tags_label }}">{% for tag in items %}<li>{% if linked %}<a href="{{ tag.path }}">{{ tag.name }}</a>{% else %}<span>{{ tag.name }}</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
+{% macro tags(items) -%}
+{% if items %}<ul class="tag-links" aria-label="{{ t.tags_label }}">{% for tag in items %}<li>{% if tag.path %}<a href="{{ tag.path }}">{{ tag.name }}</a>{% else %}<span>{{ tag.name }}</span>{% endif %}</li>{% endfor %}</ul>{% endif %}
 {%- endmacro %}
 
 {% macro entry_list(posts, show_descriptions=false) -%}

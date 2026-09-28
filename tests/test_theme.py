@@ -1,4 +1,4 @@
-"""ThemeLoader and LoadedTheme: Theme API 3 manifests, layers, options, strings."""
+"""ThemeLoader and LoadedTheme: Theme API 4 manifests, layers, options, strings."""
 
 from __future__ import annotations
 
@@ -8,17 +8,21 @@ import pytest
 from jinja2 import UndefinedError
 
 import escaping.theme as theme_module
-from escaping.config import ConfigError
-from escaping.theme import PAGE_TEMPLATES, ThemeError, ThemeLoader
+from escaping.config import ConfigError, PagesConfig
+from escaping.theme import TEMPLATE_CHAINS, ThemeError, ThemeLoader
 
 _ROOT = Path(__file__).parent.parent.absolute()
+#: Every page template a Theme may have.
+_ALL_TEMPLATES = tuple(
+    dict.fromkeys(name for chain in TEMPLATE_CHAINS.values() for name in chain)
+)
 
 
 def _local_theme(
     root: Path,
-    manifest: str = "api: 3\n",
+    manifest: str = "api: 4\n",
     *,
-    templates: tuple[str, ...] = PAGE_TEMPLATES,
+    templates: tuple[str, ...] = _ALL_TEMPLATES,
 ) -> Path:
     root.mkdir(parents=True, exist_ok=True)
     (root / "theme.yaml").write_text(manifest, encoding="utf-8")
@@ -89,73 +93,40 @@ def test_theme_use_errors_name_the_fix(tmp_path: Path, use: str, expected: str) 
     ("manifest", "expected"),
     [
         ("api_version: '2'\n", "#migrating-from-api-2"),
-        ("api: 2\n", "must declare api: 3"),
+        ("api: 3\n", "must declare api: 4 (see docs/themes/authoring.md#migrating"),
+        (
+            "api: 4\npages: []\n",
+            "pages: moved to pages.extra in the site's config.yaml",
+        ),
         ("api: [\n", "is not valid YAML"),
         ("- api\n", "must be a mapping"),
-        ("api: 3\nunknown: 1\n", "unknown: unknown field"),
-        ("api: 3\nextends: ./parent\n", "no built-in Theme named ./parent"),
+        ("api: 4\nunknown: 1\n", "unknown: unknown field"),
+        ("api: 4\nextends: ./parent\n", "no built-in Theme named ./parent"),
         (
-            "api: 3\noptions:\n  Bad-Name:\n    type: string\n    default: ''\n",
+            "api: 4\noptions:\n  Bad-Name:\n    type: string\n    default: ''\n",
             "options.Bad-Name: use lowercase letters",
         ),
         (
-            "api: 3\noptions:\n  size:\n    type: choice\n    default: a\n",
+            "api: 4\noptions:\n  size:\n    type: choice\n    default: a\n",
             "options.size: a choice needs values",
         ),
         (
-            "api: 3\noptions:\n  wide:\n    type: boolean\n    default: 'yes'\n",
+            "api: 4\noptions:\n  wide:\n    type: boolean\n    default: 'yes'\n",
             "options.wide.default: must be true or false",
         ),
         (
-            "api: 3\noptions:\n  accent:\n    type: color\n    default: red\n",
+            "api: 4\noptions:\n  accent:\n    type: color\n    default: red\n",
             "options.accent.default: must be a hex color",
         ),
         (
-            "api: 3\noptions:\n  home:\n    type: url\n    default: 'javascript:alert(1)'\n",
+            "api: 4\noptions:\n  home:\n    type: url\n    default: 'javascript:alert(1)'\n",
             "options.home.default: link URL must be HTTPS",
         ),
         (
-            "api: 3\noptions:\n  picks:\n    type: posts\n    default: [0]\n",
+            "api: 4\noptions:\n  picks:\n    type: posts\n    default: [0]\n",
             "must be a list of Blog Issue numbers",
         ),
-        (
-            "api: 3\npages:\n  - path: /Now/\n    template: now.html\n",
-            "pages.0.path: use lowercase segments",
-        ),
-        (
-            "api: 3\npages:\n  - path: /projects/\n    template: p.html\n",
-            "/projects/ belongs to the compiler",
-        ),
-        (
-            "api: 3\npages:\n  - path: /blog/extra/\n    template: p.html\n",
-            "/blog/extra/ belongs to the compiler",
-        ),
-        (
-            "api: 3\npages:\n  - path: /assets/x/\n    template: p.html\n",
-            "/assets/x/ belongs to the compiler",
-        ),
-        (
-            "api: 3\npages:\n  - path: /work/{slug}/\n    template: p.html\n",
-            "use {slug} exactly once with for_each: projects",
-        ),
-        (
-            "api: 3\npages:\n  - path: /work/\n    template: p.html\n"
-            "    for_each: projects\n",
-            "use {slug} exactly once with for_each: projects",
-        ),
-        (
-            "api: 3\npages:\n  - path: /now/\n    template: ../now.html\n",
-            "pages.0.template: use a relative .html template name",
-        ),
-        (
-            "api: 3\npages:\n  - path: /now/\n    template: now.txt\n",
-            "pages.0.template: use a relative .html template name",
-        ),
-        (
-            "api: 3\npages:\n  - path: /now/\n    template: '{slug}.html'\n",
-            "pages.0.template: use a relative .html template name",
-        ),
-        ("api: 3\nstrings:\n  en:\n    language: x\n", "strings.en.language"),
+        ("api: 4\nstrings:\n  en:\n    language: x\n", "strings.en.language"),
     ],
 )
 def test_manifest_problems_point_at_the_field(
@@ -197,8 +168,8 @@ def test_extends_cycle_between_builtins_is_reported(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     builtins = tmp_path / "builtins"
-    _local_theme(builtins / "a", "api: 3\nextends: b\n")
-    _local_theme(builtins / "b", "api: 3\nextends: a\n")
+    _local_theme(builtins / "a", "api: 4\nextends: b\n")
+    _local_theme(builtins / "b", "api: 4\nextends: a\n")
     monkeypatch.setattr(theme_module, "BUILTIN_THEMES", builtins)
 
     assert any("forms a cycle" in p for p in _problems(tmp_path, "a"))
@@ -207,30 +178,82 @@ def test_extends_cycle_between_builtins_is_reported(
 def test_check_reports_every_missing_or_broken_template_before_rendering(
     tmp_path: Path,
 ) -> None:
-    templates = tuple(name for name in PAGE_TEMPLATES if name != "post.html")
     theme_dir = _local_theme(
         tmp_path / "theme",
-        "api: 3\npages:\n  - path: /work/{slug}/\n    template: work/{slug}.html\n"
-        "    for_each: projects\n",
-        templates=templates,
+        templates=tuple(
+            n for n in _ALL_TEMPLATES if n not in ("post.html", "tags.html")
+        ),
     )
     (theme_dir / "work").mkdir()
     (theme_dir / "work" / "alpha.html").write_text("alpha")
     (theme_dir / "partial.html").write_text("line one\n{% if %}\n")
     theme = ThemeLoader(tmp_path).load("./theme")
+    pages = PagesConfig.model_validate(
+        {
+            "extra": [
+                {
+                    "path": "/work/{slug}/",
+                    "template": "work/{slug}.html",
+                    "for_each": "projects",
+                }
+            ]
+        }
+    )
 
     with pytest.raises(ThemeError) as caught:
-        theme.check(["alpha", "beta"])
+        theme.check(pages, ["alpha", "beta"])
 
     problems = caught.value.problems
-    assert "theme: missing template post.html" in problems
-    assert "theme: page /work/beta/ needs template work/beta.html" in problems
+    assert (
+        "theme: missing template post.html (every Theme needs blog.html and "
+        "post.html)" in problems
+    )
+    assert (
+        "theme: has no tags.html for the tags page /tags/; add tags.html to the "
+        "Theme, or set pages.tags: false in config.yaml" in problems
+    )
+    assert (
+        "pages.extra: /work/beta/ needs template work/beta.html, which theme does "
+        "not have" in problems
+    )
     assert not any("alpha" in problem for problem in problems)
     assert any(p.startswith("theme: partial.html line 2:") for p in problems)
 
 
+def test_missing_templates_fall_back_to_blog_and_post() -> None:
+    theme = ThemeLoader(_ROOT).load("tests/fixtures/minimal_theme")
+
+    assert {kind: theme.template_for(kind) for kind in TEMPLATE_CHAINS} == {
+        "home": "blog.html",
+        "blog": "blog.html",
+        "ideas": "blog.html",
+        "tag": "blog.html",
+        "post": "post.html",
+        "idea": "post.html",
+        "about": "post.html",
+        "tags": "tags.html",
+        "projects": "projects.html",
+    }
+    with pytest.raises(ThemeError) as caught:
+        theme.check()
+    assert [p.split(";")[0] for p in caught.value.problems] == [
+        "minimal_theme: has no tags.html for the tags page /tags/",
+        "minimal_theme: has no projects.html for the projects page /projects/",
+    ]
+    theme.check(PagesConfig.model_validate({"tags": False, "projects": False}))
+
+
+def test_a_child_template_wins_over_the_parent_before_falling_back(
+    tmp_path: Path,
+) -> None:
+    _local_theme(tmp_path / "theme", "api: 4\nextends: quiet\n", templates=())
+    theme = ThemeLoader(tmp_path).load("./theme")
+    # Quiet has idea.html, so the child's post.html would not stand in for it.
+    assert theme.template_for("idea") == "idea.html"
+
+
 _OPTIONS = """\
-api: 3
+api: 4
 options:
   label: {type: string, default: Hello}
   wide: {type: boolean, default: false}
@@ -309,7 +332,7 @@ def test_strings_fall_back_from_full_tag_to_primary_subtag_to_english(
 ) -> None:
     _local_theme(
         tmp_path / "theme",
-        "api: 3\nstrings:\n  en: {hello: Hello, bye: Bye}\n  zh: {hello: 你好}\n"
+        "api: 4\nstrings:\n  en: {hello: Hello, bye: Bye}\n  zh: {hello: 你好}\n"
         "  zh-TW: {bye: 再會}\n",
     )
 
@@ -318,13 +341,12 @@ def test_strings_fall_back_from_full_tag_to_primary_subtag_to_english(
     assert (t.language, t.hello, t.bye) == (used, greeting, farewell)
 
 
-def test_extending_quiet_merges_options_pages_strings_and_static(
+def test_extending_quiet_merges_options_strings_and_static(
     tmp_path: Path,
 ) -> None:
     theme_dir = _local_theme(
         tmp_path / "theme",
-        "api: 3\nextends: quiet\noptions:\n  mood: {type: string, default: calm}\n"
-        "pages:\n  - path: /now/\n    template: now.html\n"
+        "api: 4\nextends: quiet\noptions:\n  mood: {type: string, default: calm}\n"
         "strings:\n  en: {footer_thanks: Cheers., extra: More}\n",
         templates=("now.html",),
     )
@@ -341,7 +363,6 @@ def test_extending_quiet_merges_options_pages_strings_and_static(
         "Hi",
         True,
     )
-    assert [page.path for page in theme.pages] == ["/now/"]
     t = theme.strings_for("en")
     assert (t.footer_thanks, t.extra, t.blog) == ("Cheers.", "More", "Blog")
     files = theme.static_files()
@@ -354,6 +375,17 @@ def test_extending_quiet_merges_options_pages_strings_and_static(
 def test_the_extends_fixture_is_a_complete_theme() -> None:
     theme = ThemeLoader(_ROOT).load("tests/fixtures/extends_theme")
 
-    theme.check(["alpha"])
-    assert {page.path for page in theme.pages} == {"/now/", "/projects/{slug}/"}
+    pages = PagesConfig.model_validate(
+        {
+            "extra": [
+                {"path": "/now/", "template": "now.html"},
+                {
+                    "path": "/projects/{slug}/",
+                    "template": "project.html",
+                    "for_each": "projects",
+                },
+            ]
+        }
+    )
+    theme.check(pages, ["alpha"])
     assert theme.resolve_options({}).now_text == "Working on escaping."

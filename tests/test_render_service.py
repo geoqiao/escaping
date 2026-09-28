@@ -74,11 +74,24 @@ def _extends_fixture(root: Path) -> str:
     return "./theme"
 
 
+#: The extra pages the extends fixture has templates for.
+_EXTRA_PAGES = {
+    "extra": [
+        {"path": "/now/", "template": "now.html"},
+        {
+            "path": "/projects/{slug}/",
+            "template": "project.html",
+            "for_each": "projects",
+        },
+    ]
+}
+
+
 def _home_probe(root: Path, home: str, manifest: str = "") -> str:
     """A Theme that extends Quiet and replaces only home.html."""
     theme = root / "theme"
     theme.mkdir()
-    (theme / "theme.yaml").write_text(f"api: 3\nextends: quiet\n{manifest}")
+    (theme / "theme.yaml").write_text(f"api: 4\nextends: quiet\n{manifest}")
     (theme / "home.html").write_text(home)
     return "./theme"
 
@@ -169,7 +182,7 @@ def test_a_theme_without_404_html_publishes_none(tmp_path: Path) -> None:
     assert "index.html" in rendered.files
 
 
-def test_theme_pages_render_once_and_once_per_project(tmp_path: Path) -> None:
+def test_extra_pages_render_once_and_once_per_project(tmp_path: Path) -> None:
     projects = [
         {
             "repository": "geoqiao/alpha",
@@ -179,7 +192,9 @@ def test_theme_pages_render_once_and_once_per_project(tmp_path: Path) -> None:
         },
         {"website": "https://beta.example.com/", "slug": "beta", "title": "Beta"},
     ]
-    settings = _settings(_extends_fixture(tmp_path), projects=projects)
+    settings = _settings(
+        _extends_fixture(tmp_path), projects=projects, pages=_EXTRA_PAGES
+    )
 
     files = _render(tmp_path, settings, [_ABOUT]).files
 
@@ -213,11 +228,12 @@ def test_theme_pages_render_once_and_once_per_project(tmp_path: Path) -> None:
         assert f"<loc>https://geoqiao.me/{url}</loc>" in files["sitemap.xml"]
 
 
-def test_theme_pages_use_strings_from_every_layer(tmp_path: Path) -> None:
+def test_extra_pages_use_strings_from_every_layer(tmp_path: Path) -> None:
     settings = _settings(
         _extends_fixture(tmp_path),
         site={"language": "zh"},
         projects=[{"repository": "geoqiao/alpha", "title": "Alpha"}],
+        pages=_EXTRA_PAGES,
     )
 
     files = _render(tmp_path, settings, [_ABOUT]).files
@@ -238,3 +254,53 @@ def test_theme_check_reports_a_template_that_fails_while_rendering(
     # The author learns which file and line to fix.
     assert result.diagnostics[0].message.startswith("./theme/home.html line 2: ")
     assert "no_such_key" in result.diagnostics[0].message
+
+
+def test_a_theme_with_only_blog_and_post_renders_every_page(tmp_path: Path) -> None:
+    shutil.copytree(_ROOT / "tests/fixtures/minimal_theme", tmp_path / "theme")
+    settings = _settings(
+        "./theme",
+        pages={"tags": False, "projects": False},
+        paths={"page_size": 1},
+    )
+    content = [
+        _issue(1, "blog", "First"),
+        _issue(2, "blog", "Second"),
+        _issue(3, "idea", "Old idea"),
+        _issue(4, "idea", "New idea"),
+        _ABOUT,
+    ]
+
+    files = _render(tmp_path, settings, content).files
+
+    home = files["index.html"]
+    assert 'data-kind="home"' in home and '<a href="/blog/second/">' not in home
+    assert '<a href="/blog/2/">Second</a>' in home
+    assert '<a rel="next" href="/blog/page/2/">Older</a>' in home
+    assert 'data-kind="ideas"' in files["ideas/index.html"]
+    assert '<a href="/ideas/4/">New idea</a>' in files["ideas/index.html"]
+    idea = files["ideas/3/index.html"]
+    assert 'data-kind="idea"' in idea and '<a href="/ideas/4/">New idea</a>' in idea
+    about = files["about/index.html"]
+    assert 'data-kind="about"' in about and "<time>" in about
+    assert "tags/index.html" not in files and "projects/index.html" not in files
+
+
+def test_pages_that_are_off_have_no_route_and_no_file(tmp_path: Path) -> None:
+    use = _home_probe(
+        tmp_path,
+        "{{ site.routes.ideas }}|{{ site.routes.about }}|{{ site.about }}|"
+        "{{ site.routes.blog.canonical_path }}",
+    )
+    settings = _settings(
+        use,
+        about={},
+        pages={"blog": "/notes/", "ideas": False, "about": False},
+        site={"navigation": {"items": [{"name": "Notes", "url": "/notes/"}]}},
+    )
+
+    files = _render(tmp_path, settings, [_issue(1, "blog", "First")]).files
+
+    assert files["index.html"] == "None|None|None|/notes/"
+    assert "notes/1/index.html" in files and "about/index.html" not in files
+    assert not any(path.startswith(("ideas/", "blog/")) for path in files)

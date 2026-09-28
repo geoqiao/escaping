@@ -22,6 +22,7 @@ from escaping.config import (
     security_from_config,
     validate_config_overrides,
 )
+from escaping.routes import Sections
 from escaping.services.github_service import PublicProfile
 from escaping.site_inputs import resolve_settings
 
@@ -93,6 +94,45 @@ class _NoNetwork:
         (
             {"site": {"navigation": {"items": [{"name": "Blog"}]}}},
             "items.0.url: required",
+        ),
+        ({"pages": {"blog": False}}, "pages.blog: the Blog cannot be turned off"),
+        (
+            {"pages": {"tags": "tags"}},
+            "pages.tags: use a path of lowercase segments ending with /, like "
+            "/tags/, or false to turn the page off",
+        ),
+        ({"pages": {"ideas": "/assets/x/"}}, "pages.ideas: /assets/ is reserved"),
+        (
+            {"pages": {"blog": "/notes/", "ideas": "/notes/"}},
+            "pages: blog and ideas use the same path /notes/",
+        ),
+        (
+            {"pages": {"tags": "/blog/tags/"}},
+            "pages: blog (/blog/) and tags (/blog/tags/) must not be inside each other",
+        ),
+        (
+            {"pages": {"extra": [{"path": "/blog/x/", "template": "x.html"}]}},
+            "extra.0.path /blog/x/ is inside blog (/blog/), which owns every address",
+        ),
+        (
+            {"pages": {"extra": [{"path": "/about/", "template": "x.html"}]}},
+            "extra.0.path /about/ is already the about page",
+        ),
+        (
+            {"pages": {"extra": [{"path": "/Now/", "template": "now.html"}]}},
+            "pages.extra.0.path: use lowercase segments ending with /",
+        ),
+        (
+            {"pages": {"extra": [{"path": "/now/", "template": "../now.html"}]}},
+            "pages.extra.0.template: use a template file name in the Theme",
+        ),
+        (
+            {"pages": {"extra": [{"path": "/w/{slug}/", "template": "w.html"}]}},
+            "pages.extra.0: use {slug} in path exactly once with for_each: projects",
+        ),
+        (
+            {**_BASE, "pages": {"about": False}},
+            "about.issue_number is set but pages.about is false",
         ),
     ],
 )
@@ -383,3 +423,41 @@ def test_platform_context_is_validated_without_echoing_values(tmp_path: Path) ->
     path.write_text("{not json", encoding="utf-8")
     with pytest.raises(ConfigError, match=r"context\.json:"):
         read_platform_context(path)
+
+
+def test_pages_default_to_every_section_and_accept_true_false_or_a_path() -> None:
+    default = Settings.model_validate(_BASE).pages
+    assert default.sections() == Sections()
+    assert default.extra == []
+
+    data = {
+        **_BASE,
+        "about": {},
+        "pages": {
+            "blog": "/posts/",
+            "ideas": True,
+            "tags": False,
+            "about": False,
+            "extra": [
+                {"path": "/tags/", "template": "topics.html"},
+                {
+                    "path": "/projects/{slug}/",
+                    "template": "projects/{slug}.html",
+                    "for_each": "projects",
+                },
+            ],
+        },
+    }
+    settings = Settings.model_validate(data)
+    assert settings.pages.sections() == Sections(
+        blog="/posts/", ideas="/ideas/", tags=None, about=None
+    )
+    # An address a section no longer uses is free for another page.
+    assert settings.pages.extra[0].path == "/tags/"
+    assert settings.pages.extra[1].template_for("tool") == "projects/tool.html"
+    assert [link.url for link in settings.navigation] == [
+        "/",
+        "/posts/",
+        "/projects/",
+        "/atom.xml",
+    ]

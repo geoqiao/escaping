@@ -10,9 +10,10 @@ from .blog_post import BlogPost
 
 @dataclass(frozen=True)
 class IdeaTag:
-    """Display-only Idea label; it has no archive or route."""
+    """Display-only Idea label; it has no page, so ``path`` is None."""
 
     name: str
+    path = None
 
 
 @dataclass(frozen=True)
@@ -41,9 +42,11 @@ class AboutPage:
     issue_number: int
     title: str
     description: str
+    created_date: str
     body_html: str
     route: Route
     is_profile = False
+    tags = ()
 
     @property
     def canonical_path(self) -> str:
@@ -56,12 +59,19 @@ class AboutPage:
 
 @dataclass(frozen=True)
 class ProfileAbout:
-    """Profile presentation, not Issue Content: no Issue/date/body/thread."""
+    """About from the Profile when there is no About Issue.
+
+    It has no Issue, date or tags; ``body_html`` is the bio as one paragraph.
+    """
 
     title: str
     description: str
+    body_html: str
     route: Route
     is_profile = True
+    issue_number = None
+    created_date = ""
+    tags = ()
 
     @property
     def canonical_path(self) -> str:

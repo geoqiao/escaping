@@ -143,7 +143,19 @@ def test_wheel_consumer_builds_site_outside_checkout(
         ],
     }
     child = site / "child.json"  # JSON is valid YAML.
-    child.write_text(json.dumps({**identity, "theme": {"use": "./child"}}))
+    pages = {
+        "extra": [
+            {"path": "/now/", "template": "now.html"},
+            {
+                "path": "/projects/{slug}/",
+                "template": "project.html",
+                "for_each": "projects",
+            },
+        ]
+    }
+    child.write_text(
+        json.dumps({**identity, "pages": pages, "theme": {"use": "./child"}})
+    )
     independent = site / "independent.json"
     independent.write_text(json.dumps({**identity, "theme": {"use": "./theme"}}))
     for config in (child, independent):

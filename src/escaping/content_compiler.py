@@ -221,6 +221,19 @@ class ContentCompiler:
             return None
 
         content_type = self._content_type(snapshot)
+        section = "ideas" if content_type == "idea" else content_type
+        if section != "blog" and getattr(self._routes.sections, section) is None:
+            self._diagnostics.append(
+                Diagnostic(
+                    "warning",
+                    "PAGE_OFF",
+                    f"Issue #{snapshot.number}: is type:{content_type} but "
+                    f"pages.{section} is false; it is not published",
+                    snapshot.number,
+                    "labels",
+                )
+            )
+            return None
         if is_about and content_type != "about":
             self._fail(snapshot, "ABOUT_TYPE_INVALID", "must use the type:about label")
         if not is_about and content_type == "about":
@@ -257,6 +270,7 @@ class ContentCompiler:
             if "created_date" in parsed.fields
             else snapshot.created_at.astimezone(UTC).date().isoformat()
         )
+        tags_on = self._routes.sections.tags is not None
         try:
             if content_type == "blog":
                 return BlogPost(
@@ -268,7 +282,11 @@ class ContentCompiler:
                     published_at=snapshot.created_at,
                     updated_at=snapshot.updated_at,
                     tags=tuple(
-                        BlogTag(name, tag_key(name), self._routes.tag(tag_key(name)))
+                        BlogTag(
+                            name,
+                            tag_key(name),
+                            self._routes.tag(tag_key(name)) if tags_on else None,
+                        )
                         for name in tags
                     ),
                     body_html=body_html,
@@ -290,6 +308,7 @@ class ContentCompiler:
                 issue_number=snapshot.number,
                 title=snapshot.title,
                 description=description,
+                created_date=created_date,
                 body_html=body_html,
                 route=self._routes.about(),
             )
