@@ -1215,6 +1215,7 @@ def test_quiet_reading_tools_work_when_a_header_has_no_appearance_button(
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     page.route("**/blog/a-blog/", without_button)
+    page.route("https://utteranc.es/**", lambda route: route.abort())
     try:
         page.goto(f"{site_servers['Quiet']}/blog/a-blog/", wait_until="load")
         expect(page.locator(".theme-toggle")).to_have_count(0)
