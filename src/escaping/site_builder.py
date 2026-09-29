@@ -124,13 +124,14 @@ class SiteBuilder:
                 )
             )
             navigation = self._navigation(validate=False)
+        # Every page, pagination included, is registered before redirects:
+        # a page always wins over a redirect.
+        archives = _archives(content.blogs, self.settings.paths.page_size, self.routes)
         redirects = self._redirects(diagnostics)
         return SiteModel(
             metadata=self._metadata(navigation),
             blogs=content.blogs,
-            archives=_archives(
-                content.blogs, self.settings.paths.page_size, self.routes
-            ),
+            archives=archives,
             ideas=content.ideas,
             about=self._about(content) if sections.about else None,
             projects=project_items,

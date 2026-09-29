@@ -133,6 +133,20 @@ def test_a_symbolic_link_in_the_theme_folder_is_refused(
         download(RemoteTheme.parse("github.com/alice/themes/plain@v1.0.0"), tmp_path)
 
 
+def test_an_archive_with_too_many_files_is_refused_before_unpacking(
+    github: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    # Files outside the Theme folder count too: the whole archive is read.
+    _themes_repo(github)
+    monkeypatch.setattr(remote_theme, "_MAX_MEMBERS", 3)
+    into = tmp_path / "downloads"
+    into.mkdir()
+
+    with pytest.raises(DownloadError, match="too large to unpack"):
+        download(RemoteTheme.parse("github.com/alice/themes/plain@v1.0.0"), into)
+    assert not any(into.rglob("theme.yaml"))
+
+
 def test_a_site_theme_can_extend_a_github_theme_and_reuse_its_files(
     github: Path, tmp_path: Path
 ) -> None:

@@ -12,8 +12,9 @@ from datetime import datetime
 from typing import cast
 
 from marko import HTMLRenderer, Markdown
-from marko.block import FencedCode
+from marko.block import FencedCode, Paragraph
 from marko.ext.gfm import GFM
+from marko.helpers import MarkoExtension
 from marko.inline import RawText
 from pygments import format as format_tokens
 from pygments.formatters.html import HtmlFormatter
@@ -56,7 +57,21 @@ class _SyntaxRenderer(HTMLRenderer):
         return f'<pre><code class="language-{language} syntax">{highlighted}</code></pre>\n'
 
 
-_MARKDOWN = Markdown(renderer=_SyntaxRenderer, extensions=[GFM])
+class _TaskListRenderer(HTMLRenderer):
+    """Show a task item's state as text: the sanitizer drops ``<input>``."""
+
+    def render_paragraph(self, element: Paragraph) -> str:
+        checked = getattr(element, "checked", None)
+        if checked is None:
+            return super().render_paragraph(element)
+        children = ("☑" if checked else "☐") + self.render_children(element)
+        return children if element._tight else f"<p>{children}</p>\n"
+
+
+_MARKDOWN = Markdown(
+    renderer=_SyntaxRenderer,
+    extensions=[GFM, MarkoExtension(renderer_mixins=[_TaskListRenderer])],
+)
 
 
 def tag_key(name: str) -> str:

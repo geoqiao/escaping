@@ -73,8 +73,9 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
    - `postMessage` + `MutationObserver` 自动主题同步；
    - message origin/source 校验；
    - Safari 注入 iframe `loading="lazy"` 移除兼容。
-10. **构建前先检查本地输入。** Config、主题加载、全部模板编译、输出目录安全在访问
-    GitHub 之前完成；这些错误让构建直接失败，不产生半成品。
+10. **构建前先检查本地输入。** Config、主题加载、全部模板编译、输出目录安全在读取
+    Issue 之前完成；这些错误让构建直接失败，不产生半成品。Config 缺省值需要从
+    GitHub 补全时（`site_inputs.py`），补全发生在这些检查之前。
 11. **错误按范围处理。** 单个 Blog/Idea Issue 的内容错误只跳过该 Issue，报告 Issue
     编号，照常发布其余内容，CLI 以状态码 2 结束。Config、主题、About 选择、站点级
     路由冲突属于整站错误，不发布。

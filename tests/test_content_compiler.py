@@ -631,3 +631,10 @@ def test_issues_of_a_section_that_is_off_are_left_out_with_a_warning() -> None:
             "Issue #3: is type:about but pages.about is false; it is not published",
         ),
     ]
+
+
+def test_task_list_keeps_done_and_open_state() -> None:
+    # The sanitizer drops <input>, so the state is shown as text.
+    assert _compiled_body("- [x] shipped\n- [ ] pending\n") == (
+        "<ul>\n<li>☑ shipped</li>\n<li>☐ pending</li>\n</ul>\n"
+    )

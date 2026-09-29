@@ -35,6 +35,7 @@ from jinja2.sandbox import SandboxedEnvironment
 from pydantic import BaseModel, ConfigDict, StrictInt, ValidationError
 
 from .config import (
+    BUILTIN_THEME_NAME,
     ConfigError,
     PagesConfig,
     describe_validation_errors,
@@ -47,6 +48,8 @@ from .utils.frontmatter import _StrictYAMLLoader
 
 THEME_API = 4
 BUILTIN_THEMES = Path(__file__).parent / "themes"
+#: A longer chain of parents is refused.
+_MAX_EXTENDS = 8
 
 #: Page kind -> templates tried in order; the first one the Theme has is used.
 #: List pages fall back to ``blog.html``, single pages to ``post.html``.
@@ -359,12 +362,21 @@ class ThemeLoader:
         manifest = _read_manifest(name, root)
         layers = [(ThemeLayer(name, root, short_name), manifest)]
         if (parent := manifest.extends) is not None:
+            if len(seen) >= _MAX_EXTENDS:
+                raise ThemeError([f"{name}: extends more than {_MAX_EXTENDS} Themes"])
             if parent in (*seen, name):
                 raise ThemeError([f"{name}: extends {parent} forms a cycle"])
             if parent.startswith(REMOTE_PREFIX):
                 layers += self._remote(parent, seen=(*seen, name))
-            else:
+            elif BUILTIN_THEME_NAME.fullmatch(parent):
                 layers += self._builtin(parent, seen=(*seen, name))
+            else:
+                raise ThemeError(
+                    [
+                        f"{name}: extends must name a built-in Theme such as quiet"
+                        " or github.com/OWNER/REPOSITORY/FOLDER@VERSION"
+                    ]
+                )
         return layers
 
 
