@@ -96,7 +96,7 @@ def test_theme_use_errors_name_the_fix(tmp_path: Path, use: str, expected: str) 
         ("api: [\n", "is not valid YAML"),
         ("- api\n", "must be a mapping"),
         ("api: 4\nunknown: 1\n", "unknown: unknown field"),
-        ("api: 4\nextends: ./parent\n", "no built-in Theme named ./parent"),
+        ("api: 4\nextends: ./parent\n", "extends must name a built-in Theme"),
         (
             "api: 4\noptions:\n  Bad-Name:\n    type: string\n    default: ''\n",
             "options.Bad-Name: use lowercase letters",
@@ -168,6 +168,18 @@ def test_extends_cycle_between_builtins_is_reported(
     monkeypatch.setattr(theme_module, "BUILTIN_THEMES", builtins)
 
     assert any("forms a cycle" in p for p in _problems(tmp_path, "a"))
+
+
+@pytest.mark.parametrize("parent", ["{outside}", "../outside"])
+def test_extends_cannot_reach_a_directory_outside_the_builtins(
+    tmp_path: Path, parent: str
+) -> None:
+    outside = _local_theme(tmp_path / "outside")
+    _local_theme(
+        tmp_path / "theme", f"api: 4\nextends: {parent.format(outside=outside)}\n"
+    )
+
+    assert any("extends must name" in p for p in _problems(tmp_path, "./theme"))
 
 
 def test_check_reports_every_missing_or_broken_template_before_rendering(

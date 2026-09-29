@@ -26,6 +26,9 @@ ARCHIVE_URL = "https://codeload.github.com/{owner}/{repo}/tar.gz/{ref}"
 #: A larger archive, or a larger Theme folder, is refused.
 MAX_BYTES = 50 * 1024 * 1024
 _MB = MAX_BYTES // (1024 * 1024)
+#: Limits for the whole archive, read before anything is unpacked.
+_MAX_MEMBERS = 20_000
+_MAX_UNPACKED_BYTES = 4 * MAX_BYTES
 _TIMEOUT_SECONDS = 60
 
 _ADDRESS = re.compile(
@@ -104,7 +107,13 @@ def download(theme: RemoteTheme, into: Path) -> Path:
 
 
 def _unpack(archive: tarfile.TarFile, theme: RemoteTheme, target: Path) -> Path:
-    members = archive.getmembers()
+    members = []
+    unpacked = 0
+    for member in archive:
+        members.append(member)
+        unpacked += member.size
+        if len(members) > _MAX_MEMBERS or unpacked > _MAX_UNPACKED_BYTES:
+            raise DownloadError("the repository archive is too large to unpack")
     tops = {member.name.split("/", 1)[0] for member in members}
     if len(tops) != 1:
         raise DownloadError("the archive does not hold one repository folder")

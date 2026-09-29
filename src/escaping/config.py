@@ -42,7 +42,7 @@ from .utils.frontmatter import _StrictYAMLLoader
 
 _ENV_VAR_PATTERN = re.compile(r"^[A-Za-z_][A-Za-z0-9_]*$")
 _REPOSITORY_PATTERN = re.compile(r"^[A-Za-z0-9](?:[A-Za-z0-9-]{0,38})/[A-Za-z0-9_.-]+$")
-_BUILTIN_THEME_PATTERN = re.compile(r"^[a-z][a-z0-9-]*$")
+BUILTIN_THEME_NAME = re.compile(r"^[a-z][a-z0-9-]*$")
 _SECTION_PATH = re.compile(r"^/(?:[a-z0-9-]+/)+$")
 _EXTRA_PATH = re.compile(r"^/(?:[a-z0-9-]+/|\{slug\}/)+$")
 #: Sections in navigation order; the first three own every address below them.
@@ -475,7 +475,7 @@ class ThemeConfig(_Strict):
             RemoteTheme.parse(v)
             return v
         if "/" not in v:
-            if not _BUILTIN_THEME_PATTERN.fullmatch(v):
+            if not BUILTIN_THEME_NAME.fullmatch(v):
                 raise ValueError(
                     "use a built-in Theme name such as quiet, a directory path "
                     "such as ./theme, or github.com/OWNER/REPOSITORY/FOLDER@VERSION"

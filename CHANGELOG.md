@@ -5,6 +5,40 @@ All notable changes to escaping are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) (before 1.0, a minor version may
 break things).
 
+## [0.5.1] - 2026-09-29
+
+Fixes from a full review. Sites that build with 0.5.0 need no changes; a
+starter-based site may copy the new `concurrency` group into its workflow.
+
+### Changed
+
+- **Task lists keep their state.** `- [x]` now shows as ☑ and `- [ ]` as ☐.
+  The sanitizer removes `<input>`, so before this every item looked the same.
+- **`extends` in `theme.yaml` must name a built-in Theme or a Theme on
+  GitHub.** A path such as `../other` or `/abs/theme` used to load any folder
+  with a `theme.yaml`; it is now a Theme error. A chain of more than eight
+  parents is refused too.
+- **The starter workflow queues runs per branch.** Its concurrency group is
+  `pages-${{ github.ref }}`, so a push to another branch can no longer replace
+  a deployment that is waiting on the default branch.
+- **Newer tools.** The Action and CI install uv 0.12.20, and the lowest
+  allowed Jinja is 3.1.6, the first release without the known sandbox escapes.
+  The lock file already used 3.1.6.
+
+### Fixed
+
+- **A redirect can no longer hide a Blog page.** Pages 2 and later of the Blog
+  list are now known before redirects are checked, so a redirect from
+  `/blog/page/2/` is left out with a warning, and a redirect to it works.
+- **Deeply nested front matter skips only that Issue.** YAML nested hundreds
+  of levels deep used to stop the whole build; it is now an invalid front
+  matter error for that Issue.
+- **The output check follows media and embedded pages.** A root-relative
+  `src` on `video`, `audio`, `track`, `iframe` or `embed`, a `video` poster
+  and an `object` data URL must point to a file of the site, like images do.
+- **A Theme archive from GitHub is checked before it is unpacked.** More than
+  20,000 files, or more than 200 MB unpacked, is refused.
+
 ## [0.5.0] - 2026-09-29
 
 A smaller escaping: less code, one dependency fewer and lighter Quiet fonts.
@@ -319,6 +353,7 @@ and 0.1 has no Action to pin.
 First release: Blog, Ideas, About, Projects, Tags, Atom, sitemap and search
 from GitHub Issues, with the Quiet Theme and the starter workflow.
 
+[0.5.1]: https://github.com/geoqiao/escaping/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/geoqiao/escaping/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/geoqiao/escaping/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/geoqiao/escaping/compare/v0.2.0...v0.3.0

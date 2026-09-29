@@ -339,6 +339,9 @@ def test_validator_requires_every_route_file_and_no_stray_pages(
         (f'<a href="{_UNICODE_TAG}">', None),
         ('<a href="/tags/示例-标签/">', None),
         ('<img src="/assets/images/favicon.png?v=1#icon">', None),
+        ('<video src="/assets/demo.mp4">', "/assets/demo.mp4"),
+        ('<video poster="/assets/demo.png">', "/assets/demo.png"),
+        ('<iframe src="/tool/editor/">', "/tool/editor/"),
         ('<a href="https://example.org/missing/">', None),
         # A folder this site does not write may be a project site on the host.
         ('<a href="https://geoqiao.me/tool/">', None),
@@ -502,6 +505,27 @@ def test_redirects_send_old_addresses_to_pages_of_the_site(tmp_path: Path) -> No
     assert "Hello." in (output / "blog/hello/index.html").read_text(encoding="utf-8")
     assert not (output / "blog/gone").exists()
     assert not any("old-hello" in url for url in _sitemap(output))
+
+
+def test_a_blog_page_wins_over_a_redirect_and_can_be_its_target(
+    tmp_path: Path,
+) -> None:
+    settings = _settings(
+        paths={"page_size": 1},
+        redirects={"/blog/page/2/": "/about/", "/old-archive/": "/blog/page/2/"},
+    )
+    content = (*_CONTENT, _snapshot(2, "blog", "---\nslug: second\n---\n\nTwo."))
+
+    result, _ = _generate(tmp_path, content, settings)
+
+    assert result.success, result.diagnostics
+    output = tmp_path / "output"
+    assert "http-equiv" not in (output / "blog/page/2/index.html").read_text(
+        encoding="utf-8"
+    )
+    assert "https://geoqiao.me/blog/page/2/" in (
+        output / "old-archive/index.html"
+    ).read_text(encoding="utf-8")
 
 
 _UNDER_A_PATH = {

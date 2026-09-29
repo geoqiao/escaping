@@ -231,9 +231,10 @@ def parse_yaml_envelope(raw_body: str) -> ParsedFrontMatter | None:
             code="FRONT_MATTER_INVALID_YAML",
             message=f"Invalid YAML in front matter: {exc}",
         ) from exc
-    except (yaml.YAMLError, ValueError) as exc:
+    except (yaml.YAMLError, ValueError, RecursionError) as exc:
         # SafeLoader's built-in timestamp constructor can raise ValueError for
-        # an impossible unquoted date. Keep malformed YAML a parser diagnostic.
+        # an impossible unquoted date, and deep nesting exhausts the recursion
+        # limit. Keep malformed YAML a parser diagnostic.
         raise FrontMatterError(
             code="FRONT_MATTER_INVALID_YAML",
             message=f"Invalid YAML in front matter: {exc}",

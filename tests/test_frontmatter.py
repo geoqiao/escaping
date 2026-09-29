@@ -43,6 +43,10 @@ from escaping.utils.frontmatter import (
         ("---\n~\n---\nbody", "FRONT_MATTER_NOT_MAPPING"),
         ("---\nslug: [broken\n---\nbody", "FRONT_MATTER_INVALID_YAML"),
         ("---\ncreated_date: 2025-02-29\n---\nbody", "FRONT_MATTER_INVALID_YAML"),
+        (  # Deep nesting stays a diagnostic for this Issue, not a crash.
+            "---\ndescription: " + "[" * 4000 + "]" * 4000 + "\n---\nbody",
+            "FRONT_MATTER_INVALID_YAML",
+        ),
         ("---\nslug: x\n--- \nbody", "FRONT_MATTER_UNCLOSED"),
     ],
 )

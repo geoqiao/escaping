@@ -379,6 +379,8 @@ Transitions:
 - Markdown MUST be rendered as GitHub-Flavored Markdown or a documented,
   compatible subset.
 - Raw HTML MUST be sanitized with an allowlist after Markdown rendering.
+- A task list item shows its state as text: `- [x]` renders as ☑ and
+  `- [ ]` as ☐, because the sanitizer removes `<input>`.
 - Scripts, event-handler attributes, dangerous URL schemes, and unsafe embeds
   MUST be removed or rejected.
 - Jinja/template autoescape does not replace Markdown sanitization.

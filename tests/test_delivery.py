@@ -129,7 +129,10 @@ def test_action_and_starter_pin_code_and_scope_permissions() -> None:
 
     workflow = _WORKFLOW
     assert workflow["permissions"] == {}
-    assert workflow["concurrency"] == {"group": "pages", "cancel-in-progress": False}
+    assert workflow["concurrency"] == {
+        "group": "pages-${{ github.ref }}",
+        "cancel-in-progress": False,
+    }
     jobs = workflow["jobs"]
     assert {name: job["permissions"] for name, job in jobs.items()} == {
         "labels": {"issues": "write"},

@@ -1,7 +1,8 @@
 """Build pipeline: check local inputs -> fetch Issues -> compile -> render ->
-validate -> publish. The token is not used until the Config, the Theme and the
+validate -> publish. No Issue is read until the Config, the Theme and the
 output directory have passed their checks; a Theme on GitHub is downloaded
-without it.
+without the token. Config defaults read from GitHub (see ``site_inputs``) are
+filled in before this pipeline starts.
 """
 
 from __future__ import annotations
@@ -54,7 +55,7 @@ def prepare_theme(
     """Load the Theme, resolve its options and compile every template.
 
     Raises:
-        ThemeError: With every problem found, before the token is used.
+        ThemeError: With every problem found, before any Issue is read.
     """
     theme = ThemeLoader(config_root, fetch).load(settings.theme.use)
     options = theme.resolve_options(settings.theme.options)

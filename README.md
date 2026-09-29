@@ -36,7 +36,7 @@ Blog、Ideas、Projects、About、Tags 和 RSS，无需另建一套内容管理�
 2. 保存一个带标题和 Markdown 正文的 Issue。workflow 的 `labels` 任务会在首次运行时创建发布标签；看不到时刷新 Issue 页面。
 3. 添加一个 `type:blog`、`type:idea` 或 `type:about`，准备好后添加 `published`，在 Actions 中查看部署结果。
 
-workflow 通过 `uses: geoqiao/escaping@v0.5.0` 调用生成器，站点仓库里不需要任何脚本。
+workflow 通过 `uses: geoqiao/escaping@v0.5.1` 调用生成器，站点仓库里不需要任何脚本。
 仓库也可以不叫 `username.github.io`：这时网站在 `username.github.io/仓库名/` 下，escaping 会自动处理这个子路径。
 详细操作、版本与失败恢复以[模板说明](starter/README.md)为准。
 

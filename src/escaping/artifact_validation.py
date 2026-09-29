@@ -28,6 +28,11 @@ def _srcset_urls(value: str) -> list[str]:
     return [part.split()[0] for part in value.split(",") if part.strip()]
 
 
+_SRC_TAGS = frozenset(
+    {"script", "img", "source", "video", "audio", "track", "iframe", "embed"}
+)
+
+
 class _HTMLProbe(HTMLParser):
     def __init__(self) -> None:
         super().__init__()
@@ -41,8 +46,12 @@ class _HTMLProbe(HTMLParser):
         values = {key: value or "" for key, value in attrs}
         if tag in {"a", "link"} and values.get("href"):
             self.references.append((tag, values["href"]))
-        if tag in {"script", "img", "source"} and values.get("src"):
+        if tag in _SRC_TAGS and values.get("src"):
             self.references.append((tag, values["src"]))
+        if tag == "video" and values.get("poster"):
+            self.references.append((tag, values["poster"]))
+        if tag == "object" and values.get("data"):
+            self.references.append((tag, values["data"]))
         for key in ("data-runtime-src", "data-search-index"):
             if tag == "script" and values.get(key):
                 self.references.append((tag, values[key]))

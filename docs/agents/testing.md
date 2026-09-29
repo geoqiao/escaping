@@ -90,7 +90,7 @@ starter 不再包含 Python 脚本；它的 workflow 与 `action.yml` 的 shell 
 
 ### 环境准备
 
-使用 Python 3.14.x 和 uv 0.12.17。首次运行浏览器测试时安装两个引擎及所需系统依赖：
+使用 Python 3.14.x 和 uv 0.12.20。首次运行浏览器测试时安装两个引擎及所需系统依赖：
 
 ```bash
 uv sync --locked
