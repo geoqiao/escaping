@@ -7,6 +7,7 @@ Issues were skipped because of their own errors.
 from __future__ import annotations
 
 import argparse
+import logging
 import os
 import sys
 from collections.abc import Sequence
@@ -32,6 +33,9 @@ EXIT_SKIPPED = 2
 
 
 def run_cli(argv: Sequence[str] | None = None) -> None:
+    # Progress lines, such as the commit of a downloaded Theme, go to stderr.
+    logging.basicConfig(format="%(message)s")
+    logging.getLogger("escaping").setLevel(logging.INFO)
     sys.exit(main(argv))
 
 

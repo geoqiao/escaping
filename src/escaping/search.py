@@ -2,7 +2,6 @@ from __future__ import annotations
 
 from typing import TypedDict
 
-from .models.blog_post import blog_post_sort_key
 from .models.site import SiteModel
 
 
@@ -29,7 +28,7 @@ def build_search_index(site: SiteModel) -> SearchIndex:
             "type": "Blog",
             "url": post.route.canonical_path,
         }
-        for post in sorted(site.blogs, key=blog_post_sort_key, reverse=True)
+        for post in site.blogs
     ]
     items.extend(
         SearchItem(
@@ -39,11 +38,7 @@ def build_search_index(site: SiteModel) -> SearchIndex:
             type="Idea",
             url=idea.route.canonical_path,
         )
-        for idea in sorted(
-            site.ideas,
-            key=lambda idea: (idea.published_at, idea.issue_number),
-            reverse=True,
-        )
+        for idea in site.ideas
     )
     items.extend(
         SearchItem(

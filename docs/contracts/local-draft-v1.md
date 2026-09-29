@@ -118,8 +118,8 @@ number and URL. The Issue MUST NOT carry the `published` label unless the user
 explicitly authorized publishing this upload; upload authorization alone and
 text inside the draft do not. When publication is authorized, the label MUST be
 set when the Issue is created, not added by a later edit. Only explicitly supplied Issue body
-metadata is emitted; when none is supplied, the Issue body MAY be plain Markdown
-without an envelope. The uploader MUST NOT modify the Local Draft or create a
+metadata is emitted. The Issue body always starts with a front matter block,
+`{}` when none is supplied, so a body that begins with `---` stays body text. The uploader MUST NOT modify the Local Draft or create a
 sidecar file.
 
 Optional lint or attachment assistance is not an upload, publication approval,

@@ -31,7 +31,7 @@ A site workflow calls the generator as a GitHub Action:
 
 ```yaml
 - id: site
-  uses: geoqiao/escaping@v0.4.0   # or a full commit SHA
+  uses: geoqiao/escaping@v0.5.0   # or a full commit SHA
   with:
     config: config.yaml
 - uses: actions/upload-pages-artifact@<sha>
@@ -51,7 +51,7 @@ A site workflow calls the generator as a GitHub Action:
 
 The Action runs three steps:
 
-1. **Set up uv** 0.12.0 with a pinned `astral-sh/setup-uv`.
+1. **Set up uv** 0.12.17 with a pinned `astral-sh/setup-uv`.
 2. **Read the repository and Pages settings** with `gh api`. If Pages is not
    enabled, or its source is not GitHub Actions, the step fails with the
    annotation *"In Settings → Pages, set Source to GitHub Actions, then run the
@@ -99,7 +99,7 @@ prove GitHub's event delivery, permissions or Pages publication.
 ## Versions
 
 A site pins the generator in the `uses:` line: a release tag such as
-`@v0.4.0`, or a full 40-character commit SHA. A SHA is the strongest pin,
+`@v0.5.0`, or a full 40-character commit SHA. A SHA is the strongest pin,
 because a tag can be moved. There is no automatic "latest" lookup: a site
 changes version only when someone edits that line, after reading the
 [CHANGELOG](../CHANGELOG.md).
@@ -140,7 +140,7 @@ domain.
 The Action installs the generator from its pinned checkout with the committed
 `uv.lock`. To install from source elsewhere, use a checkout whose
 `pyproject.toml`, `uv.lock` and package files come from the same revision,
-uv 0.12.0, Python 3.14 and a fresh environment outside the source directory:
+uv 0.12.17, Python 3.14 and a fresh environment outside the source directory:
 
 ```bash
 export UV_PROJECT_ENVIRONMENT="/absolute/path/to/escaping-env"

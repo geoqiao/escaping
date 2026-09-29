@@ -5,7 +5,8 @@ import unicodedata
 from dataclasses import dataclass
 from urllib.parse import quote, unquote, urlsplit
 
-_KEBAB = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+#: Blog and project slugs: lowercase ASCII letters or digits, joined by single hyphens.
+SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 #: The path of a site below its origin, such as ``/`` or ``/notes/``.
 SITE_PATH = re.compile(r"^/(?:(?!\.\.?/)[A-Za-z0-9._~-]+/)*$")
 #: Tag keys may use any Unicode letters or digits, joined by single hyphens.
@@ -83,8 +84,6 @@ class RouteRegistry:
 
     def register(self, name: str, canonical_path: str, output_path: str) -> Route:
         path = quote(self._normalize_path(canonical_path), safe="/")
-        if ".html" in path:
-            raise RouteCollisionError("legacy .html routes are not supported")
         if (
             not output_path
             or output_path.startswith("/")
@@ -132,7 +131,7 @@ class RouteRegistry:
         return self._page(f"blog-page-{page_number}", f"{blog}page/{page_number}/")
 
     def blog_detail(self, slug: str) -> Route:
-        if not _KEBAB.fullmatch(slug) or slug == "page":
+        if not SLUG.fullmatch(slug) or slug == "page":
             raise RouteCollisionError(f"reserved or invalid Blog slug: {slug!r}")
         return self._page(f"blog-detail-{slug}", f"{self.sections.blog}{slug}/")
 
@@ -202,13 +201,6 @@ class RouteRegistry:
         if route is None or unquote(route.canonical_path) != f"{self.base}{decoded}":
             return None
         return route
-
-    def route_for_url(self, url: str) -> Route | None:
-        parsed = urlsplit(url)
-        if f"{parsed.scheme}://{parsed.netloc}" != self.origin:
-            return None
-        path = self.site_path(parsed.path)
-        return self.route_for_path(path) if path is not None else None
 
     def site_path(self, url_path: str) -> str | None:
         """The site path of a URL path on this origin; None outside the site."""

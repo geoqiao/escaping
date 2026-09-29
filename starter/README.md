@@ -1,8 +1,8 @@
 # Your Issue-based personal site
 
 **Preview:** [escaping-template](https://github.com/geoqiao/escaping-template) is where this
-template is published. The 0.4.0 workflow has passed local tests; neither an existing site nor a
-brand-new repository has run it on GitHub yet.
+template is published. The 0.4.0 Action builds a live site on GitHub, but a repository made from
+this template, including its step that creates the labels, has not been tried on GitHub yet.
 
 ## Start writing
 
@@ -47,7 +47,7 @@ template you want to replace, and set `theme: {use: ./theme}`. See the
 
 ## Versions
 
-The workflow runs `geoqiao/escaping@v0.4.0`. To update, change that tag after reading the
+The workflow runs `geoqiao/escaping@v0.5.0`. To update, change that tag after reading the
 [CHANGELOG](https://github.com/geoqiao/escaping/blob/main/CHANGELOG.md); a full commit SHA also
 works. Each job gets only the short-lived `GITHUB_TOKEN` permissions it needs; never put a token
 in `config.yaml`. A failed build leaves the previously deployed site in place.

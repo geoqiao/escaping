@@ -4,6 +4,7 @@ import unicodedata
 from collections.abc import Sequence
 from datetime import UTC, datetime
 from html.parser import HTMLParser
+from operator import attrgetter
 from typing import NoReturn
 
 from .build_result import Diagnostic
@@ -11,11 +12,10 @@ from .config import Settings
 from .content_validation import (
     CONTENT_TYPES,
     render_body,
-    reserved_blog_slug,
     tag_key,
     validate_authored_content,
 )
-from .models.blog_post import BlogPost, BlogTag, blog_post_sort_key
+from .models.blog_post import BlogPost, BlogTag
 from .models.content import AboutPage, ContentCompilationResult, Idea, IdeaTag
 from .models.issue_snapshot import IssueSnapshot
 from .routes import RouteCollisionError, RouteRegistry
@@ -123,6 +123,13 @@ def _body_description(body_html: str) -> str:
     return " ".join("".join(parser.parts).split())[:50]
 
 
+def _newest_first[T: BlogPost | Idea](items: Sequence[T]) -> tuple[T, ...]:
+    # At the same time, the higher Issue number is the newer.
+    return tuple(
+        sorted(items, key=attrgetter("published_at", "issue_number"), reverse=True)
+    )
+
+
 class _SkipIssueError(Exception):
     """Stop compiling one Issue; its diagnostics are already recorded."""
 
@@ -191,14 +198,8 @@ class ContentCompiler:
             self._skipped.append(extra.issue_number)
 
         return ContentCompilationResult(
-            blogs=tuple(sorted(blogs, key=blog_post_sort_key, reverse=True)),
-            ideas=tuple(
-                sorted(
-                    ideas,
-                    key=lambda idea: (idea.published_at, idea.issue_number),
-                    reverse=True,
-                )
-            ),
+            blogs=_newest_first(blogs),
+            ideas=_newest_first(ideas),
             about=abouts[0] if abouts else None,
             diagnostics=tuple(self._diagnostics),
             skipped=tuple(sorted(self._skipped)),
@@ -347,7 +348,7 @@ class ContentCompiler:
 
     def _parse(self, snapshot: IssueSnapshot) -> ParsedFrontMatter:
         try:
-            parsed = parse_front_matter(snapshot.body, collect_unknown_fields=True)
+            parsed = parse_front_matter(snapshot.body)
         except FrontMatterError as exc:
             self._fail(snapshot, exc.code, exc.message, exc.field)
         self._check(
@@ -365,8 +366,6 @@ class ContentCompiler:
         return parsed
 
     def _claim_slug(self, snapshot: IssueSnapshot, slug: str) -> None:
-        if reserved := reserved_blog_slug(slug):
-            self._check(snapshot, [reserved])
         owner = self._slugs.setdefault(slug, snapshot.number)
         if owner != snapshot.number:
             self._fail(

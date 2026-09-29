@@ -73,22 +73,17 @@ class _NoNetwork:
 @pytest.mark.parametrize(
     ("data", "problem"),
     [
-        (
-            {"site": {"featured_posts": [1]}},
-            "site.featured_posts: moved to theme.options.featured_posts",
-        ),
-        ({"profile": {"tagline": "x"}}, "profile.tagline: moved to theme.options"),
-        ({"branding": {}}, "branding: moved to the Theme's options, such as"),
-        (
-            {"comments": {"theme_mode": "auto"}},
-            "comments.theme_mode: moved to theme.options.comments_theme_mode",
-        ),
-        ({"theme": {"source": "local"}}, "theme.source: replaced by theme.use"),
-        ({"theme": {"name": "Quiet"}}, "theme.name: replaced by theme.use"),
-        ({"site": {"thesis": ["x"]}}, "site.thesis: removed"),
         ({"sitee": {}}, "sitee: unknown field; did you mean site?"),
         ({"site": {"titel": "x"}}, "site.titel: unknown field; did you mean title?"),
         ({"paths": {"zzz": 1}}, "paths.zzz: unknown field"),
+        (
+            {"site": {"title": "A\x01"}},
+            "site.title: contains U+0001, a character the Atom feed cannot hold",
+        ),
+        (
+            {"site": {"description": "A\ufffe"}},
+            "site.description: contains U+FFFE, a character the Atom feed cannot hold",
+        ),
         ({"about": None}, "about: is empty; remove the line or add values under it"),
         (
             {"site": {"navigation": {"items": [{"name": "Blog"}]}}},
@@ -236,18 +231,16 @@ def test_theme_use_is_a_builtin_name_a_directory_or_a_github_address(
         "github.com/a-b/my.themes/set/paper@0123456789abcdef0123456789abcdef01234567",
     ],
 )
-def test_a_github_theme_is_not_a_local_directory(use: str) -> None:
-    theme = Settings.model_validate({**_BASE, "theme": {"use": use}}).theme
-    assert (theme.use, theme.local_path) == (use, None)
+def test_a_github_theme_address_is_accepted(use: str) -> None:
+    assert Settings.model_validate({**_BASE, "theme": {"use": use}}).theme.use == use
 
 
 def test_theme_defaults_to_quiet_and_keeps_options_for_the_theme() -> None:
     default = Settings.model_validate(_BASE).theme
-    assert (default.use, default.options, default.local_path) == ("quiet", {}, None)
+    assert (default.use, default.options) == ("quiet", {})
     local = Settings.model_validate(
         {**_BASE, "theme": {"use": "./site-theme", "options": {"anything": [1]}}}
     ).theme
-    assert local.local_path == Path("site-theme")
     # Options are checked against the Theme's theme.yaml later, not here.
     assert local.options == {"anything": [1]}
 

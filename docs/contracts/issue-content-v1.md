@@ -19,6 +19,10 @@ This contract does not define:
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY**
 are normative requirements.
 
+Paths such as `/blog/{slug}/` are the defaults. `pages` in the site's
+`config.yaml` can move a section, for example the Blog to `/notes/`, which
+puts a post at `/notes/{slug}/`; a site under a sub-path adds that prefix.
+
 ## 2. Authoritative inputs and derived values
 
 Each authored value has exactly one authoritative input.
@@ -77,7 +81,8 @@ Selection behavior:
 - Issues without `published` MUST be treated as drafts and ignored. Their body
   and front matter MUST NOT be parsed or validated.
 - A published Issue by an allowed author that violates a compiler-verifiable
-  snapshot invariant MUST fail the build.
+  snapshot invariant MUST NOT be published. Section 11 says when that skips
+  only the Issue and when it fails the build.
 
 ### 3.1 Snapshot and lifecycle invariants
 
@@ -277,6 +282,8 @@ A Blog Issue:
 - MUST have `type:blog` and `published`;
 - MUST have a non-empty GitHub Issue title;
 - MUST have a non-empty Markdown body;
+- MUST NOT have a character that XML 1.0 forbids, such as U+0001, in its title,
+  body or `description`, because the post goes into the Atom feed;
 - MAY override `slug`, `description`, and `created_date` independently;
 - MAY use `tag:*` labels;
 - enters Home recent posts, `/blog/`, `/tags/`, `/atom.xml`, and sitemap;
@@ -305,9 +312,9 @@ An Idea Issue:
 ### 7.3 About
 
 Site configuration MAY select an About Issue by immutable `about.issue_number`.
-Without an explicit selection, the compiler selects the sole valid, published,
-allowed-author About Issue. If none exists, the site displays Profile About,
-not invented Issue Content.
+Without an explicit selection, the compiler selects the oldest valid,
+published, allowed-author About Issue (see below). If none exists, the site
+displays Profile About, not invented Issue Content.
 
 An About Issue:
 
@@ -404,7 +411,8 @@ reject:
 - reserved-route collisions.
 
 Blog tags use `/tags/` for the index and `/tags/{tag}/` for tag archives.
-HTML page routes MUST use lower-case ASCII route keys and a trailing `/`.
+HTML page routes MUST end with `/`. Blog slugs are lower-case ASCII; tag keys
+are Unicode letters and digits (NFC, case-folded) joined by hyphens.
 The machine-readable endpoints are `/atom.xml`, `/sitemap.xml`, and `/robots.txt`,
 without a trailing slash; they belong to the same route registry.
 Canonical paths MUST be converted to Unicode NFC before validation. Collision
@@ -419,8 +427,9 @@ Every validation error SHOULD include a stable error code and Issue number when
 an Issue caused the error. The compiler MUST collect and report all detectable
 content validation errors in one run. A Blog or Idea Issue with its own content
 error is skipped and reported, and the rest of the site is still published (the
-CLI exits with status 2). Config, Theme, About-selection and site-wide route
-errors fail the build and publish nothing.
+CLI exits with status 2). Errors in Config, the Theme, the About Issue that
+`about.issue_number` selects, or site-wide routes fail the build and publish
+nothing.
 
 ## 12. Single current format
 

@@ -81,7 +81,7 @@ def test_wheel_consumer_builds_site_outside_checkout(
     assert f"Name: escpe\nVersion: {version}\n" in metadata
     assert "Requires-Python: <3.15,>=3.14\n" in metadata
     assert "Requires-Dist: nh3==0.3.7\n" in metadata
-    assert "Requires-Dist: pygments==2.19.2\n" in metadata
+    assert "Requires-Dist: pygments==2.21.0\n" in metadata
     assert "escpe = escaping.cli:run_cli\n" in entry_points
     assert {n.split("/")[2] for n in names if n.startswith("escaping/themes/")} == {
         "quiet"
@@ -199,7 +199,7 @@ def test_wheel_consumer_builds_site_outside_checkout(
     for asset in (
         "assets/css/style.css",  # from Quiet
         "assets/css/extra.css",  # from the child Theme
-        "assets/fonts/source-serif-4.ttf",
+        "assets/fonts/manrope-bold.woff2",
         "assets/escaping/mermaid/mermaid.min.js",
         "404.html",
     ):

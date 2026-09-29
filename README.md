@@ -30,13 +30,13 @@ Blog、Ideas、Projects、About、Tags 和 RSS，无需另建一套内容管理�
 
 使用 [escaping-template](https://github.com/geoqiao/escaping-template) 的 **Use this template** 创建站点，无需本机 Python、PAT 或手动创建发布标签。
 
-> **公开预览：** 0.4.0 的 Action 和 starter workflow 已在本地测试中运行；在 GitHub 上从模板新建仓库的完整流程尚未验证。
+> **公开预览：** 0.4.0 的 Action 已在 GitHub 上构建一个正式站点；用模板新建仓库的完整流程（包括自动创建标签那一步）还没在 GitHub 上试过。
 
 1. 创建 `username.github.io`（免费账户使用公开仓库），保持 Issues/Actions 开启，在 **Settings → Pages** 把 **Source** 设为 **GitHub Actions**。
 2. 保存一个带标题和 Markdown 正文的 Issue。workflow 的 `labels` 任务会在首次运行时创建发布标签；看不到时刷新 Issue 页面。
 3. 添加一个 `type:blog`、`type:idea` 或 `type:about`，准备好后添加 `published`，在 Actions 中查看部署结果。
 
-workflow 通过 `uses: geoqiao/escaping@v0.4.0` 调用生成器，站点仓库里不需要任何脚本。
+workflow 通过 `uses: geoqiao/escaping@v0.5.0` 调用生成器，站点仓库里不需要任何脚本。
 仓库也可以不叫 `username.github.io`：这时网站在 `username.github.io/仓库名/` 下，escaping 会自动处理这个子路径。
 详细操作、版本与失败恢复以[模板说明](starter/README.md)为准。
 
@@ -84,7 +84,7 @@ theme:
 | 评论 | 默认关闭；设置 `comments.enabled: true`，并另行完成 [Utterances App 授权](https://github.com/apps/utterances)；Profile About 永远无评论 |
 | 本地构建 | 需要 Python 3.14.x 和 uv；有 Token 时直接读 Issues，没有 Token 可用 `--issues-json` 离线构建，见[本地构建步骤](docs/site-inputs.md#local-build) |
 
-写错字段名会报错并提示正确写法；0.1 的旧字段会告诉你移到了哪里。报错不会回显你填的值。
+写错字段名会报错并提示正确写法；报错不会回显你填的值。
 组织所有的内容仓库须显式配置 `github.allowed_authors`。
 输出目录和本地 Theme 路径以 Config 所在目录为根；预览时把输出目录当作网站根目录，不使用 `/output/` URL 前缀。
 
@@ -105,8 +105,8 @@ theme:
 ## 升级
 
 站点在 workflow 的 `uses:` 一行固定生成器版本（tag 或完整提交 SHA），不会自动升级。
-升级前先读 [CHANGELOG](CHANGELOG.md)；从 0.1 升级的步骤见其中的[升级说明](CHANGELOG.md#upgrading-from-01)，
-本地 Theme 的改法见 [API 2 迁移说明](docs/themes/authoring.md#migrating-from-api-2)。
+升级前先读 [CHANGELOG](CHANGELOG.md)。版本号可以直接改成最新的；从 0.1 升级，依次做 [Upgrading from 0.1](CHANGELOG.md#upgrading-from-01) 和 [Upgrading from 0.2](CHANGELOG.md#upgrading-from-02) 里的步骤，从 0.2 升级只做后者。
+本地 Theme 的改法见 [Theme 迁移说明](docs/themes/authoring.md#migrating-from-api-1-2-or-3)。
 配置评论不等于验证评论写入；真实 App/OAuth 发帖仍需单独验收。
 
 ## 开发与维护

@@ -87,12 +87,14 @@ class ThemeError(ConfigError):
     """A Theme cannot be loaded, or the site's options do not fit it."""
 
 
-class _OptionModel(BaseModel):
-    model_config = ConfigDict(extra="forbid")
+class OptionSpec(BaseModel):
+    """One option in theme.yaml."""
+
+    model_config = ConfigDict(extra="forbid", frozen=True)
 
     type: OptionType
     default: Any
-    values: list[str] | None = None
+    values: tuple[str, ...] = ()
     description: str = ""
 
 
@@ -101,16 +103,8 @@ class _ManifestModel(BaseModel):
 
     api: StrictInt
     extends: str | None = None
-    options: dict[str, _OptionModel] = {}
+    options: dict[str, OptionSpec] = {}
     strings: dict[str, dict[str, str]] = {}
-
-
-@dataclass(frozen=True)
-class OptionSpec:
-    type: OptionType
-    default: object
-    values: tuple[str, ...] = ()
-    description: str = ""
 
 
 @dataclass(frozen=True)
@@ -399,19 +393,11 @@ def _read_manifest(name: str, root: Path) -> _ManifestModel:
         raise ThemeError([f"{name}: theme.yaml{where} is not valid YAML"]) from None
     if not isinstance(data, dict):
         raise ThemeError([f"{name}: theme.yaml must be a mapping"])
-    if "api_version" in data or data.get("api") != THEME_API:
-        old = 2 if "api_version" in data else 3
+    if data.get("api") != THEME_API:
         raise ThemeError(
             [
                 f"{name}: theme.yaml must declare api: {THEME_API} "
-                f"(see docs/themes/authoring.md#migrating-from-api-{old})"
-            ]
-        )
-    if "pages" in data:
-        raise ThemeError(
-            [
-                f"{name}: theme.yaml pages: moved to pages.extra in the site's "
-                "config.yaml; the site decides which pages exist"
+                "(see docs/themes/authoring.md)"
             ]
         )
     try:
@@ -437,7 +423,7 @@ def _manifest_problems(manifest: _ManifestModel) -> list[str]:
         if spec.type == "choice" and not spec.values:
             problems.append(f"options.{option}: a choice needs values")
         try:
-            _check_value(_spec(spec), spec.default)
+            _check_value(spec, spec.default)
         except ValueError as exc:
             problems.append(f"options.{option}.default: {exc}")
     for language, table in manifest.strings.items():
@@ -448,12 +434,6 @@ def _manifest_problems(manifest: _ManifestModel) -> list[str]:
                     "(and not 'language')"
                 )
     return problems
-
-
-def _spec(model: _OptionModel) -> OptionSpec:
-    return OptionSpec(
-        model.type, model.default, tuple(model.values or ()), model.description
-    )
 
 
 def _check_value(spec: OptionSpec, value: object) -> object:
@@ -489,7 +469,7 @@ def _merge(name: str, layers: list[tuple[ThemeLayer, _ManifestModel]]) -> Loaded
     options: dict[str, OptionSpec] = {}
     strings: dict[str, dict[str, str]] = {}
     for _, manifest in reversed(layers):  # parent first, the child overrides
-        options.update({key: _spec(model) for key, model in manifest.options.items()})
+        options.update(manifest.options)
         for language, table in manifest.strings.items():
             strings.setdefault(language.casefold(), {}).update(table)
     static_reserved = [

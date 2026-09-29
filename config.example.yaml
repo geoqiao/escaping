@@ -84,7 +84,8 @@ profile:
 #   /old-about.html: /about/
 
 theme:
-  use: quiet # A built-in Theme, or a directory next to this file: ./theme
+  use: quiet # A built-in Theme, a directory next to this file (./theme), or
+  # github.com/OWNER/REPOSITORY/FOLDER@VERSION; see docs/themes/authoring.md.
   # options: # Quiet's options; see docs/themes/quiet.md.
     # tagline: Researcher / tool builder
     # featured_posts: [41, 62, 49] # Blog Issue numbers shown on Home

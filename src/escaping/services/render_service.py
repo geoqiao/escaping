@@ -19,10 +19,9 @@ from typing import Any
 
 from ..atom_feed import render_atom_xml
 from ..build_result import Diagnostic
-from ..models.blog_archive import ArchivePage
-from ..models.blog_post import BlogPost, blog_post_sort_key
+from ..models.blog_post import BlogPost
 from ..models.content import AboutPage, Idea, ProfileAbout
-from ..models.site import SiteModel
+from ..models.site import ArchivePage, SiteModel
 from ..routes import Route
 from ..search import build_search_index
 from ..theme import (
@@ -169,9 +168,7 @@ class RenderService:
         if self.theme.has_template(NOT_FOUND_TEMPLATE):
             files[NOT_FOUND_TEMPLATE] = render("404", None, NOT_FOUND_TEMPLATE)
 
-        files[site.feed.route.output_path] = render_atom_xml(
-            site.feed, site.metadata, home.canonical_url
-        )
+        files[routes.route("atom").output_path] = render_atom_xml(site)
         files[routes.route("sitemap").output_path] = self._sitemap(site)
         if (robots := routes.get("robots")) is not None:
             files[robots.output_path] = (
@@ -201,7 +198,7 @@ class RenderService:
             comments=metadata.comments,
             seo=metadata.seo,
             routes=routes,
-            posts=tuple(sorted(site.blogs, key=blog_post_sort_key, reverse=True)),
+            posts=site.blogs,
             ideas=site.ideas,
             projects=site.projects,
             featured_projects=tuple(p for p in site.projects if p.featured),

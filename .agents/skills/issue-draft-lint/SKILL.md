@@ -37,8 +37,9 @@ The module reuses the compiler's YAML, authored metadata and sanitized GFM rules
 Report its diagnostics, without replacing explicit invalid values with guesses.
 Suggest metadata overrides only on request, as a reviewable proposal that can be
 adopted field by field. Missing slug, description and creation date stay missing:
-there is no future Issue number/date to infer. The result contains an empty
-mapping envelope when needed to keep a body's leading `---` as body content.
+there is no future Issue number/date to infer. The result always has a front
+matter block, `{}` when there are no overrides, so a body's leading `---` stays
+body content.
 Do not replace Markdown with the sanitizer's HTML or rewrite links or formatting.
 
 This check does not prove author eligibility, collection-wide route uniqueness,
@@ -66,7 +67,7 @@ automatically copied to Pages.
 | Dimensions | If available, use read-only `sips -g pixelWidth -g pixelHeight <absolute-path>` or installed ImageMagick identify. Tool failure/absence means unknown. Do not install image dependencies or write a PNG/JPEG parser. |
 | alt / HTML dimensions | Inspect the author's Markdown, or use `parse_yaml_envelope` and shared `content_validation.render_body`, then stdlib `HTMLParser` to read img attributes. Label HTML width/height as declared, not intrinsic. Missing alt and deliberately empty decorative alt differ; a non-empty value alone does not prove useful alternative text. |
 | Public URL | On a separately requested public-resource check, use a bounded read-only request without credentials (for example curl with timeout and max-size). Inspect redirects before following, never follow into private/local networks. Record final URL/status, actual downloaded byte count/hash and declared Content-Type. A HEAD response or 200 alone does not verify the image bytes or permanence. No automatic mirror/upload on failure. |
-| Root-relative URL | Require the identified final artifact/document root, exact path/case and output-chain evidence. Repository file existence is not deployment proof. Current Theme assets are copied under `/templates/<name>/static/`; arbitrary `/assets/` has no automatic import step. Do not ban that prefix categorically, invent a copy step, follow escaping symlinks, or weaken the validator. If evidence is absent, report unproven, not deployable. |
+| Root-relative URL | Require the identified final artifact/document root, exact path/case and output-chain evidence. Repository file existence is not deployment proof. A Theme's `static/` files are published under `/assets/`, and escaping's shared scripts under `/assets/escaping/`; other files have no automatic import step. Do not ban a prefix categorically, invent a copy step, follow escaping symlinks, or weaken the validator. If evidence is absent, report unproven, not deployable. |
 
 Prefer already-existing, readable full-commit HTTPS attachment URLs where
 appropriate; a moving branch URL is not immutable. Do not invent an unpublished

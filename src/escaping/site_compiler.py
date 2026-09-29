@@ -6,6 +6,7 @@ without it.
 
 from __future__ import annotations
 
+import logging
 import tempfile
 from collections.abc import Callable, Iterator, Sequence
 from contextlib import contextmanager
@@ -14,7 +15,6 @@ from functools import partial
 from pathlib import Path
 from types import SimpleNamespace
 
-import structlog
 from jinja2 import TemplateError, TemplateSyntaxError
 
 from .artifact_validation import SiteArtifactValidator, audit_seo
@@ -32,7 +32,7 @@ from .services.render_service import RenderedSite, RenderService
 from .site_builder import SiteBuilder, register_fixed_routes
 from .theme import Fetch, LoadedTheme, ThemeLoader
 
-logger = structlog.get_logger()
+logger = logging.getLogger(__name__)
 
 IssueSource = Callable[[], Sequence[IssueSnapshot]]
 ProjectEnricher = Callable[[str], ProjectEnrichment]
@@ -107,7 +107,6 @@ class SiteCompiler:
         config_root: Path,
         issues: IssueSource,
         project_enricher: ProjectEnricher | None = None,
-        output_staging: OutputStagingService | None = None,
     ) -> None:
         if not config_root.is_absolute():
             raise ValueError("SiteCompiler config_root must be absolute")
@@ -115,7 +114,6 @@ class SiteCompiler:
         self.config_root = config_root
         self.issues = issues
         self.project_enricher = project_enricher
-        self.output_staging = output_staging
 
     def generate(self) -> BuildResult:
         with theme_downloads() as fetch:
@@ -125,9 +123,7 @@ class SiteCompiler:
         build_start = datetime.now(UTC)
         try:
             theme, options = prepare_theme(self.settings, self.config_root, fetch)
-            staging = self.output_staging or OutputStagingService(
-                self.settings.paths.output, self.config_root
-            )
+            staging = OutputStagingService(self.settings.paths.output, self.config_root)
             _check_theme_outside_output(theme, staging.output)
             staging.check_replaceable()
         except ConfigError as exc:
@@ -138,8 +134,7 @@ class SiteCompiler:
         try:
             snapshots = self.issues()
         except Exception as exc:
-            # Never log the exception text: client errors may echo request data.
-            logger.error("fetch_failed", error=type(exc).__name__)
+            # Never show the exception text: client errors may echo request data.
             return _failed(
                 "FETCH_FAILED",
                 "could not read the Issues of the content repository "
@@ -181,7 +176,7 @@ class SiteCompiler:
                 return BuildResult(False, tuple(diagnostics))
             return _cleanup(staging, staging_dir, diagnostics)
         except Exception as exc:
-            logger.exception("build_failed")
+            logger.exception("The build stopped on an unexpected error:")
             diagnostics.append(Diagnostic("error", "BUILD_FAILED", str(exc)))
             return _cleanup(staging, staging_dir, diagnostics)
 

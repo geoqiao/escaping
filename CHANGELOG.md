@@ -5,6 +5,51 @@ All notable changes to escaping are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) (before 1.0, a minor version may
 break things).
 
+## [0.5.0] - 2026-09-29
+
+A smaller escaping: less code, one dependency fewer and lighter Quiet fonts.
+Sites that build with 0.4.0 need no changes, unless a Theme that extends Quiet
+links to one of Quiet's removed font files.
+
+### Changed
+
+- **Quiet's fonts are smaller.** The heading font is now
+  `assets/fonts/manrope-bold.woff2` (31 KB instead of a 95 KB TTF), and the
+  unused Source Serif 4 font (194 KB) and the unused CSS variable `--serif`
+  are gone. A Theme that extends Quiet and links to `manrope-bold.ttf` or
+  `source-serif-4.ttf` must bring its own copy.
+- **A site title, author or description the Atom feed cannot hold is a Config
+  error.** The message names the field, as in `site.title: contains U+0001, a
+  character the Atom feed cannot hold`, and the build stops before it reads
+  any Issue.
+- **escaping no longer depends on structlog.** The line that names a
+  downloaded Theme's commit, and the traceback of an unexpected crash, are
+  now plain lines on stderr. Log lines that repeated a reported error or
+  warning are gone.
+- **Newer versions of what escaping ships and uses.** The Action installs
+  uv 0.12.17 with setup-uv 10.2.0, diagrams use Mermaid 11.17.2, and code is
+  highlighted by Pygments 2.21.0 with the same colors as before. The starter
+  workflow uses deploy-pages 5.0.1.
+
+### Removed
+
+- **Hints for settings that moved in 0.2 and 0.3.** A Config field such as
+  `site.featured_posts` or `theme.source`, or `pages:` in a Theme's
+  `theme.yaml`, is now reported as an unknown field instead of naming its new
+  place. The [Theme guide](docs/themes/authoring.md#migrating-from-api-1-2-or-3)
+  still lists where each one went.
+
+### Fixed
+
+- **One Blog post with a stray control character no longer stops the build.**
+  A character that XML 1.0 forbids, such as U+0001, in a Blog post's title,
+  body or `description` used to fail the whole build, because the post goes
+  into the Atom feed. Now only that post is skipped with an error that names
+  the character, and the rest of the site is published (exit code 2).
+- **Quiet: a Theme that extends Quiet can drop the dark-mode button.** If its
+  `header.html` had no button, Quiet's script stopped early, so the table of
+  contents and the copy-code buttons were missing.
+
 ## [0.4.0] - 2026-09-28
 
 A site can use a Theme straight from a folder of a public GitHub repository,
@@ -76,7 +121,7 @@ escaping. Local Themes need a small update: read
   with its new place (`pages.extra` in the site's `config.yaml`).
 - **Breaking:** `page.post`, `page.idea`, `page.about` and `page.archive`
   are replaced; see
-  [Migrating from API 3](docs/themes/authoring.md#migrating-from-api-3).
+  [Migrating from API 1, 2 or 3](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
 - `site.routes.<name>` and `site.about` are `none` for a page that is off, and
   a Blog tag's `path` is `none` when the tag pages are off.
 - The default menu follows `pages`: a moved Blog is linked at its new address;
@@ -108,7 +153,7 @@ escaping. Local Themes need a small update: read
    `@v0.3.0` (or its commit SHA) in the site workflow.
 2. **Quiet only:** nothing else to do.
 3. **A local Theme:** set `api: 4` and follow
-   [Migrating from API 3](docs/themes/authoring.md#migrating-from-api-3).
+   [Migrating from API 1, 2 or 3](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
    Move any `pages:` from `theme.yaml`, unchanged, to `pages.extra` in
    `config.yaml`.
 4. **A site script that wrote redirect pages** after the Action step: move
@@ -200,7 +245,7 @@ Quiet is now an ordinary Theme that ships with the package. Read
 ### Removed
 
 - Theme API 2. A Theme that declares `api_version: "2"` fails with a pointer
-  to the [migration notes](docs/themes/authoring.md#migrating-from-api-2).
+  to the [migration notes](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
 - Config fields `site.featured_posts`, `site.thesis`, `profile.tagline`,
   `branding`, `comments.theme`, `comments.theme_mode`, `theme.source`,
   `theme.name` and `theme.path`. The build names each one and says where it
@@ -231,7 +276,7 @@ Do these steps in the site repository on a branch, build once, then merge.
    over your `.github/workflows/pages.yml` and delete `.github/scripts/`.
    If your Config is not `config.yaml` at the repository root, change
    `config:` under the `uses: geoqiao/escaping@v0.2.0` step.
-2. **Move Config fields.** The build lists every old field it finds:
+2. **Move Config fields.** The build reports any it finds as an error:
 
    | 0.1 | 0.2 |
    | --- | --- |
@@ -248,7 +293,7 @@ Do these steps in the site repository on a branch, build once, then merge.
    `seo.social_image` or project `image` such as
    `/templates/my-theme/static/images/og.png` becomes `/assets/images/og.png`.
 4. **Local Theme.** Follow
-   [Migrating from API 2](docs/themes/authoring.md#migrating-from-api-2). If
+   [Migrating from API 1, 2 or 3](docs/themes/authoring.md#migrating-from-api-1-2-or-3). If
    the Theme only changed a few parts of Quiet, a Theme with
    `extends: quiet` that keeps only those files is usually shorter.
 5. **Projects.** If a Theme builds URLs from project slugs, check them: the
@@ -274,6 +319,7 @@ and 0.1 has no Action to pin.
 First release: Blog, Ideas, About, Projects, Tags, Atom, sitemap and search
 from GitHub Issues, with the Quiet Theme and the starter workflow.
 
+[0.5.0]: https://github.com/geoqiao/escaping/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/geoqiao/escaping/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/geoqiao/escaping/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/geoqiao/escaping/compare/v0.1.0...v0.2.0

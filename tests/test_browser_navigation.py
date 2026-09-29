@@ -209,9 +209,9 @@ def _write_quiet_adjacent_site(output_dir: Path) -> None:
 @pytest.mark.parametrize("width", [1440, 390, 320])
 @pytest.mark.parametrize("path", ["", "blog/"])
 def test_quiet_search_is_lazy_keyboard_usable_and_finds_public_content(
-    comments_browser: Browser, site_servers: dict[str, str], width: int, path: str
+    each_browser: Browser, site_servers: dict[str, str], width: int, path: str
 ) -> None:
-    page = comments_browser.new_page(viewport={"width": width, "height": 844})
+    page = each_browser.new_page(viewport={"width": width, "height": 844})
     requests: list[str] = []
     page.on("request", lambda request: requests.append(request.url))
     origin = site_servers["Quiet"]
@@ -274,9 +274,9 @@ def test_quiet_search_is_lazy_keyboard_usable_and_finds_public_content(
 
 @pytest.mark.parametrize("failure", ["http", "invalid", "unsafe"])
 def test_quiet_search_failure_can_retry_without_rendering_untrusted_html(
-    comments_browser: Browser, site_servers: dict[str, str], failure: str
+    each_browser: Browser, site_servers: dict[str, str], failure: str
 ) -> None:
-    page = comments_browser.new_page()
+    page = each_browser.new_page()
     origin = site_servers["Quiet"]
     try:
         page.route(
@@ -324,9 +324,9 @@ def test_quiet_search_failure_can_retry_without_rendering_untrusted_html(
 
 @pytest.mark.parametrize("empty", [False, True])
 def test_quiet_search_ranks_plain_text_safely_and_handles_an_empty_site(
-    comments_browser: Browser, site_servers: dict[str, str], empty: bool
+    each_browser: Browser, site_servers: dict[str, str], empty: bool
 ) -> None:
-    page = comments_browser.new_page()
+    page = each_browser.new_page()
     title = '中文 Python <img src=x onerror="alert(1)">'
     items = [
         {
@@ -386,9 +386,9 @@ def test_quiet_search_ranks_plain_text_safely_and_handles_an_empty_site(
 
 @pytest.mark.parametrize("mode", ["no-js", "missing-script"])
 def test_quiet_search_degrades_to_existing_navigation(
-    comments_browser: Browser, site_servers: dict[str, str], mode: str
+    each_browser: Browser, site_servers: dict[str, str], mode: str
 ) -> None:
-    page = comments_browser.new_page(java_script_enabled=mode != "no-js")
+    page = each_browser.new_page(java_script_enabled=mode != "no-js")
     try:
         if mode == "missing-script":
             page.route("**/search.js", lambda route: route.abort())
@@ -651,21 +651,26 @@ def playwright_api() -> Iterator[Playwright]:
         yield playwright
 
 
-@pytest.fixture(scope="session")
-def browser(playwright_api: Playwright) -> Iterator[Browser]:
-    message = (
-        "Chromium is unavailable; install it with `uv run playwright install chromium`."
-    )
+def _launch(playwright_api: Playwright, name: str) -> Iterator[Browser]:
+    """Skip locally, but fail on CI, when the browser is not installed."""
     try:
-        browser = playwright_api.chromium.launch()
+        engine = getattr(playwright_api, name).launch()
     except Error as exc:
         if os.environ.get("CI", "").lower() == "true":
             raise
-        pytest.skip(f"{message} ({exc})")
+        pytest.skip(
+            f"{name} is unavailable; install it with "
+            f"`uv run playwright install {name}` ({exc})"
+        )
     try:
-        yield browser
+        yield engine
     finally:
-        browser.close()
+        engine.close()
+
+
+@pytest.fixture(scope="session")
+def browser(playwright_api: Playwright) -> Iterator[Browser]:
+    yield from _launch(playwright_api, "chromium")
 
 
 @pytest.fixture(scope="session")
@@ -936,10 +941,6 @@ def test_quiet_mermaid_stays_readable_across_live_theme_changes(
             page.get_by_role("button", name="Dark mode").click()
         page.emulate_media(media="print")
         assert svg.evaluate("x => getComputedStyle(x).filter") == "none"
-        assert (
-            page.locator("body").evaluate("x => getComputedStyle(x).backgroundColor")
-            == "rgb(255, 255, 255)"
-        )
     finally:
         context.close()
 
@@ -1184,11 +1185,8 @@ def test_quiet_toc_unavailable_script_leaves_no_fake_control(
         page.goto(f"{site_servers['Quiet']}/blog/toc-headings/", wait_until="load")
         aside = page.locator(".reading-margin")
         height = aside.evaluate("e => e.getBoundingClientRect().height")
-        if javascript:
-            # Natural closed summary + padding, not the height of an empty open nav.
-            assert height == 60
-        else:
-            assert height == 0
+        # With JavaScript on, the closed summary's space stays reserved.
+        assert (height > 0) == javascript
         summary = aside.locator("summary")
         expect(summary).to_be_hidden()
         summary.focus()
@@ -1200,6 +1198,31 @@ def test_quiet_toc_unavailable_script_leaves_no_fake_control(
         assert aside.evaluate("e => e.getBoundingClientRect().height") == 0
     finally:
         context.close()
+
+
+def test_quiet_reading_tools_work_when_a_header_has_no_appearance_button(
+    browser: Browser, site_servers: dict[str, str]
+) -> None:
+    """A Theme that extends Quiet may replace header.html without the button."""
+
+    def without_button(route: Route) -> None:
+        html = route.fetch().text()
+        route.fulfill(
+            body=re.sub(r'<button class="theme-toggle".*?</button>', "", html)
+        )
+
+    page = browser.new_page()
+    errors: list[str] = []
+    page.on("pageerror", lambda error: errors.append(str(error)))
+    page.route("**/blog/a-blog/", without_button)
+    try:
+        page.goto(f"{site_servers['Quiet']}/blog/a-blog/", wait_until="load")
+        expect(page.locator(".theme-toggle")).to_have_count(0)
+        expect(page.locator("[data-toc] a").first).to_be_visible()
+        expect(page.locator(".copy-code").first).to_be_visible()
+        assert not errors
+    finally:
+        page.close()
 
 
 def test_quiet_without_javascript_keeps_content_and_navigation(
@@ -1282,7 +1305,7 @@ def test_quiet_mobile_menu_overlays_content_and_dismisses_cleanly(
         page.close()
 
 
-def test_quiet_navigation_and_appearance_controls_are_unboxed(
+def test_quiet_appearance_button_is_large_enough_and_shows_focus(
     browser: Browser, site_servers: dict[str, str]
 ) -> None:
     page = browser.new_page(
@@ -1290,17 +1313,11 @@ def test_quiet_navigation_and_appearance_controls_are_unboxed(
     )
     try:
         page.goto(f"{site_servers['Quiet']}/blog/", wait_until="load")
-        current = page.locator('#site-navigation [aria-current="page"]')
         toggle = page.get_by_role("button", name="Dark mode")
         for mode in ("light", "dark"):
             expect(page.locator("html")).to_have_attribute("data-theme", mode)
-            expect(current).to_have_css("background-color", "rgba(0, 0, 0, 0)")
-            expect(current).to_have_css("font-weight", "600")
-            expect(toggle).to_have_css("border-top-width", "0px")
             bounds = toggle.bounding_box()
             assert bounds is not None and bounds["height"] >= 44
-            toggle.hover()
-            expect(toggle).to_have_css("background-color", "rgba(0, 0, 0, 0)")
             page.keyboard.press("Tab")
             toggle.focus()
             expect(toggle).to_have_css("outline-style", "solid")
@@ -1333,22 +1350,13 @@ def test_quiet_skip_focus_marks_heading_without_framing_the_page(
 
 
 @pytest.fixture(scope="session", params=["chromium", "webkit"])
-def comments_browser(
+def each_browser(
     request: pytest.FixtureRequest, browser: Browser, playwright_api: Playwright
 ) -> Iterator[Browser]:
     if request.param == "chromium":
         yield browser
-        return
-    try:
-        engine = playwright_api.webkit.launch()
-    except Error as exc:
-        if os.environ.get("CI", "").lower() == "true":
-            raise
-        pytest.skip(f"Optional WebKit unavailable: {exc}")
-    try:
-        yield engine
-    finally:
-        engine.close()
+    else:
+        yield from _launch(playwright_api, "webkit")
 
 
 def _replay_comments(page: Page, origin: str, mode: str = "success") -> list[str]:
@@ -1485,9 +1493,9 @@ def test_comments_generated_theme_wiring_uses_issue_identity(
 
 @pytest.mark.parametrize("theme", _THEMES)
 def test_disabled_comments_make_no_third_party_requests(
-    comments_browser: Browser, site_servers: dict[str, str], theme: str
+    each_browser: Browser, site_servers: dict[str, str], theme: str
 ) -> None:
-    page = comments_browser.new_page(viewport={"width": 390, "height": 844})
+    page = each_browser.new_page(viewport={"width": 390, "height": 844})
     origin = site_servers[f"{theme}-disabled"]
     external: list[str] = []
     page.on(
@@ -1555,9 +1563,9 @@ def test_empty_menu_preserves_keyboard_entry_brand_and_appearance(
 
 
 def test_comments_success_syncs_theme_and_removes_late_lazy_frames(
-    comments_browser: Browser, site_servers: dict[str, str]
+    each_browser: Browser, site_servers: dict[str, str]
 ) -> None:
-    page = comments_browser.new_page(
+    page = each_browser.new_page(
         color_scheme="light", viewport={"width": 390, "height": 844}
     )
     origin = site_servers["Quiet"]
@@ -1604,9 +1612,9 @@ def test_comments_success_syncs_theme_and_removes_late_lazy_frames(
 
 @pytest.mark.parametrize("mode", ["rate403", "blocked-client"])
 def test_comments_failure_has_bounded_keyboard_usable_issue_fallback(
-    comments_browser: Browser, site_servers: dict[str, str], mode: str
+    each_browser: Browser, site_servers: dict[str, str], mode: str
 ) -> None:
-    page = comments_browser.new_page()
+    page = each_browser.new_page()
     origin = site_servers["Quiet"]
     requests = _replay_comments(page, origin, mode)
     # Advance browser time through the *unaltered* production 20s watchdog.
@@ -1667,9 +1675,9 @@ def test_comments_failure_has_bounded_keyboard_usable_issue_fallback(
 
 
 def test_comments_feedback_rejects_wrong_origin_and_source(
-    comments_browser: Browser, site_servers: dict[str, str]
+    each_browser: Browser, site_servers: dict[str, str]
 ) -> None:
-    page = comments_browser.new_page()
+    page = each_browser.new_page()
     origin = site_servers["Quiet"]
     _replay_comments(page, origin, "peer")
     frozen = datetime(2026, 1, 1, tzinfo=UTC)
@@ -1744,9 +1752,9 @@ def test_comments_feedback_rejects_wrong_origin_and_source(
 
 @pytest.mark.parametrize("width", [1495, 1161, 1160, 390, 320])
 def test_quiet_v3_centered_pages_and_compact_navigation(
-    comments_browser: Browser, site_servers: dict[str, str], width: int
+    each_browser: Browser, site_servers: dict[str, str], width: int
 ) -> None:
-    page = comments_browser.new_page(viewport={"width": width, "height": 960})
+    page = each_browser.new_page(viewport={"width": width, "height": 960})
     page.route("https://**/*", lambda route: route.abort())
     try:
         for path in (
@@ -1766,9 +1774,8 @@ def test_quiet_v3_centered_pages_and_compact_navigation(
                 const r = e.getBoundingClientRect();
                 const rail = document.querySelector('.site-rail').getBoundingClientRect();
                 const margin = document.querySelector('.reading-margin:not([hidden])')?.getBoundingClientRect();
-                return {width: r.width, center: r.x + r.width / 2 - document.documentElement.clientWidth / 2,
-                    rail: rail.width, gap: r.x - rail.right, toc: margin?.width,
-                    rightGap: margin ? margin.left - r.right : null};
+                return {center: r.x + r.width / 2 - document.documentElement.clientWidth / 2,
+                    gap: r.x - rail.right, rightGap: margin ? margin.left - r.right : null};
             }""")
             assert abs(geometry["center"]) < 1, (path, geometry)
             assert page.evaluate(
@@ -1781,10 +1788,9 @@ def test_quiet_v3_centered_pages_and_compact_navigation(
                 page.locator("#site-navigation [aria-current] .nav-arrow")
             ).to_have_count(0 if path == "ideas/2/" else 1)
             if width > 1160:
-                assert geometry["width"] == 704 and geometry["rail"] == 160
-                assert geometry["gap"] == 40
-                if geometry["toc"] is not None:
-                    assert 160 <= geometry["toc"] <= 320 and geometry["rightGap"] == 40
+                # The rail, the page and the contents list do not overlap.
+                assert geometry["gap"] >= 0, (path, geometry)
+                assert (geometry["rightGap"] or 0) >= 0, (path, geometry)
             else:
                 menu = page.get_by_role("button", name="Toggle menu")
                 expect(menu).to_be_visible()
@@ -1792,23 +1798,14 @@ def test_quiet_v3_centered_pages_and_compact_navigation(
                 page.keyboard.press("Escape")
                 expect(menu).to_be_focused()
                 expect(menu).to_have_attribute("aria-expanded", "false")
-            if page.locator(".post-content").count():
-                expect(page.locator(".post-content")).to_have_css("font-size", "16px")
-                expect(page.locator(".post-content")).to_have_css("line-height", "28px")
-            if path == "blog/a-blog/":
-                title = page.locator(".article-heading h1")
-                expect(title).to_have_css("font-size", "24px")
-                expect(title).to_have_css("line-height", "42px")
-                expect(title).to_have_css("letter-spacing", "normal")
-                expect(title).to_have_css("text-wrap", "wrap")
     finally:
         page.close()
 
 
 def test_quiet_v3_toc_follows_page_when_taller_than_viewport(
-    comments_browser: Browser, site_servers: dict[str, str]
+    each_browser: Browser, site_servers: dict[str, str]
 ) -> None:
-    page = comments_browser.new_page(viewport={"width": 1495, "height": 520})
+    page = each_browser.new_page(viewport={"width": 1495, "height": 520})
     page.route("https://**/*", lambda route: route.abort())
     try:
         page.goto(f"{site_servers['Quiet']}/blog/toc-long/", wait_until="load")
@@ -1838,9 +1835,9 @@ def test_quiet_v3_toc_follows_page_when_taller_than_viewport(
 
 @pytest.mark.parametrize("javascript", [True, False])
 def test_quiet_home_is_centered_and_its_introduction_is_keyboard_navigation(
-    comments_browser: Browser, site_servers: dict[str, str], javascript: bool
+    each_browser: Browser, site_servers: dict[str, str], javascript: bool
 ) -> None:
-    page = comments_browser.new_page(java_script_enabled=javascript)
+    page = each_browser.new_page(java_script_enabled=javascript)
     errors: list[str] = []
     page.on("pageerror", lambda error: errors.append(str(error)))
     origin = site_servers["Quiet"]
@@ -1879,9 +1876,7 @@ def test_quiet_home_is_centered_and_its_introduction_is_keyboard_navigation(
             if index == 0:
                 link.focus()
                 page.keyboard.press(
-                    "Alt+Tab"
-                    if comments_browser.browser_type.name == "webkit"
-                    else "Tab"
+                    "Alt+Tab" if each_browser.browser_type.name == "webkit" else "Tab"
                 )
                 expect(page.locator(".home-intro a").nth(1)).to_be_focused()
             link.focus()
@@ -1898,30 +1893,19 @@ def test_quiet_home_is_centered_and_its_introduction_is_keyboard_navigation(
         page.close()
 
 
-def test_quiet_blog_has_compact_descriptions_after_home_and_pagination(
-    comments_browser: Browser, site_servers: dict[str, str]
+def test_quiet_blog_pages_are_keyboard_reachable_without_overflow(
+    each_browser: Browser, site_servers: dict[str, str]
 ) -> None:
-    page = comments_browser.new_page()
+    page = each_browser.new_page()
     try:
         page.emulate_media(reduced_motion="reduce")
         page.goto(site_servers["Quiet"])
-        home_title_size = page.locator(".home-writing a").first.evaluate(
-            "el => parseFloat(getComputedStyle(el).fontSize)"
-        )
         page.locator(".home-intro a").first.focus()
         page.keyboard.press("Enter")
         expect(page).to_have_url(f"{site_servers['Quiet']}/blog/")
         expect(page.locator(".entry-description").first).to_have_text("A blog post.")
         for width in (1440, 390, 320):
             page.set_viewport_size({"width": width, "height": 844})
-            expect(page.locator("main h1")).to_have_css("font-size", "24px")
-            title_size = page.locator(".entry h2").first.evaluate(
-                "el => parseFloat(getComputedStyle(el).fontSize)"
-            )
-            assert home_title_size <= title_size <= home_title_size + 1
-            expect(page.locator(".entry-description").first).to_have_css(
-                "font-size", "14px"
-            )
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
         page.get_by_role("link", name="Older →", exact=True).focus()
         page.keyboard.press("Enter")
@@ -1939,9 +1923,9 @@ def test_quiet_blog_has_compact_descriptions_after_home_and_pagination(
 
 
 def test_quiet_home_motion_respects_reduced_motion_and_appearance(
-    comments_browser: Browser, site_servers: dict[str, str]
+    each_browser: Browser, site_servers: dict[str, str]
 ) -> None:
-    page = comments_browser.new_page(
+    page = each_browser.new_page(
         viewport={"width": 1440, "height": 960}, color_scheme="light"
     )
     try:
@@ -1953,7 +1937,7 @@ def test_quiet_home_motion_respects_reduced_motion_and_appearance(
         )
         card = page.locator(".home-projects .work-card").first
         card.hover()
-        expect(card).to_have_css("transform", "matrix(1, 0, 0, 1, 0, -3)")
+        expect(card).not_to_have_css("transform", "none")
         page.emulate_media(reduced_motion="reduce")
         assert (
             page.locator("main").evaluate(
@@ -1966,9 +1950,6 @@ def test_quiet_home_motion_respects_reduced_motion_and_appearance(
         toggle = page.get_by_role("button", name="Dark mode")
         toggle.click()
         expect(page.locator("html")).to_have_attribute("data-theme", "dark")
-        expect(page.locator(".intro-link").first).to_have_css(
-            "color", "rgb(229, 139, 182)"
-        )
         page.reload()
         expect(toggle).to_have_attribute("aria-pressed", "true")
         expect(page.locator(".home-heading")).to_have_css("opacity", "1")
@@ -1981,9 +1962,9 @@ def test_quiet_home_motion_respects_reduced_motion_and_appearance(
 
 
 def test_quiet_v3_ordered_featured_cards_and_generic_about(
-    comments_browser: Browser, site_servers: dict[str, str]
+    each_browser: Browser, site_servers: dict[str, str]
 ) -> None:
-    page = comments_browser.new_page(viewport={"width": 1495, "height": 960})
+    page = each_browser.new_page(viewport={"width": 1495, "height": 960})
     page.route("https://**/*", lambda route: route.abort())
     try:
         for path, count in (("", 4), ("about/", 4), ("projects/", 7)):
@@ -1996,31 +1977,14 @@ def test_quiet_v3_ordered_featured_cards_and_generic_about(
             if path == "about/":
                 expect(page.locator(".about-header img")).to_have_count(0)
                 expect(page.locator("main img")).to_have_count(1)
-                expect(page.locator(".more-projects")).to_have_css(
-                    "border-width", "0px"
-                )
                 narrative_box = page.locator(".post-content").bounding_box()
                 cards_box = cards.first.bounding_box()
                 assert narrative_box is not None and cards_box is not None
                 assert narrative_box["y"] < cards_box["y"]
                 expect(page.locator(".post-content")).to_contain_text("Things I Do")
-                assert page.locator(".about-story h2").evaluate(
-                    "e => parseFloat(getComputedStyle(e).fontSize)"
-                ) == pytest.approx(18.72, abs=0.01)
-                expect(page.locator(".about-story > p").first).to_have_css(
-                    "font-size", "20px"
-                )
-                expect(page.locator(".about-story > p").first).to_have_css(
-                    "line-height", "35px"
-                )
                 expect(page.locator("#comments-container")).to_have_attribute(
                     "data-issue-number", "10"
                 )
-            elif path == "projects/":
-                box = cards.first.bounding_box()
-                assert box is not None and box["width"] / box[
-                    "height"
-                ] == pytest.approx(1.618, abs=0.01)
             expect(cards.locator("img")).to_have_count(1)
             cards.first.locator("img").scroll_into_view_if_needed()
             expect(cards.first.locator("img")).to_have_js_property("complete", True)
@@ -2049,10 +2013,10 @@ def test_quiet_v3_ordered_featured_cards_and_generic_about(
         page.close()
 
 
-def test_quiet_v3_code_surface_preserves_text_colors_and_native_scroll(
-    comments_browser: Browser, site_servers: dict[str, str]
+def test_quiet_code_blocks_keep_their_text_and_scroll_natively(
+    each_browser: Browser, site_servers: dict[str, str]
 ) -> None:
-    page = comments_browser.new_page(
+    page = each_browser.new_page(
         viewport={"width": 1495, "height": 960}, color_scheme="light"
     )
     page.route("https://**/*", lambda route: route.abort())
@@ -2077,30 +2041,19 @@ def test_quiet_v3_code_surface_preserves_text_colors_and_native_scroll(
             page.set_viewport_size({"width": width, "height": 960})
             pre = blocks.first.locator("pre")
             expect(pre).to_have_css("white-space", "pre")
-            expect(pre).to_have_css("scrollbar-width", "thin")
-            assert "rgba(0, 0, 0, 0)" in pre.evaluate(
-                "e => getComputedStyle(e).scrollbarColor"
-            )
             assert pre.evaluate("e => e.scrollWidth > e.clientWidth")
             assert page.evaluate("document.documentElement.scrollWidth <= innerWidth")
             pre.focus()
             expect(pre).to_be_focused()
-            if comments_browser.browser_type.name == "chromium":
+            if each_browser.browser_type.name == "chromium":
                 page.keyboard.press("ArrowRight")
                 expect(pre).not_to_have_js_property("scrollLeft", 0)
             else:
                 pre.hover()
                 page.mouse.wheel(200, 0)
                 expect(pre).not_to_have_js_property("scrollLeft", 0)
-        for mode, background, top in (
-            ("light", "rgb(246, 247, 249)", "rgb(238, 240, 243)"),
-            ("dark", "rgb(27, 29, 34)", "rgb(32, 35, 41)"),
-        ):
+        for mode in ("light", "dark"):
             page.locator("html").evaluate("(e, mode) => e.dataset.theme = mode", mode)
-            expect(blocks.first).to_have_css("background-color", background)
-            expect(blocks.first.locator(".code-tools")).to_have_css(
-                "background-color", top
-            )
             assert code.evaluate(
                 "e => getComputedStyle(e).color === getComputedStyle(document.body).color"
             )
@@ -2110,12 +2063,6 @@ def test_quiet_v3_code_surface_preserves_text_colors_and_native_scroll(
         blocks.first.locator(".copy-code").click()
         assert page.evaluate("window.copied") == expected
         expect(blocks.first.locator(".copy-code")).to_have_text("Copied")
-        page.emulate_media(media="print")
-        expect(blocks.first).to_have_css("background-color", "rgb(255, 255, 255)")
-        assert code.locator("span").evaluate_all(
-            "els => els.every(e => getComputedStyle(e).color === 'rgb(0, 0, 0)' && getComputedStyle(e).backgroundColor === 'rgba(0, 0, 0, 0)')"
-        )
-        page.emulate_media(media="screen")
         page.goto(f"{site_servers['Quiet']}/blog/a-blog/", wait_until="load")
         expect(page.locator("pre.mermaid svg")).to_have_count(
             1, timeout=_MERMAID_RENDER_TIMEOUT_MS

@@ -20,13 +20,13 @@ from pygments.formatters.html import HtmlFormatter
 from pygments.lexers import get_lexer_by_name
 from pygments.util import ClassNotFound
 
+from .atom_feed import NOT_XML
 from .build_result import Diagnostic
-from .routes import TAG_KEY, TAG_KEY_MAX_LENGTH
+from .routes import SLUG, TAG_KEY, TAG_KEY_MAX_LENGTH
 from .utils.frontmatter import ParsedFrontMatter
 from .utils.html_sanitizer import HTMLSanitizationError, sanitize_html
 
 CONTENT_TYPES = frozenset({"blog", "idea", "about"})
-_KEBAB_RE = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
 
 
@@ -71,16 +71,7 @@ def valid_tag(name: str) -> bool:
 
 
 def valid_slug(value: str) -> bool:
-    return bool(_KEBAB_RE.fullmatch(value)) and len(value) <= 80
-
-
-def reserved_blog_slug(value: str) -> Diagnostic | None:
-    """Keep this check at the compiler's existing collection-validation stage."""
-    if value == "page":
-        return Diagnostic(
-            "error", "SLUG_RESERVED", "slug 'page' is reserved", field="slug"
-        )
-    return None
+    return bool(SLUG.fullmatch(value)) and len(value) <= 80
 
 
 def _valid_description(value: str) -> bool:
@@ -157,6 +148,20 @@ def validate_authored_content(
             )
         )
 
+    if content_type == "blog":
+        texts = {"title": title, "description": description, "body": parsed.body}
+        for field, text in texts.items():
+            if isinstance(text, str) and (match := NOT_XML.search(text)):
+                errors.append(
+                    Diagnostic(
+                        "error",
+                        "CHARACTER_INVALID",
+                        f"{field} contains U+{ord(match.group()):04X}, a character "
+                        "the Atom feed cannot hold",
+                        field=field,
+                    )
+                )
+
     slug = fields.get("slug")
     if content_type == "blog":
         if "slug" in fields and (not isinstance(slug, str) or not valid_slug(slug)):
@@ -166,6 +171,13 @@ def validate_authored_content(
                     "SLUG_INVALID",
                     "slug must be lower-case kebab-case and at most 80 characters",
                     field="slug",
+                )
+            )
+        elif slug == "page":
+            # The Blog's archive pages live at page/2/, page/3/ and so on.
+            errors.append(
+                Diagnostic(
+                    "error", "SLUG_RESERVED", "slug 'page' is reserved", field="slug"
                 )
             )
     elif "slug" in fields:

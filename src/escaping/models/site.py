@@ -1,15 +1,13 @@
 from __future__ import annotations
 
 from dataclasses import dataclass, field
+from datetime import datetime
 
 from ..build_result import Diagnostic
 from ..routes import Route, RouteRegistry
-from .atom_feed import AtomFeed
-from .blog_archive import ArchivePage
 from .blog_post import BlogPost
 from .content import AboutPage, Idea, ProfileAbout
 from .projects import Project
-from .tag_taxonomy import Tag
 
 
 @dataclass(frozen=True)
@@ -76,8 +74,45 @@ class Redirect:
 
 
 @dataclass(frozen=True)
+class ArchivePage:
+    """One page of the Blog archive, newest first, with adjacent page Routes."""
+
+    page_number: int
+    total_pages: int
+    route: Route
+    prev_route: Route | None
+    next_route: Route | None
+    posts: tuple[BlogPost, ...]
+
+
+@dataclass(frozen=True)
+class Tag:
+    """One Blog tag archive: display name, route key and its posts, newest first."""
+
+    name: str
+    key: str
+    route: Route
+    posts: tuple[BlogPost, ...]
+
+    @property
+    def count(self) -> int:
+        return len(self.posts)
+
+    @property
+    def canonical_path(self) -> str:
+        return self.route.canonical_path
+
+    @property
+    def canonical_url(self) -> str:
+        return self.route.canonical_url
+
+
+@dataclass(frozen=True)
 class SiteModel:
-    """Complete immutable build model consumed by renderer and validator."""
+    """Complete immutable build model consumed by renderer and validator.
+
+    Blog posts and Ideas are newest first, as the ContentCompiler orders them.
+    """
 
     metadata: SiteMetadata
     blogs: tuple[BlogPost, ...]
@@ -87,8 +122,8 @@ class SiteModel:
     projects: tuple[Project, ...]
     tags: tuple[Tag, ...]
     extra_pages: tuple[ExtraPage, ...]
-    feed: AtomFeed
     routes: RouteRegistry
+    build_start_time: datetime
     redirects: tuple[Redirect, ...] = field(default_factory=tuple)
     diagnostics: tuple[Diagnostic, ...] = field(default_factory=tuple)
     skipped_issues: tuple[int, ...] = field(default_factory=tuple)

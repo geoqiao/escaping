@@ -18,7 +18,6 @@ from .build_result import Diagnostic
 from .content_validation import (
     CONTENT_TYPES,
     render_body,
-    reserved_blog_slug,
     tag_key,
     validate_authored_content,
 )
@@ -126,12 +125,6 @@ def prepare_local_draft(
         fields=metadata, body=parsed.body, scalar_styles=parsed.scalar_styles
     )
     errors.extend(validate_authored_content(title, kind, tags, authored))
-    if (
-        kind == "blog"
-        and isinstance(slug := metadata.get("slug"), str)
-        and (reserved := reserved_blog_slug(slug))
-    ):
-        errors.append(reserved)
     if errors:
         return None, tuple(errors)
     _, body_errors = render_body(parsed.body)

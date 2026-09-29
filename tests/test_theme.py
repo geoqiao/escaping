@@ -92,12 +92,7 @@ def test_theme_use_errors_name_the_fix(tmp_path: Path, use: str, expected: str) 
 @pytest.mark.parametrize(
     ("manifest", "expected"),
     [
-        ("api_version: '2'\n", "#migrating-from-api-2"),
-        ("api: 3\n", "must declare api: 4 (see docs/themes/authoring.md#migrating"),
-        (
-            "api: 4\npages: []\n",
-            "pages: moved to pages.extra in the site's config.yaml",
-        ),
+        ("api: 3\n", "must declare api: 4 (see docs/themes/authoring.md)"),
         ("api: [\n", "is not valid YAML"),
         ("- api\n", "must be a mapping"),
         ("api: 4\nunknown: 1\n", "unknown: unknown field"),

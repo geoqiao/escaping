@@ -1,11 +1,14 @@
 from __future__ import annotations
 
+import xml.etree.ElementTree as ET
 from collections.abc import Sequence
-from datetime import UTC, datetime
+from dataclasses import replace
+from datetime import UTC, datetime, timedelta, timezone
 from typing import Any
 
 import pytest
 
+from escaping.atom_feed import render_atom_xml
 from escaping.config import ExtraPageConfig, Settings
 from escaping.models.blog_post import BlogPost, BlogTag
 from escaping.models.content import AboutPage, ContentCompilationResult, Idea
@@ -15,6 +18,7 @@ from escaping.routes import RouteRegistry
 from escaping.site_builder import SiteBuilder
 
 _BUILD_START = datetime(2026, 2, 1, tzinfo=UTC)
+_ATOM = "{http://www.w3.org/2005/Atom}"
 
 
 def _settings(**overrides: object) -> Settings:
@@ -52,9 +56,8 @@ def _blog(
     number: int,
     *,
     tags: Sequence[tuple[str, str]] = (("Python", "python"),),
-    naive: bool = False,
 ) -> BlogPost:
-    published = datetime(2026, 1, number, tzinfo=None if naive else UTC)
+    published = datetime(2026, 1, number, tzinfo=UTC)
     return BlogPost(
         issue_number=number,
         title=f"Post {number}",
@@ -129,7 +132,7 @@ def _build(
 def test_site_builder_composes_the_site_from_registered_routes() -> None:
     settings = _settings()
     routes = RouteRegistry(str(settings.site.url))
-    blogs = tuple(_blog(routes, number) for number in (2, 6, 1, 5, 3, 4))
+    blogs = tuple(_blog(routes, number) for number in (6, 5, 4, 3, 2, 1))
 
     site = _build(settings, routes, _content(routes, blogs, skipped=(7,)))
 
@@ -146,7 +149,6 @@ def test_site_builder_composes_the_site_from_registered_routes() -> None:
     assert site.archives[2].next_route is None
     assert [(tag.name, tag.count) for tag in site.tags] == [("Python", 6)]
     assert site.tags[0].route is routes.route("tag-python")
-    assert [entry.title for entry in site.feed.entries][:2] == ["Post 6", "Post 5"]
     assert site.about is not None and not site.about.is_profile
     assert site.about.route is routes.route("about")
     metadata = site.metadata
@@ -158,16 +160,16 @@ def test_site_builder_composes_the_site_from_registered_routes() -> None:
 
     empty = _build(settings, RouteRegistry("https://example.com/"), _content(routes))
     assert len(empty.archives) == 1 and empty.archives[0].posts == ()
-    assert empty.tags == () and empty.feed.updated == _BUILD_START
+    assert empty.tags == ()
 
 
 def test_tags_group_by_key_and_take_the_newest_spelling() -> None:
     settings = _settings()
     routes = RouteRegistry(str(settings.site.url))
     blogs = (
-        _blog(routes, 1, tags=(("python", "python"), ("示例 标签", "示例-标签"))),
         _blog(routes, 3, tags=(("Python", "python"),)),
         _blog(routes, 2, tags=(("PYTHON", "python"),)),
+        _blog(routes, 1, tags=(("python", "python"), ("示例 标签", "示例-标签"))),
     )
     site = _build(settings, routes, _content(routes, blogs))
     assert [(tag.name, tag.key) for tag in site.tags] == [
@@ -281,17 +283,52 @@ def test_navigation_must_point_at_pages_of_the_site(url: str) -> None:
     ]
 
 
-def test_invalid_feed_text_and_naive_timestamps_stop_the_build() -> None:
-    settings = _settings(site__title="Bad\x01Title")
+def test_atom_feed_lists_the_blog_newest_first_in_utc() -> None:
+    settings = _settings(site__title="Tea & Notes")
     routes = RouteRegistry(str(settings.site.url))
-    site = _build(settings, routes, _content(routes, (_blog(routes, 1, naive=True),)))
-    codes = {d.code for d in site.diagnostics if d.severity == "error"}
-    assert site.has_errors
-    assert {
-        "ATOM_XML_INVALID_CHAR",
-        "ATOM_NAIVE_PUBLISHED_AT",
-        "ATOM_NAIVE_UPDATED_AT",
-    } <= codes
+    # 08:30 at UTC+8 on Jan 9 is 00:30 UTC, the latest update.
+    late = datetime(2026, 1, 9, 8, 30, tzinfo=timezone(timedelta(hours=8)))
+    blogs = (
+        replace(_blog(routes, 3), updated_at=late),
+        _blog(routes, 2),
+        _blog(routes, 1),
+    )
+    xml = render_atom_xml(_build(settings, routes, _content(routes, blogs)))
+    feed = ET.fromstring(xml)  # noqa: S314
+
+    assert feed.findtext(f"{_ATOM}title") == "Tea & Notes"
+    assert feed.findtext(f"{_ATOM}subtitle") == "Description"
+    assert feed.findtext(f"{_ATOM}updated") == "2026-01-09T00:30:00Z"
+    assert [link.attrib for link in feed.findall(f"{_ATOM}link")] == [
+        {
+            "rel": "self",
+            "type": "application/atom+xml",
+            "href": "https://example.com/atom.xml",
+        },
+        {"rel": "alternate", "type": "text/html", "href": "https://example.com/"},
+    ]
+    entries = feed.findall(f"{_ATOM}entry")
+    assert [entry.findtext(f"{_ATOM}id") for entry in entries] == [
+        f"https://example.com/blog/post-{number}/" for number in (3, 2, 1)
+    ]
+    assert entries[0].findtext(f"{_ATOM}published") == "2026-01-03T00:00:00Z"
+
+    settings = _settings(site__description="")
+    routes = RouteRegistry(str(settings.site.url))
+    empty = ET.fromstring(render_atom_xml(_build(settings, routes, _content(routes))))  # noqa: S314
+    assert empty.findtext(f"{_ATOM}updated") == "2026-02-01T00:00:00Z"
+    assert empty.find(f"{_ATOM}subtitle") is None
+    assert empty.find(f"{_ATOM}entry") is None
+
+
+def test_atom_feed_refuses_a_character_xml_forbids() -> None:
+    settings = _settings()
+    routes = RouteRegistry(str(settings.site.url))
+    bad = replace(_blog(routes, 1), body_html="<p>Secret\x01</p>")
+    site = _build(settings, routes, _content(routes, (bad,)))
+    with pytest.raises(ValueError, match=r"U\+0001") as error:
+        render_atom_xml(site)
+    assert "Secret" not in str(error.value)
 
 
 def test_profile_about_body_is_the_escaped_bio() -> None:

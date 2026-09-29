@@ -128,6 +128,21 @@ def test_authored_calendar_dates_compile_to_ascii_without_changing_issue_time(
     assert item.published_at == item.updated_at == _NOW
 
 
+def test_blog_posts_come_out_newest_first() -> None:
+    older = _NOW.replace(day=8)
+    result = _compiler().compile(
+        [
+            _snapshot(2, "blog", metadata="slug: two"),
+            _snapshot(5, "blog", metadata="slug: five", created_at=older),
+            _snapshot(3, "blog", metadata="slug: three"),
+            _snapshot(10, "about"),
+        ]
+    )
+    assert not result.has_errors
+    # At the same time, the higher Issue number is the newer post.
+    assert [post.issue_number for post in result.blogs] == [3, 2, 5]
+
+
 def test_ideas_forbid_slug_sort_and_keep_tags_outside_blog_taxonomy() -> None:
     older = _NOW.replace(day=8)
     result = _compiler().compile(
@@ -304,6 +319,32 @@ def test_explicit_invalid_metadata_skips_only_that_issue(
     assert not result.has_errors and result.skipped == (128,)
     assert [post.issue_number for post in result.blogs] == [1]
     assert result.about is not None
+
+
+@pytest.mark.parametrize(
+    "field,snapshot",
+    [
+        ("title", _snapshot(128, "blog", title="Bad\x01Title")),
+        ("body", replace(_snapshot(128, "blog"), body="Bad \x01 char.")),
+        ("body", replace(_snapshot(128, "blog"), body="Bad ￿ char.")),
+        ("description", _snapshot(128, "blog", metadata='description: "A\\uFFFE"')),
+    ],
+)
+def test_a_character_the_feed_cannot_hold_skips_only_that_blog(
+    field: str, snapshot: IssueSnapshot
+) -> None:
+    result = _compiler().compile(
+        [snapshot, _snapshot(1, "blog"), _snapshot(10, "about")]
+    )
+    [error] = [d for d in result.diagnostics if d.severity == "error"]
+    assert (error.code, error.issue_number, error.field) == (
+        "CHARACTER_INVALID",
+        128,
+        field,
+    )
+    assert "Bad" not in error.message
+    assert not result.has_errors and result.skipped == (128,)
+    assert [post.issue_number for post in result.blogs] == [1]
 
 
 def test_defaults_keep_publication_gates_and_collect_published_errors() -> None:

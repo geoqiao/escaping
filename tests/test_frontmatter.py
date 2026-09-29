@@ -128,28 +128,8 @@ def test_custom_tag_and_duplicate_key_rejected(body: str, code: str) -> None:
 
 
 # ---------------------------------------------------------------------------
-# Unknown field rejection / collection
+# Unknown fields
 # ---------------------------------------------------------------------------
-
-
-@pytest.mark.parametrize(
-    "body, code, field",
-    [
-        (
-            "---\nslug: x\nunknown_field: value\n---\nbody",
-            "FRONT_MATTER_UNKNOWN_FIELD",
-            "unknown_field",
-        ),
-        ("---\ntitle: My Title\n---\nbody", "FRONT_MATTER_UNKNOWN_FIELD", "title"),
-        ("---\ntype: blog\n---\nbody", "FRONT_MATTER_UNKNOWN_FIELD", "type"),
-    ],
-    ids=["unknown", "forbidden-title", "forbidden-type"],
-)
-def test_unknown_field_rejected(body: str, code: str, field: str) -> None:
-    with pytest.raises(FrontMatterError) as exc:
-        parse_front_matter(body)
-    assert exc.value.code == code
-    assert exc.value.field == field
 
 
 def test_allowed_fields_accepted() -> None:
@@ -161,15 +141,13 @@ def test_allowed_fields_accepted() -> None:
 def test_collect_unknown_fields() -> None:
     body = (
         "---\nslug: my-post\ndescription: A post.\n"
-        'created_date: "2026-01-01"\nfoo: bar\nbaz: 2\n---\n\nBody text.'
+        'created_date: "2026-01-01"\nfoo: bar\ntitle: T\ntype: blog\n---\n\nBody text.'
     )
-    result = parse_front_matter(body, collect_unknown_fields=True)
+    result = parse_front_matter(body)
     assert set(result.fields.keys()) == {"slug", "description", "created_date"}
-    assert set(result.unknown_fields) == {"foo", "baz"}
+    # title and type belong to the Issue itself, so they are unknown here.
+    assert set(result.unknown_fields) == {"foo", "title", "type"}
     assert result.body == "Body text."
-    # Default still raises
-    with pytest.raises(FrontMatterError, match="Unknown field"):
-        parse_front_matter("---\nslug: x\nfoo: bar\n---\nbody")
 
 
 # ---------------------------------------------------------------------------
@@ -246,7 +224,7 @@ def test_scalar_style_not_polluted_by_nested_keys() -> None:
     body = (
         "---\ncreated_date: '2026-01-01'\nextra:\n  created_date: 2026-01-01\n---\nbody"
     )
-    result = parse_front_matter(body, collect_unknown_fields=True)
+    result = parse_front_matter(body)
     assert result.scalar_styles.get("created_date") == "'"
 
 
@@ -270,7 +248,7 @@ def test_mechanical_envelope_keeps_raw_fields_and_body(ending: str) -> None:
         "created_date": "2020-02-29",
     }
     assert parsed.scalar_styles["created_date"] == '"'
-    issue = parse_front_matter(raw, collect_unknown_fields=True)
+    issue = parse_front_matter(raw)
     assert issue.fields == {"created_date": "2020-02-29"}
     assert issue.unknown_fields == ["title", "type"]
     assert issue.body == "\n  中文🙂\n\n---\nTail.\n "

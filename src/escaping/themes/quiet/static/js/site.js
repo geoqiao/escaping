@@ -10,18 +10,21 @@
 
   function setAppearance(theme) {
     root.dataset.theme = theme;
-    themeToggle.setAttribute("aria-pressed", String(theme === "dark"));
+    themeToggle?.setAttribute("aria-pressed", String(theme === "dark"));
   }
   setAppearance(choice || (system.matches ? "dark" : "light"));
   system.addEventListener("change", () => {
     if (!choice) setAppearance(system.matches ? "dark" : "light");
   });
-  themeToggle.addEventListener("click", () => {
-    choice = root.dataset.theme === "dark" ? "light" : "dark";
-    setAppearance(choice);
-    try { localStorage.setItem("quiet-theme", choice); } catch { /* Keep the in-memory choice. */ }
-  });
-  themeToggle.hidden = false;
+  // A Theme that extends Quiet may replace header.html without the button.
+  if (themeToggle) {
+    themeToggle.addEventListener("click", () => {
+      choice = root.dataset.theme === "dark" ? "light" : "dark";
+      setAppearance(choice);
+      try { localStorage.setItem("quiet-theme", choice); } catch { /* Keep the in-memory choice. */ }
+    });
+    themeToggle.hidden = false;
+  }
 
   root.classList.add("js");
 

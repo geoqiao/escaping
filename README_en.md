@@ -26,14 +26,14 @@ Blog, Ideas, Projects, About, Tags and RSS, without a separate content managemen
 Use **Use this template** at [escaping-template](https://github.com/geoqiao/escaping-template).
 No local Python, PAT, or manually created publishing labels are required.
 
-> **Public preview:** the 0.4.0 Action and starter workflow have run in local tests; creating a new
-> repository from the template on GitHub has not been fully verified yet.
+> **Public preview:** the 0.4.0 Action builds a live site on GitHub; creating a new repository
+> from the template, including the step that creates the labels, has not been tried on GitHub yet.
 
 1. Create `username.github.io` (public for GitHub Free), keep Issues/Actions enabled, and in **Settings → Pages** set **Source** to **GitHub Actions**.
 2. Save an Issue with a title and Markdown body. The workflow's `labels` job creates the publishing labels on its first run; refresh the Issue page if you do not see them.
 3. Add one of `type:blog`, `type:idea`, or `type:about`, plus `published` when ready, and check the deployment in Actions.
 
-The workflow runs the generator with `uses: geoqiao/escaping@v0.4.0`; the site repository needs no scripts.
+The workflow runs the generator with `uses: geoqiao/escaping@v0.5.0`; the site repository needs no scripts.
 A repository with another name works too: the site then lives at `username.github.io/<repository>/`, and escaping handles that path.
 The [starter instructions](starter/README.md) cover the full setup, versions and failure recovery.
 
@@ -81,7 +81,7 @@ theme:
 | Comments | Off by default; set `comments.enabled: true` and separately authorize the [Utterances App](https://github.com/apps/utterances). Profile About never has comments |
 | Local builds | Require Python 3.14.x and uv; read Issues with a token, or build offline with `--issues-json`; see the [local build steps](docs/site-inputs.md#local-build) |
 
-A mistyped field fails the build and suggests the correct spelling; a field from 0.1 tells you where it moved.
+A mistyped field fails the build and suggests the correct spelling.
 Error messages never repeat the values you wrote. Organization-owned content repositories require explicit `github.allowed_authors`.
 Output and local Theme paths are relative to the Config directory. Serve the output as the web root, not under an `/output/` URL prefix.
 
@@ -102,9 +102,9 @@ Then run `escpe theme check --config config.yaml`. It renders every page with sa
 ## Upgrading
 
 A site pins the generator version in the workflow's `uses:` line (a tag or a full commit SHA); it never upgrades by itself.
-Read the [CHANGELOG](CHANGELOG.md) before upgrading. Upgrading from 0.1 is described in
-[Upgrading from 0.1](CHANGELOG.md#upgrading-from-01); for a local Theme, see
-[migrating from API 2](docs/themes/authoring.md#migrating-from-api-2).
+Read the [CHANGELOG](CHANGELOG.md) before upgrading. You can pin the latest version directly: from 0.1, do the steps in
+[Upgrading from 0.1](CHANGELOG.md#upgrading-from-01) and then [Upgrading from 0.2](CHANGELOG.md#upgrading-from-02);
+from 0.2, only the second. For a local Theme, see [Theme migration](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
 Configuring comments is not proof of posting; actual App/OAuth submission still needs separate verification.
 
 ## Development and maintenance

@@ -1,36 +1,19 @@
-"""Output staging and portable publication.
+"""Write a build into a staging directory, then swap it in with renames.
 
-Keeps a fully rendered and validated candidate tree under the validated
-output boundary/parent, then replaces final output with directory renames
-without exposing a partially copied tree.
+The staging directory is a sibling of the output, inside the containment
+boundary that ``output_safety`` checks. Publishing renames the old output to
+a backup, renames the candidate into place and removes the backup; if the
+second rename fails, the backup is renamed back. Between the two renames the
+output briefly does not exist; it is never copied file by file. A failed
+build removes the candidate and leaves the old output untouched. If rollback
+also fails, the error lists every path that still holds a copy.
 
-When final output already exists, it is renamed to a uniquely owned sibling
-backup before the candidate is renamed into place.  If candidate promotion
-fails, the backup is restored.  Successful local publication may therefore
-have a brief window in which the final path is absent, but it never copies a
-candidate into final file by file.
+Only paths this service created are renamed or deleted: each is recorded with
+its device and inode, and a symlink, a moved path or a replaced path is
+refused. The output carries ``OUTPUT_MARKER``; a non-empty output without it
+holds someone else's files and is never replaced.
 
-When final does not exist, a single ``os.rename`` suffices.
-
-After successful publication the backup is cleaned up; cleanup failure
-produces a warning diagnostic and never invalidates the new final.  If
-rollback itself fails, candidate and backup recovery material is preserved
-and the raised error reports all recovery paths.
-
-Failures before publication clean up candidate output and preserve the
-previous final output byte-for-byte.  The staging directory is created as a
-sibling of the final output, within the containment boundary validated by
-:func:`escaping.output_safety.validate_output_containment`.
-
-The service owns and tracks every staging directory and backup path it
-creates.  At mutation boundaries it rejects arbitrary, external, moved,
-symlinked, wrong-parent, or unregistered paths.
-
-The final output carries an ownership marker (``OUTPUT_MARKER``). A non-empty
-output directory without it holds files escaping did not write, so the
-service refuses to replace it instead of deleting them.
-
-Concurrent local builds targeting the same output directory are unsupported.
+Two local builds into the same output at once are not supported.
 """
 
 from __future__ import annotations
@@ -40,12 +23,8 @@ import shutil
 import uuid
 from pathlib import Path
 
-import structlog
-
 from .build_result import Diagnostic
 from .output_safety import OutputContainmentError, validate_output_containment
-
-logger = structlog.get_logger()
 
 #: Written into every output escaping publishes; proves the tree is ours.
 OUTPUT_MARKER = ".escaping-output"
@@ -55,45 +34,25 @@ _MARKER_TEXT = (
 )
 
 
-# --- Staging identity ------------------------------------------------------
-
-
 def _st_identity(path: Path) -> tuple[int, int]:
-    """Return ``(st_dev, st_ino)`` for owned-tree identity tracking.
-
-    Using both device and inode avoids false matches across different
-    filesystems, which ``st_ino`` alone cannot distinguish.
-    """
+    """Device and inode: an inode number alone repeats across filesystems."""
     st = path.stat()
     return (st.st_dev, st.st_ino)
 
 
 class OutputStagingError(Exception):
-    """Raised when a staging operation violates containment or registration.
+    """A staging step failed or was refused.
 
-    ``recovery_paths`` is non-empty only when automatic rollback failed and
-    the caller must preserve those paths for manual recovery.
+    ``recovery_paths`` is set only when rollback failed; keep those paths.
     """
 
-    def __init__(
-        self,
-        message: str,
-        *,
-        recovery_paths: tuple[Path, ...] = (),
-    ) -> None:
+    def __init__(self, message: str, *, recovery_paths: tuple[Path, ...] = ()) -> None:
         super().__init__(message)
         self.recovery_paths = recovery_paths
 
 
 class OutputStagingService:
-    """Manages candidate output staging and portable publication.
-
-    The staging directory is created as a sibling of the final output,
-    within the validated containment boundary.  The service tracks every
-    staging directory it creates and rejects unregistered, external,
-    moved, symlinked, or wrong-parent paths at ``publish`` and
-    ``cleanup`` mutation boundaries.
-    """
+    """Stage, publish and clean up one build's output."""
 
     def __init__(self, output_path: str | Path, repo_root: Path) -> None:
         self._output = validate_output_containment(output_path, repo_root)
@@ -109,12 +68,7 @@ class OutputStagingService:
         return self._output
 
     def check_replaceable(self) -> None:
-        """Refuse an existing output that escaping did not create.
-
-        Raises:
-            OutputStagingError: If the output is not a directory, or is a
-                non-empty directory without ``OUTPUT_MARKER``.
-        """
+        """Refuse an output that is a file, or holds files escaping did not write."""
         if not self._output.exists():
             return
         if not self._output.is_dir():
@@ -127,19 +81,11 @@ class OutputStagingService:
         raise OutputStagingError(
             f"output {self._output} contains files escaping did not create, "
             "and a build would delete them. Move your files out and delete the "
-            "directory (an output from escaping 0.1 needs this once), or set "
-            "paths.output to another directory"
+            "directory, or set paths.output to another directory"
         )
 
-    # --- Staging creation ------------------------------------------------
-
     def create_staging_directory(self) -> Path:
-        """Create a temporary staging directory as a sibling of the output.
-
-        The directory name uses a unique suffix to avoid collisions.
-        Returns the path to the created directory.  The service tracks
-        this path so that ``publish`` and ``cleanup`` can verify it later.
-        """
+        """Create and record a uniquely named sibling of the output."""
         suffix = uuid.uuid4().hex[:12]
         staging_name = f".{self._output.name}.staging.{suffix}"
         staging_dir = self._staging_parent / staging_name
@@ -152,16 +98,9 @@ class OutputStagingService:
         (staging_dir / OUTPUT_MARKER).write_text(_MARKER_TEXT, encoding="utf-8")
         return staging_dir
 
-    # --- Registration verification ---------------------------------------
-
-    # TOCTOU boundary: _verify_owned reads the filesystem identity at
-    # check time, but between this check and the subsequent mutation
-    # (rmtree / rename) the path could be replaced by another process
-    # on the same machine.  This is a local-concurrency TOCTOU race that
-    # cannot be eliminated without fd-based operations (e.g. openat with
-    # O_NOFOLLOW).  The current implementation does not attempt fd-based
-    # hardening; the identity check reduces the attack surface but does not
-    # provide a guarantee.
+    # Another local process could still swap a path between _verify_owned and
+    # the rename or rmtree that follows; closing that gap needs file-descriptor
+    # operations such as openat with O_NOFOLLOW, which this code does not use.
 
     def _validate_owned_sibling(self, path: Path, kind: str) -> Path:
         """Validate a generated staging/backup path before it is owned."""
@@ -223,26 +162,6 @@ class OutputStagingService:
                     f"{label} identity mismatch (path was replaced or moved): {path}"
                 )
 
-    def _verify_registered(self, staging_dir: Path) -> None:
-        """Verify *staging_dir* was created by this service and is safe.
-
-        Rejects symlinks, unregistered paths, wrong-parent paths, and
-        paths whose ``(st_dev, st_ino)`` differs from creation time
-        (moved or replaced).
-
-        Raises:
-            OutputStagingError: If any safety check fails.
-        """
-        self._verify_owned(staging_dir, self._registered_staging, "staging")
-
-    def _verify_registered_backup(self, backup_dir: Path) -> None:
-        """Verify a backup was reserved by this service and is unchanged."""
-        self._verify_owned(backup_dir, self._registered_backups, "backup")
-
-    def _deregister(self, staging_dir: Path) -> None:
-        """Remove a staging path from the registration set."""
-        self._registered_staging.pop(staging_dir.resolve(), None)
-
     def _reserve_backup_path(self) -> Path:
         """Reserve a unique sibling path with the current final tree identity."""
         suffix = uuid.uuid4().hex[:12]
@@ -260,53 +179,32 @@ class OutputStagingService:
             ) from exc
         return backup_dir
 
-    def _deregister_backup(self, backup_dir: Path) -> None:
-        """Remove a backup path from the registration set."""
-        self._registered_backups.pop(backup_dir.resolve(), None)
-
-    # --- Publication -----------------------------------------------------
+    def _forget(self, path: Path) -> None:
+        self._registered_staging.pop(path.resolve(), None)
+        self._registered_backups.pop(path.resolve(), None)
 
     def publish(self, staging_dir: Path) -> list[Diagnostic]:
-        """Publish a validated staging directory with portable renames.
+        """Swap the staging directory in; return a warning if the backup stays.
 
-        When final output already exists, it is renamed to a registered
-        sibling backup before staging is renamed into place.  Failure to
-        promote staging restores the backup.  When final does not exist, a
-        single ``os.rename`` is used.
-
-        After successful promotion, backup cleanup is best effort: failure
-        produces a warning and leaves the complete new output published.
-        If rollback fails, this method raises an error with ``recovery_paths``
-        so callers preserve candidate and backup trees for manual recovery.
-
-        Returns:
-            A list of warning :class:`Diagnostic` instances (e.g. from
-            backup cleanup).  Empty on a clean success.
-
-        Raises:
-            FileNotFoundError: If *staging_dir* does not exist.
-            OutputStagingError: If the path is unregistered, external,
-                moved, symlinked, wrong-parent, or disappears/becomes
-                unreadable during identity verification, or
-                publication/rollback fails.
+        Raises ``OutputStagingError`` when a check or a rename fails; the old
+        output is then back in place, or ``recovery_paths`` lists the copies.
         """
-        self._verify_registered(staging_dir)
+        self._verify_owned(staging_dir, self._registered_staging, "staging")
 
         if not staging_dir.exists():
             raise FileNotFoundError(f"Staging directory not found: {staging_dir}")
         self.check_replaceable()
 
         if not self._output.exists():
-            # Final does not exist -- a single directory rename is sufficient.
             os.rename(staging_dir, self._output)
-            self._deregister(staging_dir)
+            self._forget(staging_dir)
             return []
 
         backup_dir = self._reserve_backup_path()
         try:
             os.rename(self._output, backup_dir)
         except OSError as exc:
-            self._deregister_backup(backup_dir)
+            self._forget(backup_dir)
             raise OutputStagingError(
                 "Failed to move existing output to backup; final output unchanged: "
                 f"final={self._output}; backup={backup_dir}; error={exc}"
@@ -316,7 +214,7 @@ class OutputStagingService:
             os.rename(staging_dir, self._output)
         except OSError as promotion_error:
             try:
-                self._verify_registered_backup(backup_dir)
+                self._verify_owned(backup_dir, self._registered_backups, "backup")
                 os.rename(backup_dir, self._output)
             except (OSError, OutputStagingError) as rollback_error:
                 recovery_paths = tuple(
@@ -332,28 +230,23 @@ class OutputStagingService:
                     f"rollback_error={rollback_error}",
                     recovery_paths=recovery_paths,
                 ) from rollback_error
-            self._deregister_backup(backup_dir)
+            self._forget(backup_dir)
             raise OutputStagingError(
                 "Candidate promotion failed; restored previous output. "
                 f"final={self._output}; candidate={staging_dir}; "
                 f"promotion_error={promotion_error}"
             ) from promotion_error
 
-        self._deregister(staging_dir)
+        self._forget(staging_dir)
 
-        # Best-effort cleanup of the old output tree at the backup path.
+        # The new output is live; failing to remove the old one is a warning.
         warnings: list[Diagnostic] = []
         try:
             if backup_dir.exists() or backup_dir.is_symlink():
-                self._verify_registered_backup(backup_dir)
+                self._verify_owned(backup_dir, self._registered_backups, "backup")
                 shutil.rmtree(backup_dir)
-            self._deregister_backup(backup_dir)
+            self._forget(backup_dir)
         except (OSError, OutputStagingError) as exc:
-            logger.warning(
-                "backup_cleanup_failed",
-                path=str(backup_dir),
-                error=str(exc),
-            )
             warnings.append(
                 Diagnostic(
                     severity="warning",
@@ -366,37 +259,15 @@ class OutputStagingService:
             )
         return warnings
 
-    # --- Cleanup ---------------------------------------------------------
-
     def cleanup(self, staging_dir: Path) -> list[Diagnostic]:
-        """Remove a staging directory on failure.
+        """Remove a staging directory after a failed build.
 
-        Verifies that *staging_dir* was created by this service and is
-        safe to remove before attempting deletion.
-
-        Cleanup failures are surfaced as structured error diagnostics
-        rather than silently ignored.  The method does **not** raise on
-        ``shutil.rmtree`` failure -- it returns the diagnostic so the
-        caller can include it in the :class:`BuildResult`.
-
-        Deregisters after successful cleanup or confirmed absence.
-        Idempotent for paths already deregistered and gone: returns an
-        empty list.
-
-        Returns:
-            A list of error :class:`Diagnostic` instances for cleanup
-            failures.  Empty on success or when the path no longer exists.
-
-        Raises:
-            OutputStagingError: If the path exists but is unregistered,
-                external, moved, symlinked, wrong-parent, or disappears/becomes
-                unreadable during identity verification (programming or
-                concurrency error).
+        Calling it again for a path already gone does nothing. A failed
+        deletion is returned as an error Diagnostic; a path this service did
+        not create, or one that was moved or replaced, raises
+        ``OutputStagingError``.
         """
         resolved = staging_dir.resolve()
-
-        # Idempotent: if the path was already cleaned up (deregistered
-        # and gone), there is nothing to do.
         if resolved not in self._registered_staging:
             if not staging_dir.exists():
                 return []
@@ -405,19 +276,16 @@ class OutputStagingService:
                 f"(unregistered): {staging_dir}"
             )
 
-        self._verify_registered(staging_dir)
-
+        self._verify_owned(staging_dir, self._registered_staging, "staging")
         if not staging_dir.exists():
-            # Confirmed absence: deregister and return.
-            self._deregister(staging_dir)
+            self._forget(staging_dir)
             return []
 
         diagnostics: list[Diagnostic] = []
         try:
             shutil.rmtree(staging_dir)
-            self._deregister(staging_dir)
+            self._forget(staging_dir)
         except OSError as exc:
-            logger.error("cleanup_failed", path=str(staging_dir), error=str(exc))
             diagnostics.append(
                 Diagnostic(
                     severity="error",

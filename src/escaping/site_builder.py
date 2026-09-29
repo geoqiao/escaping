@@ -6,13 +6,13 @@ from datetime import datetime
 from html import escape
 from urllib.parse import quote
 
-from .atom_feed import AtomFeedBuilder
-from .blog_archive import build_archives
 from .build_result import Diagnostic
 from .config import ExtraPageConfig, Settings
+from .models.blog_post import BlogPost
 from .models.content import AboutPage, ContentCompilationResult, ProfileAbout
 from .models.projects import Project, ProjectCompilationResult
 from .models.site import (
+    ArchivePage,
     CommentsMetadata,
     ExtraPage,
     Redirect,
@@ -21,9 +21,9 @@ from .models.site import (
     SiteMetadata,
     SiteModel,
     SiteProfile,
+    Tag,
 )
 from .routes import Route, RouteCollisionError, RouteRegistry, with_base
-from .tag_taxonomy import build_tag_taxonomy
 
 
 def register_fixed_routes(routes: RouteRegistry) -> None:
@@ -50,8 +50,46 @@ def register_fixed_routes(routes: RouteRegistry) -> None:
     routes.search()
 
 
+def _archives(
+    posts: Sequence[BlogPost], page_size: int, routes: RouteRegistry
+) -> tuple[ArchivePage, ...]:
+    """Paginate the Blog archive; an empty Blog has one page."""
+    slices = [
+        tuple(posts[start : start + page_size])
+        for start in range(0, len(posts), page_size)
+    ] or [()]
+    total = len(slices)
+    return tuple(
+        ArchivePage(
+            page_number=number,
+            total_pages=total,
+            route=routes.blog_archive(number),
+            prev_route=routes.blog_archive(number - 1) if number > 1 else None,
+            next_route=routes.blog_archive(number + 1) if number < total else None,
+            posts=page_posts,
+        )
+        for number, page_posts in enumerate(slices, start=1)
+    )
+
+
+def _tags(posts: Sequence[BlogPost]) -> tuple[Tag, ...]:
+    """Group Blog posts by tag key; the newest post's spelling names the tag."""
+    grouped: dict[str, list[BlogPost]] = {}
+    for post in posts:
+        for tag in post.tags:
+            grouped.setdefault(tag.key, []).append(post)
+    tags = []
+    for key in sorted(grouped):
+        members = grouped[key]
+        first = next(tag for tag in members[0].tags if tag.key == key)
+        if first.route is None:
+            raise ValueError("tag pages are off; there is no taxonomy to build")
+        tags.append(Tag(first.name, key, first.route, tuple(members)))
+    return tuple(tags)
+
+
 class SiteBuilder:
-    """Assemble the SiteModel: fixed routes, extra pages, metadata and feed."""
+    """Assemble the SiteModel: fixed routes, extra pages and metadata."""
 
     def __init__(self, settings: Settings, route_registry: RouteRegistry) -> None:
         self.settings = settings
@@ -67,13 +105,7 @@ class SiteBuilder:
     ) -> SiteModel:
         diagnostics = [*content.diagnostics, *projects.diagnostics]
         register_fixed_routes(self.routes)
-        archives = build_archives(
-            content.blogs, self.settings.paths.page_size, self.routes
-        )
         sections = self.routes.sections
-        tags = build_tag_taxonomy(content.blogs) if sections.tags else None
-        if tags is not None:
-            diagnostics.extend(tags.diagnostics)
 
         try:
             project_items, extra_pages = self._extra_pages(pages, projects.projects)
@@ -92,24 +124,20 @@ class SiteBuilder:
                 )
             )
             navigation = self._navigation(validate=False)
-        metadata = self._metadata(navigation)
         redirects = self._redirects(diagnostics)
-
-        feed = AtomFeedBuilder(
-            metadata, build_start_time=build_start_time, route_registry=self.routes
-        ).build(content.blogs)
-        diagnostics.extend(feed.diagnostics)
         return SiteModel(
-            metadata=metadata,
+            metadata=self._metadata(navigation),
             blogs=content.blogs,
-            archives=archives,
+            archives=_archives(
+                content.blogs, self.settings.paths.page_size, self.routes
+            ),
             ideas=content.ideas,
             about=self._about(content) if sections.about else None,
             projects=project_items,
-            tags=tags.tags if tags is not None else (),
+            tags=_tags(content.blogs) if sections.tags else (),
             extra_pages=extra_pages,
-            feed=feed.feed,
             routes=self.routes,
+            build_start_time=build_start_time,
             redirects=redirects,
             diagnostics=tuple(diagnostics),
             skipped_issues=content.skipped,

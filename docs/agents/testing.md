@@ -12,11 +12,11 @@
 
 ## 默认测试预算
 
-- 每个功能 Ticket 默认 **3–6 个逻辑测试函数**。
+- 每个功能 Ticket 默认 **3–6 个逻辑测试函数**：一个核心 contract 参数化测试、一个安全或失败边界、一个真实 end-to-end tracer，必要时一个真实历史 Bug 的 regression。
 - 两个或多个主题必须使用参数化测试，禁止复制整套测试。
 - 新增测试代码不应明显超过对应生产代码；超出时必须说明真实风险和收益。
-- 日常迭代先跑相关 owner 的局部检查；完整套件含浏览器与隔离安装，不设“数秒跑完”的硬指标。避免机械展开，但不通过删掉真实验证来满足计时目标。
-- 已经发生过的真实安全或数据损坏问题可以保留专门 regression test。
+- 日常迭代先跑相关 owner 的局部检查；完整套件含浏览器与隔离安装，耗时较长，但不为缩短时间删掉真实验证。
+- 重构测试本身无需先制造失败，但要先记录通过基线。
 
 预算是约束思考的默认值，不是为了压行数删除必要的安全保障。
 
@@ -28,11 +28,14 @@
 | 内容选择、Blog/Idea/About 规则、坏 Issue 跳过 | ContentCompiler（`test_content_compiler.py`） |
 | HTML allowlist 与危险 URL | sanitizer（`test_html_sanitizer.py`） |
 | 全站路径、碰撞和 output mapping | RouteRegistry（`test_routes.py`） |
-| 固定页面、Theme pages、导航、项目 | SiteBuilder / ProjectCompiler（`test_site_builder.py`、`test_projects.py`） |
-| Config 两层、错误信息、字段迁移提示 | Config（`test_config.py`）；随包配置见 `test_shipped_configs.py` |
+| 固定页面、`pages.extra`、导航、跳转页、项目 | SiteBuilder / ProjectCompiler（`test_site_builder.py`、`test_projects.py`） |
+| Config 两层、错误信息 | Config（`test_config.py`）；随包配置见 `test_shipped_configs.py` |
 | `theme.yaml`、`extends`、选项、字符串 | ThemeLoader（`test_theme.py`） |
+| `github.com/…` 主题的下载与解压 | remote Theme（`test_remote_theme.py`，本地 HTTP 服务代替 GitHub） |
 | 模板拿到的 `site`/`page`/`theme`/`t` | render context（`test_render_service.py`） |
 | 每个 Theme 渲染每个页面、评论与 404 | theme contract（`test_template_integrity.py`，参数化 quiet、extends、independent） |
+| Atom XML | Atom feed（`test_site_builder.py`） |
+| 本地草稿检查 | Local Draft（`test_local_draft.py`） |
 | 完整内容到静态文件、产物校验 | SiteCompiler integration tracer（`test_site_integration.py`） |
 | 构建失败保留旧产物、输出目录归属标记 | output staging / safety（`test_output_staging.py`、`test_output_safety.py`） |
 | GitHub API 对象隔离、`--issues-json` 读取 | GitHub adapter（`test_issue_ingestion.py`） |
@@ -56,14 +59,7 @@
 - 仅为了提高 coverage 的不可达或极低概率分支测试；
 - mutation testing 能构造、但没有现实用户失败场景的阻塞性测试。
 
-## 高价值最小集合
-
-每个完整功能通常只需要：
-
-1. 一个核心 contract 参数化测试；
-2. 一个安全或失败边界测试；
-3. 一个真实 end-to-end tracer；
-4. 必要时一个历史 Bug regression。
+## 站点级 tracer
 
 站点级 tracer 应使用少量代表性 Blog、Idea 和 About snapshots，生成页面后验证：
 
@@ -86,17 +82,6 @@ Code review 只把以下问题作为 blocker：
 
 Reviewer 不应因为缺少理论 mutation coverage、低概率平台分支或实现细节测试而阻塞。建议增加测试时，优先增强现有场景，而不是新增测试函数。
 
-## 开发批次
-
-较深的改造按可运行批次推进，而不是让每张 Ticket 都维持可独立发布的兼容层：
-
-1. 内容模型：Blog、Ideas、About、Projects；
-2. 主题：本地 Theme API、shell 和全部页面；
-3. 全站整合：SiteModel、RouteRegistry、SEO、strict pipeline；
-4. 上线验证：真实构建、浏览器 smoke、Pages Artifact。
-
-线上 `main` 保持稳定时，feature branch 可以直接建设 strict 新架构；不为中间提交维护 legacy `.html` 双管线。合并前必须完成一次完整验证。
-
 ## 验证命令
 
 [CI workflow](../../.github/workflows/ci.yml) 是自动检查的执行来源，以下命令用于本地复现。
@@ -105,7 +90,7 @@ starter 不再包含 Python 脚本；它的 workflow 与 `action.yml` 的 shell 
 
 ### 环境准备
 
-使用 Python 3.14.x 和 uv 0.12.0。首次运行浏览器测试时安装两个引擎及所需系统依赖：
+使用 Python 3.14.x 和 uv 0.12.17。首次运行浏览器测试时安装两个引擎及所需系统依赖：
 
 ```bash
 uv sync --locked

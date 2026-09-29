@@ -8,21 +8,8 @@
 - 根目录的 [CONTEXT.md](../../CONTEXT.md)
 - [docs/adr/](../adr/) 中与当前工作范围相关的 ADR
 
-如果这些文件尚不存在，继续工作即可。
-不要把缺失本身报告为问题，也不要提前创建空文档。
-
-`/domain-modeling` 会在实际确定 domain terminology 或 architecture decision 时按需创建它们。
-
-## File structure
-
-```text
-/
-├── CONTEXT.md
-├── docs/
-│   └── adr/
-│       └── NNNN-<decision-slug>.md
-└── src/
-```
+新的 domain 术语或架构决定由 `/domain-modeling` 写入 `CONTEXT.md` 或新的
+`docs/adr/NNNN-<decision-slug>.md`。
 
 ## Use the glossary's vocabulary
 

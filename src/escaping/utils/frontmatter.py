@@ -65,9 +65,8 @@ class ParsedFrontMatter:
             after parse_front_matter has applied Issue policy.
         body: Raw suffix from parse_yaml_envelope; normalized for Issue compilation
             by parse_front_matter.
-        unknown_fields: Names of fields not in ``ALLOWED_FIELDS``, collected
-            only when ``collect_unknown_fields=True`` is passed to
-            :func:`parse_front_matter`.  Empty otherwise.
+        unknown_fields: Names of fields not in ``ALLOWED_FIELDS``, collected by
+            :func:`parse_front_matter`.
         scalar_styles: YAML node-level style for top-level scalar values,
             keyed by field name.  Values are the PyYAML scalar style
             indicator: ``'"'`` for double-quoted, ``"'"`` for
@@ -250,13 +249,11 @@ def parse_yaml_envelope(raw_body: str) -> ParsedFrontMatter | None:
     return ParsedFrontMatter(fields=data, body=body, scalar_styles=scalar_styles)
 
 
-def parse_front_matter(
-    raw_body: str, *, collect_unknown_fields: bool = False
-) -> ParsedFrontMatter:
+def parse_front_matter(raw_body: str) -> ParsedFrontMatter:
     """Apply Issue fields and legacy body normalization to the shared envelope.
 
-    Unknown fields raise FrontMatterError by default; collect mode retains their
-    names but excludes their values. Undeclared Markdown is returned verbatim.
+    Unknown fields are left out; their names are kept in ``unknown_fields``.
+    Undeclared Markdown is returned verbatim.
     """
     parsed = parse_yaml_envelope(raw_body)
     if parsed is None:
@@ -267,14 +264,7 @@ def parse_front_matter(
         if isinstance(key, str) and key in ALLOWED_FIELDS:
             known_fields[key] = value
         else:
-            if collect_unknown_fields:
-                unknown_fields.append(str(key))
-            else:
-                raise FrontMatterError(
-                    code="FRONT_MATTER_UNKNOWN_FIELD",
-                    message=f"Unknown field in front matter: {key!r}",
-                    field=str(key),
-                )
+            unknown_fields.append(str(key))
 
     return ParsedFrontMatter(
         fields=known_fields,

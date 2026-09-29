@@ -1,4 +1,4 @@
-/* Pygments 2.19.2: HtmlFormatter(style=...).get_token_style_defs(selector).
+/* Pygments 2.21.0: HtmlFormatter(style=...).get_token_style_defs(selector).
  * Token rules only; Quiet owns code surface colors and inherited ink. */
 
 /* xcode */
@@ -145,5 +145,5 @@
 :root[data-theme="dark"] .syntax .vm { color: #79C0FF } /* Name.Variable.Magic */
 :root[data-theme="dark"] .syntax .il { color: #A5D6FF } /* Literal.Number.Integer.Long */
 
-/* Quiet V3 output-token contrast override. */
+/* Quiet: program output (Generic.Output) needs more contrast on dark. */
 :root[data-theme="dark"] .syntax .go { color: #b0b0b0; }

@@ -2,8 +2,9 @@
 
 本文件是 `escaping` 仓库的 coding-agent 指南。以当前代码、测试和 domain docs 为准。
 架构与完整文档导航见[维护者入口](docs/dual-repo-architecture.md)，主题设计见
-[ADR-0008](docs/adr/0008-theme-api-3-data-presentation-split.md) 和
-[ADR-0009](docs/adr/0009-site-owned-pages-redirects-and-sub-paths.md)。
+[ADR-0008](docs/adr/0008-theme-api-3-data-presentation-split.md)、
+[ADR-0009](docs/adr/0009-site-owned-pages-redirects-and-sub-paths.md) 和
+[ADR-0010](docs/adr/0010-themes-from-github-repositories.md)。
 
 ## 产品与边界
 
@@ -61,8 +62,10 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
    子路径站点加前缀。页面持有完整 Route，不手工拼接地址或输出路径；主题自己的
    地址用 `url` 过滤器。
 6. Config 中的相对路径（主题、输出目录）以 Config 文件所在目录为根，不依赖 CWD。
-7. `ThemeLoader` 只读取包内资源或本地目录：不联网、不缓存、不执行主题代码、
-   拒绝符号链接。`extends` 只能指向内置主题。
+7. 主题来自三处：内置、站点仓库里的目录、`github.com/…@版本`。GitHub 主题由
+   `remote_theme.py` 每次构建下载到临时目录，用完删除，不缓存；`ThemeLoader`
+   本身只读目录，不联网、不执行主题代码、拒绝符号链接。`extends` 可指向内置主题
+   或 GitHub 地址。模板在 Jinja 沙箱里运行（构建进程持有 token），不得为主题放宽。
 8. 主题静态文件发布在 `/assets/`，生成器共享脚本（评论、Mermaid）在
    `/assets/escaping/`；主题不得占用 `static/escaping/`。
 9. Utterances 行为位于共享 `src/escaping/static/comments.js`。必须保留：
@@ -84,24 +87,32 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
 ## 当前结构
 
 ```text
-src/escaping/
-├── config.py              # 站点层 Config
-├── theme.py               # theme.yaml API 4、extends、模板回退、选项校验、字符串
-├── content_compiler.py    # Issue → Blog/Idea/About
-├── site_builder.py        # SiteModel、路由、额外页面、跳转页
-├── routes.py
-├── site_compiler.py       # 预检 → 拉取 → 编译 → 渲染 → 校验 → 发布
-├── services/render_service.py
-├── artifact_validation.py
-├── output_staging.py
+src/escaping/              # 按构建顺序
 ├── cli.py                 # escpe build / escpe theme check
-├── static/                # comments.js、mermaid.js、mermaid/（发布到 /assets/escaping/）
-├── themes/quiet/
+├── site_compiler.py       # 预检 → 拉取 → 编译 → 渲染 → 校验 → 发布
+├── config.py              # 站点层 Config
+├── site_inputs.py         # 从仓库和 GitHub 资料补全缺省的 Config 值
+├── theme.py               # theme.yaml API 4、extends、模板回退、选项校验、字符串
+├── remote_theme.py        # github.com/… 主题：下载、只解压指定目录
+├── output_safety.py       # 输出目录不越界、归属标记
+├── services/              # github_service.py 读 Issue；render_service.py 渲染
+├── content_compiler.py    # Issue → Blog/Idea/About，坏 Issue 跳过
+├── content_validation.py  # Issue 与本地草稿共用的内容规则、Markdown 渲染
+├── projects.py            # config 里的 Projects
+├── site_builder.py        # SiteModel：固定页面、额外页面、导航、跳转页、Blog 分页、标签
+├── routes.py              # RouteRegistry
+├── atom_feed.py、search.py
+├── artifact_validation.py # 替换线上产物前的完整性检查
+├── output_staging.py      # 先写临时目录，成功后替换
+├── build_result.py        # Diagnostic 与退出码
+├── local_draft.py         # 本地草稿检查（python -m escaping.local_draft）
+├── utils/                 # front matter 解析、HTML sanitizer
 ├── models/
-└── services/
+├── static/                # comments.js、mermaid.js、mermaid/（发布到 /assets/escaping/）
+└── themes/quiet/
 action.yml                 # 站点仓库使用的可复用 Action
 config.example.yaml
-starter/
+starter/                   # escaping-template 仓库的内容来源
 tests/
 ```
 
@@ -121,15 +132,7 @@ tests/
 → review diff
 ```
 
-测试原则：
-
-- 每个 Ticket 默认 3–6 个高信号逻辑测试；
-- 一个行为只有一个主要 owner；上层只保留真实 tracer；
-- 多个主题使用参数化 contract（Quiet、继承 Quiet 的主题、独立 fixture 主题）；
-- 不测试 private helper、mock 调用形状或 getter；
-- 优先完整静态站点、真实链接、wheel consumer 和浏览器行为；
-- 重构测试本身无需先制造失败，但必须先记录通过基线；
-- 纯文档改动验证链接、路径和示例，不为制造红灯添加行为无关的测试。
+测试预算、每个行为的测试 owner 和默认不写的测试见[测试策略](docs/agents/testing.md)。
 
 ## 验证与本地构建
 
@@ -144,7 +147,7 @@ tests/
 - URL link 只允许 HTTPS、`mailto:`、root-relative 或 fragment；资源 URL 只允许
   HTTPS/root-relative。
 - repository 使用 `owner/repo` 格式。
-- Jinja 使用 autoescape + `StrictUndefined`。
+- Jinja 使用 `SandboxedEnvironment` + autoescape + `StrictUndefined`。
 - Markdown body 进入模板前必须经过 sanitizer。
 - 删除防御代码前先确认它防的情况在新结构下确实不会发生；安全边界（第 13 条）不在此列。
 
