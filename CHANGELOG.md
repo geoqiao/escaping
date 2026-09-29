@@ -5,7 +5,11 @@ All notable changes to escaping are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) (before 1.0, a minor version may
 break things).
 
-## [Unreleased]
+## [0.5.0] - 2026-09-29
+
+A smaller escaping: less code, one dependency fewer and lighter Quiet fonts.
+Sites that build with 0.4.0 need no changes, unless a Theme that extends Quiet
+links to one of Quiet's removed font files.
 
 ### Changed
 
@@ -315,6 +319,7 @@ and 0.1 has no Action to pin.
 First release: Blog, Ideas, About, Projects, Tags, Atom, sitemap and search
 from GitHub Issues, with the Quiet Theme and the starter workflow.
 
+[0.5.0]: https://github.com/geoqiao/escaping/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/geoqiao/escaping/compare/v0.3.0...v0.4.0
 [0.3.0]: https://github.com/geoqiao/escaping/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/geoqiao/escaping/compare/v0.1.0...v0.2.0

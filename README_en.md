@@ -33,7 +33,7 @@ No local Python, PAT, or manually created publishing labels are required.
 2. Save an Issue with a title and Markdown body. The workflow's `labels` job creates the publishing labels on its first run; refresh the Issue page if you do not see them.
 3. Add one of `type:blog`, `type:idea`, or `type:about`, plus `published` when ready, and check the deployment in Actions.
 
-The workflow runs the generator with `uses: geoqiao/escaping@v0.4.0`; the site repository needs no scripts.
+The workflow runs the generator with `uses: geoqiao/escaping@v0.5.0`; the site repository needs no scripts.
 A repository with another name works too: the site then lives at `username.github.io/<repository>/`, and escaping handles that path.
 The [starter instructions](starter/README.md) cover the full setup, versions and failure recovery.
 

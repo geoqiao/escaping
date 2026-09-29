@@ -47,7 +47,7 @@ template you want to replace, and set `theme: {use: ./theme}`. See the
 
 ## Versions
 
-The workflow runs `geoqiao/escaping@v0.4.0`. To update, change that tag after reading the
+The workflow runs `geoqiao/escaping@v0.5.0`. To update, change that tag after reading the
 [CHANGELOG](https://github.com/geoqiao/escaping/blob/main/CHANGELOG.md); a full commit SHA also
 works. Each job gets only the short-lived `GITHUB_TOKEN` permissions it needs; never put a token
 in `config.yaml`. A failed build leaves the previously deployed site in place.
