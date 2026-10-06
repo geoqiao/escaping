@@ -63,7 +63,15 @@ def site(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> Path:
     directory = tmp_path / "site"
     directory.mkdir()
     (directory / "config.yaml").write_text(_CONFIG, encoding="utf-8")
-    monkeypatch.delenv("GITHUB_TOKEN", raising=False)
+    # A test run on GitHub Actions must not read or write the run's own environment.
+    for name in (
+        "GITHUB_TOKEN",
+        "GITHUB_ACTIONS",
+        "GITHUB_REPOSITORY",
+        "GITHUB_OUTPUT",
+        "GITHUB_STEP_SUMMARY",
+    ):
+        monkeypatch.delenv(name, raising=False)
     return directory
 
 
