@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "escaping-site"
-version = "0.6.0"
+version = "0.6.0rc1"
 description = "Turn GitHub Issues into Markdown files for a site to render"
 readme = "README.md"
 license = "MIT"
