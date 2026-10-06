@@ -253,7 +253,7 @@ requires-dist = [
 ]
 
 [package.metadata.requires-dev]
-build = [{ name = "setuptools", specifier = ">=68" }]
+build = [{ name = "setuptools", specifier = ">=77" }]
 dev = [
     { name = "playwright", specifier = ">=1.40" },
     { name = "pytest", specifier = ">=7.4.0" },

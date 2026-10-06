@@ -69,37 +69,43 @@ The Action runs three steps:
 Step scripts receive inputs through environment variables only, never by
 `${{ }}` interpolation into the script text.
 
-## The export Action
+## Running the export in a workflow
 
 A site built with another tool takes the content instead of the finished site
-([Content Export v1](contracts/content-export-v1.md)):
+([Content Export v1](contracts/content-export-v1.md)). There is no Action for
+it: the export needs nothing from GitHub Pages, so the workflow runs the
+`escpe` package from PyPI at a fixed version:
 
 ```yaml
-- id: content
-  uses: geoqiao/escaping/export@<full commit SHA>
-  with:
-    config: config.yaml
-    output: build/content
+- uses: astral-sh/setup-uv@<full commit SHA>
+- name: Export the content
+  id: content
+  env:
+    GITHUB_TOKEN: ${{ github.token }}
+  run: |
+    status=0
+    uvx --python 3.14 --from 'escpe==X.Y.Z' escpe export --config config.yaml || status=$?
+    # 2: exported, but some Issues were skipped; the skipped-issues output says which.
+    if [ "$status" -eq 2 ]; then exit 0; fi
+    exit "$status"
 # then run your own site builder; it reads ${{ steps.content.outputs.output }}
 ```
 
-| Input | Default | Meaning |
-| --- | --- | --- |
-| `config` | `config.yaml` | The site Config, relative to the repository root |
-| `output` | `build/content` | Directory to replace with the export, relative to the Config directory |
-| `token` | `${{ github.token }}` | Reads the repository and its Issues |
-
-| Output | Meaning |
+| Step output | Meaning |
 | --- | --- |
 | `output` | Absolute path of the exported content |
 | `skipped-issues` | Comma-separated numbers of Issues left out because of their own errors; empty when none |
 
-It sets up uv and runs `escpe export` from the pinned checkout, with the
-token only in `ESCAPING_TOKEN`. It does not read the Pages settings and
-writes no platform context, so the Config must set `github.repo` and
-`site.url`. The job needs `contents: read` and `issues: read`. Building
-and deploying the site, and failing the run when `skipped-issues` is not
-empty, are the site workflow's steps.
+`escpe` writes both outputs itself when it runs in GitHub Actions. It reads
+the token from `GITHUB_TOKEN` (or the variable named by `--token-env`). No
+platform context is written, so the Config must set `github.repo` and
+`site.url`. The job needs `contents: read` and `issues: read`. Building and
+deploying the site, and failing the run when `skipped-issues` is not empty,
+are the site workflow's steps.
+
+`escpe==X.Y.Z` fixes `escaping` itself; PyPI does not let a published version
+change. Its dependencies are resolved when the step runs. Add
+`--exclude-newer <date>` to fix those too.
 
 ## Starter workflow
 
@@ -135,7 +141,8 @@ A site pins the generator in the `uses:` line: a release tag such as
 `@v0.5.1`, or a full 40-character commit SHA. A SHA is the strongest pin,
 because a tag can be moved. There is no automatic "latest" lookup: a site
 changes version only when someone edits that line, after reading the
-[CHANGELOG](../CHANGELOG.md).
+[CHANGELOG](../CHANGELOG.md). A site that only exports pins the package
+instead: `escpe==X.Y.Z`.
 
 The workflow itself is site-owned. Upgrading the generator does not update a
 site's workflow; the CHANGELOG says when a workflow change is needed.
@@ -148,10 +155,16 @@ this order:
 1. Merge the change to `main` with the full verification passing
    ([testing guide](agents/testing.md#验证命令)).
 2. Set the version in `pyproject.toml`, run `uv lock`, add the CHANGELOG entry
-   and tag the release (`vX.Y.Z`).
+   and tag the release (`vX.Y.Z`). Pushing the tag runs the
+   [release workflow](../.github/workflows/release.yml): it refuses a tag that
+   differs from the package version, builds the sdist and the wheel, and
+   publishes `escpe` to PyPI. PyPI trusts that workflow in the `pypi`
+   environment (Trusted Publishing); no token is stored. A published version
+   cannot be replaced, only yanked.
 3. Build a real consumer site with the new tag on a branch, with its migrated
    Config, and check the output.
-4. Update the site's `uses:` pin (and its Config, if the release needs it).
+4. Update the site's `uses:` or `escpe==` pin (and its Config, if the release
+   needs it).
 5. Deploy the site.
 
 To roll back, pin the previous version again. If the site's Config changed

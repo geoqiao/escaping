@@ -23,7 +23,6 @@ from escaping.config import read_platform_context
 _ROOT = Path(__file__).parent.parent.absolute()
 _STARTER = _ROOT / "starter"
 _ACTION = yaml.safe_load((_ROOT / "action.yml").read_text())
-_EXPORT_ACTION = yaml.safe_load((_ROOT / "export/action.yml").read_text())
 _WORKFLOW = yaml.safe_load((_STARTER / ".github/workflows/pages.yml").read_text())
 _TOKEN = "consumer-fixture"  # noqa: S105 - HTTP fixture credential
 _BASH = shutil.which("bash") or "bash"
@@ -240,43 +239,26 @@ def test_build_step_passes_inputs_as_arguments_and_maps_skipped_to_success(
     )
 
 
-@pytest.mark.parametrize(("status", "expected"), [(0, 0), (2, 0), (1, 1)])
-def test_export_action_needs_no_pages_and_maps_skipped_to_success(
-    tmp_path: Path, status: int, expected: int
-) -> None:
+def test_release_publishes_the_tagged_version_without_a_stored_token() -> None:
+    release = yaml.safe_load((_ROOT / ".github/workflows/release.yml").read_text())
+    # PyYAML's YAML 1.1 loader reads the unquoted Actions `on` key as True.
+    assert release[True] == {"push": {"tags": ["v*"]}}
+    assert release["permissions"] == {}
+    build, publish = release["jobs"]["build"], release["jobs"]["publish"]
     pinned = re.compile(r"[\w-]+/[\w-]+@[0-9a-f]{40}")
-    assert set(_EXPORT_ACTION["inputs"]) == {"config", "output", "token"}
-    assert set(_EXPORT_ACTION["outputs"]) == {"output", "skipped-issues"}
-    uses, export = _EXPORT_ACTION["runs"]["steps"]
-    assert pinned.fullmatch(uses["uses"]) and uses == _ACTION["runs"]["steps"][0]
-    assert export["shell"] == "bash" and "${{" not in export["run"]
-    assert export["id"] == "export"
-
-    env = _fake_tools(tmp_path)
-    runner_temp = env["RUNNER_TEMP"]
-    env.update(
-        FAKE_UV_STATUS=str(status),
-        GITHUB_ACTION_PATH="/actions/escaping/export",
-        ESCAPING_CONFIG="my site/config.yaml",
-        ESCAPING_OUTPUT="build/my content",
-        ESCAPING_TOKEN=_TOKEN,
-        UV_PROJECT_ENVIRONMENT=f"{runner_temp}/escaping-venv",
+    for step in (*build["steps"], *publish["steps"]):
+        assert "uses" not in step or pinned.fullmatch(step["uses"])
+    # Only the job that runs no project code can ask PyPI for credentials.
+    assert build["permissions"] == {"contents": "read"}
+    assert publish["permissions"] == {"id-token": "write"}
+    assert publish["needs"] == "build" and publish["environment"]["name"] == "pypi"
+    assert not any("checkout" in step.get("uses", "") for step in publish["steps"])
+    assert (
+        'if [ "$TAG" != "v$version" ]'
+        in _step(build["steps"], "Check that the tag is the package version")["run"]
     )
-    result = _run(export, env, tmp_path)
-    assert result.returncode == expected, result.stderr
-    assert not Path(env["FAKE_GH"], "calls").read_text()  # no Pages lookup
-    args = Path(env["FAKE_UV"], "args").read_text().splitlines()
-    assert args[:3] == ["run", "--project", "/actions/escaping/export/.."]
-    assert args[11:] == [
-        "escpe",
-        "export",
-        "--config",
-        "my site/config.yaml",
-        "--output",
-        "build/my content",
-        "--token-env",
-        "ESCAPING_TOKEN",
-    ]
+    text = (_ROOT / ".github/workflows/release.yml").read_text()
+    assert "secrets." not in text and "password" not in text
 
 
 def test_label_job_creates_only_missing_labels_and_tolerates_races(

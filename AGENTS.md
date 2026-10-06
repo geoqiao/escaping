@@ -26,7 +26,8 @@ Atom、sitemap、robots、搜索索引和旧地址跳转页。
 
 - 生成器拥有 compiler、models、`config.example.yaml`、内置主题 Quiet 和可复用
   Action（`action.yml`）；
-- 站点仓库 pin 生成器的 release tag 或完整 SHA；生产 workflow 使用短期
+- 站点仓库 pin 生成器的 release tag 或完整 SHA；只用导出的站点 pin PyPI 上的
+  `escpe==X.Y.Z`（打 tag 时由 `.github/workflows/release.yml` 发布）；生产 workflow 使用短期
   `GITHUB_TOKEN`，不得硬编码 PAT。
 
 Issue 是唯一内容来源，`published` 标签控制发布，内容类型只有 Blog、Idea、About。
@@ -116,7 +117,6 @@ src/escaping/              # 按构建顺序
 ├── static/                # comments.js、mermaid.js、mermaid/（发布到 /assets/escaping/）
 └── themes/quiet/
 action.yml                 # 站点仓库使用的可复用 Action
-export/action.yml          # 只导出内容的 Action，不要求 GitHub Pages
 config.example.yaml
 starter/                   # escaping-template 仓库的内容来源
 tests/

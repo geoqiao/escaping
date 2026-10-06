@@ -154,7 +154,7 @@ A consumer that embeds Issue comments MUST bind the widget to
 (Issue Content v1, section 10). The discussion then stays with the content when
 its address, its domain or the site builder changes.
 
-## 7. Command and Action
+## 7. Command
 
 ```bash
 escpe export --config config.yaml [--output build/content] [--issues-json FILE]
@@ -164,6 +164,7 @@ escpe export --config config.yaml [--output build/content] [--issues-json FILE]
 [Site inputs](../site-inputs.md#cli-inputs)). Exit status: 0 exported, 1 failed
 with the previous export unchanged, 2 exported with Skipped Issues.
 
-In GitHub Actions, use the Action in this repository's `export/` folder (see
-[Deployment](../deployment.md#the-export-action)). It does not need GitHub
-Pages.
+The command is in the `escpe` package on PyPI. In GitHub Actions, run it at a
+fixed version (see
+[Deployment](../deployment.md#running-the-export-in-a-workflow)); it does not
+need GitHub Pages.

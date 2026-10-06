@@ -31,8 +31,12 @@ how content looks, which is what the export hands over.
 rename, and marked with `.escaping-output`. It must not overlap
 `paths.output`.
 
-**A second Action, `geoqiao/escaping/export`**, runs the export without
-requiring GitHub Pages. The existing Action is unchanged.
+**The export is delivered as the `escpe` package on PyPI, not as a second
+Action.** The existing Action exists because a build needs the Pages settings
+of the repository; an export needs nothing from the platform, so an Action
+would only wrap one command. A workflow runs `uvx --from 'escpe==X.Y.Z' escpe
+export`, and the same line works on a laptop. The existing Action is
+unchanged.
 
 ## Consequences
 

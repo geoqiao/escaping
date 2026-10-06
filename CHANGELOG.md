@@ -18,9 +18,10 @@ Sites that build with 0.5.1 need no changes.
   in a build. The body is the author's Markdown; rendering and sanitizing it is
   the consuming site's job. See
   [Content Export v1](docs/contracts/content-export-v1.md).
-- **An export Action, `geoqiao/escaping/export`.** It runs the export in a
-  workflow and does not need GitHub Pages. See
-  [Deployment](docs/deployment.md#the-export-action).
+- **`escpe` is published on PyPI.** A workflow or a laptop runs a fixed
+  version without a checkout: `uvx --from 'escpe==X.Y.Z' escpe export`. See
+  [Deployment](docs/deployment.md#running-the-export-in-a-workflow). The
+  Action stays the way to build a whole site.
 
 ## [0.5.1] - 2026-09-29
 
