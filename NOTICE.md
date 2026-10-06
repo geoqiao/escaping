@@ -5,7 +5,7 @@ Escaping's own license remains MIT; this does not describe every dependency's li
 ## HTML sanitization dependency
 
 `escaping-site` declares **nh3 0.3.7** as a separate PyPI runtime dependency. It does not vendor
-nh3's native binaries into the escaping wheel or generated static site.
+nh3's native binaries into the escaping wheel.
 
 | Component | License / source entry |
 | --- | --- |
@@ -21,9 +21,3 @@ If we later distribute a bundled executable, native binaries, a container image 
 modified third-party source, review the actual bundle's licenses, notices and source
 availability obligations (including MPL-2.0) before release. Separate dependency
 installation is not a blanket conclusion that downstream obligations cannot apply.
-
-## Existing browser assets
-
-The vendored Mermaid bundle retains its LICENSE, README and bundled third-party
-notices under `src/escaping_site/static/mermaid/`. Quiet's Manrope font retains
-its SIL Open Font License text under `src/escaping_site/themes/quiet/static/fonts/`. These notices remain included with the assets.

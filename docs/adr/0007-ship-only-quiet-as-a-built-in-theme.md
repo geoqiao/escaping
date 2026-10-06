@@ -1,5 +1,5 @@
 ---
-status: accepted; amended by ADR-0010
+status: superseded by ADR-0013
 ---
 
 # Ship only Quiet as a built-in Theme
@@ -14,6 +14,6 @@ this does not weaken compilation/publication safety.
 An explicit removed built-in selection must fail without replacing old output,
 never silently change the site's design. Site owners can select Quiet or retain
 a reviewed copy of their previous design as a local Theme before upgrading;
-see the [migration contract](../themes/authoring.md#migrating-removed-built-in-themes).
+see the [migration contract](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/authoring.md#migrating-removed-built-in-themes).
 This trades built-in choice for a smaller maintenance surface, not for automatic
 site migration or deployment authority.

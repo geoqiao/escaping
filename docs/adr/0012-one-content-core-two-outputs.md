@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0013
 amends: ADR-0011 (the export ran the Site Compiler's content step and read the full Site Config)
 ---
 
@@ -28,7 +28,7 @@ belongs to the build. The export checks only the three and ignores the rest,
 unknown sections included.
 
 **Rules about a site left Issue Content v1.** Rendering and route integrity are
-now [Site Build v1](../contracts/site-build-v1.md). Issue Content v1 keeps what
+now Site Build v1 (removed in 0.6.0). Issue Content v1 keeps what
 is true for both outputs, including that a body must render and sanitize.
 
 **Theme API 4 is frozen.** It serves the built site and gains no features. A

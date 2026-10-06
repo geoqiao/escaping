@@ -5,12 +5,12 @@ build-backend = "setuptools.build_meta"
 [project]
 name = "escaping-site"
 version = "0.6.0"
-description = "An opinionated GitHub Issues personal-site generator"
+description = "Turn GitHub Issues into Markdown files for a site to render"
 readme = "README.md"
 license = "MIT"
 license-files = ["LICENSE", "NOTICE.md"]
 authors = [{ name = "geoqiao" }]
-keywords = ["github-issues", "blog", "static-site-generator", "cms"]
+keywords = ["github-issues", "blog", "markdown", "cms"]
 classifiers = [
     "Environment :: Console",
     "Programming Language :: Python :: 3.12",
@@ -20,12 +20,10 @@ classifiers = [
 ]
 requires-python = ">=3.12"
 dependencies = [
-    "jinja2>=3.1.6",
     "marko>=2.1.2",
     "nh3==0.3.7",
     "pygithub>=2.4.0",
     "pydantic>=2.0.0",
-    "pygments==2.21.0",
     "pyyaml>=6.0.2",
 ]
 
@@ -37,13 +35,6 @@ Issues = "https://github.com/geoqiao/escaping/issues"
 [project.scripts]
 escaping-site = "escaping_site.cli:run_cli"
 
-[tool.setuptools.package-data]
-escaping_site = [
-    "static/*.js",
-    "static/mermaid/*",
-    "themes/**/*",
-]
-
 [tool.uv]
 package = true
 
@@ -53,7 +44,6 @@ build = ["setuptools>=77"]
 dev = [
     "pytest>=7.4.0",
     "pytest-cov>=4.1.0",
-    "playwright>=1.40",
     "ruff>=0.1.0",
     "ty>=0.0.25",
 ]

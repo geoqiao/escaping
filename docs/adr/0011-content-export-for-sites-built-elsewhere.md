@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; amended by ADR-0012 and ADR-0013 (the export is now the only output)
 amends: ADR-0001 (escaping's only product was a compiled static site)
 ---
 

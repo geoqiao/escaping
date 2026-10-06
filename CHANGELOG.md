@@ -7,53 +7,80 @@ break things).
 
 ## [Unreleased]
 
-Sites that build with 0.5.1 need no changes.
+**`escaping` no longer builds a website. It writes your published Issues as
+Markdown files, and a site of your choice turns them into pages.** The reasons
+are in [ADR-0013](docs/adr/0013-escaping-exports-markdown-the-site-renders.md).
+A site on 0.5 keeps working unchanged while its workflow stays on
+`geoqiao/escaping@v0.5.1`.
 
 ### Added
 
-- **`escaping-site export` writes the published Issues as Markdown files.** A site
-  built with another tool, such as Astro, can keep GitHub Issues as its content
-  source: one file per Blog post, Idea and About Issue with resolved front
-  matter, and a `manifest.json`. The same Issues are published or skipped as
-  in a build. The body is the author's Markdown; rendering and sanitizing it is
-  the consuming site's job. See
+- **`escaping-site export` writes the published Issues as Markdown files**: one
+  file per Blog post, Idea and About Issue with resolved front matter, and a
+  `manifest.json`. The body is the Markdown you wrote; rendering and sanitizing
+  it is the site's job. See
   [Content Export v1](docs/contracts/content-export-v1.md).
+- **The same Issues always give the same bytes**, and `--output` may be any
+  folder of the repository, such as `src/content`. A workflow can therefore
+  commit the Markdown, and a host that builds on push, such as Cloudflare,
+  rebuilds the site. See
+  [Deployment](docs/deployment.md#commit-the-export-for-a-host-that-builds-on-push).
 - **`update_date` in an Issue's front matter** records the day you last revised
-  the content. Templates get it as `update_date` on posts and Ideas and the
-  export writes it. Left out, it equals `created_date`; Quiet does not show
-  it. See [Issue Content v1](docs/contracts/issue-content-v1.md#66-update_date).
-- **The export reads only the content sections of the Config**: `github`,
-  `about` and `security`. It no longer needs `site.url` or `site.title`, it
-  accepts sections of your own, and it exports Ideas and the About Issue
-  whatever `pages` says. On GitHub Actions an empty Config exports the
-  workflow's repository.
-- **`--output` of an export may be any folder of the repository**, such as
-  `src/content`, so a workflow can commit the Markdown and a host that builds
-  on push, such as Cloudflare, rebuilds the site. See
-  [Deployment](docs/deployment.md#committing-the-export-for-a-host-that-builds-on-push).
-- **`escaping-site` is published on PyPI**, and a site depends on the package instead
-  of this repository. A workflow or a laptop runs a fixed version without a
-  checkout: `uvx escaping-site@X.Y.Z build` or `… escaping-site export`. See
-  [Deployment](docs/deployment.md#building-a-site-in-a-workflow).
-- **On GitHub Actions `escaping-site build` reads the repository and its Pages
-  address itself** when the Config leaves out `github.repo` or `site.url`,
-  so an empty Config still builds without the Action.
+  the content. Left out, it equals `created_date`. See
+  [Issue Content v1](docs/contracts/issue-content-v1.md#66-update_date).
+- **`escaping-site` is published on PyPI.** A workflow or a laptop runs a fixed
+  version without a checkout: `uvx escaping-site@X.Y.Z export`.
 - **Python 3.12 and 3.13 are supported**, and there is no upper limit on the
   Python version.
 
 ### Changed
 
-- **Rendering and route rules moved** from Issue Content v1 to the new
-  [Site Build v1](docs/contracts/site-build-v1.md); nothing a build does has
-  changed. Theme API 4 gains no further features
-  ([ADR-0012](docs/adr/0012-one-content-core-two-outputs.md)).
-- **The starter workflow runs the package, not the Action.** The Action still
-  works for sites that use it.
-- **One name: the package and the command are `escaping-site`**, and the
-  import package is `escaping_site`. The command was `escpe`; a script that
-  runs `escpe build` now runs `escaping-site build`, and
+- **The Config is three sections**: `github`, `about` and `security`. Every
+  other section of `config.yaml` belongs to your site and is not read, so one
+  file can hold both. On GitHub Actions an empty Config exports the workflow's
+  repository.
+- **One name: the package and the command are `escaping-site`**, and the import
+  package is `escaping_site`. The command was `escpe`;
   `python -m escaping.local_draft` becomes
-  `python -m escaping_site.local_draft`. The Action is unaffected.
+  `python -m escaping_site.local_draft`.
+- **A Blog slug may be any valid slug except `page`.** Other names were refused
+  because the built site used them.
+
+### Removed
+
+- **`build` and everything that made a website**: Jinja Themes and Theme API 4,
+  the built-in Theme Quiet, Themes from GitHub, pages and navigation, the Atom
+  feed, the sitemap, the search index, redirects, Projects, and the check of
+  the built files.
+- **The Action (`uses: geoqiao/escaping@…`) and the starter in this
+  repository.** A new site starts from
+  [escaping-template](https://github.com/geoqiao/escaping-template).
+- **Settings read from GitHub for the site**: the title, author, avatar and
+  bio from the owner's profile, and the address from the Pages settings. The
+  site holds these itself.
+- **The Config sections `site`, `author`, `theme`, `pages`, `paths`,
+  `comments`, `redirects` and the rest.** They are no longer errors; they are
+  simply not read.
+
+### Upgrading from 0.5
+
+Staying on 0.5.1 needs no change. To move to 0.6.0 the site needs code that
+reads the export, because `escaping` no longer draws pages:
+
+1. Choose the site: the default theme in
+   [escaping-template](https://github.com/geoqiao/escaping-template), or a
+   site of your own that reads
+   [Content Export v1](docs/contracts/content-export-v1.md).
+2. In the workflow, replace the `geoqiao/escaping` Action with
+   `uvx escaping-site@0.6.0 export` followed by your site's build
+   ([Deployment](docs/deployment.md#running-the-export-in-a-workflow)).
+3. Keep `github`, `about` and `security` in `config.yaml`. Move the title,
+   navigation, comments and redirects to wherever your site reads them.
+4. Keep addresses as they were (`/blog/<slug>/`, `/tags/<key>/`, `/atom.xml`)
+   if search engines and readers already know them. Comments stay with their
+   Issue: bind the widget to the exported `issue_number`.
+
+A Theme written for Theme API 4 cannot be used with 0.6.0.
 
 ## [0.5.1] - 2026-09-29
 
@@ -120,7 +147,7 @@ links to one of Quiet's removed font files.
 - **Hints for settings that moved in 0.2 and 0.3.** A Config field such as
   `site.featured_posts` or `theme.source`, or `pages:` in a Theme's
   `theme.yaml`, is now reported as an unknown field instead of naming its new
-  place. The [Theme guide](docs/themes/authoring.md#migrating-from-api-1-2-or-3)
+  place. The [Theme guide](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/authoring.md#migrating-from-api-1-2-or-3)
   still lists where each one went.
 
 ### Fixed
@@ -149,8 +176,8 @@ work with 0.3.0 keep working unless a template reaches into Python internals.
   and deletes it afterwards; to update, change the version. `extends:` takes
   the same address, so a site can replace a few files of such a Theme and
   still update it by changing one line. See
-  [Using a Theme from GitHub](docs/themes/authoring.md#using-a-theme-from-github).
-- **A list of Themes** in [docs/themes/catalog.md](docs/themes/catalog.md).
+  [Using a Theme from GitHub](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/authoring.md#using-a-theme-from-github).
+- **A list of Themes** in [docs/themes/catalog.md](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/catalog.md).
   Add yours with a pull request.
 - **The draft uploader skill can publish.** When the user explicitly
   authorizes publishing a draft, the new Issue gets the `published` label when
@@ -176,16 +203,16 @@ escaping. Local Themes need a small update: read
   `projects`, `about`) takes `true`, `false` or a path, such as
   `blog: /posts/` or `tags: false`. The Blog cannot be turned off. `extra`
   adds pages such as `/now/` or one page per project, each rendered by a
-  named Theme template. See [Pages](docs/site-inputs.md#pages).
+  named Theme template. See [Pages](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/site-inputs.md#pages).
 - **`redirects` in `config.yaml`.** Old addresses (ending in `/` or `.html`)
   become pages that send visitors on to a current page. Chains are followed;
   circles and duplicates fail the build. A redirect whose target is no page,
   or whose source is a page again, is left out with the warning
-  `REDIRECT_LEFT_OUT`. See [Redirects](docs/site-inputs.md#redirects).
+  `REDIRECT_LEFT_OUT`. See [Redirects](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/site-inputs.md#redirects).
 - **Sites under a path**, such as a GitHub project site at
   `https://alice.github.io/notes/`. `site.url` and the Pages URL may carry a
   path. Page addresses, links in Issues and root-relative Config values move
-  under it. See [Sites under a path](docs/site-inputs.md#sites-under-a-path).
+  under it. See [Sites under a path](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/site-inputs.md#sites-under-a-path).
 - **Theme API 4.**
   - Only `blog.html` and `post.html` are required. Home, Ideas and tag pages
     fall back to `blog.html`; Ideas and About fall back to `post.html`.
@@ -197,7 +224,7 @@ escaping. Local Themes need a small update: read
     fields a single page shows.
   - The `url` filter: `{{ '/assets/site.css'|url }}` works at the root of a
     host and under a path.
-- The Theme guide explains how to [share a Theme](docs/themes/authoring.md#sharing-a-theme).
+- The Theme guide explains how to [share a Theme](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/authoring.md#sharing-a-theme).
 
 ### Changed
 
@@ -205,7 +232,7 @@ escaping. Local Themes need a small update: read
   with its new place (`pages.extra` in the site's `config.yaml`).
 - **Breaking:** `page.post`, `page.idea`, `page.about` and `page.archive`
   are replaced; see
-  [Migrating from API 1, 2 or 3](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
+  [Migrating from API 1, 2 or 3](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/authoring.md#migrating-from-api-1-2-or-3).
 - `site.routes.<name>` and `site.about` are `none` for a page that is off, and
   a Blog tag's `path` is `none` when the tag pages are off.
 - The default menu follows `pages`: a moved Blog is linked at its new address;
@@ -237,7 +264,7 @@ escaping. Local Themes need a small update: read
    `@v0.3.0` (or its commit SHA) in the site workflow.
 2. **Quiet only:** nothing else to do.
 3. **A local Theme:** set `api: 4` and follow
-   [Migrating from API 1, 2 or 3](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
+   [Migrating from API 1, 2 or 3](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/authoring.md#migrating-from-api-1-2-or-3).
    Move any `pages:` from `theme.yaml`, unchanged, to `pages.extra` in
    `config.yaml`.
 4. **A site script that wrote redirect pages** after the Action step: move
@@ -265,10 +292,10 @@ Quiet is now an ordinary Theme that ships with the package. Read
   - interface `strings` per language, picked by `site.language`.
 - **Three ways to customize:** Quiet's options in `config.yaml`; a small
   `theme/` directory with `extends: quiet` that replaces one file; or a
-  complete Theme. See the [Theme guide](docs/themes/authoring.md).
+  complete Theme. See the [Theme guide](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/authoring.md).
 - **Quiet options:** `tagline`, `featured_posts`, `footer_text`,
   `show_powered_by`, `accent_color`, `accent_color_dark`, `comments_theme`,
-  `comments_theme_mode`. See [Quiet](docs/themes/quiet.md).
+  `comments_theme_mode`. See [Quiet](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/quiet.md).
 - Quiet shows its interface in English or Chinese, following `site.language`
   (`zh`, `zh-CN`, … use Chinese). Search messages, the copy-code button and
   the message shown when comments cannot load follow it too.
@@ -329,7 +356,7 @@ Quiet is now an ordinary Theme that ships with the package. Read
 ### Removed
 
 - Theme API 2. A Theme that declares `api_version: "2"` fails with a pointer
-  to the [migration notes](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
+  to the [migration notes](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/authoring.md#migrating-from-api-1-2-or-3).
 - Config fields `site.featured_posts`, `site.thesis`, `profile.tagline`,
   `branding`, `comments.theme`, `comments.theme_mode`, `theme.source`,
   `theme.name` and `theme.path`. The build names each one and says where it
@@ -356,7 +383,7 @@ Quiet is now an ordinary Theme that ships with the package. Read
 Do these steps in the site repository on a branch, build once, then merge.
 
 1. **Replace the workflow.** Copy
-   [`starter/.github/workflows/pages.yml`](starter/.github/workflows/pages.yml)
+   [`starter/.github/workflows/pages.yml`](https://github.com/geoqiao/escaping/blob/v0.5.1/starter/.github/workflows/pages.yml)
    over your `.github/workflows/pages.yml` and delete `.github/scripts/`.
    If your Config is not `config.yaml` at the repository root, change
    `config:` under the `uses: geoqiao/escaping@v0.2.0` step.
@@ -377,7 +404,7 @@ Do these steps in the site repository on a branch, build once, then merge.
    `seo.social_image` or project `image` such as
    `/templates/my-theme/static/images/og.png` becomes `/assets/images/og.png`.
 4. **Local Theme.** Follow
-   [Migrating from API 1, 2 or 3](docs/themes/authoring.md#migrating-from-api-1-2-or-3). If
+   [Migrating from API 1, 2 or 3](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/authoring.md#migrating-from-api-1-2-or-3). If
    the Theme only changed a few parts of Quiet, a Theme with
    `extends: quiet` that keeps only those files is usually shorter.
 5. **Projects.** If a Theme builds URLs from project slugs, check them: the

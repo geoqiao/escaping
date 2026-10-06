@@ -7,19 +7,18 @@ import shutil
 from collections.abc import Callable
 from datetime import UTC, datetime
 from pathlib import Path
-from typing import Any
 from unittest.mock import patch
 
 import pytest
 
-from escaping_site.config import Settings
+from escaping_site.config import ContentSettings
+from escaping_site.content_export import ContentExporter
 from escaping_site.models.issue_snapshot import IssueSnapshot
 from escaping_site.output_staging import (
     OUTPUT_MARKER,
     OutputStagingError,
     OutputStagingService,
 )
-from escaping_site.site_compiler import SiteCompiler
 
 
 def _snapshot(number: int, body: str, *, kind: str = "blog") -> IssueSnapshot:
@@ -32,26 +31,15 @@ def _snapshot(number: int, body: str, *, kind: str = "blog") -> IssueSnapshot:
 _ABOUT = _snapshot(1, "About.", kind="about")
 
 
-def _settings(**overrides: object) -> Settings:
-    return Settings.model_validate(
+def _exporter(tmp_path: Path, snapshots: list[IssueSnapshot]) -> ContentExporter:
+    settings = ContentSettings.model_validate(
         {
             "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
-            "site": {
-                "title": "geoqiao.me",
-                "author": "geoqiao",
-                "url": "https://geoqiao.me/",
-            },
             "about": {"issue_number": 1},
-            **overrides,
         }
     )
-
-
-def _compiler(
-    tmp_path: Path, snapshots: list[IssueSnapshot], settings: Settings | None = None
-) -> SiteCompiler:
-    return SiteCompiler(
-        settings or _settings(), config_root=tmp_path, issues=lambda: snapshots
+    return ContentExporter(
+        settings, config_root=tmp_path, output="output", issues=lambda: snapshots
     )
 
 
@@ -182,13 +170,13 @@ def test_failed_rollback_preserves_recovery_trees_and_reports_paths(
         "escaping_site.output_staging.os.rename",
         side_effect=fail_publication_and_rollback,
     ):
-        result = _compiler(tmp_path, [_ABOUT]).generate()
+        result = _exporter(tmp_path, [_ABOUT]).export()
 
     assert not result.success
     staging = next(tmp_path.glob(".output.staging.*"))
     backup = next(tmp_path.glob(".output.backup.*"))
     assert not output.exists()
-    assert (staging / "index.html").exists()
+    assert (staging / "about.md").exists()
     assert (backup / "index.html").read_text(encoding="utf-8") == "old"
     diagnostic = next(
         item
@@ -301,56 +289,3 @@ def test_publish_reports_concurrent_disappearance_during_backup_reservation(
         service.publish(staging)
 
     assert not output.exists()
-
-
-def _broken_theme(tmp_path: Path) -> dict[str, Any]:
-    """A Theme that extends Quiet and fails only while rendering."""
-    theme = tmp_path / "theme"
-    theme.mkdir()
-    (theme / "theme.yaml").write_text("api: 4\nextends: quiet\n", encoding="utf-8")
-    (theme / "about.html").write_text("{{ page.no_such_field }}", encoding="utf-8")
-    return {"theme": {"use": "./theme"}}
-
-
-@pytest.mark.parametrize(
-    ("change", "code"),
-    [
-        # A broken configured About stops the build.
-        (
-            lambda: ([_snapshot(1, "---\nslug: x\n---\nAbout.", kind="about")], {}),
-            "SLUG_FORBIDDEN",
-        ),
-        # Content that renders but links to a file that does not exist.
-        (
-            lambda: ([_snapshot(1, "[CV](/cv.pdf)", kind="about")], {}),
-            "BROKEN_INTERNAL_LINK",
-        ),
-        (lambda: ([_ABOUT], None), "TEMPLATE_RENDER_FAILED"),
-        (lambda: (None, {}), "FETCH_FAILED"),
-    ],
-    ids=["content", "validation", "template", "fetch"],
-)
-def test_a_failed_build_leaves_the_previous_output_unchanged(
-    tmp_path: Path,
-    change: Callable[[], tuple[list[IssueSnapshot] | None, dict[str, Any] | None]],
-    code: str,
-) -> None:
-    assert _compiler(tmp_path, [_ABOUT, _snapshot(2, "Post.")]).generate().success
-    output = tmp_path / "output"
-    before = _tree(output)
-    snapshots, overrides = change()
-    settings = _settings(
-        **(_broken_theme(tmp_path) if overrides is None else overrides)
-    )
-
-    def issues() -> list[IssueSnapshot]:
-        if snapshots is None:
-            raise RuntimeError("network down")
-        return snapshots
-
-    result = SiteCompiler(settings, config_root=tmp_path, issues=issues).generate()
-
-    assert not result.success
-    assert code in {d.code for d in result.diagnostics if d.severity == "error"}
-    assert _tree(output) == before
-    assert not list(tmp_path.glob(".output.*"))

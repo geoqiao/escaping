@@ -5,22 +5,21 @@ Status: **Accepted**
 ## 1. Purpose and scope
 
 This contract defines the files `escaping-site export` writes: the published Issue
-Content of a repository as Markdown, for a site that another tool builds.
+Content of a repository as Markdown, for the Site that reads them. They are the only output of
+`escaping` and the only thing a theme depends on.
 [Issue Content v1](issue-content-v1.md) stays the only definition of what an
 Issue must look like; this contract defines only how accepted content leaves
 `escaping`.
 
 The export has no pages, routes, feeds, sitemap, search index, redirects,
-Projects or Theme. The consuming site owns all of them.
+Projects or look. The Site owns all of them.
 
 The key words **MUST**, **MUST NOT** and **MAY** are normative requirements.
 
 ## 2. Selection
 
 Selection, the About choice, slug uniqueness and every content rule are those
-of Issue Content v1, applied by the same code as in `escaping-site build`. The
-same Issues are exported as a build with every section on would publish. In
-particular:
+of Issue Content v1. In particular:
 
 - an Issue without `published`, a Pull Request, and an Issue by an author
   outside `github.allowed_authors` are left out;
@@ -28,10 +27,8 @@ particular:
   left out and reported, the rest is exported, and the CLI exits with status 2;
 - an error in the Config or in the About Issue that `about.issue_number`
   selects fails the export, and the previous export is left unchanged;
-- every content type is exported. `pages` in the Config switches the pages of
-  a built site and has no effect here; a consumer without a place for Ideas
-  ignores `ideas/`. Likewise a slug is never refused for colliding with a
-  page of a built site.
+- every content type is exported; a consumer without a place for Ideas
+  ignores `ideas/`.
 
 ## 3. Directory
 
@@ -47,7 +44,7 @@ particular:
 `--output` is relative to the Config directory and defaults to
 `build/content`. It MAY be any folder inside the Config directory except
 `.git`, so the files can be committed where the site reads them, such as
-`src/content`. It MUST NOT overlap `paths.output`.
+`src/content`.
 
 The same Issues always give the same bytes: no file carries the time of the
 export. A workflow that commits the directory therefore commits only when an
@@ -122,9 +119,9 @@ A consumer therefore owns rendering and its safety:
   author list limits who can write a body; it is not a reason to skip this;
 - attachments stay the external HTTPS links the author wrote.
 
-`escaping` still renders and sanitizes each body while it exports, to derive
-the default `description` and to apply the same content rules as a build. A
-body the Site Compiler would refuse is a Skipped Issue here too.
+`escaping` still renders and sanitizes each body while it exports, only to
+derive the default `description` and to refuse a body that cannot be rendered
+or whose raw HTML the sanitizer rejects; such an Issue is a Skipped Issue.
 
 ## 5. `manifest.json`
 
@@ -149,12 +146,15 @@ body the Site Compiler would refuse is a Skipped Issue here too.
 - `blog` and `ideas` are ordered newest first: by Issue `created_at`
   descending, then by Issue number descending. `path` is relative to the
   directory.
-- `about` is `null` when no About Issue is published. The export has no
-  Profile About; a consumer decides what its About page shows then.
+- `about` is `null` when no About Issue is published; a consumer decides what
+  its About page shows then.
 - `skipped_issues` lists Skipped Issues in ascending order.
 
 The manifest has no timestamp: the same Issues and Config give byte-identical
 files.
+
+Site settings such as a title, navigation or an avatar are not exported. They
+are not content of an Issue; the Site keeps them where it likes.
 
 ## 6. Comments
 
@@ -169,9 +169,16 @@ its address, its domain or the site builder changes.
 escaping-site export --config config.yaml [--output build/content] [--issues-json FILE]
 ```
 
-`--repo`, `--context` and `--token-env` work as for `escaping-site build` (see
-[Site inputs](../site-inputs.md#cli-inputs)). Exit status: 0 exported, 1 failed
-with the previous export unchanged, 2 exported with Skipped Issues.
+| Option | Meaning |
+|---|---|
+| `--config FILE` | The Config; default `config.yaml`. Relative paths start at its folder |
+| `--output DIR` | Where to write; default `build/content` |
+| `--repo OWNER/NAME` | The content repository, when `github.repo` is not set |
+| `--token-env NAME` | The environment variable that holds the GitHub token |
+| `--issues-json FILE` | Read Issues from a file instead of GitHub |
+
+Exit status: 0 exported, 1 failed with the previous export unchanged, 2
+exported with Skipped Issues.
 
 ### 7.1 Config
 
@@ -185,14 +192,10 @@ The export reads three sections of the Config and checks only those:
 | `security.token_env` | `GITHUB_TOKEN` |
 
 With a token on GitHub Actions an empty Config is enough. Everything else in
-the file, `site` and `pages` included, belongs to whatever builds the site: it
-is not read, and a section `escaping` does not know is not an error. So one
-`config.yaml` can hold the consuming site's own settings.
-
-One exception keeps a repository that both builds and exports safe: `--output`
-MUST NOT overlap `paths.output` (default `output`).
+the file belongs to the Site: it is not read, and a section `escaping` does not
+know is not an error. So one `config.yaml` can hold the Site's own settings.
+An unknown field inside one of the three sections is an error.
 
 The command is in the `escaping-site` package on PyPI. In GitHub Actions, run it at a
 fixed version (see
-[Deployment](../deployment.md#running-the-export-in-a-workflow)); it does not
-need GitHub Pages.
+[Deployment](../deployment.md#running-the-export-in-a-workflow)).

@@ -1,45 +1,27 @@
+"""Issue Content: which Issues are published and what each value resolves to."""
+
 from __future__ import annotations
 
-import xml.etree.ElementTree as ET
 from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
-from marko import Markdown
-from marko.ext.gfm import GFM
-from pygments.token import STANDARD_TYPES
 
-from escaping_site.config import Settings
-from escaping_site.content_compiler import ContentCompiler
-from escaping_site.models.content import ContentCompilationResult
+from escaping_site.config import GithubConfig
+from escaping_site.content_validation import tag_key
+from escaping_site.issue_content import ContentRules, IssueContent, compile_issues
 from escaping_site.models.issue_snapshot import IssueSnapshot
-from escaping_site.routes import RouteRegistry
-from escaping_site.utils.html_sanitizer import sanitize_html
 
 _NOW = datetime(2026, 1, 10, tzinfo=UTC)
 
 
-def _settings(about_number: int = 10) -> Settings:
-    return Settings.model_validate(
-        {
-            "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},
-            "site": {
-                "title": "geoqiao",
-                "author": "geoqiao",
-                "url": "https://geoqiao.me/",
-            },
-            "profile": {"avatar": "/avatar.png", "bio": "Builder"},
-            "about": {"issue_number": about_number},
-            "security": {"token_env": "TEST_TOKEN"},
-        }
-    )
-
-
-def _compiler(about_number: int = 10) -> ContentCompiler:
-    settings = _settings(about_number)
-    return ContentCompiler(
-        settings, route_registry=RouteRegistry(str(settings.site.url))
-    )
+def _compile(
+    snapshots: list[IssueSnapshot],
+    *,
+    about: int | None = 10,
+    authors: tuple[str, ...] = ("geoqiao",),
+) -> IssueContent:
+    return compile_issues(ContentRules(authors, about), snapshots)
 
 
 def _snapshot(
@@ -74,34 +56,31 @@ def _snapshot(
     )
 
 
-def _codes(result: ContentCompilationResult) -> set[str]:
+def _codes(result: IssueContent) -> set[str]:
     return {d.code for d in result.diagnostics if d.severity == "error"}
 
 
 @pytest.mark.parametrize("allowed_author", ["geoqiao", " \tGeoQiao\n"])
 def test_compiles_blog_idea_and_configured_about_once(allowed_author: str) -> None:
-    settings = Settings.model_validate(
-        {
-            **_settings().model_dump(),
-            "github": {"repo": "geoqiao/site", "allowed_authors": [allowed_author]},
-        }
-    )
-    result = ContentCompiler(
-        settings, route_registry=RouteRegistry(str(settings.site.url))
-    ).compile(
+    result = _compile(
         [
             _snapshot(1, "blog"),
             _snapshot(2, "idea"),
             _snapshot(10, "about"),
             _snapshot(21, "blog", author="other"),
-        ]
+        ],
+        authors=tuple(
+            GithubConfig(
+                repo="geoqiao/site", allowed_authors=[allowed_author]
+            ).allowed_authors
+        ),
     )
 
     assert not result.has_errors
     assert [post.issue_number for post in result.blogs] == [1]
-    assert result.blogs[0].canonical_path == "/blog/test-post/"
-    assert result.ideas[0].canonical_path == "/ideas/2/"
-    assert result.about is not None and result.about.canonical_path == "/about/"
+    assert result.blogs[0].slug == "test-post"
+    assert [idea.issue_number for idea in result.ideas] == [2]
+    assert result.about is not None and result.about.issue_number == 10
     assert "description:" not in result.ideas[0].body_html
     assert "<script" not in result.ideas[0].body_html
 
@@ -114,7 +93,7 @@ def test_compiles_blog_idea_and_configured_about_once(allowed_author: str) -> No
 def test_authored_calendar_dates_compile_to_ascii_without_changing_issue_time(
     kind: str, authored: str, canonical: str
 ) -> None:
-    result = _compiler().compile(
+    result = _compile(
         [
             _snapshot(1, kind, metadata=f'created_date: "{authored}"'),
             _snapshot(10, "about", metadata=f'created_date: "{authored}"'),
@@ -123,14 +102,12 @@ def test_authored_calendar_dates_compile_to_ascii_without_changing_issue_time(
     assert not result.has_errors
     item = result.blogs[0] if kind == "blog" else result.ideas[0]
     assert item.created_date == canonical
-    # About shows no date (Issue Content v1, section 8.1).
-    assert result.about is not None and result.about.created_date == ""
     assert item.published_at == item.updated_at == _NOW
 
 
 def test_blog_posts_come_out_newest_first() -> None:
     older = _NOW.replace(day=8)
-    result = _compiler().compile(
+    result = _compile(
         [
             _snapshot(2, "blog", metadata="slug: two"),
             _snapshot(5, "blog", metadata="slug: five", created_at=older),
@@ -145,7 +122,7 @@ def test_blog_posts_come_out_newest_first() -> None:
 
 def test_ideas_forbid_slug_sort_and_keep_tags_outside_blog_taxonomy() -> None:
     older = _NOW.replace(day=8)
-    result = _compiler().compile(
+    result = _compile(
         [
             _snapshot(2, "idea", labels=("tag:tools",), created_at=older),
             _snapshot(3, "idea", labels=("tag:notes",)),
@@ -155,10 +132,10 @@ def test_ideas_forbid_slug_sort_and_keep_tags_outside_blog_taxonomy() -> None:
     )
     assert not result.has_errors
     assert [idea.issue_number for idea in result.ideas] == [3, 2]
-    assert [tag.name for tag in result.ideas[1].tags] == ["tools"]
-    assert {tag.name for blog in result.blogs for tag in blog.tags} == {"python"}
+    assert result.ideas[1].tags == ("tools",)
+    assert {tag for blog in result.blogs for tag in blog.tags} == {"python"}
 
-    invalid = _compiler().compile(
+    invalid = _compile(
         [
             _snapshot(
                 2,
@@ -183,13 +160,13 @@ def test_ideas_forbid_slug_sort_and_keep_tags_outside_blog_taxonomy() -> None:
 def test_configured_about_failures_stop_the_build(
     configured: IssueSnapshot, expected: str
 ) -> None:
-    result = _compiler().compile([configured, _snapshot(1, "blog")])
+    result = _compile([configured, _snapshot(1, "blog")])
     assert expected in _codes(result)
     assert result.has_errors and result.about is None and not result.skipped
 
 
 def test_other_about_issues_are_skipped_when_one_is_configured() -> None:
-    result = _compiler().compile(
+    result = _compile(
         [_snapshot(11, "about"), _snapshot(10, "about"), _snapshot(1, "blog")]
     )
     assert not result.has_errors, result.diagnostics
@@ -229,16 +206,16 @@ def test_missing_metadata_defaults_and_independent_overrides(
     if metadata is not None:
         body = f"---\n{metadata}\n---\n\n{body}"
     snapshot = replace(_snapshot(128, "blog", created_at=created), body=body)
-    result = _compiler().compile([snapshot, _snapshot(10, "about")])
+    result = _compile([snapshot, _snapshot(10, "about")])
     assert not result.has_errors, result.diagnostics
     post = result.blogs[0]
     assert (post.slug, post.description, post.created_date) == expected
     assert post.body_html == "<p>Writing should be simple.</p>\n"
     assert post.published_at == created and post.updated_at == created
-    renamed = _compiler().compile(
+    renamed = _compile(
         [replace(snapshot, title="Changed title"), _snapshot(10, "about")]
     )
-    assert renamed.blogs[0].canonical_path == post.canonical_path
+    assert renamed.blogs[0].slug == post.slug
 
 
 @pytest.mark.parametrize(
@@ -277,7 +254,7 @@ def test_missing_metadata_defaults_and_independent_overrides(
 def test_description_uses_only_sanitized_visible_body_text(
     body: str, expected: str
 ) -> None:
-    result = _compiler().compile(
+    result = _compile(
         [replace(_snapshot(128, "blog"), body=body), _snapshot(10, "about")]
     )
     assert not result.has_errors, result.diagnostics
@@ -307,7 +284,7 @@ def test_description_uses_only_sanitized_visible_body_text(
 def test_explicit_invalid_metadata_skips_only_that_issue(
     metadata: str, code: str
 ) -> None:
-    result = _compiler().compile(
+    result = _compile(
         [
             _snapshot(128, "blog", metadata=metadata),
             _snapshot(1, "blog"),
@@ -333,9 +310,7 @@ def test_explicit_invalid_metadata_skips_only_that_issue(
 def test_a_character_the_feed_cannot_hold_skips_only_that_blog(
     field: str, snapshot: IssueSnapshot
 ) -> None:
-    result = _compiler().compile(
-        [snapshot, _snapshot(1, "blog"), _snapshot(10, "about")]
-    )
+    result = _compile([snapshot, _snapshot(1, "blog"), _snapshot(10, "about")])
     [error] = [d for d in result.diagnostics if d.severity == "error"]
     assert (error.code, error.issue_number, error.field) == (
         "CHARACTER_INVALID",
@@ -360,17 +335,15 @@ def test_defaults_keep_publication_gates_and_collect_published_errors() -> None:
         replace(_snapshot(4, "blog", author="other"), body="---"),
         replace(_snapshot(5, "blog", is_pr=True), body="---"),
     ]
-    good = _compiler().compile([plain, *ignored, _snapshot(10, "about")])
+    good = _compile([plain, *ignored, _snapshot(10, "about")])
     assert not good.has_errors, good.diagnostics
     assert [p.issue_number for p in good.blogs] == [128]
     assert [(d.code, d.issue_number) for d in good.diagnostics] == [
         ("UNAUTHORIZED_AUTHOR", 4)
     ]
-    removed = _compiler().compile(
-        [replace(plain, labels=("type:blog",)), _snapshot(10, "about")]
-    )
+    removed = _compile([replace(plain, labels=("type:blog",)), _snapshot(10, "about")])
     assert not removed.has_errors and not removed.blogs
-    bad = _compiler().compile(
+    bad = _compile(
         [
             plain,
             _snapshot(10, "about"),
@@ -392,15 +365,12 @@ def test_defaults_keep_publication_gates_and_collect_published_errors() -> None:
 
 
 def test_oldest_issue_keeps_a_contested_slug() -> None:
-    routes = RouteRegistry(str(_settings().site.url))
     default = replace(_snapshot(128, "blog"), body="Body.")
-    registered = ContentCompiler(_settings(), route_registry=routes).compile(
-        [default, _snapshot(10, "about")]
-    )
+    registered = _compile([default, _snapshot(10, "about")])
     assert not registered.has_errors
-    assert registered.blogs[0].route is routes.route("blog-detail-128")
+    assert registered.blogs[0].slug == "128"
     # Input order does not matter: the lower Issue number owns the slug.
-    collision = _compiler().compile(
+    collision = _compile(
         [
             _snapshot(129, "blog", metadata='slug: "128"'),
             default,
@@ -414,7 +384,7 @@ def test_oldest_issue_keeps_a_contested_slug() -> None:
 
 
 def test_unicode_tags_keep_display_names_and_share_keys() -> None:
-    result = _compiler().compile(
+    result = _compile(
         [
             _snapshot(
                 1,
@@ -432,154 +402,39 @@ def test_unicode_tags_keep_display_names_and_share_keys() -> None:
     assert not result.has_errors and result.skipped == (2,)
     assert "TAG_INVALID" in _codes(result)
     tags = result.blogs[0].tags
-    assert [(tag.name, tag.key) for tag in tags] == [
+    assert [(tag, tag_key(tag)) for tag in tags] == [
         ("Machine Learning", "machine-learning"),
         ("示例 标签", "示例-标签"),
     ]
-    assert tags[1].path == "/tags/%E7%A4%BA%E4%BE%8B-%E6%A0%87%E7%AD%BE/"
 
 
 @pytest.mark.parametrize("kind,number", [("idea", 2), ("about", 10)])
 def test_idea_about_defaults_never_allow_a_slug(kind: str, number: int) -> None:
     supporting = [] if kind == "about" else [_snapshot(10, "about")]
-    result = _compiler().compile(
-        [replace(_snapshot(number, kind), body="Body."), *supporting]
-    )
+    result = _compile([replace(_snapshot(number, kind), body="Body."), *supporting])
     assert not result.has_errors, result.diagnostics
     page = result.about if kind == "about" else result.ideas[0]
     assert page is not None and page.description == "Body."
     if kind == "idea":
         assert result.ideas[0].created_date == "2026-01-10"
     for value in ("null", '""', "forbidden"):
-        bad = _compiler().compile(
+        bad = _compile(
             [_snapshot(number, kind, metadata=f"slug: {value}"), *supporting]
         )
         assert "SLUG_FORBIDDEN" in _codes(bad)
 
 
-@pytest.mark.parametrize("kind,number", [("blog", 1), ("idea", 2), ("about", 10)])
-def test_compiled_code_has_static_tokens_without_theme_ui(
-    kind: str, number: int
-) -> None:
-    supporting = [] if kind == "about" else [_snapshot(10, "about")]
-    result = _compiler().compile(
-        [
-            replace(_snapshot(number, kind), body="```python\nprint(42)\n```"),
-            *supporting,
-        ]
-    )
-    assert not result.has_errors, result.diagnostics
-    pages = {"blog": result.blogs, "idea": result.ideas, "about": (result.about,)}
-    page = pages[kind][0]
-    assert page is not None
-    pre = ET.fromstring(page.body_html)  # noqa: S314 - locally compiled test content
-    code = pre.find("code")
-    assert pre.tag == "pre" and code is not None and len(pre) == 1
-    assert set(code.attrib["class"].split()) == {"language-python", "syntax"}
-    assert code.find("span[@class='nb']") is not None
-    assert "".join(code.itertext()) == "print(42)\n"
-    assert all(node.tag in {"pre", "code", "span"} for node in pre.iter())
-    assert all(
-        set(span.attrib) == {"class"}
-        and set(span.attrib["class"].split()) <= set(STANDARD_TYPES.values())
-        for span in code.iter("span")
-    )
-
-
-def _compiled_body(markdown: str) -> str:
-    result = _compiler().compile(
-        [replace(_snapshot(1, "blog"), body=markdown), _snapshot(10, "about")]
-    )
-    assert not result.has_errors, result.diagnostics
-    return result.blogs[0].body_html
-
-
-@pytest.mark.parametrize(
-    "markdown",
-    [
-        "```python\n\n\n  print('中文 & < >')  \n\t# indented\n\n```",
-        "```js\n\n  const x = 1;\n\n```",
-        "```yaml\n\n  key: value\n\n```",
-        "```bash\n\n\techo hi  \n\n```",
-        "```pycon\n\n>>> print(1)\n1\n\n```",
-        "```python\nprint(1)",
-        "```python\n\ufeffprint(1)\n```",
-        "```python\n```",
-        "```python\n\n\n```",
-        "> ```python\n> \n>   print(1)\n> ```",
-        "- Example:\n\n  ```python\n\n    print(1)\n\n  ```",
-    ],
-)
-def test_highlighting_preserves_marko_code_text_exactly(markdown: str) -> None:
-    original = sanitize_html(Markdown(extensions=[GFM]).convert(markdown))
-    before = ET.fromstring(f"<div>{original}</div>")  # noqa: S314
-    after = ET.fromstring(f"<div>{_compiled_body(markdown)}</div>")  # noqa: S314
-    old_code, new_code = before.find(".//code"), after.find(".//code")
-    assert old_code is not None and new_code is not None
-    assert "syntax" in new_code.attrib["class"].split()
-    assert "".join(new_code.itertext()) == "".join(old_code.itertext())
-
-
-@pytest.mark.parametrize(
-    "markdown",
-    [
-        "```\n\nprint(1)\n\n```",
-        "```unknown-language\n\nprint(1)\n\n```",
-        "```mermaid\n\ngraph TD\n  A --> B\n\n```",
-        "    print(1)\n",
-        "Use `print(1)` inline.",
-    ],
-)
-def test_plain_unknown_and_mermaid_rendering_remains_unchanged(markdown: str) -> None:
-    assert _compiled_body(markdown) == sanitize_html(
-        Markdown(extensions=[GFM]).convert(markdown)
-    )
-
-
-def test_lossy_lexer_falls_back_instead_of_dropping_source_text() -> None:
-    # Pygments' console lexer drops a final line without a newline.
-    markdown = "```console\n$ echo hi"
-    assert _compiled_body(markdown) == sanitize_html(
-        Markdown(extensions=[GFM]).convert(markdown)
-    )
-
-
-@pytest.mark.parametrize(
-    "info",
-    ["html", "html nowrap=false,full=true,linenos=true", 'x"onmouseover="alert(1)'],
-)
-def test_highlighted_source_and_fence_options_cannot_inject_html(info: str) -> None:
-    source = '<script>alert(1)</script><img src=x onerror="bad()">&amp;'
-    body = _compiled_body(
-        f"```{info}\n{source}\n```\n\n"
-        '<span onclick="bad()" style="color:red">Safe</span> '
-        '<a href="javascript:bad()">link</a>'
-    )
-    tree = ET.fromstring(f"<div>{body}</div>")  # noqa: S314
-    code = tree.find(".//pre/code")
-    assert code is not None and "".join(code.itertext()) == source + "\n"
-    assert all(
-        node.tag in {"div", "pre", "code", "span", "p", "a"} for node in tree.iter()
-    )
-    assert all(set(node.attrib) <= {"class"} for node in tree.iter())
-    assert "Safe link" in "".join(tree.itertext())
-
-
 def test_missing_about_and_about_tags_fail() -> None:
-    missing = _compiler().compile([_snapshot(1, "blog")])
+    missing = _compile([_snapshot(1, "blog")])
     assert "ABOUT_MISSING" in _codes(missing) and missing.has_errors
 
-    tagged = _compiler().compile([_snapshot(10, "about", labels=("tag:profile",))])
+    tagged = _compile([_snapshot(10, "about", labels=("tag:profile",))])
     assert "ABOUT_TAG_FORBIDDEN" in _codes(tagged) and tagged.has_errors
 
 
 def test_about_discovery_requires_a_unique_valid_published_candidate() -> None:
-    settings = Settings.model_validate({**_settings().model_dump(), "about": {}})
-
-    def discover(snapshots: list[IssueSnapshot]) -> ContentCompilationResult:
-        return ContentCompiler(
-            settings, route_registry=RouteRegistry(str(settings.site.url))
-        ).compile(snapshots)
+    def discover(snapshots: list[IssueSnapshot]) -> IssueContent:
+        return _compile(snapshots, about=None)
 
     empty = discover(
         [_snapshot(4, "about", published=False), _snapshot(5, "about", author="other")]
@@ -597,40 +452,12 @@ def test_about_discovery_requires_a_unique_valid_published_candidate() -> None:
     assert not invalid.has_errors and invalid.skipped == (42,)
 
 
-def test_issues_of_a_section_that_is_off_are_left_out_with_a_warning() -> None:
-    settings = Settings.model_validate(
-        {
-            **_settings().model_dump(),
-            "about": {},
-            "pages": {"ideas": False, "about": False, "tags": False},
-        }
+def _compiled_body(markdown: str) -> str:
+    result = _compile(
+        [replace(_snapshot(1, "blog"), body=markdown), _snapshot(10, "about")]
     )
-    routes = RouteRegistry(str(settings.site.url), settings.pages.sections())
-
-    result = ContentCompiler(settings, route_registry=routes).compile(
-        [
-            _snapshot(1, "blog", labels=("tag:Python",)),
-            _snapshot(2, "idea"),
-            _snapshot(3, "about"),
-        ]
-    )
-
-    assert not result.has_errors and result.skipped == ()
-    assert [post.issue_number for post in result.blogs] == [1]
-    assert result.ideas == () and result.about is None
-    assert [(tag.name, tag.path) for tag in result.blogs[0].tags] == [("Python", None)]
-    assert [(d.severity, d.code, d.message) for d in result.diagnostics] == [
-        (
-            "warning",
-            "PAGE_OFF",
-            "Issue #2: is type:idea but pages.ideas is false; it is not published",
-        ),
-        (
-            "warning",
-            "PAGE_OFF",
-            "Issue #3: is type:about but pages.about is false; it is not published",
-        ),
-    ]
+    assert not result.has_errors, result.diagnostics
+    return result.blogs[0].body_html
 
 
 def test_task_list_keeps_done_and_open_state() -> None:

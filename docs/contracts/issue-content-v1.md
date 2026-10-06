@@ -5,28 +5,28 @@ Status: **Accepted**
 ## 1. Purpose and scope
 
 This contract defines the GitHub Issue representation consumed by `escaping`.
-It is the output contract of an Issue Draft Uploader and the input of both
-outputs: the site that `escaping-site build` makes
-([Site Build v1](site-build-v1.md)) and the Markdown files that
-`escaping-site export` writes ([Content Export v1](content-export-v1.md)).
-Which Issues are published, and with which values, is the same for both.
+It is the output contract of an Issue Draft Uploader and the input of
+`escaping-site export`, which writes the accepted content as Markdown files
+([Content Export v1](content-export-v1.md)).
 
 This contract does not define:
 
 - the local draft Markdown format;
 - how an Issue Draft Uploader authenticates or represents Local Drafts;
 - project catalog files;
-- theme APIs;
-- rendering, routes and the files of a built site;
+- how a Site renders a body, or the files of a Site;
 - deployment workflows.
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY**
 are normative requirements.
 
-Paths, pages and feeds named here are those of a built site; an export has
-none. Paths such as `/blog/{slug}/` are the defaults. `pages` in the site's
-`config.yaml` can move a section, for example the Blog to `/notes/`, which
-puts a post at `/notes/{slug}/`; a site under a sub-path adds that prefix.
+`escaping` makes no pages, addresses or feeds; the Site that reads the export
+does. Where this contract names a path such as `/blog/{slug}/`, a page or
+`/atom.xml`, it describes the Site this content is written for: the default
+theme follows it, and a Site of your own SHOULD, so that content means the same
+everywhere. Only what the export writes is checked by `escaping`. "The
+compiler" is the part of `escaping` that selects and checks Issues, and "the
+build" is one export run.
 
 ## 2. Authoritative inputs and derived values
 
@@ -227,8 +227,7 @@ decimal string. An explicit `slug` and the resolved current snapshot MUST:
 - match `^[a-z0-9]+(?:-[a-z0-9]+)*$`;
 - contain 1–80 characters;
 - be unique among all Blog canonical slugs;
-- in a built site, not collide with a reserved route
-  ([Site Build v1, section 3](site-build-v1.md#3-route-integrity)).
+- not be `page`, which a Site needs for the pages of the Blog list.
 
 As a lifecycle invariant, authors and editing tools MUST keep the slug unchanged
 after its first publication.
@@ -339,7 +338,7 @@ An Idea Issue:
 Site configuration MAY select an About Issue by immutable `about.issue_number`.
 Without an explicit selection, the compiler selects the oldest valid,
 published, allowed-author About Issue (see below). If none exists, the site
-displays Profile About, not invented Issue Content.
+decides what its About page shows; the export has no `about.md`.
 
 An About Issue:
 
@@ -353,16 +352,15 @@ An About Issue:
 - does not enter Blog, Ideas, Blog Tags, or `/atom.xml`;
 - binds comments to its own Issue number.
 
-An explicit selection has priority over discovery and Profile About. If the
+An explicit selection has priority over discovery. If the
 selected Issue is missing, is a Pull Request, is unauthorized, lacks `published`,
 has the wrong type, or fails validation, the build MUST fail rather than fall
 back. Without an explicit selection, the oldest published, allowed-author
 `type:about` Issue is used; every other one is skipped and reported as an error
 (`ABOUT_DUPLICATE`).
 
-Profile About has no Issue number, authored date, or comment thread and MUST NOT
-be represented as a fabricated Article or Issue. Failure to fetch necessary
-Issue inputs MUST NOT be misreported as an empty set eligible for fallback.
+Failure to fetch necessary Issue inputs MUST NOT be misreported as an empty set
+of Issues.
 
 ## 8. Publication lifecycle
 
@@ -392,28 +390,27 @@ Transitions:
 - Blog and Idea pages display the normalized `created_date`; About MUST NOT
   display it. The omitted value uses the Issue's UTC creation date (section 6.5);
   there is no site-timezone Config field.
-- `update_date` is given to the Theme and written to the export; whether a page
-  shows it is the Theme's or the consuming site's choice.
+- `update_date` is written to the export; whether a page shows it is the
+  Site's choice.
 - An Atom entry `published` value uses the Issue `created_at` timestamp.
 - An Atom entry `updated` value uses the GitHub Issue `updated_at` value.
 - The Atom feed `updated` value uses the maximum `updated_at` among its entries.
-- When the Blog collection is empty, the compiler still generates a valid empty
-  feed and uses the build start time as its feed-level `updated` value.
+- When the Blog collection is empty, a Site still serves a valid empty feed.
 - The `published` label, not a future timestamp, is the only publication gate.
 
 ## 9. Body validity
 
 A body MUST be renderable as GitHub-Flavored Markdown and its raw HTML MUST
 pass the sanitizer; a body that does not is a content error and the Issue is
-skipped. This is judged the same way for a build and for an export, and the
-default `description` (section 6.4) comes from that sanitized rendering.
+skipped. The default `description` (section 6.4) comes from that sanitized
+rendering.
 
 Front matter MUST NOT enable arbitrary template selection, code execution,
 script injection, or per-content plugins in v1.
 
-How a built site renders and sanitizes a body is
-[Site Build v1, section 2](site-build-v1.md#2-rendering-and-security). An
-export hands over the Markdown; its consumer owns rendering.
+The export hands over the Markdown, not that rendering. The Site renders the
+body and owns the safety of its own rendering
+([Content Export v1, section 4.2](content-export-v1.md#42-body)).
 
 ## 10. Comments
 
@@ -428,7 +425,7 @@ Enabled comments require the relevant GitHub App authorization; configuration
 alone MUST NOT be presented as proof that writing comments works. Widget failure
 MUST leave the body readable and provide a usable source-Issue fallback.
 
-Profile About and Projects have no Issue comment thread.
+Pages that do not come from an Issue have no comment thread.
 
 ## 11. Slugs, tag keys and errors
 
@@ -444,12 +441,12 @@ error is skipped and reported, and the rest is still published (the CLI exits
 with status 2). Errors in Config or in the About Issue that
 `about.issue_number` selects fail the run and publish nothing.
 
-The addresses of a built site, and what happens when two pages want the same
-one, are [Site Build v1, section 3](site-build-v1.md#3-route-integrity).
+Addresses, and what happens when two pages want the same one, belong to the
+Site.
 
 ## 12. Single current format
 
-The Site Compiler supports only the current Issue Content Contract and performs
+`escaping` supports only the current Issue Content Contract and performs
 no runtime schema dispatch or legacy compatibility parsing. Historical Issues
 that do not conform MUST be edited to the current format before publication.
 

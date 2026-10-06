@@ -1,20 +1,18 @@
 """Issue Content: what the Issues of a repository publish, before any site.
 
 Selection, the About choice, content rules and defaults of Issue Content v1.
-Both outputs start here: ``escaping-site build`` gives each entry an address
-and a page, ``escaping-site export`` writes it as a Markdown file. Nothing in
-this module knows a URL, a page switch or a Theme, so the two cannot disagree
-about which Issues are published.
+``escaping-site export`` writes each entry as a Markdown file. Nothing in this
+module knows a URL, a page or a look.
 
 A body is rendered and sanitized here only to judge it and to derive the
-default description; a build renders it again for its own pages.
+default description; the site renders the exported Markdown itself.
 """
 
 from __future__ import annotations
 
 import unicodedata
-from collections.abc import Callable, Mapping, Sequence
-from dataclasses import dataclass, field
+from collections.abc import Callable, Sequence
+from dataclasses import dataclass
 from datetime import UTC, datetime
 from html.parser import HTMLParser
 from operator import attrgetter
@@ -39,9 +37,6 @@ class ContentRules:
 
     allowed_authors: tuple[str, ...]
     about_issue_number: int | None = None
-    #: Content type -> why its Issues are left out, for a caller that has no
-    #: place for them: ``{"idea": "pages.ideas is false"}``.
-    off: Mapping[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)
@@ -299,18 +294,6 @@ class _Compiler:
             return None
 
         content_type = self._content_type(snapshot)
-        if content_type in self._rules.off:
-            self._diagnostics.append(
-                Diagnostic(
-                    "warning",
-                    "PAGE_OFF",
-                    f"Issue #{snapshot.number}: is type:{content_type} but "
-                    f"{self._rules.off[content_type]}; it is not published",
-                    snapshot.number,
-                    "labels",
-                )
-            )
-            return None
         if is_about and content_type != "about":
             self._fail(snapshot, "ABOUT_TYPE_INVALID", "must use the type:about label")
         if not is_about and content_type == "about":

@@ -14,8 +14,6 @@ from urllib.parse import urlparse
 
 import nh3
 
-from ..routes import with_base
-
 #: Elements that are completely removed (tag, content, and children).
 #: These are dangerous embeds, scripting, or interactive elements that
 #: are **containers** - their content is cleaned by nh3. Ambiguous source
@@ -360,7 +358,7 @@ class _PolicySerializer(HTMLParser):
         return result
 
 
-def sanitize_html(html: str, *, base: str = "") -> str:
+def sanitize_html(html: str) -> str:
     """Sanitize HTML using an allowlist of safe elements and attributes.
 
     Preserves normal Markdown-rendered content (paragraphs, headings, lists,
@@ -372,9 +370,6 @@ def sanitize_html(html: str, *, base: str = "") -> str:
     ----------
     html:
         Raw HTML string (typically output from a Markdown renderer).
-    base:
-        The site's path below its origin, such as ``/notes``. Root-relative
-        links and images (``/blog/x/``) are moved under it.
 
     Returns
     -------
@@ -400,10 +395,7 @@ def sanitize_html(html: str, *, base: str = "") -> str:
         # nh3 callbacks cannot propagate exceptions; fail the whole fragment
         # afterwards instead of silently accepting a failed policy check.
         try:
-            cleaned = _clean_attr_value(name, value)
-            if cleaned is not None and name in _URL_ATTRS:
-                return with_base(base, cleaned)
-            return cleaned
+            return _clean_attr_value(name, value)
         except Exception as exc:
             errors.append(exc)
             return None

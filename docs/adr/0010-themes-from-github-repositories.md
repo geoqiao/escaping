@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0013
 amends: ADR-0007 (a Theme came only from escaping_site or the site repository) and
   ADR-0008 (extends named only a built-in Theme; loading never used the network)
 ---
@@ -33,7 +33,7 @@ internals, files and environment variables. A Theme's HTML and JavaScript
 still reach readers, so the docs recommend reading a Theme and pinning
 unknown authors to a commit SHA.
 
-**The list of Themes is a document**, [docs/themes/catalog.md](../themes/catalog.md),
+**The list of Themes is a document**, [docs/themes/catalog.md](https://github.com/geoqiao/escaping/blob/v0.5.1/docs/themes/catalog.md),
 changed by pull request. It links to the Themes; their code stays in their
 authors' repositories.
 

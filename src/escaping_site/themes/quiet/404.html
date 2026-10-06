@@ -1,6 +1,0 @@
-{% extends 'base.html' %}
-{% set page_title = t.not_found %}
-{% set page_description = t.not_found_body %}
-{% block content %}
-<section class="page-heading"><p class="eyebrow">404</p><h1>{{ t.not_found }}<span class="heading-dot" aria-hidden="true">.</span></h1><p>{{ t.not_found_body }}</p><a class="read-link" href="{{ site.routes.home.canonical_path }}">{{ t.back_home }} ↗</a></section>
-{% endblock %}

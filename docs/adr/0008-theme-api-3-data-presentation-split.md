@@ -1,5 +1,5 @@
 ---
-status: accepted; amended by ADR-0009 (pages) and ADR-0010 (extends, network)
+status: superseded by ADR-0013
 supersedes: Theme API 2 (ADR-0007 keeps Quiet as the only built-in Theme)
 ---
 

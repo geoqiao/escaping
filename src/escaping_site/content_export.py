@@ -1,12 +1,10 @@
 """Content Export: published Issue Content as Markdown files.
 
-For a site built with another tool. Selection, defaults and content rules are
-those of ``issue_content``, which a build starts from too. Nothing here knows a
-site: no address, page switch or Theme. The files and their fields are defined
-in docs/contracts/content-export-v1.md.
+The only output of escaping. Selection, defaults and content rules are those
+of ``issue_content``. Nothing here knows a site: no address, page or look. The
+files and their fields are defined in docs/contracts/content-export-v1.md.
 
-The directory is replaced as a whole through the same staging and ownership
-checks as a built site.
+The directory is replaced as a whole, through staging and an ownership check.
 """
 
 from __future__ import annotations
@@ -49,7 +47,6 @@ class ContentExporter:
         config_root: Path,
         output: str,
         issues: IssueSource,
-        site_output: str = "output",
     ) -> None:
         if not config_root.is_absolute():
             raise ValueError("ContentExporter config_root must be absolute")
@@ -57,17 +54,10 @@ class ContentExporter:
         self.config_root = config_root
         self.output = output
         self.issues = issues
-        #: Where a build of the same Config would write; the two never overlap.
-        self.site_output = site_output
 
     def export(self) -> BuildResult:
         try:
-            # Any folder: the files may be committed where the site reads them.
-            # A folder with files of its own is still refused.
-            staging = OutputStagingService(
-                self.output, self.config_root, "--output", any_folder=True
-            )
-            self._check_apart_from_site(staging.output)
+            staging = OutputStagingService(self.output, self.config_root, "--output")
             staging.check_replaceable()
         except (OutputContainmentError, OutputStagingError) as exc:
             return _failed("OUTPUT_UNSAFE", str(exc))
@@ -109,14 +99,6 @@ class ContentExporter:
             if staging_dir is not None:
                 diagnostics.extend(staging.cleanup(staging_dir))
             return BuildResult(False, tuple(diagnostics))
-
-    def _check_apart_from_site(self, output: Path) -> None:
-        site = (self.config_root / self.site_output).resolve()
-        if output.is_relative_to(site) or site.is_relative_to(output):
-            raise OutputStagingError(
-                f"--output and paths.output overlap ({output} and {site}); "
-                "a build or an export would delete the other's files"
-            )
 
 
 def write_export(directory: Path, content: IssueContent, repository: str) -> None:

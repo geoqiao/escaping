@@ -21,7 +21,8 @@ import pytest
 from github import Github
 from github.Issue import Issue as PyGithubIssue
 
-from escaping_site.config import Settings
+from escaping_site.config import ContentSettings
+from escaping_site.content_export import ContentExporter
 from escaping_site.models.issue_snapshot import IssueSnapshot
 from escaping_site.output_staging import OUTPUT_MARKER
 from escaping_site.services.github_service import (
@@ -29,7 +30,6 @@ from escaping_site.services.github_service import (
     _to_issue_snapshot,
     read_issues_json,
 )
-from escaping_site.site_compiler import SiteCompiler
 
 
 @pytest.mark.parametrize(
@@ -95,37 +95,35 @@ def test_request_retries_recover_pagination_or_preserve_previous_output(
         partial(Github, base_url=origin, seconds_between_requests=0),
     )
     service = GitHubService("test-token")
-    settings = Settings.model_validate(
-        {
-            "github": {"repo": "owner/site", "allowed_authors": ["owner"]},
-            "site": {"title": "Site", "author": "Owner", "url": "https://example.org/"},
-        }
+    settings = ContentSettings.model_validate(
+        {"github": {"repo": "owner/site", "allowed_authors": ["owner"]}}
     )
     output = tmp_path / "output"
     output.mkdir()
     (output / OUTPUT_MARKER).write_text("previous build", encoding="utf-8")
     sentinel = output / "index.html"
-    sentinel.write_bytes(b"Previous site")
+    sentinel.write_bytes(b"Previous export")
     try:
-        result = SiteCompiler(
+        result = ContentExporter(
             settings,
             config_root=tmp_path,
+            output="output",
             issues=lambda: service.fetch_issue_snapshots(
                 service.get_repo("owner/site")
             ),
-        ).generate()
+        ).export()
         assert requests["/repos/owner/site"] == 1
         if scenario == "recover":
             assert result.success, result.diagnostics
             assert requests["/repos/owner/site/issues"] == 1
             assert requests["/repos/owner/site/issues?page=2"] == 2
             for number in (1, 2):
-                assert (output / f"blog/{number}/index.html").is_file()
+                assert (output / f"blog/{number}.md").is_file()
         else:
             assert not result.success
             assert [d.code for d in result.diagnostics] == ["FETCH_FAILED"]
             assert sorted(output.iterdir()) == [output / OUTPUT_MARKER, sentinel]
-            assert sentinel.read_bytes() == b"Previous site"
+            assert sentinel.read_bytes() == b"Previous export"
             assert not list(tmp_path.glob(".output.staging.*"))
             if scenario == "exhausted":
                 assert requests["/repos/owner/site/issues"] == 1
@@ -195,36 +193,15 @@ def test_snapshots_copy_the_issue_without_a_detail_request() -> None:
 
 
 @patch("escaping_site.services.github_service.Github")
-def test_public_profile_and_repository_identity_are_plain_verified_snapshots(
+def test_repository_identity_is_a_plain_verified_snapshot(
     mock_github_class: MagicMock,
 ) -> None:
-    from github.NamedUser import NamedUser
     from github.Repository import Repository
     from pydantic import ValidationError
 
     requester = MagicMock()
     requester.is_not_lazy = False
-    user = NamedUser(
-        requester,
-        {},
-        {
-            "login": "alice",
-            "name": "Alice Example",
-            "bio": "Hello",
-            "avatar_url": "https://example.org/a.png",
-        },
-        completed=True,
-    )
-    mock_github_class.return_value.get_user.return_value = user
     service = GitHubService("fake-token")
-    profile = service.fetch_public_profile("alice")
-    assert (profile.login, profile.name, profile.avatar_url, profile.bio) == (
-        "alice",
-        "Alice Example",
-        "https://example.org/a.png",
-        "Hello",
-    )
-    requester.requestJsonAndCheck.assert_not_called()
     base = {
         "full_name": "Alice/Site",
         "html_url": "https://github.com/Alice/Site",

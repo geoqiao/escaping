@@ -4,117 +4,98 @@
 
 # escaping
 
-**在 GitHub Issues 写作，拥有自己的个人网站。**
-
-Blog、Ideas、Projects、About、Tags 和 RSS，无需另建一套内容管理系统。
+**在 GitHub Issues 写作，得到一份整理好的 Markdown，交给任何建站工具。**
 
 [![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
 [![GitHub Issues](https://img.shields.io/badge/Content-GitHub_Issues-181717?logo=github)](https://docs.github.com/issues)
-[![Static Site](https://img.shields.io/badge/Output-Static_Site-315EFB)](https://geoqiao.me/)
 [![MIT License](https://img.shields.io/badge/License-MIT-22C55E)](https://github.com/geoqiao/escaping/blob/main/LICENSE)
 
 **[English](https://github.com/geoqiao/escaping/blob/main/README_en.md)** · **[线上站点](https://geoqiao.me/)** · **[快速开始](#-快速开始)** · **[维护者入口](https://github.com/geoqiao/escaping/blob/main/docs/dual-repo-architecture.md)**
 
 </div>
 
-## 为什么用 escaping？
+## escaping 做什么
 
-| 你需要的 | escaping 提供的 |
-| --- | --- |
-| 专心写作 | 在 Issue 中写标题和 Markdown 正文，用标签决定是否发布；front matter 可选 |
-| 一个完整的个人站 | 首页、文章归档、短想法、自选项目、关于页、标签、RSS、404 页、静态站内搜索与搜索引擎发现文件 |
-| 简单的默认外观，也能改 | 内置 Quiet；改选项、只覆盖一个文件，或写一个完整 Theme |
-| 可控的发布 | 某个 Issue 有错只跳过它并指出编号，其余照常发布；构建失败不影响线上站点 |
+`escaping` 只做一件事：把一个仓库里已发布的 Issue 写成 Markdown 文件。
+
+| 层 | 谁负责 | 由什么规定 |
+| --- | --- | --- |
+| 内容 | 你在 Issue 里写，用标签决定是否发布 | [Issue Content v1](https://github.com/geoqiao/escaping/blob/main/docs/contracts/issue-content-v1.md) |
+| 导出 | `escaping-site export` 筛选、校验，把每个值解析好，写成文件 | [Content Export v1](https://github.com/geoqiao/escaping/blob/main/docs/contracts/content-export-v1.md) |
+| 网站 | 读这些文件的站点代码，也就是主题 | 站点自己 |
+| 托管 | GitHub Pages、Cloudflare 或任何静态托管 | 站点自己 |
+
+页面长什么样、网址怎么排、放在哪里，都不由 `escaping` 决定。
 
 ## 🚀 快速开始
 
-使用 [escaping-template](https://github.com/geoqiao/escaping-template) 的 **Use this template** 创建站点，无需本机 Python、PAT 或手动创建发布标签。
+**用默认主题。** 使用 [escaping-template](https://github.com/geoqiao/escaping-template) 的 **Use this template** 创建站点。模板里有一个读导出文件的默认主题和现成的 workflow，无需本机 Python 或 PAT。步骤以模板的 README 为准。
 
-> **公开预览：** 0.4.0 的 Action 已在 GitHub 上构建一个正式站点；用模板新建仓库的完整流程（包括自动创建标签那一步）还没在 GitHub 上试过。
+**自己写主题。** 任何能读 Markdown 的建站工具都可以。在 workflow 里运行：
 
-1. 创建 `username.github.io`（免费账户使用公开仓库），保持 Issues/Actions 开启，在 **Settings → Pages** 把 **Source** 设为 **GitHub Actions**。
-2. 保存一个带标题和 Markdown 正文的 Issue。workflow 的 `labels` 任务会在首次运行时创建发布标签；看不到时刷新 Issue 页面。
-3. 添加一个 `type:blog`、`type:idea` 或 `type:about`，准备好后添加 `published`，在 Actions 中查看部署结果。
+```bash
+uvx escaping-site@0.6.0 export --config config.yaml --output src/content
+```
 
-workflow 从 PyPI 安装固定版本的 `escaping-site` 包并运行（`uvx escaping-site@0.6.0 build`），站点仓库里不需要任何脚本。
-仓库也可以不叫 `username.github.io`：这时网站在 `username.github.io/仓库名/` 下，escaping 会自动处理这个子路径。
-详细操作、版本与失败恢复以[模板说明](https://github.com/geoqiao/escaping/blob/main/starter/README.md)为准。
+然后让你的站点读 `src/content`。文件格式见 [Content Export v1](https://github.com/geoqiao/escaping/blob/main/docs/contracts/content-export-v1.md)，workflow 的写法见 [Deployment](https://github.com/geoqiao/escaping/blob/main/docs/deployment.md)。
 
 ## 日常写作
 
 | 操作 | 结果 |
 | --- | --- |
-| `type:blog` + `published` | 发布文章，进入 Blog、RSS 和对应的标签归档 |
-| `type:idea` + `published` | 发布一条独立短想法；不进入 Blog 或 RSS，标签仅作展示 |
-| `type:about` + `published` | 提供关于页；没有 About Issue 时显示公开个人资料 |
-| 编辑已发布 Issue | 下一次成功构建更新站点；后续编辑以 GitHub Issue 为准 |
-| 移除 `published` | 下一次成功构建撤稿；仅关闭 Issue 不会撤稿 |
+| `type:blog` + `published` | 导出为 `blog/<slug>.md` |
+| `type:idea` + `published` | 导出为 `ideas/<issue_number>.md` |
+| `type:about` + `published` | 导出为 `about.md` |
+| 编辑已发布 Issue | 下一次导出更新文件 |
+| 移除 `published` | 下一次导出删除文件；仅关闭 Issue 不会撤稿 |
 
-只发布允许作者的内容；workflow 执行者不会自动获得作者权限。
-Blog 用 `tag:python`、`tag:机器学习` 这样的标签分类；大小写不同、空格和下划线写法不同的算同一个标签。
-文章缺省地址为 `/blog/{issue_number}/`。需要自定义 slug、摘要或原始创作日期时，可逐字段添加 front matter；已发布的 slug 应保持稳定。
-完整规则与示例见 [Issue Content v1](https://github.com/geoqiao/escaping/blob/main/docs/contracts/issue-content-v1.md)。
+只导出允许作者的内容；workflow 执行者不会自动获得作者权限。
+用 `tag:python`、`tag:机器学习` 这样的标签分类；大小写不同、空格和下划线写法不同的算同一个标签。
+需要自定义 slug、摘要、创作日期或更新日期时，可逐字段添加 front matter；已发布的 slug 应保持稳定。
 
-某个 Issue 有错（例如标签写法不合法）时，只有它被跳过，其余内容照常发布；这次运行标记为失败，
-摘要里写明是哪个 Issue、该怎么改。
+某个 Issue 有错（例如标签写法不合法）时，只有它被跳过，其余内容照常导出；命令以状态码 2 结束，
+并写明是哪个 Issue、该怎么改。导出失败时，上一次的文件原样保留。
 
-## 按需配置
+## 导出的文件
 
-模板的 `config.yaml` 从 `{}` 开始，仓库和 GitHub 个人资料会补上标题、作者、URL、头像和简介。
-Config 分两层：站点字段（如 `site`、`profile`、`projects`）换了主题仍然有效；外观选项写在
-`theme.options` 下，由所选 Theme 决定有哪些。
-
-```yaml
-site:
-  title: 我的笔记
-  language: zh # 同时让 Quiet 的界面文字显示中文
-theme:
-  use: quiet
-  options:
-    tagline: 写工具，也写学习
-    featured_posts: [12, 7]
+```text
+src/content/
+├── manifest.json
+├── about.md
+├── blog/<slug>.md
+├── ideas/<issue_number>.md
+└── .escaping-output
 ```
 
-| 想调整的内容 | 入口 |
-| --- | --- |
-| 标题、个人资料、自选项目 | [配置示例](https://github.com/geoqiao/escaping/blob/main/config.example.yaml)与[字段来源](https://github.com/geoqiao/escaping/blob/main/docs/site-inputs.md)；示例不是必填清单 |
-| 导航 | 默认 Home、Blog、Projects、Tags、About、RSS；Ideas 可显式加入。`site.navigation.items` 整体替换菜单，可设为 `[]`；见[配置来源](https://github.com/geoqiao/escaping/blob/main/docs/site-inputs.md#missing-field-sources) |
-| 外观 | 见下方“换外观” |
-| 社交预览图 | 在 `seo.social_image` 配置 HTTPS 或 Theme 资源 URL（如 `/assets/images/og.png`）；Quiet 会输出 Open Graph/Twitter 图片标签 |
-| 评论 | 默认关闭；设置 `comments.enabled: true`，并另行完成 [Utterances App 授权](https://github.com/apps/utterances)；Profile About 永远无评论 |
-| 用别的工具建站 | `escaping-site export` 把已发布的 Issue 写成 Markdown 文件，交给 Astro 等工具渲染；见 [Content Export v1](https://github.com/geoqiao/escaping/blob/main/docs/contracts/content-export-v1.md) |
-| 本地构建 | 需要 Python 3.12 或更高版本和 uv；有 Token 时直接读 Issues，没有 Token 可用 `--issues-json` 离线构建，见[本地构建步骤](https://github.com/geoqiao/escaping/blob/main/docs/site-inputs.md#local-build) |
+每个文件的 front matter 都是解析好的值（`issue_number`、`title`、`slug`、`description`、
+`created_date`、`update_date`、`tags` 等），正文是你写的 Markdown 原文。
+同样的 Issue 总是得到逐字节相同的文件，所以把这个目录提交进仓库时，只有内容真的变了才会产生提交。
 
-写错字段名会报错并提示正确写法；报错不会回显你填的值。
-组织所有的内容仓库须显式配置 `github.allowed_authors`。
-输出目录和本地 Theme 路径以 Config 所在目录为根；预览时把输出目录当作网站根目录，不使用 `/output/` URL 前缀。
+## Config
 
-### 换外观
+`config.yaml` 里 `escaping` 只读三段，其余部分留给你的站点：
 
-从简单到完整，三种方式：
+```yaml
+github:
+  repo: alice/site            # 在 GitHub Actions 上可省略
+  allowed_authors: [alice]    # 个人仓库且有 Token 时可省略
+about:
+  issue_number: 42            # 可省略：取最早发布的 About Issue
+security:
+  token_env: GITHUB_TOKEN     # 默认值
+```
 
-1. **改 Quiet 的选项**：在 `theme.options` 里设置，例如 `tagline`、`featured_posts`、`accent_color`。全部选项见 [Quiet](https://github.com/geoqiao/escaping/blob/main/docs/themes/quiet.md)。
-2. **只覆盖一个文件**：建一个 `theme/` 目录，放一个 `theme.yaml`（`api: 4` 和 `extends: quiet`）和你想替换的那个模板或静态文件，再设置 `theme: {use: ./theme}`。其余部分仍来自 Quiet。
-3. **写一个自己的 Theme**：最少只要 `blog.html` 和 `post.html` 两个模板，见 [Theme 编写指南](https://github.com/geoqiao/escaping/blob/main/docs/themes/authoring.md)。Theme 还可以声明自己的选项和界面文字。
+写错这三段里的字段名会报错并提示正确写法；报错不会回显你填的值。
 
-也可以直接用别人放在 GitHub 上的 Theme：在 `config.yaml` 写 `theme: {use: github.com/作者/仓库/文件夹@v1.0.0}`，构建时自动下载这个版本，升级就改版本号。现有的 Theme 见 [Theme 列表](https://github.com/geoqiao/escaping/blob/main/docs/themes/catalog.md)，用法见 [使用 GitHub 上的 Theme](https://github.com/geoqiao/escaping/blob/main/docs/themes/authoring.md#using-a-theme-from-github)。
+## 从 0.5 升级
 
-网站有哪些页面、地址是什么，由你博客仓库里的 `config.yaml` 决定：`pages` 可以关掉或挪动某个页面、加上 `/now/` 这样的额外页面，`redirects` 让旧地址跳到新地址。见 [页面](https://github.com/geoqiao/escaping/blob/main/docs/site-inputs.md#pages)。
-
-改完后运行 `escaping-site theme check --config config.yaml`：它用示例内容离线渲染每个页面，不需要 Token，并报告 Theme 的问题。
-
-## 升级
-
-站点在 workflow 的 `uses:` 一行固定生成器版本（tag 或完整提交 SHA），不会自动升级。
-升级前先读 [CHANGELOG](https://github.com/geoqiao/escaping/blob/main/CHANGELOG.md)。版本号可以直接改成最新的；从 0.1 升级，依次做 [Upgrading from 0.1](https://github.com/geoqiao/escaping/blob/main/CHANGELOG.md#upgrading-from-01) 和 [Upgrading from 0.2](https://github.com/geoqiao/escaping/blob/main/CHANGELOG.md#upgrading-from-02) 里的步骤，从 0.2 升级只做后者。
-本地 Theme 的改法见 [Theme 迁移说明](https://github.com/geoqiao/escaping/blob/main/docs/themes/authoring.md#migrating-from-api-1-2-or-3)。
-配置评论不等于验证评论写入；真实 App/OAuth 发帖仍需单独验收。
+0.6.0 起 `escaping` 不再生成网站：`build` 命令、Jinja 主题、Quiet 和 Action 都已移除。
+已有站点把 workflow 留在 `geoqiao/escaping@v0.5.1` 就能继续照旧工作；要换到 0.6.0，
+见 [CHANGELOG](https://github.com/geoqiao/escaping/blob/main/CHANGELOG.md#upgrading-from-05)。
 
 ## 开发与维护
 
 [维护者入口](https://github.com/geoqiao/escaping/blob/main/docs/dual-repo-architecture.md)汇总架构、契约、测试和 ADR；Agent 使用 [AGENTS.md](https://github.com/geoqiao/escaping/blob/main/AGENTS.md)。
-站点 workflow 的写法以 [starter workflow](https://github.com/geoqiao/escaping/blob/main/starter/.github/workflows/pages.yml) 为准，复制后由站点仓库维护；
-生成器是 PyPI 上的 `escaping-site` 包。生成器升级、本地 Theme 迁移与生产部署是分开的操作。
 
 ## License
 

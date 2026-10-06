@@ -4,8 +4,7 @@ Before any deletion or rendering, the configured output path must pass a
 containment safety check.  This module provides the public validation
 interface.  It rejects the filesystem root, repository root, current directory,
 parent directories, absolute escapes, **all** symlinks (``shutil.rmtree``
-cannot safely operate on a symbolic link), and roots outside an explicit
-allowed set.
+cannot safely operate on a symbolic link), and Git's own directory.
 
 The validator reads the filesystem to detect symlinks but performs **no
 mutation** - it never creates, deletes, or modifies files or directories.
@@ -15,18 +14,6 @@ from __future__ import annotations
 
 from pathlib import Path
 
-#: Conservative set of allowed top-level output-root names suitable for
-#: generated sites.  A configured output path must have its first component
-#: in this set.
-ALLOWED_OUTPUT_ROOTS: frozenset[str] = frozenset(
-    {"output", "_site", "public", "dist", "build"}
-)
-
-#: Repository roots that must never be used as an output directory.
-#: These are subsumed by the allowed-set check (they are not in
-#: ``ALLOWED_OUTPUT_ROOTS``) but are listed explicitly for clarity.
-PROTECTED_ROOTS: frozenset[str] = frozenset({".git", "src", "tests", "templates"})
-
 
 class OutputContainmentError(ValueError):
     """Raised when an output path fails containment validation."""
@@ -35,9 +22,7 @@ class OutputContainmentError(ValueError):
 def validate_output_containment(
     output: str | Path,
     repo_root: Path,
-    name: str = "paths.output",
-    *,
-    any_folder: bool = False,
+    name: str = "--output",
 ) -> Path:
     """Validate that *output* is safely contained within *repo_root*.
 
@@ -49,9 +34,6 @@ def validate_output_containment(
         The repository root directory used as the containment boundary.
     name:
         What error messages call the path, such as the Config field.
-    any_folder:
-        Accept a folder outside ``ALLOWED_OUTPUT_ROOTS``, for content a site
-        keeps in its repository. ``.git`` is still refused.
 
     Returns
     -------
@@ -97,21 +79,9 @@ def validate_output_containment(
             f"{name} must not contain parent-directory references (..)"
         )
 
-    # --- Reject roots outside the allowed output-root set --------------------
-    top_level = parts[0]
-    if any_folder:
-        if ".git" in parts:
-            raise OutputContainmentError(f"{name} must not be inside .git")
-    elif top_level not in ALLOWED_OUTPUT_ROOTS:
-        if top_level in PROTECTED_ROOTS:
-            raise OutputContainmentError(
-                f"{name} must not be inside a protected repository folder; "
-                f"allowed folders: {', '.join(sorted(ALLOWED_OUTPUT_ROOTS))}"
-            )
-        raise OutputContainmentError(
-            f"{name} must start with an allowed folder: "
-            f"{', '.join(sorted(ALLOWED_OUTPUT_ROOTS))}"
-        )
+    # --- Reject Git's own directory -----------------------------------------
+    if ".git" in parts:
+        raise OutputContainmentError(f"{name} must not be inside .git")
 
     # --- Resolve repo_root to an absolute path without symlinks --------------
     try:

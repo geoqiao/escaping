@@ -1,34 +1,13 @@
 import json
-from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
-from github import Auth, Github, GithubException
+from github import Auth, Github
 from github.Issue import Issue
 from github.Repository import Repository
 
-from escaping_site.config import PlatformContext, ProfileConfig, RepositoryIdentity
+from escaping_site.config import RepositoryIdentity
 from escaping_site.models.issue_snapshot import IssueSnapshot
-from escaping_site.projects import ProjectEnrichment
-
-
-@dataclass(frozen=True)
-class PublicProfile:
-    login: str
-    name: str = ""
-    avatar_url: str = ""
-    bio: str = ""
-
-
-class PagesNotReadyError(ValueError):
-    """GitHub Pages cannot receive the site this build would publish."""
-
-    def __init__(self) -> None:
-        super().__init__(
-            "GitHub Pages: in Settings → Pages, set Source to GitHub Actions, "
-            "then run the workflow again; or set site.url in the Config to "
-            "publish somewhere else"
-        )
 
 
 class GitHubService:
@@ -67,44 +46,6 @@ class GitHubService:
                 "content repository identity does not match GitHub.com input"
             )
         return identity
-
-    def fetch_platform_context(self, repository: str) -> PlatformContext:
-        """The repository's owner and Pages address, for a build on GitHub Actions.
-
-        Raises:
-            PagesNotReadyError: Pages is off or does not deploy from Actions.
-        """
-        identity = self.fetch_repository_identity(repository)
-        try:
-            _, pages = self.gh.requester.requestJsonAndCheck(
-                "GET", f"/repos/{repository}/pages"
-            )
-        except GithubException:
-            pages = {}
-        if not isinstance(pages, dict) or pages.get("build_type") != "workflow":
-            raise PagesNotReadyError
-        return PlatformContext.model_validate(
-            {**identity.model_dump(), "pages_base_url": pages.get("html_url")}
-        )
-
-    def fetch_project_enrichment(self, repository: str) -> ProjectEnrichment:
-        repo = self.get_repo(repository)
-        return ProjectEnrichment(
-            stars=repo.stargazers_count,
-            forks=repo.forks_count,
-            language=repo.language,
-            topics=tuple(repo.get_topics()),
-            name=repo.name,
-            description=repo.description,
-        )
-
-    def fetch_public_profile(self, login: str) -> PublicProfile:
-        # Only these public fields cross the boundary; no email or repo listing.
-        user = self.gh.get_user(login)
-        if user.login.casefold() != login.casefold():
-            raise ValueError("public profile login does not match repository owner")
-        profile = ProfileConfig(avatar=user.avatar_url or "", bio=user.bio or "")
-        return PublicProfile(user.login, user.name or "", profile.avatar, profile.bio)
 
 
 def _to_issue_snapshot(issue: Issue) -> IssueSnapshot:

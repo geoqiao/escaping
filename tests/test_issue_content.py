@@ -1,14 +1,7 @@
-"""Issue Content: the entries both outputs start from, and what they must not know.
-
-Selection and content rules are exercised through the site's compiler in
-``test_content_compiler.py``; these tests own what only the shared core has.
-"""
+"""Issue Content: update_date and the three content types."""
 
 from __future__ import annotations
 
-import subprocess
-import sys
-from dataclasses import replace
 from datetime import UTC, datetime
 
 import pytest
@@ -74,7 +67,7 @@ def test_a_wrong_update_date_skips_the_issue(front_matter: str, code: str) -> No
     assert result.skipped == (1,) and not result.blogs and not result.has_errors
 
 
-def test_every_type_is_content_unless_the_caller_has_no_place_for_it() -> None:
+def test_every_type_is_content() -> None:
     issues = [
         _issue(1, "Body."),
         _issue(2, "Body.", "type:idea"),
@@ -86,32 +79,3 @@ def test_every_type_is_content_unless_the_caller_has_no_place_for_it() -> None:
     assert [e.issue_number for e in everything.ideas] == [2]
     assert everything.about is not None and everything.about.issue_number == 3
     assert everything.blogs[0].slug == "1" and everything.ideas[0].slug == ""
-
-    without = compile_issues(
-        replace(_RULES, off={"idea": "this site has none"}), issues
-    )
-    assert not without.ideas and not without.skipped
-    assert [(d.severity, d.code, d.message) for d in without.diagnostics] == [
-        (
-            "warning",
-            "PAGE_OFF",
-            "Issue #2: is type:idea but this site has none; it is not published",
-        )
-    ]
-
-
-def test_an_export_loads_nothing_that_builds_a_site() -> None:
-    """The dependency runs one way: a build uses the content, never the reverse."""
-    script = (
-        "import sys, escaping_site.content_export\n"
-        "site = ('content_compiler', 'site_compiler', 'site_builder', 'theme',"
-        " 'projects', 'search', 'artifact_validation',"
-        " 'services.render_service', 'models.site')\n"
-        "loaded = [m for m in site if f'escaping_site.{m}' in sys.modules]\n"
-        "loaded += [m for m in ('jinja2',) if m in sys.modules]\n"
-        "print(','.join(loaded))"
-    )
-    done = subprocess.run(  # noqa: S603 - this interpreter, a fixed script
-        [sys.executable, "-c", script], check=True, capture_output=True, text=True
-    )
-    assert done.stdout.strip() == ""

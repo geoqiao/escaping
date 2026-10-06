@@ -1,4 +1,4 @@
-"""Immutable in-memory Issue snapshot for the Site Compiler.
+"""Immutable in-memory Issue snapshot.
 
 This is a build-time, in-memory value produced by the GitHub adapter. It is not
 persisted and is not a second content authority: the GitHub Issue remains the

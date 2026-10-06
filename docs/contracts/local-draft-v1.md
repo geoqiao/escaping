@@ -23,13 +23,13 @@ This contract does not define:
 - post-creation editing or publication;
 - synchronization, conflict resolution, or remote-to-local conversion;
 - sidecar state;
-- Site Compiler behavior beyond the referenced Issue Content Contract.
+- export behavior beyond the referenced Issue Content Contract.
 
 ## 2. Document envelope
 
 A Local Draft is a Markdown document with YAML front matter followed by a
 Markdown body. Neither the Local Draft nor the generated Issue contains a
-runtime schema or version field. The uploader and Site Compiler support one
+runtime schema or version field. The uploader and export support one
 current contract only.
 
 ## 3. Authored fields
@@ -62,7 +62,7 @@ front matter.
 into the Issue body front matter.
 
 When omitted, the uploader MUST leave it omitted: no Issue number exists yet,
-so it MUST NOT guess a route from the title or filename. The Site Compiler later
+so it MUST NOT guess a route from the title or filename. The export later
 derives the Blog slug from the created Issue number. Idea and About routes
 continue to follow Issue identity and content type.
 
@@ -73,7 +73,7 @@ satisfy the authored plain-text validation rules in
 [Issue Content Contract section 6.4](./issue-content-v1.md#64-description) and be
 copied into the Issue body front matter.
 
-The uploader MUST leave a missing description omitted; the Site Compiler owns
+The uploader MUST leave a missing description omitted; the export owns
 the sanitized-body default. Invalid, null, or explicitly blank values MUST NOT
 be treated as missing or silently replaced. Providing one metadata override
 MUST NOT require the other optional overrides.
@@ -94,11 +94,11 @@ copy `tags` into the Issue body front matter.
 `created_date` is optional. An explicit original creation date MUST be a quoted,
 valid `YYYY-MM-DD` string and be copied into the Issue body front matter. When
 omitted, the uploader MUST NOT guess an Issue creation date from the local clock
-or file timestamp; the Site Compiler later uses the Issue's UTC creation date.
+or file timestamp; the export later uses the Issue's UTC creation date.
 
 The payload preserves the accepted date spelling; compilation normalizes the
 calendar value to ASCII `YYYY-MM-DD` without rewriting the draft or Issue.
-The Site Compiler displays the resolved date for Blog and Idea, while sorting
+The export displays the resolved date for Blog and Idea, while sorting
 both by the GitHub Issue `created_at` timestamp. About does not display a date.
 The `published` label remains the publication gate.
 

@@ -1,6 +1,6 @@
 """Content Export: ``escaping-site export`` writes published Issues as Markdown files.
 
-Selection and content rules belong to ``test_content_compiler.py``; these
+Selection and content rules belong to ``test_issue_compilation.py``; these
 tests own the exported files and the export directory.
 """
 
@@ -166,7 +166,6 @@ def test_a_skipped_issue_is_left_out_and_reported(
         ("src", "src/site.ts", "contains files escaping did not create"),
         (".git/content", None, "--output must not be inside .git"),
         ("../content", None, "parent-directory"),
-        ("output/content", None, "--output and paths.output overlap"),
     ],
 )
 def test_export_refuses_an_unsafe_directory(
@@ -237,36 +236,6 @@ def test_on_github_actions_an_empty_config_exports_this_repository(
         (site / "build/content/manifest.json").read_text(encoding="utf-8")
     )
     assert manifest["repository"] == "alice/site"
-
-
-def test_a_build_and_an_export_publish_the_same_issues(site: Path) -> None:
-    """One set of rules: what is skipped by one is skipped by the other."""
-    same_slug = _issue(6, "Same slug", "---\nslug: first-post\n---\nBody.", "type:blog")
-    stranger = {**_issue(7, "Not mine", "Body.", "type:blog"), "user": {"login": "x"}}
-    issues = [_POST, _PLAIN, _IDEA, _ABOUT, _BAD, same_slug, stranger]
-    path = site.parent / "issues.json"
-    path.write_text(json.dumps(issues), encoding="utf-8")
-    source = ["--config", str(site / "config.yaml"), "--issues-json", str(path)]
-
-    assert main(["export", *source]) == 2
-    assert main(["build", *source]) == 2
-
-    manifest = json.loads(
-        (site / "build/content/manifest.json").read_text(encoding="utf-8")
-    )
-    output = site / "output"
-    assert manifest["skipped_issues"] == [5, 6]
-    assert sorted(item["slug"] for item in manifest["blog"]) == sorted(
-        page.parent.name
-        for page in (output / "blog").glob("*/index.html")
-        if page.parent.name != "page"
-    )
-    assert sorted(str(item["issue_number"]) for item in manifest["ideas"]) == sorted(
-        page.parent.name for page in (output / "ideas").glob("*/index.html")
-    )
-    assert manifest["about"] and "About me" in (output / "about/index.html").read_text(
-        encoding="utf-8"
-    )
 
 
 def test_an_export_can_be_committed_where_the_site_reads_it(site: Path) -> None:

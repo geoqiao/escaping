@@ -9,52 +9,24 @@ import re
 import unicodedata
 from collections.abc import Sequence
 from datetime import datetime
-from typing import cast
 
 from marko import HTMLRenderer, Markdown
-from marko.block import FencedCode, Paragraph
+from marko.block import Paragraph
 from marko.ext.gfm import GFM
 from marko.helpers import MarkoExtension
-from marko.inline import RawText
-from pygments import format as format_tokens
-from pygments.formatters.html import HtmlFormatter
-from pygments.lexers import get_lexer_by_name
-from pygments.util import ClassNotFound
 
-from .atom_feed import NOT_XML
 from .build_result import Diagnostic
-from .routes import SLUG, TAG_KEY, TAG_KEY_MAX_LENGTH
 from .utils.frontmatter import ParsedFrontMatter
 from .utils.html_sanitizer import HTMLSanitizationError, sanitize_html
 
 CONTENT_TYPES = frozenset({"blog", "idea", "about"})
+SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+#: Tag keys may use any Unicode letters or digits, joined by single hyphens.
+TAG_KEY = re.compile(r"^[^\W_]+(?:-[^\W_]+)*$")
+TAG_KEY_MAX_LENGTH = 50
+# Characters XML 1.0 forbids. A Blog post goes into feeds, so it has none.
+NOT_XML = re.compile("[^\t\n\r\x20-퟿-�\U00010000-\U0010ffff]")
 _DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
-
-
-class _SyntaxRenderer(HTMLRenderer):
-    def render_fenced_code(self, element: FencedCode) -> str:
-        if not element.lang or element.lang.lower() == "mermaid":
-            return super().render_fenced_code(element)
-        try:
-            lexer = get_lexer_by_name(
-                element.lang, stripnl=False, stripall=False, ensurenl=False
-            )
-        except ClassNotFound:
-            return super().render_fenced_code(element)
-        code = cast(RawText, element.children[0]).children
-        # Public unprocessed tokens bypass BOM/newline normalization as well as
-        # stripping. The Marko source, not a lexer's rewrite, owns visible text.
-        tokens = [
-            (token, text) for _, token, text in lexer.get_tokens_unprocessed(code)
-        ]
-        if "".join(text for _, text in tokens) != code:
-            return super().render_fenced_code(element)
-        # Fence extras are never formatter options. No inline styles or UI HTML.
-        highlighted = format_tokens(tokens, HtmlFormatter(nowrap=True))
-        if not code.endswith("\n"):
-            highlighted = highlighted.removesuffix("\n")
-        language = self.escape_html(element.lang)
-        return f'<pre><code class="language-{language} syntax">{highlighted}</code></pre>\n'
 
 
 class _TaskListRenderer(HTMLRenderer):
@@ -69,13 +41,12 @@ class _TaskListRenderer(HTMLRenderer):
 
 
 _MARKDOWN = Markdown(
-    renderer=_SyntaxRenderer,
     extensions=[GFM, MarkoExtension(renderer_mixins=[_TaskListRenderer])],
 )
 
 
 def tag_key(name: str) -> str:
-    """Route key for a tag name: NFC, casefolded, spaces/underscores to hyphens."""
+    """Key for a tag name: NFC, casefolded, spaces/underscores to hyphens."""
     folded = unicodedata.normalize("NFC", name).casefold()
     return re.sub(r"[\s_-]+", "-", folded).strip("-")
 
@@ -226,13 +197,10 @@ def validate_authored_content(
     return tuple(errors)
 
 
-def render_body(
-    markdown: str, *, base: str = ""
-) -> tuple[str | None, tuple[Diagnostic, ...]]:
+def render_body(markdown: str) -> tuple[str | None, tuple[Diagnostic, ...]]:
     """Render the shared GFM subset then apply the existing HTML sanitizer.
 
     The returned HTML is a preview/compiled value, never replacement Markdown.
-    ``base`` is the site's path below its origin (see ``sanitize_html``).
     """
     try:
         rendered = _MARKDOWN.convert(markdown)
@@ -246,7 +214,7 @@ def render_body(
             ),
         )
     try:
-        return sanitize_html(rendered, base=base), ()
+        return sanitize_html(rendered), ()
     except Exception as exc:
         # Only our controlled tag/position messages are safe to expose;
         # third-party exceptions may contain authored text or URL values.

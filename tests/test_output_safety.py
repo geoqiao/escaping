@@ -22,8 +22,7 @@ from escaping_site.output_safety import (
 )
 
 # Hardcoded expectations — NOT imported from implementation constants.
-_ALLOWED_ROOTS = ["_site", "build", "dist", "output", "public"]
-_PROTECTED_ROOTS = [".git", "src", "templates", "tests"]
+_ROOTS = ["_site", "build", "content", "dist", "src"]
 
 
 # ---------------------------------------------------------------------------
@@ -61,7 +60,7 @@ def test_reject_unsafe_paths(tmp_path: Path, path: str, match: str) -> None:
         validate_output_containment(path, tmp_path)
 
 
-@pytest.mark.parametrize("root", _ALLOWED_ROOTS)
+@pytest.mark.parametrize("root", _ROOTS)
 def test_accept_allowed_roots(tmp_path: Path, root: str) -> None:
     result = validate_output_containment(root, tmp_path)
     assert result == (tmp_path / root).resolve()
@@ -74,15 +73,10 @@ def test_accept_nested_inside_allowed_root(tmp_path: Path) -> None:
     )
 
 
-@pytest.mark.parametrize("root", _PROTECTED_ROOTS)
-def test_reject_protected_roots(tmp_path: Path, root: str) -> None:
-    with pytest.raises(OutputContainmentError, match="allowed"):
-        validate_output_containment(root, tmp_path)
-
-
-def test_reject_root_outside_allowed_set(tmp_path: Path) -> None:
-    with pytest.raises(OutputContainmentError, match="allowed"):
-        validate_output_containment("my_custom_output", tmp_path)
+@pytest.mark.parametrize("path", [".git", ".git/content", "site/.git/content"])
+def test_reject_gits_own_directory(tmp_path: Path, path: str) -> None:
+    with pytest.raises(OutputContainmentError, match=r"must not be inside \.git"):
+        validate_output_containment(path, tmp_path)
 
 
 # ---------------------------------------------------------------------------
