@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from escaping.cli import main
-from escaping.output_staging import OUTPUT_MARKER
+from escpe.cli import main
+from escpe.output_staging import OUTPUT_MARKER
 
 _CONFIG = """\
 github:

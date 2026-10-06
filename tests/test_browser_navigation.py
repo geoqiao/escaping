@@ -38,14 +38,14 @@ from playwright.sync_api import (  # noqa: E402
     sync_playwright,
 )
 
-from escaping.config import Settings  # noqa: E402
-from escaping.models.issue_snapshot import IssueSnapshot  # noqa: E402
-from escaping.site_compiler import (  # noqa: E402
+from escpe.config import Settings  # noqa: E402
+from escpe.models.issue_snapshot import IssueSnapshot  # noqa: E402
+from escpe.site_compiler import (  # noqa: E402
     compile_site,
     prepare_theme,
     render_site,
 )
-from escaping.utils.html_sanitizer import sanitize_html  # noqa: E402
+from escpe.utils.html_sanitizer import sanitize_html  # noqa: E402
 
 _ROOT = Path(__file__).parent.parent.absolute()
 _THEMES = ("Quiet", "independent")

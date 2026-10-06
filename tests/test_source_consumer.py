@@ -80,21 +80,21 @@ import importlib.metadata as metadata
 import json
 import sys
 from pathlib import Path
-import escaping
+import escpe
 
 # Check top-level distributions before setuptools exposes its vendored wheel.
 assert not any(d.metadata['Name'].lower() in {'wheel', 'pytest'} for d in metadata.distributions())
 import setuptools
 
 assert sys.prefix != sys.base_prefix
-for module in (escaping, setuptools):
+for module in (escpe, setuptools):
     assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
 distribution = metadata.distribution('escpe')
 assert all(not requirement.lower().startswith(('setuptools', 'wheel')) for requirement in distribution.requires)
 assert not json.loads(distribution.read_text('direct_url.json'))['dir_info'].get('editable', False)
 assert metadata.version('setuptools') == sys.argv[1]
 assert distribution.read_text('WHEEL').split('Generator: ')[1].splitlines()[0] == 'setuptools (' + sys.argv[1] + ')'
-print(json.dumps({'python': sys.version, 'backend': metadata.version('setuptools'), 'escaping': escaping.__file__, 'wheel': distribution.read_text('WHEEL')}))
+print(json.dumps({'python': sys.version, 'backend': metadata.version('setuptools'), 'escaping': escpe.__file__, 'wheel': distribution.read_text('WHEEL')}))
 """
     # The installed package must keep working after its source disappears.
     source.rename(source.with_name("unavailable-source"))

@@ -25,5 +25,5 @@ installation is not a blanket conclusion that downstream obligations cannot appl
 ## Existing browser assets
 
 The vendored Mermaid bundle retains its LICENSE, README and bundled third-party
-notices under `src/escaping/static/mermaid/`. Quiet's Manrope font retains
-its SIL Open Font License text under `src/escaping/themes/quiet/static/fonts/`. These notices remain included with the assets.
+notices under `src/escpe/static/mermaid/`. Quiet's Manrope font retains
+its SIL Open Font License text under `src/escpe/themes/quiet/static/fonts/`. These notices remain included with the assets.

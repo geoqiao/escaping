@@ -1,4 +1,4 @@
-"""Read-only Local Draft validation: python -m escaping.local_draft <path>.
+"""Read-only Local Draft validation: python -m escpe.local_draft <path>.
 
 Produces a creation payload, not an upload, publication approval or local state.
 The GitHub Issue becomes authoritative only through a separately authorized tool.
@@ -152,7 +152,7 @@ def main() -> int:
     args = parser.parse_args()
     try:
         raw = args.path.read_bytes().decode("utf-8")
-    except OSError, UnicodeError:
+    except (OSError, UnicodeError):
         issue = None
         diagnostics = (
             Diagnostic(

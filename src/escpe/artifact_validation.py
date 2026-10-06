@@ -163,7 +163,7 @@ class SiteArtifactValidator:
             if routes.route_for_path(site_path) is not None:
                 return
             file = _file_for(site_path)
-        except ValueError, RouteCollisionError:
+        except (ValueError, RouteCollisionError):
             diagnostics.append(
                 _error("INVALID_INTERNAL_PATH", f"{output_path}: unsafe {tag} URL")
             )

@@ -138,9 +138,9 @@ uv run pytest -q tests/test_delivery.py tests/test_package_consumer.py tests/tes
 ```bash
 uv lock --check
 CI=true uv run pytest -q -ra
-uv run ruff check src/escaping tests
-uv run ruff format --check src/escaping tests
-uv run ty check src/escaping tests
+uv run ruff check src/escpe tests
+uv run ruff format --check src/escpe tests
+uv run ty check src/escpe tests
 git diff --check
 ```
 

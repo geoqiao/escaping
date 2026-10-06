@@ -1,8 +1,8 @@
 from __future__ import annotations
 
-from escaping.config import Link, ProjectCatalogEntry, ProjectFallbackMetadata
-from escaping.models.projects import ProjectLink
-from escaping.projects import ProjectCompiler, ProjectEnrichment
+from escpe.config import Link, ProjectCatalogEntry, ProjectFallbackMetadata
+from escpe.models.projects import ProjectLink
+from escpe.projects import ProjectCompiler, ProjectEnrichment
 
 
 def _entry(

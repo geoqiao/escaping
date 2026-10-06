@@ -24,7 +24,7 @@ If the path is missing or ambiguous, ask. Read
 Use an environment containing the reviewed `escpe` package, then run:
 
 ```text
-python -m escaping.local_draft <draft-path>
+python -m escpe.local_draft <draft-path>
 ```
 
 Pass the path as one argument, not interpolated shell code. This real module is

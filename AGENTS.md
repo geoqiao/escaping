@@ -72,7 +72,7 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
    或 GitHub 地址。模板在 Jinja 沙箱里运行（构建进程持有 token），不得为主题放宽。
 8. 主题静态文件发布在 `/assets/`，生成器共享脚本（评论、Mermaid）在
    `/assets/escaping/`；主题不得占用 `static/escaping/`。
-9. Utterances 行为位于共享 `src/escaping/static/comments.js`。必须保留：
+9. Utterances 行为位于共享 `src/escpe/static/comments.js`。必须保留：
    - immutable Issue number binding；
    - `postMessage` + `MutationObserver` 自动主题同步；
    - message origin/source 校验；
@@ -92,7 +92,7 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
 ## 当前结构
 
 ```text
-src/escaping/              # 按构建顺序
+src/escpe/              # 按构建顺序
 ├── cli.py                 # escpe build / escpe export / escpe theme check
 ├── site_compiler.py       # 预检 → 拉取 → 编译 → 渲染 → 校验 → 发布
 ├── config.py              # 站点层 Config
@@ -111,7 +111,7 @@ src/escaping/              # 按构建顺序
 ├── artifact_validation.py # 替换线上产物前的完整性检查
 ├── output_staging.py      # 先写临时目录，成功后替换
 ├── build_result.py        # Diagnostic 与退出码
-├── local_draft.py         # 本地草稿检查（python -m escaping.local_draft）
+├── local_draft.py         # 本地草稿检查（python -m escpe.local_draft）
 ├── utils/                 # front matter 解析、HTML sanitizer
 ├── models/
 ├── static/                # comments.js、mermaid.js、mermaid/（发布到 /assets/escaping/）
@@ -159,7 +159,7 @@ tests/
 
 ## Themes
 
-内置主题位于 `src/escaping/themes/<name>/`，每个主题包含 `theme.yaml`、页面模板和
+内置主题位于 `src/escpe/themes/<name>/`，每个主题包含 `theme.yaml`、页面模板和
 `static/`。Quiet 拆分为小的 partial 模板，方便站点用 `extends: quiet` 只覆盖一个文件；
 重命名或删除 Quiet 的 partial、选项或字符串 key 属于破坏性变更，需写入 CHANGELOG。
 

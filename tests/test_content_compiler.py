@@ -9,12 +9,12 @@ from marko import Markdown
 from marko.ext.gfm import GFM
 from pygments.token import STANDARD_TYPES
 
-from escaping.config import Settings
-from escaping.content_compiler import ContentCompiler
-from escaping.models.content import ContentCompilationResult
-from escaping.models.issue_snapshot import IssueSnapshot
-from escaping.routes import RouteRegistry
-from escaping.utils.html_sanitizer import sanitize_html
+from escpe.config import Settings
+from escpe.content_compiler import ContentCompiler
+from escpe.models.content import ContentCompilationResult
+from escpe.models.issue_snapshot import IssueSnapshot
+from escpe.routes import RouteRegistry
+from escpe.utils.html_sanitizer import sanitize_html
 
 _NOW = datetime(2026, 1, 10, tzinfo=UTC)
 

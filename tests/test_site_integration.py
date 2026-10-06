@@ -15,13 +15,13 @@ from urllib.request import urlopen
 
 import pytest
 
-from escaping.artifact_validation import SiteArtifactValidator
-from escaping.build_result import BuildResult
-from escaping.config import Settings
-from escaping.models.issue_snapshot import IssueSnapshot
-from escaping.models.site import SiteModel
-from escaping.output_staging import OUTPUT_MARKER
-from escaping.site_compiler import (
+from escpe.artifact_validation import SiteArtifactValidator
+from escpe.build_result import BuildResult
+from escpe.config import Settings
+from escpe.models.issue_snapshot import IssueSnapshot
+from escpe.models.site import SiteModel
+from escpe.output_staging import OUTPUT_MARKER
+from escpe.site_compiler import (
     SiteCompiler,
     check_theme,
     compile_site,

@@ -108,7 +108,7 @@ def validate_output_containment(
     # --- Resolve repo_root to an absolute path without symlinks --------------
     try:
         repo_resolved = repo_root.resolve()
-    except RuntimeError, OSError:
+    except (RuntimeError, OSError):
         raise OutputContainmentError(
             "symlink resolution loop while resolving the repository root"
         ) from None
@@ -123,7 +123,7 @@ def validate_output_containment(
         if current.is_symlink():
             try:
                 current.resolve()  # Raises on a symlink loop.
-            except RuntimeError, OSError:
+            except (RuntimeError, OSError):
                 raise OutputContainmentError(
                     f"{name} passes through a symlink with a resolution loop"
                 ) from None
@@ -132,7 +132,7 @@ def validate_output_containment(
     # --- Final resolved-path containment check -------------------------------
     try:
         resolved = (repo_root / output_path).resolve()
-    except RuntimeError, OSError:
+    except (RuntimeError, OSError):
         raise OutputContainmentError(
             f"symlink resolution loop while resolving {name}"
         ) from None

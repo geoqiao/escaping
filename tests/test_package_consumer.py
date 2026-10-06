@@ -10,18 +10,24 @@ import tomllib
 import zipfile
 from pathlib import Path
 
+import yaml
+
 _PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 _FIXTURES = _PROJECT_ROOT / "tests/fixtures"
 _TOKEN = "consumer-fixture"  # noqa: S105 - HTTP fixture credential
 
 
-def test_packaging_declares_python_314_only_and_explicit_setuptools_backend() -> None:
+def test_packaging_declares_tested_pythons_and_explicit_setuptools_backend() -> None:
     project = tomllib.loads((_PROJECT_ROOT / "pyproject.toml").read_text())
     lock = tomllib.loads((_PROJECT_ROOT / "uv.lock").read_text())
 
     assert (_PROJECT_ROOT / ".python-version").read_text().strip() == "3.14"
-    assert project["project"]["requires-python"] == ">=3.14,<3.15"
-    assert lock["requires-python"] == "==3.14.*"
+    # The lowest version CI tests, and no upper bound: a cap only turns a
+    # working install into a refusal when the next Python is released.
+    assert project["project"]["requires-python"] == ">=3.12"
+    assert lock["requires-python"] == ">=3.12"
+    ci = yaml.safe_load((_PROJECT_ROOT / ".github/workflows/ci.yml").read_text())
+    assert ci["jobs"]["checks"]["strategy"]["matrix"]["python-version"][0] == "3.12"
     assert project["build-system"]["build-backend"] == "setuptools.build_meta"
     assert any(
         requirement.startswith("setuptools")
@@ -79,21 +85,21 @@ def test_wheel_consumer_builds_site_outside_checkout(
         "version"
     ]
     assert f"Name: escpe\nVersion: {version}\n" in metadata
-    assert "Requires-Python: <3.15,>=3.14\n" in metadata
+    assert "Requires-Python: >=3.12\n" in metadata
     assert "Requires-Dist: nh3==0.3.7\n" in metadata
     assert "Requires-Dist: pygments==2.21.0\n" in metadata
-    assert "escpe = escaping.cli:run_cli\n" in entry_points
-    assert {n.split("/")[2] for n in names if n.startswith("escaping/themes/")} == {
+    assert "escpe = escpe.cli:run_cli\n" in entry_points
+    assert {n.split("/")[2] for n in names if n.startswith("escpe/themes/")} == {
         "quiet"
     }
     assert {
-        "escaping/themes/quiet/theme.yaml",
-        "escaping/themes/quiet/404.html",
-        "escaping/themes/quiet/static/css/syntax.css",
-        "escaping/static/comments.js",
-        "escaping/static/mermaid.js",
-        "escaping/static/mermaid/mermaid.min.js",
-        "escaping/static/mermaid/LICENSE",
+        "escpe/themes/quiet/theme.yaml",
+        "escpe/themes/quiet/404.html",
+        "escpe/themes/quiet/static/css/syntax.css",
+        "escpe/static/comments.js",
+        "escpe/static/mermaid.js",
+        "escpe/static/mermaid/mermaid.min.js",
+        "escpe/static/mermaid/LICENSE",
     } <= names
     assert any(name.endswith("/NOTICE.md") for name in names)
     assert not any(name.endswith((".so", ".dylib", ".pyd")) for name in names)
@@ -264,7 +270,7 @@ def test_wheel_consumer_builds_site_outside_checkout(
     original = b"---\r\ntitle: Draft\r\ntype: blog\r\n---\r\n\r\nBody.\r\n"
     draft.write_bytes(original)
     checked = subprocess.run(  # noqa: S603
-        [str(venv / "bin/python"), "-I", "-m", "escaping.local_draft", str(draft)],
+        [str(venv / "bin/python"), "-I", "-m", "escpe.local_draft", str(draft)],
         cwd=tmp_path,
         env=env,
         capture_output=True,

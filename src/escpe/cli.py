@@ -39,7 +39,7 @@ EXIT_SKIPPED = 2
 def run_cli(argv: Sequence[str] | None = None) -> None:
     # Progress lines, such as the commit of a downloaded Theme, go to stderr.
     logging.basicConfig(format="%(message)s")
-    logging.getLogger("escaping").setLevel(logging.INFO)
+    logging.getLogger("escpe").setLevel(logging.INFO)
     sys.exit(main(argv))
 
 

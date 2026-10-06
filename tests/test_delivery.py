@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from escaping.config import read_platform_context
+from escpe.config import read_platform_context
 
 _ROOT = Path(__file__).parent.parent.absolute()
 _STARTER = _ROOT / "starter"

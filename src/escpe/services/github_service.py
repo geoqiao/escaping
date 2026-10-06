@@ -7,9 +7,9 @@ from github import Auth, Github
 from github.Issue import Issue
 from github.Repository import Repository
 
-from escaping.config import ProfileConfig, RepositoryIdentity
-from escaping.models.issue_snapshot import IssueSnapshot
-from escaping.projects import ProjectEnrichment
+from escpe.config import ProfileConfig, RepositoryIdentity
+from escpe.models.issue_snapshot import IssueSnapshot
+from escpe.projects import ProjectEnrichment
 
 
 @dataclass(frozen=True)
@@ -144,7 +144,7 @@ def read_issues_json(path: Path) -> list[IssueSnapshot]:
                     is_pull_request=item.get("pull_request") is not None,
                 )
             )
-        except KeyError, TypeError, ValueError, AttributeError:
+        except (KeyError, TypeError, ValueError, AttributeError):
             raise ValueError(
                 f"{path.name}: item {index} is not a GitHub Issue object"
             ) from None

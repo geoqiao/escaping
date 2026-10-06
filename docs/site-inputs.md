@@ -119,7 +119,7 @@ source; change the Config on purpose.
 
 ## Local build
 
-You need Python 3.14.x and [uv](https://docs.astral.sh/uv/). Clone the
+You need Python 3.12 or later and [uv](https://docs.astral.sh/uv/). Clone the
 generator and keep your site in its own directory:
 
 ```bash
@@ -187,7 +187,7 @@ Add `--issues-json` to check with your real Issues instead.
 `_site`, `public`, `dist` or `build` (or a directory inside one of them),
 relative to the Config file. escaping writes a `.escaping-output` file into
 it. A build refuses to replace a non-empty directory without that file, so it
-never deletes files it did not write. An output directory from escaping 0.1
+never deletes files it did not write. An output directory from escpe 0.1
 has no marker: move out anything you want to keep and delete it once.
 
 ## Missing-field sources
@@ -434,7 +434,7 @@ Automation that needs the token variable name can reuse the same parser:
 
 ```python
 from pathlib import Path
-from escaping.config import read_config_overrides, security_from_config
+from escpe.config import read_config_overrides, security_from_config
 
 overrides = read_config_overrides(Path("site/config.yaml"))
 token_env = security_from_config(overrides).token_env
