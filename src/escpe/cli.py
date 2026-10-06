@@ -20,6 +20,7 @@ from typing import Any
 from .build_result import BuildResult, Diagnostic
 from .config import (
     ConfigError,
+    PlatformContext,
     Settings,
     read_config_overrides,
     read_platform_context,
@@ -27,7 +28,11 @@ from .config import (
 )
 from .content_export import DEFAULT_OUTPUT, ContentExporter
 from .models.issue_snapshot import IssueSnapshot
-from .services.github_service import GitHubService, read_issues_json
+from .services.github_service import (
+    GitHubService,
+    PagesNotReadyError,
+    read_issues_json,
+)
 from .site_compiler import IssueSource, SiteCompiler, check_theme
 from .site_inputs import resolve_settings
 
@@ -105,7 +110,8 @@ def _source(parser: argparse.ArgumentParser) -> None:
     parser.add_argument(
         "--context",
         type=Path,
-        help="JSON with the repository and Pages URL, written by the Action",
+        help="JSON with the repository and Pages URL; on GitHub Actions the "
+        "command reads them itself when the Config leaves them out",
     )
     parser.add_argument(
         "--token-env",
@@ -143,6 +149,8 @@ def _inputs(ns: argparse.Namespace, report: _Reporter) -> _Inputs | None:
             )
             return None
         github = GitHubService(token) if token else None
+        if context is None and github is not None:
+            context = _actions_context(overrides, github)
         settings, input_diagnostics = resolve_settings(
             overrides,
             context=context,
@@ -163,6 +171,32 @@ def _inputs(ns: argparse.Namespace, report: _Reporter) -> _Inputs | None:
         _issue_source(github, settings.github.repo, snapshots),
         input_diagnostics,
     )
+
+
+def _actions_context(
+    overrides: dict[str, Any], github: GitHubService
+) -> PlatformContext | None:
+    """On GitHub Actions, read what the Config leaves out from the repository.
+
+    A Config with both ``github.repo`` and ``site.url`` needs nothing, so a site
+    published elsewhere is never asked about GitHub Pages.
+    """
+    repository = os.environ.get("GITHUB_REPOSITORY")
+    if os.environ.get("GITHUB_ACTIONS") != "true" or not repository:
+        return None
+    if "repo" in overrides.get("github", {}) and "url" in overrides.get("site", {}):
+        return None
+    try:
+        return github.fetch_platform_context(repository)
+    except PagesNotReadyError:
+        raise
+    except Exception as exc:
+        # Never show the exception text: client errors may echo request data.
+        raise ValueError(
+            "could not read the repository and its Pages settings from GitHub "
+            f"({type(exc).__name__}); check the token, or set github.repo and "
+            "site.url in the Config"
+        ) from None
 
 
 def _build(ns: argparse.Namespace) -> int:

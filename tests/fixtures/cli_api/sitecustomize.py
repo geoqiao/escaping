@@ -40,6 +40,11 @@ def snapshot_response(
             "language": "Python",
             "topics": [],
         }
+    elif path == "/repos/alice/site/pages":
+        data = {
+            "html_url": "https://notes.example/",
+            "build_type": os.environ.get("CONSUMER_PAGES_SOURCE", "workflow"),
+        }
     elif path == "/repos/alice/tool/topics":
         data = {"names": []}
     elif path == "/repos/alice/site/issues":

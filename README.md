@@ -36,7 +36,7 @@ Blog、Ideas、Projects、About、Tags 和 RSS，无需另建一套内容管理�
 2. 保存一个带标题和 Markdown 正文的 Issue。workflow 的 `labels` 任务会在首次运行时创建发布标签；看不到时刷新 Issue 页面。
 3. 添加一个 `type:blog`、`type:idea` 或 `type:about`，准备好后添加 `published`，在 Actions 中查看部署结果。
 
-workflow 通过 `uses: geoqiao/escaping@v0.5.1` 调用生成器，站点仓库里不需要任何脚本。
+workflow 从 PyPI 安装固定版本的 `escpe` 包并运行（`uvx --from 'escpe==0.6.0' escpe build`），站点仓库里不需要任何脚本。
 仓库也可以不叫 `username.github.io`：这时网站在 `username.github.io/仓库名/` 下，escaping 会自动处理这个子路径。
 详细操作、版本与失败恢复以[模板说明](https://github.com/geoqiao/escaping/blob/main/starter/README.md)为准。
 
@@ -114,7 +114,7 @@ theme:
 
 [维护者入口](https://github.com/geoqiao/escaping/blob/main/docs/dual-repo-architecture.md)汇总架构、契约、测试和 ADR；Agent 使用 [AGENTS.md](https://github.com/geoqiao/escaping/blob/main/AGENTS.md)。
 站点 workflow 的写法以 [starter workflow](https://github.com/geoqiao/escaping/blob/main/starter/.github/workflows/pages.yml) 为准，复制后由站点仓库维护；
-生成器通过 [Action](https://github.com/geoqiao/escaping/blob/main/action.yml) 运行。生成器升级、本地 Theme 迁移与生产部署是分开的操作。
+生成器是 PyPI 上的 `escpe` 包。生成器升级、本地 Theme 迁移与生产部署是分开的操作。
 
 ## License
 

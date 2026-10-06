@@ -13,7 +13,7 @@ from pathlib import Path
 import pytest
 
 from escpe.cli import main
-from escpe.config import RepositoryIdentity
+from escpe.config import PlatformContext, RepositoryIdentity
 from escpe.models.issue_snapshot import IssueSnapshot
 from escpe.output_staging import OUTPUT_MARKER
 from escpe.services.github_service import PublicProfile
@@ -391,3 +391,54 @@ def test_online_build_reads_github_and_keeps_the_token_private(
     for text in (first.out, first.err, second.out, second.err):
         assert secret not in text
     assert all(secret.encode() not in content for content in before.values())
+
+
+def test_on_github_actions_the_command_reads_what_the_config_leaves_out(
+    site: Path, tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    now = datetime(2026, 1, 1, tzinfo=UTC)
+    asked: list[str] = []
+
+    class FakeGitHub:
+        def __init__(self, token: str) -> None:
+            pass
+
+        def get_repo(self, name: str) -> str:
+            return name
+
+        def fetch_issue_snapshots(self, repo: str) -> list[IssueSnapshot]:
+            labels = ("published", "type:blog")
+            return [IssueSnapshot(1, "Post", "alice", "Body.", labels, now, now, False)]
+
+        def fetch_platform_context(self, repository: str) -> PlatformContext:
+            asked.append(repository)
+            return PlatformContext.model_validate(_CONTEXT)
+
+        def fetch_project_enrichment(self, repository: str) -> object:
+            raise AssertionError("this site lists no projects")
+
+        def fetch_public_profile(self, login: str) -> PublicProfile:
+            return PublicProfile(login, "Alice")
+
+    monkeypatch.setattr("escpe.cli.GitHubService", FakeGitHub)
+    monkeypatch.setenv("GITHUB_TOKEN", "t")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "alice/site")
+    empty = site / "config.yaml"
+    empty.write_text("{}\n", encoding="utf-8")
+
+    # A laptop with a token is not GitHub Actions: nothing is guessed.
+    assert main(["--config", str(empty)]) == 1
+    assert not asked
+
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    assert main(["--config", str(empty)]) == 0
+    assert asked == ["alice/site"]
+    assert "https://notes.example/blog/1/" in (site / "output/sitemap.xml").read_text()
+
+    # A Config that names its repository and address is never asked about Pages.
+    full = tmp_path / "full"
+    full.mkdir()
+    (full / "config.yaml").write_text(_CONFIG, encoding="utf-8")
+    monkeypatch.setenv("CLI_TEST_TOKEN", "t")
+    assert main(["--config", str(full / "config.yaml")]) == 0
+    assert asked == ["alice/site"]

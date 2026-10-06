@@ -152,12 +152,19 @@ def test_action_and_starter_pin_code_and_scope_permissions() -> None:
             if "run" in step:
                 assert "${{" not in step["run"]
             uses = step.get("uses", "")
-            if uses.startswith("geoqiao/escaping@"):
-                assert uses == f"geoqiao/escaping@v{version}"
-            elif uses:
-                assert pinned.fullmatch(uses), uses
+            if uses:
+                # The starter depends on no repository of this project.
+                assert pinned.fullmatch(uses) and "escaping" not in uses, uses
             if uses.startswith("actions/checkout@"):
                 assert step["with"]["persist-credentials"] is False
+    site = _step(jobs["build"]["steps"], "Build the site")
+    assert site["id"] == "site"
+    assert site["env"] == {"GITHUB_TOKEN": "${{ github.token }}"}
+    # The package at the version of this release, from PyPI.
+    assert (
+        f"uvx --from 'escpe=={version}' escpe build --config config.yaml"
+        in (site["run"])
+    )
     upload = jobs["build"]["steps"][-1]
     assert upload["with"]["path"] == "${{ steps.site.outputs.output }}"
     assert yaml.safe_load((_STARTER / "config.yaml").read_text()) == {}
@@ -281,6 +288,72 @@ def test_label_job_creates_only_missing_labels_and_tolerates_races(
     result = _run(step, denied, tmp_path / "denied")
     assert result.returncode != 0
     assert not (tmp_path / "denied-summary.md").exists()
+
+
+_FAKE_UVX = r"""#!/usr/bin/env bash
+# Stand-in for PyPI: run this checkout where the workflow asks for the release.
+[ "$1" = --from ] && [ "$2" = "escpe==$EXPECTED_VERSION" ] || { echo "unexpected: $*" >&2; exit 64; }
+shift 2
+exec uv run --project "$ESCPE_SOURCE" --locked --no-default-groups --group build \
+  --no-build-isolation-package escpe "$@"
+"""
+
+
+@pytest.mark.parametrize(
+    ("source", "status"), [("workflow", 0), ("legacy", 1)], ids=["actions", "branch"]
+)
+def test_starter_workflow_builds_with_the_installed_package_alone(
+    tmp_path: Path, source_snapshot: Path, source: str, status: int
+) -> None:
+    """The starter's own step, with no Action: the command reads the Pages address."""
+    uv = shutil.which("uv")
+    assert uv
+    site = tmp_path / "site"
+    shutil.copytree(_STARTER, site)
+    bin_dir = tmp_path / "bin"
+    bin_dir.mkdir()
+    (bin_dir / "uvx").write_text(_FAKE_UVX)
+    (bin_dir / "uvx").chmod(0o755)
+    env = {
+        key: value
+        for key, value in os.environ.items()
+        if not key.startswith(("UV_", "PYTHON", "GITHUB_", "RUNNER_", "CONSUMER_"))
+        and key not in {"VIRTUAL_ENV", "GH_TOKEN"}
+    }
+    if "UV_CACHE_DIR" in os.environ:
+        env["UV_CACHE_DIR"] = os.environ["UV_CACHE_DIR"]
+    output_file, summary = tmp_path / "github-output", tmp_path / "summary.md"
+    version = tomllib.loads((_ROOT / "pyproject.toml").read_text())["project"][
+        "version"
+    ]
+    env.update(
+        PATH=f"{bin_dir}{os.pathsep}{Path(uv).parent}{os.pathsep}{env['PATH']}",
+        EXPECTED_VERSION=version,
+        ESCPE_SOURCE=str(source_snapshot),
+        UV_PROJECT_ENVIRONMENT=str(tmp_path / "venv"),
+        GITHUB_REPOSITORY="alice/site",
+        GITHUB_ACTIONS="true",
+        GITHUB_OUTPUT=str(output_file),
+        GITHUB_STEP_SUMMARY=str(summary),
+        GITHUB_TOKEN=_TOKEN,
+        PYTHONPATH=str(_ROOT / "tests/fixtures/cli_api"),
+        CONSUMER_REQUEST_LOG=str(tmp_path / "requests.log"),
+        CONSUMER_PAGES_SOURCE=source,
+    )
+    built = _run(
+        _step(_WORKFLOW["jobs"]["build"]["steps"], "Build the site"), env, site
+    )
+    assert built.returncode == status, built.stdout + built.stderr
+    assert _TOKEN not in built.stdout + built.stderr + summary.read_text()
+    output = site / "output"
+    if status:
+        assert "set Source to GitHub Actions" in built.stderr
+        assert not output.exists()
+        return
+    assert output_file.read_text() == f"output={output}\nskipped-issues=\n"
+    post = (output / "blog/128/index.html").read_text()
+    assert '<link rel="canonical" href="https://notes.example/blog/128/"' in post
+    assert "Public profile." in (output / "about/index.html").read_text()
 
 
 def test_action_builds_the_starter_site_end_to_end(

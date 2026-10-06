@@ -18,8 +18,8 @@
 Quiet 是唯一内置 Theme，和本地 Theme 一样使用 Theme API 4，没有特殊待遇。站点也可以用 `github.com/OWNER/REPOSITORY/FOLDER@VERSION` 选用公开 GitHub 仓库里的 Theme，每次构建按这个版本下载，构建结束即删除。
 
 Site Compiler 只读 GitHub；可选 Local Draft authoring 与站点自动化的写入权限独立，
-不属于编译过程。站点 workflow 通过 `uses: geoqiao/escaping@<tag 或完整 SHA>` 调用
-Action，站点仓库里不再放安装或构建脚本。
+不属于编译过程。站点 workflow 从 PyPI 安装固定版本的 `escpe` 包并运行
+`escpe build`，站点仓库里不放安装或构建脚本；已有站点仍可使用 Action。
 
 ## 编译与发布
 

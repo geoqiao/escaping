@@ -18,10 +18,23 @@ Sites that build with 0.5.1 need no changes.
   in a build. The body is the author's Markdown; rendering and sanitizing it is
   the consuming site's job. See
   [Content Export v1](docs/contracts/content-export-v1.md).
-- **`escpe` is published on PyPI.** A workflow or a laptop runs a fixed
-  version without a checkout: `uvx --from 'escpe==X.Y.Z' escpe export`. See
-  [Deployment](docs/deployment.md#running-the-export-in-a-workflow). The
-  Action stays the way to build a whole site.
+- **`escpe` is published on PyPI**, and a site depends on the package instead
+  of this repository. A workflow or a laptop runs a fixed version without a
+  checkout: `uvx --from 'escpe==X.Y.Z' escpe build` or `… escpe export`. See
+  [Deployment](docs/deployment.md#building-a-site-in-a-workflow).
+- **On GitHub Actions `escpe build` reads the repository and its Pages
+  address itself** when the Config leaves out `github.repo` or `site.url`,
+  so an empty Config still builds without the Action.
+- **Python 3.12 and 3.13 are supported**, and there is no upper limit on the
+  Python version.
+
+### Changed
+
+- **The starter workflow runs the package, not the Action.** The Action still
+  works for sites that use it.
+- **The import package is named `escpe`**, like the distribution and the
+  command. Nothing else imports it; `python -m escaping.local_draft` becomes
+  `python -m escpe.local_draft`.
 
 ## [0.5.1] - 2026-09-29
 

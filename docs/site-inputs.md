@@ -90,9 +90,11 @@ site:
 With a token, the owner and the missing profile fields are read from GitHub.
 An Organization must list `github.allowed_authors`.
 
-In GitHub Actions the [Action](deployment.md#the-reusable-action) writes a
-small platform snapshot and passes it with `--context`, so `config.yaml` can
-be `{}`:
+On GitHub Actions the command reads these itself when the Config leaves out
+`github.repo` or `site.url`: the repository, its owner and its Pages address
+(see [Building a site in a workflow](deployment.md#building-a-site-in-a-workflow)),
+so `config.yaml` can be `{}`. The same snapshot can be passed as a file with
+`--context`, which is what the Action does:
 
 ```json
 {

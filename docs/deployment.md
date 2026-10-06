@@ -8,8 +8,9 @@ this document is the maintainer-facing contract for delivery and safety.
 
 The site repository owns its real `config.yaml`, its Pages workflow, its custom
 domain and any local Theme. The generator owns the compiler, Quiet,
-`config.example.yaml`, the reusable [Action](../action.yml) and the
-[starter](../starter/) source.
+`config.example.yaml`, the `escpe` package on PyPI and the
+[starter](../starter/) source. A site depends on the package, not on this
+repository; the [Action](../action.yml) remains for sites that already use it.
 
 The starter workflow is not installed in this repository's own
 `.github/workflows/`. Once copied into a site, the site owns it. A generator
@@ -20,14 +21,44 @@ history or workflow.
 ## Consumer naming contract
 
 The product and GitHub repository are named `escaping`. The Python
-distribution and its only console command are named `escpe`; the import
-package is `escaping`. The distribution is not called `escaping` because that
-name belongs to an unrelated PyPI project. The former `github-blog` /
+distribution, its import package and its only console command are all named
+`escpe`: `escaping` belongs to an unrelated PyPI project, so one free name
+serves all three. The former `github-blog` /
 `github_blog` names and the `blog-gen` command are not shipped.
 
-## The reusable Action
+## Building a site in a workflow
 
-A site workflow calls the generator as a GitHub Action:
+A site workflow installs the `escpe` package from PyPI at a fixed version and
+runs it; this is what the starter does:
+
+```yaml
+- uses: astral-sh/setup-uv@<full commit SHA>
+- id: site
+  env:
+    GITHUB_TOKEN: ${{ github.token }}
+  run: |
+    status=0
+    uvx --from 'escpe==X.Y.Z' escpe build --config config.yaml || status=$?
+    # 2: published, but some Issues were skipped; the skipped-issues output says which.
+    if [ "$status" -eq 2 ]; then exit 0; fi
+    exit "$status"
+- uses: actions/upload-pages-artifact@<sha>
+  with:
+    path: ${{ steps.site.outputs.output }}
+```
+
+On GitHub Actions, when the Config leaves out `github.repo` or `site.url`,
+the command reads the repository, its owner and its Pages address with the
+token (`pages: read`), so `config.yaml` can be `{}`. If Pages is not enabled,
+or its source is not GitHub Actions, the build fails with *"in Settings →
+Pages, set Source to GitHub Actions, then run the workflow again"*. A Config
+with both fields is never asked about Pages. The command writes the step
+outputs `output` and `skipped-issues` itself.
+
+## The Action, for sites that already use it
+
+Before 0.6.0 a site workflow called the generator as a GitHub Action. It still
+works and takes the same Config:
 
 ```yaml
 - id: site
@@ -122,7 +153,7 @@ own group, so it cannot replace a waiting deployment. The top-level
 | Job | Permissions | What it does |
 | --- | --- | --- |
 | `labels` | `issues: write` | Creates the missing labels `published`, `type:blog`, `type:idea`, `type:about`. It compares names without case and never edits, removes or applies labels. If creating one fails, it checks again (another run may have created it) and fails only if the label is still missing. |
-| `build` | `contents: read`, `issues: read`, `pages: read` | Checks out the site with `persist-credentials: false`, runs the Action and uploads its `output` as the Pages artifact. |
+| `build` | `contents: read`, `issues: read`, `pages: read` | Checks out the site with `persist-credentials: false`, runs `escpe build` from the PyPI package and uploads its `output` as the Pages artifact. |
 | `deploy` | `pages: write`, `id-token: write` | Deploys the artifact to the `github-pages` environment. Its last step fails when `skipped-issues` is not empty, pointing to the build job summary. |
 
 So a run with one broken Issue still deploys everything else, and the run is
@@ -137,12 +168,11 @@ prove GitHub's event delivery, permissions or Pages publication.
 
 ## Versions
 
-A site pins the generator in the `uses:` line: a release tag such as
-`@v0.5.1`, or a full 40-character commit SHA. A SHA is the strongest pin,
-because a tag can be moved. There is no automatic "latest" lookup: a site
-changes version only when someone edits that line, after reading the
-[CHANGELOG](../CHANGELOG.md). A site that only exports pins the package
-instead: `escpe==X.Y.Z`.
+A site pins the package version in its workflow: `escpe==X.Y.Z`. PyPI does
+not let a published version change. There is no automatic "latest" lookup: a
+site changes version only when someone edits that line, after reading the
+[CHANGELOG](../CHANGELOG.md). A site that still uses the Action pins a release
+tag or a full commit SHA in its `uses:` line.
 
 The workflow itself is site-owned. Upgrading the generator does not update a
 site's workflow; the CHANGELOG says when a workflow change is needed.

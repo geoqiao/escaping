@@ -26,8 +26,8 @@ Atom、sitemap、robots、搜索索引和旧地址跳转页。
 
 - 生成器拥有 compiler、models、`config.example.yaml`、内置主题 Quiet 和可复用
   Action（`action.yml`）；
-- 站点仓库 pin 生成器的 release tag 或完整 SHA；只用导出的站点 pin PyPI 上的
-  `escpe==X.Y.Z`（打 tag 时由 `.github/workflows/release.yml` 发布）；生产 workflow 使用短期
+- 站点仓库 pin PyPI 上的 `escpe==X.Y.Z`（打 tag 时由 `.github/workflows/release.yml` 发布），
+  构建整站和只导出内容都一样；生产 workflow 使用短期
   `GITHUB_TOKEN`，不得硬编码 PAT。
 
 Issue 是唯一内容来源，`published` 标签控制发布，内容类型只有 Blog、Idea、About。
@@ -177,6 +177,6 @@ tests/
 - `geoqiao.github.io` 的发布源是 GitHub Pages artifact，不是 `main` 根目录。
 - 跨仓库迁移分支可以 push；未经单独确认不得 merge `main`、运行生产 deploy 或改变
   Pages 设置。
-- 站点 workflow 通过 `uses: geoqiao/escaping@<tag 或完整 SHA>` 调用 Action，显式传入
-  站点 Config，并上传 Config-relative `output/`。
+- 站点 workflow 运行 PyPI 上固定版本的 `escpe` 包（`uvx --from 'escpe==X.Y.Z' escpe build`），
+  显式传入站点 Config，并上传 Config-relative `output/`；已有站点仍可用 Action。
 - 生成器与站点不能原子变更；先验证兼容 consumer，再更新站点 pin，最后部署。
