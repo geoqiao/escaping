@@ -141,6 +141,64 @@ are the site workflow's steps.
 change. Its dependencies are resolved when the step runs. Add
 `--exclude-newer <date>` to fix those too.
 
+### Committing the export, for a host that builds on push
+
+A host that builds from the repository, such as Cloudflare or Netlify, never
+sees an Issue event. Commit the export instead: the Issue event runs the
+workflow, the workflow pushes the changed Markdown, and the push starts the
+host's build. The site build then needs neither `escaping` nor Python.
+
+```yaml
+'on':
+  issues:
+    types: [opened, edited, labeled, unlabeled, closed, reopened, deleted, transferred]
+  workflow_dispatch:
+permissions: {}
+concurrency:
+  group: content
+  cancel-in-progress: false
+jobs:
+  content:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      issues: read
+    steps:
+      - uses: actions/checkout@<full commit SHA>
+      - uses: astral-sh/setup-uv@<full commit SHA>
+      - name: Export the content
+        id: content
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          status=0
+          uvx escaping-site@X.Y.Z export --config config.yaml --output src/content || status=$?
+          if [ "$status" -eq 2 ]; then exit 0; fi
+          exit "$status"
+      - name: Commit what changed
+        run: |
+          git add --all src/content
+          if git diff --cached --quiet; then exit 0; fi
+          git -c user.name='github-actions[bot]' \
+            -c user.email='41898282+github-actions[bot]@users.noreply.github.com' \
+            commit --message 'content: update from Issues'
+          git pull --rebase
+          git push
+      - name: Report skipped Issues
+        if: steps.content.outputs.skipped-issues != ''
+        run: |
+          echo "::error::Issues ${{ steps.content.outputs.skipped-issues }} have errors and were left out."
+          exit 1
+```
+
+- A failed export changes nothing, so the last good content stays committed
+  and the site stays up.
+- The export is the same for the same Issues, so an event that changes no
+  content makes no commit and no build.
+- A push made with `github.token` does not start other GitHub Actions
+  workflows. A host connected through its own GitHub App still receives it.
+- Do not edit the exported files by hand: the next export replaces the folder.
+
 ## Starter workflow
 
 The [starter workflow](../starter/.github/workflows/pages.yml) is the source of
@@ -199,6 +257,11 @@ this order:
 4. Update the site's `uses:` or `escaping-site@` pin (and its Config, if the release
    needs it).
 5. Deploy the site.
+6. Copy `starter/` into the
+   [template repository](https://github.com/geoqiao/escaping-template) and
+   merge it there, only now: a new site made from the template installs the
+   version the starter names, so that version must already be on PyPI.
+   `rsync -a --delete --exclude .git --exclude LICENSE starter/ <template checkout>/`
 
 To roll back, pin the previous version again. If the site's Config changed
 for the new version, revert that change in the same commit: every section

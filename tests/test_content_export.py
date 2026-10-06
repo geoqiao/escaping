@@ -163,7 +163,9 @@ def test_a_skipped_issue_is_left_out_and_reported(
     ("output", "prepare", "message"),
     [
         ("build/mine", "build/mine/notes.md", "contains files escaping did not create"),
-        ("content", None, "--output must start with an allowed folder"),
+        ("src", "src/site.ts", "contains files escaping did not create"),
+        (".git/content", None, "--output must not be inside .git"),
+        ("../content", None, "parent-directory"),
         ("output/content", None, "--output and paths.output overlap"),
     ],
 )
@@ -265,3 +267,25 @@ def test_a_build_and_an_export_publish_the_same_issues(site: Path) -> None:
     assert manifest["about"] and "About me" in (output / "about/index.html").read_text(
         encoding="utf-8"
     )
+
+
+def test_an_export_can_be_committed_where_the_site_reads_it(site: Path) -> None:
+    """Any folder of the repository, and the same bytes for the same Issues."""
+    issues = [_POST, _PLAIN, _IDEA, _ABOUT, _BAD]
+    assert _export(site, issues, "--output", "src/content") == 2
+    content = site / "src/content"
+    first = {
+        path.relative_to(content): path.read_bytes()
+        for path in content.rglob("*")
+        if path.is_file()
+    }
+    assert Path("blog/first-post.md") in first
+
+    # Nothing changes without a change to an Issue, so nothing is committed.
+    assert _export(site, list(reversed(issues)), "--output", "src/content") == 2
+    assert first == {
+        path.relative_to(content): path.read_bytes()
+        for path in content.rglob("*")
+        if path.is_file()
+    }
+    assert [p.name for p in (site / "src").iterdir()] == ["content"]  # no leftovers

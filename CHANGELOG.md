@@ -27,6 +27,10 @@ Sites that build with 0.5.1 need no changes.
   accepts sections of your own, and it exports Ideas and the About Issue
   whatever `pages` says. On GitHub Actions an empty Config exports the
   workflow's repository.
+- **`--output` of an export may be any folder of the repository**, such as
+  `src/content`, so a workflow can commit the Markdown and a host that builds
+  on push, such as Cloudflare, rebuilds the site. See
+  [Deployment](docs/deployment.md#committing-the-export-for-a-host-that-builds-on-push).
 - **`escaping-site` is published on PyPI**, and a site depends on the package instead
   of this repository. A workflow or a laptop runs a fixed version without a
   checkout: `uvx escaping-site@X.Y.Z build` or `… escaping-site export`. See

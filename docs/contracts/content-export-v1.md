@@ -45,9 +45,13 @@ particular:
 ```
 
 `--output` is relative to the Config directory and defaults to
-`build/content`. It MUST start with one of the folders a built site may use
-(`build`, `dist`, `output`, `public`, `_site`) and MUST NOT overlap
-`paths.output`.
+`build/content`. It MAY be any folder inside the Config directory except
+`.git`, so the files can be committed where the site reads them, such as
+`src/content`. It MUST NOT overlap `paths.output`.
+
+The same Issues always give the same bytes: no file carries the time of the
+export. A workflow that commits the directory therefore commits only when an
+Issue changed.
 
 Every export replaces the directory as a whole, so a withdrawn Issue leaves no
 file behind. The directory holds the `.escaping-output` marker; a non-empty

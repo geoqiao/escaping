@@ -62,7 +62,11 @@ class ContentExporter:
 
     def export(self) -> BuildResult:
         try:
-            staging = OutputStagingService(self.output, self.config_root, "--output")
+            # Any folder: the files may be committed where the site reads them.
+            # A folder with files of its own is still refused.
+            staging = OutputStagingService(
+                self.output, self.config_root, "--output", any_folder=True
+            )
             self._check_apart_from_site(staging.output)
             staging.check_replaceable()
         except (OutputContainmentError, OutputStagingError) as exc:

@@ -36,6 +36,8 @@ def validate_output_containment(
     output: str | Path,
     repo_root: Path,
     name: str = "paths.output",
+    *,
+    any_folder: bool = False,
 ) -> Path:
     """Validate that *output* is safely contained within *repo_root*.
 
@@ -47,6 +49,9 @@ def validate_output_containment(
         The repository root directory used as the containment boundary.
     name:
         What error messages call the path, such as the Config field.
+    any_folder:
+        Accept a folder outside ``ALLOWED_OUTPUT_ROOTS``, for content a site
+        keeps in its repository. ``.git`` is still refused.
 
     Returns
     -------
@@ -94,7 +99,10 @@ def validate_output_containment(
 
     # --- Reject roots outside the allowed output-root set --------------------
     top_level = parts[0]
-    if top_level not in ALLOWED_OUTPUT_ROOTS:
+    if any_folder:
+        if ".git" in parts:
+            raise OutputContainmentError(f"{name} must not be inside .git")
+    elif top_level not in ALLOWED_OUTPUT_ROOTS:
         if top_level in PROTECTED_ROOTS:
             raise OutputContainmentError(
                 f"{name} must not be inside a protected repository folder; "

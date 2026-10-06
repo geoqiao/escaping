@@ -55,9 +55,16 @@ class OutputStagingService:
     """Stage, publish and clean up one build's output."""
 
     def __init__(
-        self, output_path: str | Path, repo_root: Path, name: str = "paths.output"
+        self,
+        output_path: str | Path,
+        repo_root: Path,
+        name: str = "paths.output",
+        *,
+        any_folder: bool = False,
     ) -> None:
-        self._output = validate_output_containment(output_path, repo_root, name)
+        self._output = validate_output_containment(
+            output_path, repo_root, name, any_folder=any_folder
+        )
         self._name = name
         self._repo_root = repo_root.resolve()
         self._staging_parent = self._output.parent
