@@ -5,7 +5,7 @@ All notable changes to escaping are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) (before 1.0, a minor version may
 break things).
 
-## [Unreleased]
+## [0.6.0] - 2026-10-07
 
 **`escaping` no longer builds a website. It writes your published Issues as
 Markdown files, and a site of your choice turns them into pages.** The reasons
@@ -430,6 +430,7 @@ and 0.1 has no Action to pin.
 First release: Blog, Ideas, About, Projects, Tags, Atom, sitemap and search
 from GitHub Issues, with the Quiet Theme and the starter workflow.
 
+[0.6.0]: https://github.com/geoqiao/escaping/compare/v0.5.1...v0.6.0
 [0.5.1]: https://github.com/geoqiao/escaping/compare/v0.5.0...v0.5.1
 [0.5.0]: https://github.com/geoqiao/escaping/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/geoqiao/escaping/compare/v0.3.0...v0.4.0
