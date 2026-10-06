@@ -151,17 +151,18 @@ def validate_authored_content(
                 field="description",
             )
         )
-    if "created_date" in fields and not _valid_date(
-        fields["created_date"], parsed.scalar_styles.get("created_date")
-    ):
-        errors.append(
-            Diagnostic(
-                "error",
-                "CREATED_DATE_INVALID",
-                "created_date must be a quoted YYYY-MM-DD string",
-                field="created_date",
+    for name in ("created_date", "update_date"):
+        if name in fields and not _valid_date(
+            fields[name], parsed.scalar_styles.get(name)
+        ):
+            errors.append(
+                Diagnostic(
+                    "error",
+                    f"{name.upper()}_INVALID",
+                    f"{name} must be a quoted YYYY-MM-DD string",
+                    field=name,
+                )
             )
-        )
 
     if content_type == "blog":
         texts = {"title": title, "description": description, "body": parsed.body}

@@ -1,418 +1,133 @@
+"""The Issue Content of a site: each entry with its address and its page HTML."""
+
 from __future__ import annotations
 
-import unicodedata
 from collections.abc import Sequence
-from datetime import UTC, datetime
-from html.parser import HTMLParser
-from operator import attrgetter
-from typing import NoReturn
 
 from .build_result import Diagnostic
 from .config import Settings
-from .content_validation import (
-    CONTENT_TYPES,
-    render_body,
-    tag_key,
-    validate_authored_content,
-)
+from .content_validation import render_body, tag_key
+from .issue_content import ContentRules, Entry, compile_issues
 from .models.blog_post import BlogPost, BlogTag
 from .models.content import AboutPage, ContentCompilationResult, Idea, IdeaTag
 from .models.issue_snapshot import IssueSnapshot
 from .routes import RouteCollisionError, RouteRegistry
-from .utils.frontmatter import FrontMatterError, ParsedFrontMatter, parse_front_matter
 
-
-def _normalize(value: str) -> str:
-    return unicodedata.normalize("NFC", value).casefold()
-
-
-def _label_values(labels: tuple[str, ...], prefix: str) -> list[str]:
-    """Normalized values of ``prefix``-labels, e.g. ``type:Blog`` -> ``blog``."""
-    return [
-        normalized[len(prefix) :]
-        for label in labels
-        if (normalized := _normalize(label)).startswith(prefix)
-    ]
-
-
-def _tag_names(labels: tuple[str, ...]) -> list[str]:
-    """Tag display names as written after ``tag:``, first spelling per key."""
-    names: dict[str, str] = {}
-    for label in labels:
-        text = unicodedata.normalize("NFC", label)
-        if text.casefold().startswith("tag:"):
-            name = text[4:].strip()
-            names.setdefault(tag_key(name), name)
-    return list(names.values())
-
-
-class _VisibleBodyText(HTMLParser):
-    """Extract text from sanitized HTML, preserving inline adjacency.
-
-    Mermaid source is left out: readers see the diagram, not its source.
-    """
-
-    _BREAKS = frozenset(
-        [
-            "p",
-            "div",
-            "br",
-            "hr",
-            "h1",
-            "h2",
-            "h3",
-            "h4",
-            "h5",
-            "h6",
-            "ul",
-            "ol",
-            "li",
-            "dl",
-            "dt",
-            "dd",
-            "table",
-            "thead",
-            "tbody",
-            "tfoot",
-            "tr",
-            "td",
-            "th",
-            "caption",
-            "pre",
-            "blockquote",
-            "section",
-            "article",
-            "header",
-            "footer",
-            "aside",
-            "nav",
-            "figure",
-            "figcaption",
-            "details",
-            "summary",
-            "hgroup",
-        ]
-    )
-
-    def __init__(self) -> None:
-        super().__init__(convert_charrefs=True)
-        self.parts: list[str] = []
-        self._in_diagram = False
-
-    def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag == "code" and "language-mermaid" in (dict(attrs).get("class") or ""):
-            self._in_diagram = True
-        if tag in self._BREAKS:
-            self.parts.append(" ")
-
-    def handle_endtag(self, tag: str) -> None:
-        if tag == "code":
-            self._in_diagram = False
-        if tag in self._BREAKS:
-            self.parts.append(" ")
-
-    def handle_data(self, data: str) -> None:
-        if not self._in_diagram:
-            self.parts.append(data)
-
-
-def _body_description(body_html: str) -> str:
-    parser = _VisibleBodyText()
-    parser.feed(body_html)
-    parser.close()
-    return " ".join("".join(parser.parts).split())[:50]
-
-
-def _newest_first[T: BlogPost | Idea](items: Sequence[T]) -> tuple[T, ...]:
-    # At the same time, the higher Issue number is the newer.
-    return tuple(
-        sorted(items, key=attrgetter("published_at", "issue_number"), reverse=True)
-    )
-
-
-class _SkipIssueError(Exception):
-    """Stop compiling one Issue; its diagnostics are already recorded."""
+#: Content type -> the ``pages`` section that publishes it.
+_SECTION = {"idea": "ideas", "about": "about"}
 
 
 class ContentCompiler:
-    """Compile Issue Content into Blog, Idea and About models.
+    """Compile Issue Content into the Blog, Idea and About pages of a site.
 
-    A content error in one Issue skips that Issue (``result.skipped``); only
-    problems with the configured About selection stop the build.
+    Which Issues are published is decided by ``issue_content``; this adds what
+    only a site has. An Issue of a section the Config turns off is left out
+    with a warning, and one whose address is already taken is skipped.
     """
 
     def __init__(self, settings: Settings, *, route_registry: RouteRegistry) -> None:
         self._settings = settings
         self._routes = route_registry
-        self._diagnostics: list[Diagnostic] = []
-        self._skipped: list[int] = []
-        self._slugs: dict[str, int] = {}
 
     def compile(self, snapshots: Sequence[IssueSnapshot]) -> ContentCompilationResult:
-        self._diagnostics = []
-        self._skipped = []
-        self._slugs = {}
-        blogs: list[BlogPost] = []
-        ideas: list[Idea] = []
-        abouts: list[AboutPage] = []
+        sections = self._routes.sections
         configured = self._settings.about.issue_number
-        configured_seen = False
-
-        # Oldest first, so an earlier Issue keeps a contested slug or About role.
-        for snapshot in sorted(snapshots, key=lambda item: item.number):
-            is_about = snapshot.number == configured
-            configured_seen = configured_seen or is_about
+        content = compile_issues(
+            ContentRules(
+                allowed_authors=tuple(self._settings.github.allowed_authors),
+                about_issue_number=configured,
+                off={
+                    content_type: f"pages.{section} is false"
+                    for content_type, section in _SECTION.items()
+                    if getattr(sections, section) is None
+                },
+            ),
+            snapshots,
+        )
+        diagnostics = list(content.diagnostics)
+        skipped = set(content.skipped)
+        pages: dict[int, BlogPost | Idea | AboutPage] = {}
+        entries = [*content.blogs, *content.ideas]
+        if content.about:
+            entries.append(content.about)
+        # Oldest first, so an earlier Issue keeps a contested address.
+        for entry in sorted(entries, key=lambda item: item.issue_number):
             try:
-                page = self._compile_one(snapshot, is_about=is_about)
-            except _SkipIssueError:
-                if not is_about:
-                    self._skipped.append(snapshot.number)
-                continue
-            if isinstance(page, BlogPost):
-                blogs.append(page)
-            elif isinstance(page, Idea):
-                ideas.append(page)
-            elif isinstance(page, AboutPage):
-                abouts.append(page)
-
-        if configured is not None and not configured_seen:
-            self._diagnostics.append(
-                Diagnostic(
-                    "error",
-                    "ABOUT_MISSING",
-                    f"about.issue_number #{configured} was not found",
-                    configured,
-                    "about.issue_number",
+                pages[entry.issue_number] = self._page(entry)
+            except (RouteCollisionError, ValueError) as exc:
+                number = entry.issue_number
+                diagnostics.append(
+                    Diagnostic(
+                        "error",
+                        "ROUTE_COLLISION",
+                        f"Issue #{number}: {exc}",
+                        number,
+                        "route",
+                    )
                 )
-            )
-        for extra in abouts[1:]:
-            self._diagnostics.append(
-                self._error(
-                    extra,
-                    "ABOUT_DUPLICATE",
-                    f"another About Issue (#{abouts[0].issue_number}) is already "
-                    "published; set about.issue_number to choose one",
-                    "labels",
-                )
-            )
-            self._skipped.append(extra.issue_number)
+                if number != configured:
+                    skipped.add(number)
 
+        def kept[T: BlogPost | Idea | AboutPage](
+            kind: type[T], items: Sequence[Entry]
+        ) -> tuple[T, ...]:
+            found = (pages.get(item.issue_number) for item in items)
+            return tuple(page for page in found if isinstance(page, kind))
+
+        abouts = kept(AboutPage, [content.about] if content.about else [])
         return ContentCompilationResult(
-            blogs=_newest_first(blogs),
-            ideas=_newest_first(ideas),
+            blogs=kept(BlogPost, content.blogs),
+            ideas=kept(Idea, content.ideas),
             about=abouts[0] if abouts else None,
-            diagnostics=tuple(self._diagnostics),
-            skipped=tuple(sorted(self._skipped)),
+            diagnostics=tuple(diagnostics),
+            skipped=tuple(sorted(skipped)),
         )
 
-    def _compile_one(
-        self, snapshot: IssueSnapshot, *, is_about: bool
-    ) -> BlogPost | Idea | AboutPage | None:
-        if snapshot.is_pull_request:
-            if is_about:
-                self._fail(snapshot, "ABOUT_IS_PULL_REQUEST", "is a Pull Request")
-            return None
-        if not self._allowed(snapshot.author):
-            if is_about:
-                self._fail(snapshot, "ABOUT_UNAUTHORIZED", "author is not allowed")
-            self._diagnostics.append(
-                Diagnostic(
-                    "warning",
-                    "UNAUTHORIZED_AUTHOR",
-                    f"Issue #{snapshot.number}: author is not in allowed_authors",
-                    snapshot.number,
-                    "author",
-                )
-            )
-            return None
-        if not self._published(snapshot.labels):
-            if is_about:
-                self._fail(snapshot, "ABOUT_UNPUBLISHED", "has no published label")
-            return None
-
-        content_type = self._content_type(snapshot)
-        section = "ideas" if content_type == "idea" else content_type
-        if section != "blog" and getattr(self._routes.sections, section) is None:
-            self._diagnostics.append(
-                Diagnostic(
-                    "warning",
-                    "PAGE_OFF",
-                    f"Issue #{snapshot.number}: is type:{content_type} but "
-                    f"pages.{section} is false; it is not published",
-                    snapshot.number,
-                    "labels",
-                )
-            )
-            return None
-        if is_about and content_type != "about":
-            self._fail(snapshot, "ABOUT_TYPE_INVALID", "must use the type:about label")
-        if not is_about and content_type == "about":
-            configured = self._settings.about.issue_number
-            if configured is not None:
-                self._fail(
-                    snapshot,
-                    "ABOUT_NOT_SELECTED",
-                    f"is type:about but about.issue_number selects #{configured}",
-                )
-
-        parsed = self._parse(snapshot)
-        tags = _tag_names(snapshot.labels)
-        self._check(
-            snapshot,
-            validate_authored_content(snapshot.title, content_type, tags, parsed),
-        )
-        body_html, body_errors = render_body(parsed.body, base=self._routes.base)
-        self._check(snapshot, body_errors)
+    def _page(self, entry: Entry) -> BlogPost | Idea | AboutPage:
+        base = self._routes.base
+        # Links below the site's path need it; without one the HTML is the same.
+        body_html = render_body(entry.body_markdown, base=base)[0] if base else None
         if body_html is None:
-            raise _SkipIssueError
-        slug = str(parsed.fields.get("slug", snapshot.number))
-        if content_type == "blog":
-            self._claim_slug(snapshot, slug)
-        description = (
-            str(parsed.fields["description"])
-            if "description" in parsed.fields
-            else _body_description(body_html)
-        )
-        created_date = (
-            datetime.strptime(str(parsed.fields["created_date"]), "%Y-%m-%d")
-            .date()
-            .isoformat()
-            if "created_date" in parsed.fields
-            else snapshot.created_at.astimezone(UTC).date().isoformat()
-        )
-        tags_on = self._routes.sections.tags is not None
-        try:
-            if content_type == "blog":
-                return BlogPost(
-                    issue_number=snapshot.number,
-                    title=snapshot.title,
-                    slug=slug,
-                    description=description,
-                    created_date=created_date,
-                    published_at=snapshot.created_at,
-                    updated_at=snapshot.updated_at,
-                    tags=tuple(
-                        BlogTag(
-                            name,
-                            tag_key(name),
-                            self._routes.tag(tag_key(name)) if tags_on else None,
-                        )
-                        for name in tags
-                    ),
-                    body_html=body_html,
-                    route=self._routes.blog_detail(slug),
-                    body_markdown=parsed.body,
-                )
-            if content_type == "idea":
-                return Idea(
-                    issue_number=snapshot.number,
-                    title=snapshot.title,
-                    description=description,
-                    created_date=created_date,
-                    published_at=snapshot.created_at,
-                    updated_at=snapshot.updated_at,
-                    tags=tuple(IdeaTag(name) for name in tags),
-                    body_html=body_html,
-                    route=self._routes.idea(snapshot.number),
-                    body_markdown=parsed.body,
-                )
+            body_html = entry.body_html
+        if entry.type == "about":
             return AboutPage(
-                issue_number=snapshot.number,
-                title=snapshot.title,
-                description=description,
+                issue_number=entry.issue_number,
+                title=entry.title,
+                description=entry.description,
                 body_html=body_html,
                 route=self._routes.about(),
-                body_markdown=parsed.body,
             )
-        except (RouteCollisionError, ValueError) as exc:
-            self._fail(snapshot, "ROUTE_COLLISION", str(exc), "route")
-        return None
-
-    def _content_type(self, snapshot: IssueSnapshot) -> str:
-        values = _label_values(snapshot.labels, "type:")
-        unknown = [value for value in values if value not in CONTENT_TYPES]
-        if unknown:
-            self._fail(
-                snapshot,
-                "TYPE_LABEL_UNKNOWN",
-                f"unknown type label type:{unknown[0]} "
-                "(use type:blog, type:idea or type:about)",
-                "labels",
+        if entry.type == "idea":
+            return Idea(
+                issue_number=entry.issue_number,
+                title=entry.title,
+                description=entry.description,
+                created_date=entry.created_date,
+                update_date=entry.update_date,
+                published_at=entry.published_at,
+                updated_at=entry.updated_at,
+                tags=tuple(IdeaTag(name) for name in entry.tags),
+                body_html=body_html,
+                route=self._routes.idea(entry.issue_number),
             )
-        if len(values) != 1:
-            code = "TYPE_LABEL_MISSING" if not values else "TYPE_LABEL_MULTIPLE"
-            self._fail(
-                snapshot,
-                code,
-                "needs exactly one of type:blog, type:idea or type:about",
-                "labels",
-            )
-        return values[0]
-
-    def _parse(self, snapshot: IssueSnapshot) -> ParsedFrontMatter:
-        try:
-            parsed = parse_front_matter(snapshot.body)
-        except FrontMatterError as exc:
-            self._fail(snapshot, exc.code, exc.message, exc.field)
-        self._check(
-            snapshot,
-            [
-                Diagnostic(
-                    "error",
-                    "FRONT_MATTER_UNKNOWN_FIELD",
-                    f"unknown front matter field: {field}",
-                    field=field,
+        tags_on = self._routes.sections.tags is not None
+        return BlogPost(
+            issue_number=entry.issue_number,
+            title=entry.title,
+            slug=entry.slug,
+            description=entry.description,
+            created_date=entry.created_date,
+            update_date=entry.update_date,
+            published_at=entry.published_at,
+            updated_at=entry.updated_at,
+            tags=tuple(
+                BlogTag(
+                    name,
+                    tag_key(name),
+                    self._routes.tag(tag_key(name)) if tags_on else None,
                 )
-                for field in parsed.unknown_fields
-            ],
+                for name in entry.tags
+            ),
+            body_html=body_html,
+            route=self._routes.blog_detail(entry.slug),
         )
-        return parsed
-
-    def _claim_slug(self, snapshot: IssueSnapshot, slug: str) -> None:
-        owner = self._slugs.setdefault(slug, snapshot.number)
-        if owner != snapshot.number:
-            self._fail(
-                snapshot,
-                "SLUG_DUPLICATE",
-                f"slug {slug!r} is already used by Issue #{owner}",
-                "slug",
-            )
-
-    def _check(self, snapshot: IssueSnapshot, errors: Sequence[Diagnostic]) -> None:
-        if not errors:
-            return
-        for error in errors:
-            self._diagnostics.append(
-                self._error(snapshot, error.code, error.message, error.field)
-            )
-        raise _SkipIssueError
-
-    def _fail(
-        self,
-        snapshot: IssueSnapshot,
-        code: str,
-        message: str,
-        field: str | None = None,
-    ) -> NoReturn:
-        self._diagnostics.append(self._error(snapshot, code, message, field))
-        raise _SkipIssueError
-
-    def _allowed(self, author: str) -> bool:
-        return any(
-            _normalize(author) == _normalize(value)
-            for value in self._settings.github.allowed_authors
-        )
-
-    @staticmethod
-    def _published(labels: tuple[str, ...]) -> bool:
-        return any(_normalize(label) == "published" for label in labels)
-
-    @staticmethod
-    def _error(
-        item: IssueSnapshot | AboutPage,
-        code: str,
-        message: str,
-        field: str | None = None,
-    ) -> Diagnostic:
-        number = item.number if isinstance(item, IssueSnapshot) else item.issue_number
-        return Diagnostic("error", code, f"Issue #{number}: {message}", number, field)

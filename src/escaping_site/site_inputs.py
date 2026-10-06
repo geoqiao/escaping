@@ -9,13 +9,16 @@ from pydantic import ValidationError
 
 from .build_result import Diagnostic
 from .config import (
+    CONTENT_SECTIONS,
     ConfigError,
+    ContentSettings,
     PlatformContext,
     ProfileConfig,
     RepositoryIdentity,
     Settings,
     describe_validation_errors,
     validate_config_overrides,
+    validate_content_overrides,
 )
 from .services.github_service import PublicProfile
 
@@ -136,3 +139,62 @@ def resolve_settings(
         return Settings.model_validate(data), tuple(diagnostics)
     except ValidationError as exc:
         raise ConfigError(describe_validation_errors(exc.errors(), Settings)) from None
+
+
+class RepositorySource(Protocol):
+    def fetch_repository_identity(self, repository: str) -> RepositoryIdentity: ...
+
+
+def resolve_content_settings(
+    overrides: dict,
+    *,
+    repository: str | None = None,
+    context: RepositoryIdentity | None = None,
+    github_service: RepositorySource | None = None,
+) -> ContentSettings:
+    """The content sections of a Config, for an export.
+
+    ``repository`` replaces ``github.repo``; the context only fills it in. A
+    missing ``github.allowed_authors`` is the owner of a personal repository,
+    read from the context or from GitHub. Nothing about a site is needed.
+    """
+    validate_content_overrides(overrides)
+    data = {
+        name: deepcopy(overrides[name])
+        for name in CONTENT_SECTIONS
+        if name in overrides
+    }
+    github = data.setdefault("github", {})
+    if repository is not None:
+        github["repo"] = repository
+        validate_content_overrides(data)
+    elif context is not None:
+        github.setdefault("repo", context.repository)
+    if "repo" not in github:
+        raise ValueError("Missing Config field (or pass --repo): github.repo")
+    if "allowed_authors" not in github:
+        identity = context
+        if (
+            identity is None
+            or identity.repository.casefold() != github["repo"].casefold()
+        ):
+            if github_service is None:
+                raise ValueError(
+                    "reading github.allowed_authors from GitHub needs a token; "
+                    "set it in the Config instead, or provide the token"
+                )
+            try:
+                identity = github_service.fetch_repository_identity(github["repo"])
+            except Exception:
+                raise ValueError("Failed to verify github.repo identity") from None
+        if identity.owner_type != "User":
+            raise ValueError(
+                "github.allowed_authors must be explicit for an Organization"
+            )
+        github["allowed_authors"] = [identity.owner_login]
+    try:
+        return ContentSettings.model_validate(data)
+    except ValidationError as exc:
+        raise ConfigError(
+            describe_validation_errors(exc.errors(), ContentSettings)
+        ) from None

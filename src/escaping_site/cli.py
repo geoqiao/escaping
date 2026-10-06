@@ -23,18 +23,20 @@ from .config import (
     PlatformContext,
     Settings,
     read_config_overrides,
+    read_content_overrides,
     read_platform_context,
     security_from_config,
 )
 from .content_export import DEFAULT_OUTPUT, ContentExporter
+from .issue_content import IssueSource
 from .models.issue_snapshot import IssueSnapshot
 from .services.github_service import (
     GitHubService,
     PagesNotReadyError,
     read_issues_json,
 )
-from .site_compiler import IssueSource, SiteCompiler, check_theme
-from .site_inputs import resolve_settings
+from .site_compiler import SiteCompiler, check_theme
+from .site_inputs import resolve_content_settings, resolve_settings
 
 EXIT_OK = 0
 EXIT_FAILED = 1
@@ -123,7 +125,7 @@ def _source(parser: argparse.ArgumentParser) -> None:
 
 @dataclass(frozen=True)
 class _Inputs:
-    """What a build and an export both read before they start."""
+    """What a build reads before it starts."""
 
     settings: Settings
     config_root: Path
@@ -137,18 +139,7 @@ def _inputs(ns: argparse.Namespace, report: _Reporter) -> _Inputs | None:
     try:
         overrides = read_config_overrides(config_path)
         context = read_platform_context(ns.context) if ns.context else None
-        token_env = ns.token_env or security_from_config(overrides).token_env
-        token = os.environ.get(token_env)
-        snapshots = _read_issues(ns.issues_json)
-        if not token and snapshots is None:
-            report.fail(
-                [
-                    f"set the {token_env} environment variable to a GitHub token, "
-                    "or pass --issues-json"
-                ]
-            )
-            return None
-        github = GitHubService(token) if token else None
+        github, snapshots = _sources(ns, overrides)
         if context is None and github is not None:
             context = _actions_context(overrides, github)
         settings, input_diagnostics = resolve_settings(
@@ -171,6 +162,21 @@ def _inputs(ns: argparse.Namespace, report: _Reporter) -> _Inputs | None:
         _issue_source(github, settings.github.repo, snapshots),
         input_diagnostics,
     )
+
+
+def _sources(
+    ns: argparse.Namespace, overrides: dict[str, Any]
+) -> tuple[GitHubService | None, list[IssueSnapshot] | None]:
+    """The GitHub client, when there is a token, and the Issues of --issues-json."""
+    token_env = ns.token_env or security_from_config(overrides).token_env
+    token = os.environ.get(token_env)
+    snapshots = _read_issues(ns.issues_json)
+    if not token and snapshots is None:
+        raise ValueError(
+            f"set the {token_env} environment variable to a GitHub token, "
+            "or pass --issues-json"
+        )
+    return (GitHubService(token) if token else None), snapshots
 
 
 def _actions_context(
@@ -224,22 +230,43 @@ def _build(ns: argparse.Namespace) -> int:
 
 def _export(ns: argparse.Namespace) -> int:
     report = _Reporter()
-    inputs = _inputs(ns, report)
-    if inputs is None:
+    config_path = ns.config.expanduser().absolute()
+    try:
+        # Only the content sections: the rest of the file is the site's own.
+        overrides = read_content_overrides(config_path)
+        context = read_platform_context(ns.context) if ns.context else None
+        github, snapshots = _sources(ns, overrides)
+        repository = ns.repo
+        if repository is None and os.environ.get("GITHUB_ACTIONS") == "true":
+            # On GitHub Actions the content is this repository's unless named.
+            configured = "repo" in overrides.get("github", {})
+            repository = None if configured else os.environ.get("GITHUB_REPOSITORY")
+        settings = resolve_content_settings(
+            overrides, repository=repository, context=context, github_service=github
+        )
+    except ConfigError as exc:
+        report.fail(exc.problems)
         return EXIT_FAILED
+    except (OSError, ValueError) as exc:
+        report.fail([str(exc)])
+        return EXIT_FAILED
+    report.repo = settings.github.repo
+    paths = overrides.get("paths")
+    site_output = paths.get("output") if isinstance(paths, dict) else None
     result = ContentExporter(
-        inputs.settings,
-        config_root=inputs.config_root,
+        settings,
+        config_root=config_path.parent,
         output=ns.output,
-        issues=inputs.issues,
+        issues=_issue_source(github, settings.github.repo, snapshots),
+        site_output=site_output if isinstance(site_output, str) else "output",
     ).export()
     report.result(
         result,
-        inputs.diagnostics,
+        (),
         done=f"Exported {ns.output.rstrip('/')}/.",
         failed="Export failed; the previous export was left unchanged.",
     )
-    return _finish(report, result, (inputs.config_root / ns.output).resolve())
+    return _finish(report, result, (config_path.parent / ns.output).resolve())
 
 
 def _finish(report: _Reporter, result: BuildResult, output: Path) -> int:

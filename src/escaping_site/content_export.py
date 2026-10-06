@@ -1,9 +1,9 @@
 """Content Export: published Issue Content as Markdown files.
 
 For a site built with another tool. Selection, defaults and content rules are
-the Content Compiler's, so an Issue is exported exactly when ``escaping-site build``
-would publish it. No Theme is loaded and no page is rendered; the files and
-their fields are defined in docs/contracts/content-export-v1.md.
+those of ``issue_content``, which a build starts from too. Nothing here knows a
+site: no address, page switch or Theme. The files and their fields are defined
+in docs/contracts/content-export-v1.md.
 
 The directory is replaced as a whole through the same staging and ownership
 checks as a built site.
@@ -19,16 +19,17 @@ from pathlib import Path
 import yaml
 
 from .build_result import BuildResult, Diagnostic
-from .config import Settings
-from .content_compiler import ContentCompiler
+from .config import ContentSettings
 from .content_validation import tag_key
-from .models.blog_post import BlogPost, BlogTag
-from .models.content import AboutPage, ContentCompilationResult, Idea, IdeaTag
+from .issue_content import (
+    ContentRules,
+    Entry,
+    IssueContent,
+    IssueSource,
+    compile_issues,
+)
 from .output_safety import OutputContainmentError
 from .output_staging import OutputStagingError, OutputStagingService
-from .routes import RouteRegistry
-from .site_builder import register_fixed_routes
-from .site_compiler import IssueSource
 
 #: Version of the exported files; a consumer checks it in ``manifest.json``.
 EXPORT_VERSION = 1
@@ -43,11 +44,12 @@ class ContentExporter:
 
     def __init__(
         self,
-        settings: Settings,
+        settings: ContentSettings,
         *,
         config_root: Path,
         output: str,
         issues: IssueSource,
+        site_output: str = "output",
     ) -> None:
         if not config_root.is_absolute():
             raise ValueError("ContentExporter config_root must be absolute")
@@ -55,6 +57,8 @@ class ContentExporter:
         self.config_root = config_root
         self.output = output
         self.issues = issues
+        #: Where a build of the same Config would write; the two never overlap.
+        self.site_output = site_output
 
     def export(self) -> BuildResult:
         try:
@@ -74,12 +78,12 @@ class ContentExporter:
                 f"({type(exc).__name__}); check the token and repository",
             )
 
-        routes = RouteRegistry(
-            str(self.settings.site.url), self.settings.pages.sections()
-        )
-        register_fixed_routes(routes)
-        content = ContentCompiler(self.settings, route_registry=routes).compile(
-            snapshots
+        content = compile_issues(
+            ContentRules(
+                allowed_authors=tuple(self.settings.github.allowed_authors),
+                about_issue_number=self.settings.about.issue_number,
+            ),
+            snapshots,
         )
         diagnostics = list(content.diagnostics)
         if content.has_errors:
@@ -103,7 +107,7 @@ class ContentExporter:
             return BuildResult(False, tuple(diagnostics))
 
     def _check_apart_from_site(self, output: Path) -> None:
-        site = (self.config_root / self.settings.paths.output).resolve()
+        site = (self.config_root / self.site_output).resolve()
         if output.is_relative_to(site) or site.is_relative_to(output):
             raise OutputStagingError(
                 f"--output and paths.output overlap ({output} and {site}); "
@@ -111,9 +115,7 @@ class ContentExporter:
             )
 
 
-def write_export(
-    directory: Path, content: ContentCompilationResult, repository: str
-) -> None:
+def write_export(directory: Path, content: IssueContent, repository: str) -> None:
     """Write one Markdown file per page and the manifest into ``directory``."""
     manifest: dict[str, object] = {
         "export_version": EXPORT_VERSION,
@@ -148,7 +150,7 @@ def write_export(
     )
 
 
-def _write(directory: Path, path: str, page: BlogPost | Idea | AboutPage) -> str:
+def _write(directory: Path, path: str, page: Entry) -> str:
     head = yaml.safe_dump(
         _metadata(page), allow_unicode=True, sort_keys=False, width=float("inf")
     )
@@ -159,34 +161,26 @@ def _write(directory: Path, path: str, page: BlogPost | Idea | AboutPage) -> str
     return path
 
 
-def _metadata(page: BlogPost | Idea | AboutPage) -> dict[str, object]:
+def _metadata(page: Entry) -> dict[str, object]:
     """Front matter of one exported file, every value resolved."""
-    if isinstance(page, AboutPage):
-        return {
-            "issue_number": page.issue_number,
-            "type": "about",
-            "title": page.title,
-            "description": page.description,
-        }
     data: dict[str, object] = {
         "issue_number": page.issue_number,
-        "type": "blog" if isinstance(page, BlogPost) else "idea",
+        "type": page.type,
         "title": page.title,
     }
-    if isinstance(page, BlogPost):
+    if page.type == "blog":
         data["slug"] = page.slug
+    data["description"] = page.description
+    if page.type == "about":  # About shows no date and has no tags
+        return data
     data |= {
-        "description": page.description,
         "created_date": page.created_date,
+        "update_date": page.update_date,
         "published_at": _utc(page.published_at),
         "updated_at": _utc(page.updated_at),
-        "tags": [_tag(tag) for tag in page.tags],
+        "tags": [{"name": name, "key": tag_key(name)} for name in page.tags],
     }
     return data
-
-
-def _tag(tag: BlogTag | IdeaTag) -> dict[str, str]:
-    return {"name": tag.name, "key": tag_key(tag.name)}
 
 
 def _utc(value: datetime) -> str:

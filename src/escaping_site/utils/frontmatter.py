@@ -10,7 +10,7 @@ Implements the Issue Content Contract v1 front-matter envelope rules:
 - Duplicate mapping keys MUST be rejected.
 - Front matter MUST NOT exceed 16 KiB encoded as UTF-8.
 - Unknown fields MUST be rejected (only ``slug``, ``description``,
-  ``created_date`` are allowed).
+  ``created_date``, ``update_date`` are allowed).
 
 The Markdown body (everything after the closing delimiter, with one leading
 newline consumed) is returned separately so it can be passed to the Markdown
@@ -29,7 +29,9 @@ from yaml.constructor import ConstructorError
 FRONT_MATTER_MAX_BYTES: int = 16 * 1024
 
 #: Allowed front-matter field names per the Issue Content Contract.
-ALLOWED_FIELDS: frozenset[str] = frozenset({"slug", "description", "created_date"})
+ALLOWED_FIELDS: frozenset[str] = frozenset(
+    {"slug", "description", "created_date", "update_date"}
+)
 
 #: Pattern matching any line ending (CRLF, CR, or LF).
 _LINE_ENDING_RE: re.Pattern[str] = re.compile(r"\r\n|\r|\n")

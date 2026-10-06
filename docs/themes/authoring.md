@@ -399,7 +399,7 @@ Posts, Ideas and About pages share the fields a single page needs, so one
 | --- | --- | --- | --- | --- |
 | `title`, `description`, `body_html`, `route`, `canonical_path`, `canonical_url` | ✓ | ✓ | ✓ | ✓ (`body_html` is the bio, may be empty) |
 | `issue_number` | ✓ | ✓ | ✓ | `none` |
-| `created_date` | ✓ | ✓ | empty | empty |
+| `created_date`, `update_date` | ✓ | ✓ | empty | empty |
 | `tags` (each `name`, `path`) | Blog tags | Idea tags | empty | empty |
 | `is_profile` | — | — | false | true |
 
@@ -412,6 +412,10 @@ Posts, Ideas and About pages share the fields a single page needs, so one
   `<time datetime>`. About has none, because an About page shows no date; a
   shared `post.html` shows the date only `{% if page.item.created_date %}`.
   `published_at` and `updated_at` are timezone-aware datetimes.
+- `update_date` is the day the author last revised the content, from the
+  Issue's `update_date`. It equals `created_date` when the author set none, so
+  show it only `{% if page.item.update_date != page.item.created_date %}`.
+  `updated_at` is GitHub's time and also moves on a comment or a label.
 - `description` is the Issue's `description`, or else the first 50 characters
   of the text a reader sees in the body (code and tables included, Mermaid
   source not). See [Issue Content](../contracts/issue-content-v1.md#64-description).

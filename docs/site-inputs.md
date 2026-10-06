@@ -60,8 +60,13 @@ Fields that moved in 0.2 are listed in the
 
 ```text
 escaping-site build        [--config FILE] [--issues-json FILE] [--context FILE] [--repo OWNER/NAME] [--token-env NAME]
+escaping-site export       [--config FILE] [--issues-json FILE] [--context FILE] [--repo OWNER/NAME] [--token-env NAME] [--output DIR]
 escaping-site theme check  [--config FILE] [--issues-json FILE]
 ```
+
+`export` writes the content for a site built with another tool. It reads only
+`github`, `about` and `security` from the Config; see
+[Content Export v1](contracts/content-export-v1.md#71-config).
 
 `build` is the default, so `escaping-site --config config.yaml` also builds.
 `--config` defaults to `config.yaml` in the current directory.

@@ -35,7 +35,7 @@ current contract only.
 ## 3. Authored fields
 
 The only allowed front matter fields are `title`, `type`, `slug`, `description`,
-`tags`, and `created_date`. Unknown fields MUST be rejected. No other metadata
+`tags`, `created_date`, and `update_date`. Unknown fields MUST be rejected. No other metadata
 fields are part of the Local Draft Contract v1.
 
 ### 3.1 `title`
@@ -101,6 +101,13 @@ calendar value to ASCII `YYYY-MM-DD` without rewriting the draft or Issue.
 The Site Compiler displays the resolved date for Blog and Idea, while sorting
 both by the GitHub Issue `created_at` timestamp. About does not display a date.
 The `published` label remains the publication gate.
+
+### 3.7 `update_date`
+
+`update_date` is optional. An explicit value MUST be a quoted, valid
+`YYYY-MM-DD` string and be copied into the Issue body front matter. When
+omitted, the uploader MUST NOT fill it in; the content then counts as not
+revised ([Issue Content Contract section 6.6](./issue-content-v1.md#66-update_date)).
 
 ### 3.7 Markdown body
 

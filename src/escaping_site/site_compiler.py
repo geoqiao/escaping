@@ -22,6 +22,7 @@ from .artifact_validation import SiteArtifactValidator, audit_seo
 from .build_result import BuildResult, Diagnostic
 from .config import AboutConfig, ConfigError, Settings
 from .content_compiler import ContentCompiler
+from .issue_content import IssueSource
 from .models.issue_snapshot import IssueSnapshot
 from .models.site import SiteModel
 from .output_safety import OutputContainmentError
@@ -35,7 +36,6 @@ from .theme import Fetch, LoadedTheme, ThemeLoader
 
 logger = logging.getLogger(__name__)
 
-IssueSource = Callable[[], Sequence[IssueSnapshot]]
 ProjectEnricher = Callable[[str], ProjectEnrichment]
 
 #: Warnings about the Issues a Config names; sample Issues cannot match them.

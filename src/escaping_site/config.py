@@ -651,6 +651,23 @@ class Settings(_Strict):
         return items if items is not None else default_navigation(self.pages.sections())
 
 
+class ContentSettings(BaseModel):
+    """The sections that decide which Issues are published.
+
+    ``escaping-site export`` reads only these. Every other section belongs to
+    whatever builds the site, so it is neither read nor checked here.
+    """
+
+    model_config = ConfigDict(extra="ignore")
+
+    github: GithubConfig
+    about: AboutConfig = Field(default_factory=AboutConfig)
+    security: SecurityConfig = Field(default_factory=SecurityConfig)
+
+
+#: The sections of ``ContentSettings``.
+CONTENT_SECTIONS = ("github", "about", "security")
+
 # Only these identities can be supplied later by resolve_settings.
 _RESOLVABLE_MISSING = {
     ("github",),
@@ -665,6 +682,19 @@ _RESOLVABLE_MISSING = {
 
 def read_config_overrides(path: Path) -> dict[str, Any]:
     """Read and validate the Site Config file; an empty file means ``{}``."""
+    data = _load_config(path)
+    validate_config_overrides(data)
+    return typing.cast(dict[str, Any], data)
+
+
+def read_content_overrides(path: Path) -> dict[str, Any]:
+    """Read the Config for an export: only its content sections are checked."""
+    data = _load_config(path)
+    validate_content_overrides(data)
+    return typing.cast(dict[str, Any], data)
+
+
+def _load_config(path: Path) -> object:
     try:
         text = path.read_text(encoding="utf-8")
     except FileNotFoundError:
@@ -673,10 +703,7 @@ def read_config_overrides(path: Path) -> dict[str, Any]:
         data = yaml.load(text, Loader=_StrictYAMLLoader)  # noqa: S506 - SafeLoader subclass
     except yaml.YAMLError as exc:
         raise ConfigError([_yaml_problem(path, exc)]) from None
-    if data is None:
-        data = {}
-    validate_config_overrides(data)
-    return data
+    return {} if data is None else data
 
 
 def _yaml_problem(path: Path, exc: yaml.YAMLError) -> str:
@@ -710,6 +737,31 @@ def validate_config_overrides(data: object) -> None:
         ]
         if errors:
             raise ConfigError(describe_validation_errors(errors, Settings)) from None
+
+
+def validate_content_overrides(data: object) -> None:
+    """Validate the content sections; the owner and its authors may come later."""
+    if not isinstance(data, dict):
+        raise ConfigError(["Config must be a mapping of sections such as github:"])
+    content = {name: data[name] for name in CONTENT_SECTIONS if name in data}
+    problems = [
+        f"{'.'.join(map(str, loc))}: is empty; remove the line or add values under it"
+        for loc in _null_locations(content, ())
+    ]
+    if problems:
+        raise ConfigError(problems)
+    try:
+        ContentSettings.model_validate(content)
+    except ValidationError as exc:
+        errors = [
+            error
+            for error in exc.errors()
+            if error["type"] != "missing" or error["loc"] not in _RESOLVABLE_MISSING
+        ]
+        if errors:
+            raise ConfigError(
+                describe_validation_errors(errors, ContentSettings)
+            ) from None
 
 
 def _null_locations(value: object, loc: tuple[str | int, ...]) -> list[tuple]:

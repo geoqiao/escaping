@@ -129,9 +129,11 @@ it: the export needs nothing from GitHub Pages, so the workflow runs the
 | `skipped-issues` | Comma-separated numbers of Issues left out because of their own errors; empty when none |
 
 `escaping-site` writes both outputs itself when it runs in GitHub Actions. It reads
-the token from `GITHUB_TOKEN` (or the variable named by `--token-env`). No
-platform context is written, so the Config must set `github.repo` and
-`site.url`. The job needs `contents: read` and `issues: read`. Building and
+the token from `GITHUB_TOKEN` (or the variable named by `--token-env`). It
+reads only the content sections of the Config (`github`, `about`,
+`security`); with the token an empty Config exports the workflow's own
+repository, and the rest of the file is free for the site builder
+([Content Export v1](contracts/content-export-v1.md#71-config)). The job needs `contents: read` and `issues: read`. Building and
 deploying the site, and failing the run when `skipped-issues` is not empty,
 are the site workflow's steps.
 

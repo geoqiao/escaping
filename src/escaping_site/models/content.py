@@ -22,12 +22,12 @@ class Idea:
     title: str
     description: str
     created_date: str
+    update_date: str
     published_at: datetime
     updated_at: datetime
     tags: tuple[IdeaTag, ...]
     body_html: str
     route: Route
-    body_markdown: str = ""
 
     @property
     def canonical_path(self) -> str:
@@ -40,16 +40,16 @@ class Idea:
 
 @dataclass(frozen=True)
 class AboutPage:
-    """About from an Issue. It shows no date, so ``created_date`` is empty."""
+    """About from an Issue. It shows no date, so its dates are empty."""
 
     issue_number: int
     title: str
     description: str
     body_html: str
     route: Route
-    body_markdown: str = ""
     is_profile = False
     created_date = ""
+    update_date = ""
     tags = ()
 
     @property
@@ -75,6 +75,7 @@ class ProfileAbout:
     is_profile = True
     issue_number = None
     created_date = ""
+    update_date = ""
     tags = ()
 
     @property

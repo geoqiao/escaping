@@ -64,6 +64,7 @@ def _blog(
         slug=f"post-{number}",
         description=f"Description {number}",
         created_date=f"2026-01-{number:02d}",
+        update_date=f"2026-01-{number:02d}",
         published_at=published,
         updated_at=published,
         tags=tuple(
@@ -91,6 +92,7 @@ def _content(
                 title="Idea",
                 description="Idea description",
                 created_date="2026-01-02",
+                update_date="2026-01-02",
                 published_at=date,
                 updated_at=date,
                 tags=(),

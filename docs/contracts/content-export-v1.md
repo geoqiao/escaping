@@ -17,9 +17,10 @@ The key words **MUST**, **MUST NOT** and **MAY** are normative requirements.
 
 ## 2. Selection
 
-An Issue is exported exactly when `escaping-site build` with the same Config and the
-same Issues would publish it. Selection, the About choice, slug uniqueness and
-every content rule are those of Issue Content v1. In particular:
+Selection, the About choice, slug uniqueness and every content rule are those
+of Issue Content v1, applied by the same code as in `escaping-site build`. The
+same Issues are exported as a build with every section on would publish. In
+particular:
 
 - an Issue without `published`, a Pull Request, and an Issue by an author
   outside `github.allowed_authors` are left out;
@@ -27,8 +28,10 @@ every content rule are those of Issue Content v1. In particular:
   left out and reported, the rest is exported, and the CLI exits with status 2;
 - an error in the Config or in the About Issue that `about.issue_number`
   selects fails the export, and the previous export is left unchanged;
-- content of a section the Config turns off (`pages.ideas: false`) is left
-  out with a warning.
+- every content type is exported. `pages` in the Config switches the pages of
+  a built site and has no effect here; a consumer without a place for Ideas
+  ignores `ideas/`. Likewise a slug is never refused for colliding with a
+  page of a built site.
 
 ## 3. Directory
 
@@ -64,6 +67,7 @@ title: 使用 Rust 分析 Cloudflare 事故
 slug: rust-in-cloudflare-incident
 description: Cloudflare 事故中的 Rust 技术分析与工程经验总结。
 created_date: '2026-07-20'
+update_date: '2026-08-02'
 published_at: '2026-07-21T03:15:00Z'
 updated_at: '2026-07-22T10:00:00Z'
 tags:
@@ -87,8 +91,9 @@ Issue Content v1 defines, so a consumer never recomputes one.
 | `slug` | ✓ | | | Route key, `^[a-z0-9]+(?:-[a-z0-9]+)*$`, unique among Blog files |
 | `description` | ✓ | ✓ | ✓ | Plain text; may be empty when derived from an image-only body |
 | `created_date` | ✓ | ✓ | | `YYYY-MM-DD` string; the date to display |
+| `update_date` | ✓ | ✓ | | `YYYY-MM-DD` string; the day the author last revised the content, equal to `created_date` when never revised |
 | `published_at` | ✓ | ✓ | | Issue `created_at` in UTC, `YYYY-MM-DDTHH:MM:SSZ` string |
-| `updated_at` | ✓ | ✓ | | Issue `updated_at` in UTC, same format |
+| `updated_at` | ✓ | ✓ | | Issue `updated_at` in UTC, same format; it also moves on a comment or a label |
 | `tags` | ✓ | ✓ | | List, possibly empty, of `name` (as displayed) and `key` (route key) |
 
 Dates and times are YAML strings, not YAML timestamps. `title` and
@@ -163,6 +168,25 @@ escaping-site export --config config.yaml [--output build/content] [--issues-jso
 `--repo`, `--context` and `--token-env` work as for `escaping-site build` (see
 [Site inputs](../site-inputs.md#cli-inputs)). Exit status: 0 exported, 1 failed
 with the previous export unchanged, 2 exported with Skipped Issues.
+
+### 7.1 Config
+
+The export reads three sections of the Config and checks only those:
+
+| Field | Default |
+|---|---|
+| `github.repo` | `--repo`; on GitHub Actions, the repository of the workflow |
+| `github.allowed_authors` | The owner of a personal repository, read from GitHub with the token |
+| `about.issue_number` | The oldest published About Issue |
+| `security.token_env` | `GITHUB_TOKEN` |
+
+With a token on GitHub Actions an empty Config is enough. Everything else in
+the file, `site` and `pages` included, belongs to whatever builds the site: it
+is not read, and a section `escaping` does not know is not an error. So one
+`config.yaml` can hold the consuming site's own settings.
+
+One exception keeps a repository that both builds and exports safe: `--output`
+MUST NOT overlap `paths.output` (default `output`).
 
 The command is in the `escaping-site` package on PyPI. In GitHub Actions, run it at a
 fixed version (see

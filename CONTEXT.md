@@ -33,7 +33,7 @@ The `escaping` capability that converts Issue Content and repository-owned site 
 _Avoid_: Issue monitor, Issue Draft Uploader
 
 **Content Export**:
-The published Issue Content written as Markdown files and a manifest, for a site that another tool builds. It carries the same selection and content rules as the Site Compiler and no pages, routes or Theme.
+The published Issue Content written as Markdown files and a manifest, for a site that another tool builds. It starts from the same Issue Content as the Site Compiler, reads only the content sections of the Config, and has no pages, routes or Theme.
 _Avoid_: Sync, backup, Markdown source
 
 **Content Export Contract**:

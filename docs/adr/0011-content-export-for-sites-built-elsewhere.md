@@ -45,6 +45,7 @@ the consuming site. Comments keep working because the exported
 
 An exporting site still reads the full Site Config, including fields that only
 a Theme uses, and needs `github.repo` and `site.url` in it.
+([ADR-0012](0012-one-content-core-two-outputs.md) ends this.)
 
 The Site Compiler, the Theme API and Quiet stay as they are in this release.
 Whether `escaping` later drops them and keeps only the content side is a

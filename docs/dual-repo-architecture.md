@@ -61,6 +61,7 @@ Theme 与输出目录的相对路径以 Config 所在目录为根。
 | --- | --- |
 | 输入来源、两层 Config、默认值、本地构建 | [Site inputs](site-inputs.md) |
 | 内容与发布标签 | [Issue Content v1](contracts/issue-content-v1.md) |
+| 整站的渲染与网址规则 | [Site Build v1](contracts/site-build-v1.md) |
 | 导出 Markdown 给别的建站工具 | [Content Export v1](contracts/content-export-v1.md)、[ADR-0011](adr/0011-content-export-for-sites-built-elsewhere.md) |
 | 可选草稿创作辅助 | [Local Draft v1](contracts/local-draft-v1.md)、[只读 lint](../.agents/skills/issue-draft-lint/SKILL.md)、[一次性创建 Issue，经明确授权才同时发布](../.agents/skills/issue-draft-uploader/SKILL.md)；不是同步或编译入口 |
 | Theme API 4、选项、字符串与迁移 | [Theme authoring](themes/authoring.md)；默认外观见 [Quiet](themes/quiet.md) |

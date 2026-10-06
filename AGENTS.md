@@ -17,8 +17,11 @@ Atom、sitemap、robots、搜索索引和旧地址跳转页。
   检查站内链接和资源、安全地替换输出目录。
 - 主题负责：页面长什么样、放哪些 SEO 标签、界面文字、主题自己的选项；只需
   `blog.html` 和 `post.html`，其余页面按固定规则退回这两个模板。
-- `escaping-site export` 是另一个出口：同一套内容规则，只写 Markdown 和 manifest，不加载
-  主题、不产生页面；渲染及其安全由使用导出的站点负责。
+- 内容内核（`issue_content.py`）决定哪些 Issue 发布、每个值是什么；它不知道网址、
+  页面开关和主题。构建和导出都从它出发，互不引用。
+- `escaping-site export` 是另一个出口：只写 Markdown 和 manifest，只读 Config 的
+  `github`、`about`、`security` 三段；渲染及其安全由使用导出的站点负责。
+- Theme API 4 已冻结：不再加功能，超出主题能力的需求走导出。
 - 站点仓库负责：真实 `config.yaml`（包括有哪些页面、地址、额外页面和旧地址跳转）、
   可选的本地主题、Pages workflow 和 `CNAME`。
 
@@ -41,6 +44,8 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
 | 任务 | 文档 |
 | --- | --- |
 | 内容与发布规则 | [Issue Content v1](docs/contracts/issue-content-v1.md) |
+| 整站的渲染与网址规则 | [Site Build v1](docs/contracts/site-build-v1.md) |
+| 内核与两个出口的分层 | [ADR-0012](docs/adr/0012-one-content-core-two-outputs.md) |
 | 导出 Markdown 给别的建站工具 | [Content Export v1](docs/contracts/content-export-v1.md)、[ADR-0011](docs/adr/0011-content-export-for-sites-built-elsewhere.md) |
 | 主题与主题选项 | [主题编写指南](docs/themes/authoring.md)、[Quiet](docs/themes/quiet.md) |
 | Config 字段 | [Site inputs](docs/site-inputs.md) |
@@ -101,9 +106,10 @@ src/escaping_site/              # 按构建顺序
 ├── remote_theme.py        # github.com/… 主题：下载、只解压指定目录
 ├── output_safety.py       # 输出目录不越界、归属标记
 ├── services/              # github_service.py 读 Issue；render_service.py 渲染
-├── content_compiler.py    # Issue → Blog/Idea/About，坏 Issue 跳过
+├── issue_content.py       # 内容内核：Issue → 条目，坏 Issue 跳过；不知道站点
 ├── content_validation.py  # Issue 与本地草稿共用的内容规则、Markdown 渲染
-├── content_export.py      # escaping-site export：编译后的内容写成 Markdown + manifest
+├── content_compiler.py    # 整站出口：条目 → 带网址和页面 HTML 的 Blog/Idea/About
+├── content_export.py      # 导出出口：条目写成 Markdown + manifest
 ├── projects.py            # config 里的 Projects
 ├── site_builder.py        # SiteModel：固定页面、额外页面、导航、跳转页、Blog 分页、标签
 ├── routes.py              # RouteRegistry

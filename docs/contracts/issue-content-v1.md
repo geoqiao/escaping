@@ -5,8 +5,11 @@ Status: **Accepted**
 ## 1. Purpose and scope
 
 This contract defines the GitHub Issue representation consumed by `escaping`.
-It is the output contract shared by an Issue Draft Uploader and the Site
-Compiler.
+It is the output contract of an Issue Draft Uploader and the input of both
+outputs: the site that `escaping-site build` makes
+([Site Build v1](site-build-v1.md)) and the Markdown files that
+`escaping-site export` writes ([Content Export v1](content-export-v1.md)).
+Which Issues are published, and with which values, is the same for both.
 
 This contract does not define:
 
@@ -14,12 +17,14 @@ This contract does not define:
 - how an Issue Draft Uploader authenticates or represents Local Drafts;
 - project catalog files;
 - theme APIs;
+- rendering, routes and the files of a built site;
 - deployment workflows.
 
 The key words **MUST**, **MUST NOT**, **SHOULD**, **SHOULD NOT**, and **MAY**
 are normative requirements.
 
-Paths such as `/blog/{slug}/` are the defaults. `pages` in the site's
+Paths, pages and feeds named here are those of a built site; an export has
+none. Paths such as `/blog/{slug}/` are the defaults. `pages` in the site's
 `config.yaml` can move a section, for example the Blog to `/notes/`, which
 puts a post at `/notes/{slug}/`; a site under a sub-path adds that prefix.
 
@@ -37,6 +42,7 @@ Each authored value has exactly one authoritative input.
 | Publication state | `published` label |
 | Tags | `tag:*` labels |
 | Content creation date | Explicit `created_date`, otherwise the UTC date of Issue `created_at` |
+| Content revision date | Explicit `update_date`, otherwise the content creation date |
 | Publication/updated time | GitHub Issue `created_at` / `updated_at` |
 | Blog slug | Explicit `slug`, otherwise the Issue number as a decimal string |
 | Description | Explicit `description`, otherwise the first 50 code points of visible body text |
@@ -166,6 +172,7 @@ An optional envelope precedes the Markdown body:
 slug: rust-in-cloudflare-incident
 description: A technical analysis of Rust's role in a Cloudflare incident.
 created_date: "2026-07-20"
+update_date: "2026-08-02"
 ---
 
 Markdown body starts here.
@@ -196,6 +203,7 @@ Envelope requirements:
 | `slug` | string | Stable Blog route key |
 | `description` | string | Plain-text SEO/social/feed summary |
 | `created_date` | `YYYY-MM-DD` string | Actual content creation date |
+| `update_date` | `YYYY-MM-DD` string | Date the author last revised the content |
 
 ### 6.2 Forbidden fields
 
@@ -219,7 +227,8 @@ decimal string. An explicit `slug` and the resolved current snapshot MUST:
 - match `^[a-z0-9]+(?:-[a-z0-9]+)*$`;
 - contain 1–80 characters;
 - be unique among all Blog canonical slugs;
-- not collide with a reserved route.
+- in a built site, not collide with a reserved route
+  ([Site Build v1, section 3](site-build-v1.md#3-route-integrity)).
 
 As a lifecycle invariant, authors and editing tools MUST keep the slug unchanged
 after its first publication.
@@ -273,6 +282,21 @@ content or narrow the accepted input rules.
 This default or override changes neither collection order nor publication/feed
 timestamps, which continue to use GitHub's native timestamps.
 
+### 6.6 `update_date`
+
+`update_date` records the day the author last revised the content. An authored
+value MUST be a quoted string in `YYYY-MM-DD` format, MUST be a valid calendar
+date and MUST NOT be earlier than the resolved `created_date`
+(`UPDATE_DATE_BEFORE_CREATED`). It is normalized like `created_date`.
+
+An omitted `update_date` defaults to the resolved `created_date`: the content
+has not been revised. It does not default to the Issue `updated_at` timestamp,
+because GitHub also moves that on a comment, a label or a title edit, none of
+which revises the content. `updated_at` stays available unchanged.
+
+Like `created_date`, it changes neither collection order nor publication/feed
+timestamps.
+
 ## 7. Content type profiles
 
 ### 7.1 Blog
@@ -284,7 +308,8 @@ A Blog Issue:
 - MUST have a non-empty Markdown body;
 - MUST NOT have a character that XML 1.0 forbids, such as U+0001, in its title,
   body or `description`, because the post goes into the Atom feed;
-- MAY override `slug`, `description`, and `created_date` independently;
+- MAY override `slug`, `description`, `created_date`, and `update_date`
+  independently;
 - MAY use `tag:*` labels;
 - enters Home recent posts, `/blog/`, `/tags/`, `/atom.xml`, and sitemap;
 - uses `/blog/{slug}/` as its canonical path;
@@ -301,7 +326,7 @@ An Idea Issue:
 - MUST have a non-empty GitHub Issue title;
 - MUST have a non-empty Markdown body;
 - MUST NOT provide `slug`;
-- MAY override `description` and `created_date` independently;
+- MAY override `description`, `created_date`, and `update_date` independently;
 - MAY use `tag:*` labels without contributing to the Blog Tags taxonomy;
 - enters `/ideas/` and sitemap;
 - does not enter Blog, Blog Tags, or `/atom.xml`;
@@ -322,7 +347,7 @@ An About Issue:
 - MUST have `type:about` and `published`;
 - MUST have a non-empty GitHub Issue title and Markdown body;
 - MUST NOT provide `slug`;
-- MAY override `description` and `created_date` independently;
+- MAY override `description`, `created_date`, and `update_date` independently;
 - MUST NOT use `tag:*`;
 - uses `/about/` as its canonical path;
 - does not enter Blog, Ideas, Blog Tags, or `/atom.xml`;
@@ -367,6 +392,8 @@ Transitions:
 - Blog and Idea pages display the normalized `created_date`; About MUST NOT
   display it. The omitted value uses the Issue's UTC creation date (section 6.5);
   there is no site-timezone Config field.
+- `update_date` is given to the Theme and written to the export; whether a page
+  shows it is the Theme's or the consuming site's choice.
 - An Atom entry `published` value uses the Issue `created_at` timestamp.
 - An Atom entry `updated` value uses the GitHub Issue `updated_at` value.
 - The Atom feed `updated` value uses the maximum `updated_at` among its entries.
@@ -374,18 +401,19 @@ Transitions:
   feed and uses the build start time as its feed-level `updated` value.
 - The `published` label, not a future timestamp, is the only publication gate.
 
-## 9. Rendering and security
+## 9. Body validity
 
-- Markdown MUST be rendered as GitHub-Flavored Markdown or a documented,
-  compatible subset.
-- Raw HTML MUST be sanitized with an allowlist after Markdown rendering.
-- A task list item shows its state as text: `- [x]` renders as ☑ and
-  `- [ ]` as ☐, because the sanitizer removes `<input>`.
-- Scripts, event-handler attributes, dangerous URL schemes, and unsafe embeds
-  MUST be removed or rejected.
-- Jinja/template autoescape does not replace Markdown sanitization.
-- Front matter MUST NOT enable arbitrary template selection, code execution,
-  script injection, or per-content plugins in v1.
+A body MUST be renderable as GitHub-Flavored Markdown and its raw HTML MUST
+pass the sanitizer; a body that does not is a content error and the Issue is
+skipped. This is judged the same way for a build and for an export, and the
+default `description` (section 6.4) comes from that sanitized rendering.
+
+Front matter MUST NOT enable arbitrary template selection, code execution,
+script injection, or per-content plugins in v1.
+
+How a built site renders and sanitizes a body is
+[Site Build v1, section 2](site-build-v1.md#2-rendering-and-security). An
+export hands over the Markdown; its consumer owns rendering.
 
 ## 10. Comments
 
@@ -402,36 +430,22 @@ MUST leave the body readable and provide a usable source-Issue fallback.
 
 Profile About and Projects have no Issue comment thread.
 
-## 11. Route integrity
+## 11. Slugs, tag keys and errors
 
-The compiler MUST build one global route registry before writing output and
-reject:
+Blog slugs MUST be unique among all Blog Issues; of two Issues with the same
+slug, the lower Issue number keeps it and the other is skipped
+(`SLUG_DUPLICATE`). Blog slugs are lower-case ASCII; tag keys are Unicode
+letters and digits (NFC, case-folded) joined by hyphens.
 
-- duplicate canonical paths;
-- duplicate slugs;
-- malformed tag keys;
-- reserved-route collisions.
-
-Blog tags use `/tags/` for the index and `/tags/{tag}/` for tag archives.
-HTML page routes MUST end with `/`. Blog slugs are lower-case ASCII; tag keys
-are Unicode letters and digits (NFC, case-folded) joined by hyphens.
-The machine-readable endpoints are `/atom.xml`, `/sitemap.xml`, and `/robots.txt`,
-without a trailing slash; they belong to the same route registry.
-Canonical paths MUST be converted to Unicode NFC before validation. Collision
-checks MUST additionally compare case-folded paths so local case-insensitive
-filesystems and GitHub Pages cannot produce divergent output.
-The complete reserved-route set comes from all pages registered for the site,
-not from a separate hard-coded Issue list.
-
-Canonical links, internal links, sitemap entries, feed URLs, Open Graph URLs,
-and output filesystem paths MUST be produced from that same route registry.
 Every validation error SHOULD include a stable error code and Issue number when
-an Issue caused the error. The compiler MUST collect and report all detectable
-content validation errors in one run. A Blog or Idea Issue with its own content
-error is skipped and reported, and the rest of the site is still published (the
-CLI exits with status 2). Errors in Config, the Theme, the About Issue that
-`about.issue_number` selects, or site-wide routes fail the build and publish
-nothing.
+an Issue caused the error. All detectable content validation errors MUST be
+collected and reported in one run. A Blog or Idea Issue with its own content
+error is skipped and reported, and the rest is still published (the CLI exits
+with status 2). Errors in Config or in the About Issue that
+`about.issue_number` selects fail the run and publish nothing.
+
+The addresses of a built site, and what happens when two pages want the same
+one, are [Site Build v1, section 3](site-build-v1.md#3-route-integrity).
 
 ## 12. Single current format
 

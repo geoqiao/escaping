@@ -18,6 +18,15 @@ Sites that build with 0.5.1 need no changes.
   in a build. The body is the author's Markdown; rendering and sanitizing it is
   the consuming site's job. See
   [Content Export v1](docs/contracts/content-export-v1.md).
+- **`update_date` in an Issue's front matter** records the day you last revised
+  the content. Templates get it as `update_date` on posts and Ideas and the
+  export writes it. Left out, it equals `created_date`; Quiet does not show
+  it. See [Issue Content v1](docs/contracts/issue-content-v1.md#66-update_date).
+- **The export reads only the content sections of the Config**: `github`,
+  `about` and `security`. It no longer needs `site.url` or `site.title`, it
+  accepts sections of your own, and it exports Ideas and the About Issue
+  whatever `pages` says. On GitHub Actions an empty Config exports the
+  workflow's repository.
 - **`escaping-site` is published on PyPI**, and a site depends on the package instead
   of this repository. A workflow or a laptop runs a fixed version without a
   checkout: `uvx escaping-site@X.Y.Z build` or `… escaping-site export`. See
@@ -30,6 +39,10 @@ Sites that build with 0.5.1 need no changes.
 
 ### Changed
 
+- **Rendering and route rules moved** from Issue Content v1 to the new
+  [Site Build v1](docs/contracts/site-build-v1.md); nothing a build does has
+  changed. Theme API 4 gains no further features
+  ([ADR-0012](docs/adr/0012-one-content-core-two-outputs.md)).
 - **The starter workflow runs the package, not the Action.** The Action still
   works for sites that use it.
 - **One name: the package and the command are `escaping-site`**, and the

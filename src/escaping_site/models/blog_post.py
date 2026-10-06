@@ -28,13 +28,12 @@ class BlogPost:
     slug: str
     description: str
     created_date: str
+    update_date: str
     published_at: datetime
     updated_at: datetime
     tags: tuple[BlogTag, ...]
     body_html: str
     route: Route
-    #: The author's Markdown, front matter removed; the Content Export writes it.
-    body_markdown: str = ""
 
     @property
     def canonical_path(self) -> str:

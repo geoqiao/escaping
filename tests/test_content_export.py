@@ -96,6 +96,7 @@ def test_export_writes_each_published_issue_and_a_manifest(site: Path) -> None:
         "slug": "first-post",
         "description": "A summary.",
         "created_date": "2025-12-31",
+        "update_date": "2025-12-31",
         "published_at": "2026-01-01T00:00:00Z",
         "updated_at": "2026-02-01T00:00:00Z",
         "tags": [{"name": "Daily Life", "key": "daily-life"}],
@@ -183,3 +184,84 @@ def test_export_refuses_an_unsafe_directory(
     if prepare:
         assert (site / prepare).read_text(encoding="utf-8") == "mine"
     assert not (site / output / "manifest.json").exists()
+
+
+def test_export_needs_only_the_content_sections(
+    site: Path, capsys: pytest.CaptureFixture[str]
+) -> None:
+    """The rest of the file belongs to the tool that builds the site."""
+    (site / "config.yaml").write_text(
+        "github:\n  repo: alice/site\n  allowed_authors: [alice]\n"
+        "pages:\n  ideas: false\n  about: false\n"  # a build's switches, not content
+        "my_frontend:\n  accent: teal\n",
+        encoding="utf-8",
+    )
+
+    assert _export(site, [_PLAIN, _IDEA, _ABOUT]) == 0
+
+    manifest = json.loads(
+        (site / "build/content/manifest.json").read_text(encoding="utf-8")
+    )
+    assert [item["issue_number"] for item in manifest["ideas"]] == [3]
+    assert manifest["about"] == {"issue_number": 4, "path": "about.md"}
+    assert "warning" not in capsys.readouterr().err
+
+    # The content sections are still checked, field by field.
+    (site / "config.yaml").write_text(
+        "github:\n  repo: alice/site\n  authors: [alice]\n", encoding="utf-8"
+    )
+    assert _export(site, [_PLAIN]) == 1
+    assert "github.authors: unknown field" in capsys.readouterr().err
+
+
+def test_on_github_actions_an_empty_config_exports_this_repository(
+    site: Path, monkeypatch: pytest.MonkeyPatch, capsys: pytest.CaptureFixture[str]
+) -> None:
+    (site / "config.yaml").write_text("", encoding="utf-8")
+    assert _export(site, [_PLAIN]) == 1
+    assert "github.repo" in capsys.readouterr().err
+
+    monkeypatch.setenv("GITHUB_ACTIONS", "true")
+    monkeypatch.setenv("GITHUB_REPOSITORY", "alice/site")
+    # Without a token nobody can say who owns the repository.
+    assert _export(site, [_PLAIN]) == 1
+    assert "github.allowed_authors" in capsys.readouterr().err
+
+    (site / "config.yaml").write_text(
+        "github:\n  allowed_authors: [alice]\n", encoding="utf-8"
+    )
+    assert _export(site, [_PLAIN]) == 0
+    manifest = json.loads(
+        (site / "build/content/manifest.json").read_text(encoding="utf-8")
+    )
+    assert manifest["repository"] == "alice/site"
+
+
+def test_a_build_and_an_export_publish_the_same_issues(site: Path) -> None:
+    """One set of rules: what is skipped by one is skipped by the other."""
+    same_slug = _issue(6, "Same slug", "---\nslug: first-post\n---\nBody.", "type:blog")
+    stranger = {**_issue(7, "Not mine", "Body.", "type:blog"), "user": {"login": "x"}}
+    issues = [_POST, _PLAIN, _IDEA, _ABOUT, _BAD, same_slug, stranger]
+    path = site.parent / "issues.json"
+    path.write_text(json.dumps(issues), encoding="utf-8")
+    source = ["--config", str(site / "config.yaml"), "--issues-json", str(path)]
+
+    assert main(["export", *source]) == 2
+    assert main(["build", *source]) == 2
+
+    manifest = json.loads(
+        (site / "build/content/manifest.json").read_text(encoding="utf-8")
+    )
+    output = site / "output"
+    assert manifest["skipped_issues"] == [5, 6]
+    assert sorted(item["slug"] for item in manifest["blog"]) == sorted(
+        page.parent.name
+        for page in (output / "blog").glob("*/index.html")
+        if page.parent.name != "page"
+    )
+    assert sorted(str(item["issue_number"]) for item in manifest["ideas"]) == sorted(
+        page.parent.name for page in (output / "ideas").glob("*/index.html")
+    )
+    assert manifest["about"] and "About me" in (output / "about/index.html").read_text(
+        encoding="utf-8"
+    )
