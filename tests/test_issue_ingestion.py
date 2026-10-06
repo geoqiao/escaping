@@ -21,15 +21,15 @@ import pytest
 from github import Github
 from github.Issue import Issue as PyGithubIssue
 
-from escpe.config import Settings
-from escpe.models.issue_snapshot import IssueSnapshot
-from escpe.output_staging import OUTPUT_MARKER
-from escpe.services.github_service import (
+from escaping_site.config import Settings
+from escaping_site.models.issue_snapshot import IssueSnapshot
+from escaping_site.output_staging import OUTPUT_MARKER
+from escaping_site.services.github_service import (
     GitHubService,
     _to_issue_snapshot,
     read_issues_json,
 )
-from escpe.site_compiler import SiteCompiler
+from escaping_site.site_compiler import SiteCompiler
 
 
 @pytest.mark.parametrize(
@@ -91,7 +91,7 @@ def test_request_retries_recover_pagination_or_preserve_previous_output(
     thread.start()
     # Keep PyGithub's real HTTP adapter and default retry policy; use local HTTP only.
     monkeypatch.setattr(
-        "escpe.services.github_service.Github",
+        "escaping_site.services.github_service.Github",
         partial(Github, base_url=origin, seconds_between_requests=0),
     )
     service = GitHubService("test-token")
@@ -194,7 +194,7 @@ def test_snapshots_copy_the_issue_without_a_detail_request() -> None:
     assert snap_pr.number == 7
 
 
-@patch("escpe.services.github_service.Github")
+@patch("escaping_site.services.github_service.Github")
 def test_public_profile_and_repository_identity_are_plain_verified_snapshots(
     mock_github_class: MagicMock,
 ) -> None:

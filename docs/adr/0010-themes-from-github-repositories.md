@@ -1,6 +1,6 @@
 ---
 status: accepted
-amends: ADR-0007 (a Theme came only from escpe or the site repository) and
+amends: ADR-0007 (a Theme came only from escaping_site or the site repository) and
   ADR-0008 (extends named only a built-in Theme; loading never used the network)
 ---
 

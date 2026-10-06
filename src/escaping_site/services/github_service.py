@@ -7,9 +7,9 @@ from github import Auth, Github, GithubException
 from github.Issue import Issue
 from github.Repository import Repository
 
-from escpe.config import PlatformContext, ProfileConfig, RepositoryIdentity
-from escpe.models.issue_snapshot import IssueSnapshot
-from escpe.projects import ProjectEnrichment
+from escaping_site.config import PlatformContext, ProfileConfig, RepositoryIdentity
+from escaping_site.models.issue_snapshot import IssueSnapshot
+from escaping_site.projects import ProjectEnrichment
 
 
 @dataclass(frozen=True)

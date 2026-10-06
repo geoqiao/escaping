@@ -11,18 +11,18 @@ Sites that build with 0.5.1 need no changes.
 
 ### Added
 
-- **`escpe export` writes the published Issues as Markdown files.** A site
+- **`escaping-site export` writes the published Issues as Markdown files.** A site
   built with another tool, such as Astro, can keep GitHub Issues as its content
   source: one file per Blog post, Idea and About Issue with resolved front
   matter, and a `manifest.json`. The same Issues are published or skipped as
   in a build. The body is the author's Markdown; rendering and sanitizing it is
   the consuming site's job. See
   [Content Export v1](docs/contracts/content-export-v1.md).
-- **`escpe` is published on PyPI**, and a site depends on the package instead
+- **`escaping-site` is published on PyPI**, and a site depends on the package instead
   of this repository. A workflow or a laptop runs a fixed version without a
-  checkout: `uvx --from 'escpe==X.Y.Z' escpe build` or `… escpe export`. See
+  checkout: `uvx escaping-site@X.Y.Z build` or `… escaping-site export`. See
   [Deployment](docs/deployment.md#building-a-site-in-a-workflow).
-- **On GitHub Actions `escpe build` reads the repository and its Pages
+- **On GitHub Actions `escaping-site build` reads the repository and its Pages
   address itself** when the Config leaves out `github.repo` or `site.url`,
   so an empty Config still builds without the Action.
 - **Python 3.12 and 3.13 are supported**, and there is no upper limit on the
@@ -32,9 +32,11 @@ Sites that build with 0.5.1 need no changes.
 
 - **The starter workflow runs the package, not the Action.** The Action still
   works for sites that use it.
-- **The import package is named `escpe`**, like the distribution and the
-  command. Nothing else imports it; `python -m escaping.local_draft` becomes
-  `python -m escpe.local_draft`.
+- **One name: the package and the command are `escaping-site`**, and the
+  import package is `escaping_site`. The command was `escpe`; a script that
+  runs `escpe build` now runs `escaping-site build`, and
+  `python -m escaping.local_draft` becomes
+  `python -m escaping_site.local_draft`. The Action is unaffected.
 
 ## [0.5.1] - 2026-09-29
 

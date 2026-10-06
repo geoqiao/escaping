@@ -51,7 +51,7 @@ def source_consumer(tmp_path: Path) -> tuple[Path, Path, dict[str, str], list[st
         "--no-default-groups",
         "--no-editable",
         "--no-build-isolation-package",
-        "escpe",
+        "escaping-site",
     ]
     return source, venv, env, command
 
@@ -80,21 +80,21 @@ import importlib.metadata as metadata
 import json
 import sys
 from pathlib import Path
-import escpe
+import escaping_site
 
 # Check top-level distributions before setuptools exposes its vendored wheel.
 assert not any(d.metadata['Name'].lower() in {'wheel', 'pytest'} for d in metadata.distributions())
 import setuptools
 
 assert sys.prefix != sys.base_prefix
-for module in (escpe, setuptools):
+for module in (escaping_site, setuptools):
     assert Path(module.__file__).resolve().is_relative_to(Path(sys.prefix).resolve())
-distribution = metadata.distribution('escpe')
+distribution = metadata.distribution('escaping-site')
 assert all(not requirement.lower().startswith(('setuptools', 'wheel')) for requirement in distribution.requires)
 assert not json.loads(distribution.read_text('direct_url.json'))['dir_info'].get('editable', False)
 assert metadata.version('setuptools') == sys.argv[1]
 assert distribution.read_text('WHEEL').split('Generator: ')[1].splitlines()[0] == 'setuptools (' + sys.argv[1] + ')'
-print(json.dumps({'python': sys.version, 'backend': metadata.version('setuptools'), 'escaping': escpe.__file__, 'wheel': distribution.read_text('WHEEL')}))
+print(json.dumps({'python': sys.version, 'backend': metadata.version('setuptools'), 'escaping': escaping_site.__file__, 'wheel': distribution.read_text('WHEEL')}))
 """
     # The installed package must keep working after its source disappears.
     source.rename(source.with_name("unavailable-source"))
@@ -107,7 +107,9 @@ print(json.dumps({'python': sys.version, 'backend': metadata.version('setuptools
         check=True,
     )
     assert json.loads(installed.stdout)["python"].split()[0] == sys.version.split()[0]
-    console = bin_dir / ("escpe.exe" if sys.platform == "win32" else "escpe")
+    console = bin_dir / (
+        "escaping-site.exe" if sys.platform == "win32" else "escaping-site"
+    )
     help_result = subprocess.run(  # noqa: S603
         [str(console), "--help"],
         cwd=source.parent,
@@ -160,7 +162,7 @@ def test_source_install_rejects_broken_prerequisites(
     assert (source / "uv.lock").read_bytes() == before
     bin_dir = venv / ("Scripts" if sys.platform == "win32" else "bin")
     assert not (
-        bin_dir / ("escpe.exe" if sys.platform == "win32" else "escpe")
+        bin_dir / ("escaping-site.exe" if sys.platform == "win32" else "escaping-site")
     ).exists()
     (source.parent / "failure.log").write_text(result.stderr)
 

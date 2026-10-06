@@ -42,11 +42,11 @@ jobs:
       - name: Run tests
         run: uv run pytest -q -ra
       - name: Check lint
-        run: uv run ruff check src/escpe tests
+        run: uv run ruff check src/escaping_site tests
       - name: Check formatting
-        run: uv run ruff format --check src/escpe tests
+        run: uv run ruff format --check src/escaping_site tests
       - name: Check types
-        run: uv run ty check src/escpe tests
+        run: uv run ty check src/escaping_site tests
       - name: Check committed diff whitespace
         env:
           EVENT_NAME: ${{ github.event_name }}

@@ -18,7 +18,7 @@ from pathlib import Path
 import pytest
 import yaml
 
-from escpe.config import read_platform_context
+from escaping_site.config import read_platform_context
 
 _ROOT = Path(__file__).parent.parent.absolute()
 _STARTER = _ROOT / "starter"
@@ -161,10 +161,7 @@ def test_action_and_starter_pin_code_and_scope_permissions() -> None:
     assert site["id"] == "site"
     assert site["env"] == {"GITHUB_TOKEN": "${{ github.token }}"}
     # The package at the version of this release, from PyPI.
-    assert (
-        f"uvx --from 'escpe=={version}' escpe build --config config.yaml"
-        in (site["run"])
-    )
+    assert f"uvx escaping-site@{version} build --config config.yaml" in (site["run"])
     upload = jobs["build"]["steps"][-1]
     assert upload["with"]["path"] == "${{ steps.site.outputs.output }}"
     assert yaml.safe_load((_STARTER / "config.yaml").read_text()) == {}
@@ -231,8 +228,8 @@ def test_build_step_passes_inputs_as_arguments_and_maps_skipped_to_success(
         "--group",
         "build",
         "--no-build-isolation-package",
-        "escpe",
-        "escpe",
+        "escaping-site",
+        "escaping-site",
         "build",
         "--config",
         "my site/config.yaml",
@@ -292,10 +289,11 @@ def test_label_job_creates_only_missing_labels_and_tolerates_races(
 
 _FAKE_UVX = r"""#!/usr/bin/env bash
 # Stand-in for PyPI: run this checkout where the workflow asks for the release.
-[ "$1" = --from ] && [ "$2" = "escpe==$EXPECTED_VERSION" ] || { echo "unexpected: $*" >&2; exit 64; }
-shift 2
+[ "$1" = "escaping-site@$EXPECTED_VERSION" ] || { echo "unexpected: $*" >&2; exit 64; }
+shift
+set -- escaping-site "$@"
 exec uv run --project "$ESCPE_SOURCE" --locked --no-default-groups --group build \
-  --no-build-isolation-package escpe "$@"
+  --no-build-isolation-package escaping-site "$@"
 """
 
 

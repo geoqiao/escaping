@@ -59,11 +59,11 @@ Fields that moved in 0.2 are listed in the
 ## CLI inputs
 
 ```text
-escpe build        [--config FILE] [--issues-json FILE] [--context FILE] [--repo OWNER/NAME] [--token-env NAME]
-escpe theme check  [--config FILE] [--issues-json FILE]
+escaping-site build        [--config FILE] [--issues-json FILE] [--context FILE] [--repo OWNER/NAME] [--token-env NAME]
+escaping-site theme check  [--config FILE] [--issues-json FILE]
 ```
 
-`build` is the default, so `escpe --config config.yaml` also builds.
+`build` is the default, so `escaping-site --config config.yaml` also builds.
 `--config` defaults to `config.yaml` in the current directory.
 
 | Exit status | Meaning |
@@ -139,7 +139,7 @@ fill the title, author, avatar and bio from your public profile:
 
 ```bash
 export GITHUB_TOKEN=...   # or the variable named in security.token_env
-uv run escpe build --config ../my-site/config.yaml
+uv run escaping-site build --config ../my-site/config.yaml
 ```
 
 **Offline.** Save the Issues once with the [GitHub CLI](https://cli.github.com/)
@@ -150,7 +150,7 @@ strings are fine). The error message lists what is missing.
 
 ```bash
 gh api --paginate --slurp 'repos/OWNER/REPO/issues?state=all&per_page=100' > ../my-site/issues.json
-uv run escpe build --config ../my-site/config.yaml --issues-json ../my-site/issues.json
+uv run escaping-site build --config ../my-site/config.yaml --issues-json ../my-site/issues.json
 ```
 
 Projects are not enriched from GitHub in an offline build; they use the
@@ -174,13 +174,13 @@ uv run python -m http.server 8000 --directory ../preview
 
 and open <http://localhost:8000/notes/>.
 
-**Check a Theme.** `escpe theme check` renders a few sample Issues (a post
+**Check a Theme.** `escaping-site theme check` renders a few sample Issues (a post
 with a table, code and a Mermaid diagram, an Idea and an About) with your
 Theme and options. It needs no token or network, and also reports SEO
 warnings that a normal build does not check:
 
 ```bash
-uv run escpe theme check --config ../my-site/config.yaml
+uv run escaping-site theme check --config ../my-site/config.yaml
 ```
 
 Add `--issues-json` to check with your real Issues instead.
@@ -189,7 +189,7 @@ Add `--issues-json` to check with your real Issues instead.
 `_site`, `public`, `dist` or `build` (or a directory inside one of them),
 relative to the Config file. escaping writes a `.escaping-output` file into
 it. A build refuses to replace a non-empty directory without that file, so it
-never deletes files it did not write. An output directory from escpe 0.1
+never deletes files it did not write. An output directory from escaping_site 0.1
 has no marker: move out anything you want to keep and delete it once.
 
 ## Missing-field sources
@@ -436,7 +436,7 @@ Automation that needs the token variable name can reuse the same parser:
 
 ```python
 from pathlib import Path
-from escpe.config import read_config_overrides, security_from_config
+from escaping_site.config import read_config_overrides, security_from_config
 
 overrides = read_config_overrides(Path("site/config.yaml"))
 token_env = security_from_config(overrides).token_env

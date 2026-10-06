@@ -8,16 +8,16 @@ from pathlib import Path
 
 import yaml
 
-from escpe.config import (
+from escaping_site.config import (
     PlatformContext,
     RepositoryIdentity,
     Settings,
     read_config_overrides,
     validate_config_overrides,
 )
-from escpe.services.github_service import PublicProfile
-from escpe.site_compiler import prepare_theme
-from escpe.site_inputs import resolve_settings
+from escaping_site.services.github_service import PublicProfile
+from escaping_site.site_compiler import prepare_theme
+from escaping_site.site_inputs import resolve_settings
 
 _PROJECT_ROOT = Path(__file__).parent.parent
 _CONFIG_EXAMPLE = _PROJECT_ROOT / "config.example.yaml"

@@ -70,7 +70,7 @@ strings:
 Keep any `{name}` placeholder in the text, such as `{count}` in
 `search_count`; Quiet fills it in. The English and Chinese wording of every
 key is in Quiet's
-[`theme.yaml`](../../src/escpe/themes/quiet/theme.yaml). The keys, by
+[`theme.yaml`](../../src/escaping_site/themes/quiet/theme.yaml). The keys, by
 where they appear:
 
 | Where | Keys |

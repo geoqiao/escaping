@@ -84,22 +84,22 @@ def test_wheel_consumer_builds_site_outside_checkout(
     version = tomllib.loads((_PROJECT_ROOT / "pyproject.toml").read_text())["project"][
         "version"
     ]
-    assert f"Name: escpe\nVersion: {version}\n" in metadata
+    assert f"Name: escaping-site\nVersion: {version}\n" in metadata
     assert "Requires-Python: >=3.12\n" in metadata
     assert "Requires-Dist: nh3==0.3.7\n" in metadata
     assert "Requires-Dist: pygments==2.21.0\n" in metadata
-    assert "escpe = escpe.cli:run_cli\n" in entry_points
-    assert {n.split("/")[2] for n in names if n.startswith("escpe/themes/")} == {
-        "quiet"
-    }
+    assert "escaping-site = escaping_site.cli:run_cli\n" in entry_points
     assert {
-        "escpe/themes/quiet/theme.yaml",
-        "escpe/themes/quiet/404.html",
-        "escpe/themes/quiet/static/css/syntax.css",
-        "escpe/static/comments.js",
-        "escpe/static/mermaid.js",
-        "escpe/static/mermaid/mermaid.min.js",
-        "escpe/static/mermaid/LICENSE",
+        n.split("/")[2] for n in names if n.startswith("escaping_site/themes/")
+    } == {"quiet"}
+    assert {
+        "escaping_site/themes/quiet/theme.yaml",
+        "escaping_site/themes/quiet/404.html",
+        "escaping_site/themes/quiet/static/css/syntax.css",
+        "escaping_site/static/comments.js",
+        "escaping_site/static/mermaid.js",
+        "escaping_site/static/mermaid/mermaid.min.js",
+        "escaping_site/static/mermaid/LICENSE",
     } <= names
     assert any(name.endswith("/NOTICE.md") for name in names)
     assert not any(name.endswith((".so", ".dylib", ".pyd")) for name in names)
@@ -113,11 +113,11 @@ def test_wheel_consumer_builds_site_outside_checkout(
         subprocess.run(  # noqa: S603
             command, cwd=tmp_path, check=True, capture_output=True, text=True, env=env
         )
-    escpe = venv / "bin/escpe"
+    command_path = venv / "bin/escaping-site"
 
     def run(*args: str, **extra: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(  # noqa: S603 - installed console only
-            [str(escpe), *args],
+            [str(command_path), *args],
             cwd=tmp_path,
             env={**env, **extra},
             capture_output=True,
@@ -270,7 +270,7 @@ def test_wheel_consumer_builds_site_outside_checkout(
     original = b"---\r\ntitle: Draft\r\ntype: blog\r\n---\r\n\r\nBody.\r\n"
     draft.write_bytes(original)
     checked = subprocess.run(  # noqa: S603
-        [str(venv / "bin/python"), "-I", "-m", "escpe.local_draft", str(draft)],
+        [str(venv / "bin/python"), "-I", "-m", "escaping_site.local_draft", str(draft)],
         cwd=tmp_path,
         env=env,
         capture_output=True,

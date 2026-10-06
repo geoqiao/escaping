@@ -59,8 +59,8 @@ runs:
         set -euo pipefail
         status=0
         uv run --project "$GITHUB_ACTION_PATH" --locked --python 3.14 \
-          --no-default-groups --group build --no-build-isolation-package escpe \
-          escpe build --config "$ESCAPING_CONFIG" \
+          --no-default-groups --group build --no-build-isolation-package escaping-site \
+          escaping-site build --config "$ESCAPING_CONFIG" \
           --context "$RUNNER_TEMP/escaping-context.json" --token-env ESCAPING_TOKEN \
           || status=$?
         # 2: published, but some Issues were skipped; the skipped-issues output says which.

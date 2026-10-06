@@ -36,7 +36,7 @@ Blog、Ideas、Projects、About、Tags 和 RSS，无需另建一套内容管理�
 2. 保存一个带标题和 Markdown 正文的 Issue。workflow 的 `labels` 任务会在首次运行时创建发布标签；看不到时刷新 Issue 页面。
 3. 添加一个 `type:blog`、`type:idea` 或 `type:about`，准备好后添加 `published`，在 Actions 中查看部署结果。
 
-workflow 从 PyPI 安装固定版本的 `escpe` 包并运行（`uvx --from 'escpe==0.6.0' escpe build`），站点仓库里不需要任何脚本。
+workflow 从 PyPI 安装固定版本的 `escaping-site` 包并运行（`uvx escaping-site@0.6.0 build`），站点仓库里不需要任何脚本。
 仓库也可以不叫 `username.github.io`：这时网站在 `username.github.io/仓库名/` 下，escaping 会自动处理这个子路径。
 详细操作、版本与失败恢复以[模板说明](https://github.com/geoqiao/escaping/blob/main/starter/README.md)为准。
 
@@ -82,7 +82,7 @@ theme:
 | 外观 | 见下方“换外观” |
 | 社交预览图 | 在 `seo.social_image` 配置 HTTPS 或 Theme 资源 URL（如 `/assets/images/og.png`）；Quiet 会输出 Open Graph/Twitter 图片标签 |
 | 评论 | 默认关闭；设置 `comments.enabled: true`，并另行完成 [Utterances App 授权](https://github.com/apps/utterances)；Profile About 永远无评论 |
-| 用别的工具建站 | `escpe export` 把已发布的 Issue 写成 Markdown 文件，交给 Astro 等工具渲染；见 [Content Export v1](https://github.com/geoqiao/escaping/blob/main/docs/contracts/content-export-v1.md) |
+| 用别的工具建站 | `escaping-site export` 把已发布的 Issue 写成 Markdown 文件，交给 Astro 等工具渲染；见 [Content Export v1](https://github.com/geoqiao/escaping/blob/main/docs/contracts/content-export-v1.md) |
 | 本地构建 | 需要 Python 3.12 或更高版本和 uv；有 Token 时直接读 Issues，没有 Token 可用 `--issues-json` 离线构建，见[本地构建步骤](https://github.com/geoqiao/escaping/blob/main/docs/site-inputs.md#local-build) |
 
 写错字段名会报错并提示正确写法；报错不会回显你填的值。
@@ -101,7 +101,7 @@ theme:
 
 网站有哪些页面、地址是什么，由你博客仓库里的 `config.yaml` 决定：`pages` 可以关掉或挪动某个页面、加上 `/now/` 这样的额外页面，`redirects` 让旧地址跳到新地址。见 [页面](https://github.com/geoqiao/escaping/blob/main/docs/site-inputs.md#pages)。
 
-改完后运行 `escpe theme check --config config.yaml`：它用示例内容离线渲染每个页面，不需要 Token，并报告 Theme 的问题。
+改完后运行 `escaping-site theme check --config config.yaml`：它用示例内容离线渲染每个页面，不需要 Token，并报告 Theme 的问题。
 
 ## 升级
 
@@ -114,7 +114,7 @@ theme:
 
 [维护者入口](https://github.com/geoqiao/escaping/blob/main/docs/dual-repo-architecture.md)汇总架构、契约、测试和 ADR；Agent 使用 [AGENTS.md](https://github.com/geoqiao/escaping/blob/main/AGENTS.md)。
 站点 workflow 的写法以 [starter workflow](https://github.com/geoqiao/escaping/blob/main/starter/.github/workflows/pages.yml) 为准，复制后由站点仓库维护；
-生成器是 PyPI 上的 `escpe` 包。生成器升级、本地 Theme 迁移与生产部署是分开的操作。
+生成器是 PyPI 上的 `escaping-site` 包。生成器升级、本地 Theme 迁移与生产部署是分开的操作。
 
 ## License
 

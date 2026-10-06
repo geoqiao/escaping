@@ -17,7 +17,7 @@ Atom、sitemap、robots、搜索索引和旧地址跳转页。
   检查站内链接和资源、安全地替换输出目录。
 - 主题负责：页面长什么样、放哪些 SEO 标签、界面文字、主题自己的选项；只需
   `blog.html` 和 `post.html`，其余页面按固定规则退回这两个模板。
-- `escpe export` 是另一个出口：同一套内容规则，只写 Markdown 和 manifest，不加载
+- `escaping-site export` 是另一个出口：同一套内容规则，只写 Markdown 和 manifest，不加载
   主题、不产生页面；渲染及其安全由使用导出的站点负责。
 - 站点仓库负责：真实 `config.yaml`（包括有哪些页面、地址、额外页面和旧地址跳转）、
   可选的本地主题、Pages workflow 和 `CNAME`。
@@ -26,7 +26,7 @@ Atom、sitemap、robots、搜索索引和旧地址跳转页。
 
 - 生成器拥有 compiler、models、`config.example.yaml`、内置主题 Quiet 和可复用
   Action（`action.yml`）；
-- 站点仓库 pin PyPI 上的 `escpe==X.Y.Z`（打 tag 时由 `.github/workflows/release.yml` 发布），
+- 站点仓库 pin PyPI 上的 `escaping-site@X.Y.Z`（打 tag 时由 `.github/workflows/release.yml` 发布），
   构建整站和只导出内容都一样；生产 workflow 使用短期
   `GITHUB_TOKEN`，不得硬编码 PAT。
 
@@ -72,7 +72,7 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
    或 GitHub 地址。模板在 Jinja 沙箱里运行（构建进程持有 token），不得为主题放宽。
 8. 主题静态文件发布在 `/assets/`，生成器共享脚本（评论、Mermaid）在
    `/assets/escaping/`；主题不得占用 `static/escaping/`。
-9. Utterances 行为位于共享 `src/escpe/static/comments.js`。必须保留：
+9. Utterances 行为位于共享 `src/escaping_site/static/comments.js`。必须保留：
    - immutable Issue number binding；
    - `postMessage` + `MutationObserver` 自动主题同步；
    - message origin/source 校验；
@@ -84,7 +84,7 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
     编号，照常发布其余内容，CLI 以状态码 2 结束。Config、主题、About 选择、站点级
     路由冲突属于整站错误，不发布。
 12. 构建时检查只管完整性：每个路由都有文件、站内链接和资源不断、输出不越界。
-    SEO 标签是否规范由主题自己的测试和 `escpe theme check` 负责，不在每次构建拦截。
+    SEO 标签是否规范由主题自己的测试和 `escaping-site theme check` 负责，不在每次构建拦截。
 13. 不得弱化 HTML sanitizer、output containment、输出目录归属检查或 staged output
     publication；输出目录里不是本工具生成的文件时拒绝覆盖。
 14. GitHub Token 环境变量名由 `security.token_env` 决定。
@@ -92,8 +92,8 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
 ## 当前结构
 
 ```text
-src/escpe/              # 按构建顺序
-├── cli.py                 # escpe build / escpe export / escpe theme check
+src/escaping_site/              # 按构建顺序
+├── cli.py                 # escaping-site build / escaping-site export / escaping-site theme check
 ├── site_compiler.py       # 预检 → 拉取 → 编译 → 渲染 → 校验 → 发布
 ├── config.py              # 站点层 Config
 ├── site_inputs.py         # 从仓库和 GitHub 资料补全缺省的 Config 值
@@ -103,7 +103,7 @@ src/escpe/              # 按构建顺序
 ├── services/              # github_service.py 读 Issue；render_service.py 渲染
 ├── content_compiler.py    # Issue → Blog/Idea/About，坏 Issue 跳过
 ├── content_validation.py  # Issue 与本地草稿共用的内容规则、Markdown 渲染
-├── content_export.py      # escpe export：编译后的内容写成 Markdown + manifest
+├── content_export.py      # escaping-site export：编译后的内容写成 Markdown + manifest
 ├── projects.py            # config 里的 Projects
 ├── site_builder.py        # SiteModel：固定页面、额外页面、导航、跳转页、Blog 分页、标签
 ├── routes.py              # RouteRegistry
@@ -111,7 +111,7 @@ src/escpe/              # 按构建顺序
 ├── artifact_validation.py # 替换线上产物前的完整性检查
 ├── output_staging.py      # 先写临时目录，成功后替换
 ├── build_result.py        # Diagnostic 与退出码
-├── local_draft.py         # 本地草稿检查（python -m escpe.local_draft）
+├── local_draft.py         # 本地草稿检查（python -m escaping_site.local_draft）
 ├── utils/                 # front matter 解析、HTML sanitizer
 ├── models/
 ├── static/                # comments.js、mermaid.js、mermaid/（发布到 /assets/escaping/）
@@ -159,7 +159,7 @@ tests/
 
 ## Themes
 
-内置主题位于 `src/escpe/themes/<name>/`，每个主题包含 `theme.yaml`、页面模板和
+内置主题位于 `src/escaping_site/themes/<name>/`，每个主题包含 `theme.yaml`、页面模板和
 `static/`。Quiet 拆分为小的 partial 模板，方便站点用 `extends: quiet` 只覆盖一个文件；
 重命名或删除 Quiet 的 partial、选项或字符串 key 属于破坏性变更，需写入 CHANGELOG。
 
@@ -177,6 +177,6 @@ tests/
 - `geoqiao.github.io` 的发布源是 GitHub Pages artifact，不是 `main` 根目录。
 - 跨仓库迁移分支可以 push；未经单独确认不得 merge `main`、运行生产 deploy 或改变
   Pages 设置。
-- 站点 workflow 运行 PyPI 上固定版本的 `escpe` 包（`uvx --from 'escpe==X.Y.Z' escpe build`），
+- 站点 workflow 运行 PyPI 上固定版本的 `escaping-site` 包（`uvx escaping-site@X.Y.Z build`），
   显式传入站点 Config，并上传 Config-relative `output/`；已有站点仍可用 Action。
 - 生成器与站点不能原子变更；先验证兼容 consumer，再更新站点 pin，最后部署。

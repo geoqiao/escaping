@@ -14,7 +14,7 @@ import pytest
 from marko import Markdown
 from marko.ext.gfm import GFM
 
-from escpe.utils.html_sanitizer import sanitize_html
+from escaping_site.utils.html_sanitizer import sanitize_html
 
 
 @pytest.mark.parametrize(

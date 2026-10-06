@@ -55,7 +55,7 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           status=0
-          uvx --from 'escpe==0.6.0' escpe build --config config.yaml || status=$?
+          uvx escaping-site@0.6.0 build --config config.yaml || status=$?
           # 2: published, but some Issues were skipped; the deploy job reports them.
           if [ "$status" -eq 2 ]; then exit 0; fi
           exit "$status"

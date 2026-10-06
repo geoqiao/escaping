@@ -13,7 +13,7 @@ nothing to do with how pages are drawn.
 
 ## Decision
 
-**`escpe export` writes the published Issue Content as Markdown files.** One
+**`escaping-site export` writes the published Issue Content as Markdown files.** One
 file per Blog post, Idea and About Issue, with resolved front matter, and a
 `manifest.json`; the files are defined by
 [Content Export v1](../contracts/content-export-v1.md).
@@ -31,11 +31,10 @@ how content looks, which is what the export hands over.
 rename, and marked with `.escaping-output`. It must not overlap
 `paths.output`.
 
-**The export is delivered as the `escpe` package on PyPI, not as a second
+**The export is delivered as the `escaping-site` package on PyPI, not as a second
 Action.** The existing Action exists because a build needs the Pages settings
 of the repository; an export needs nothing from the platform, so an Action
-would only wrap one command. A workflow runs `uvx --from 'escpe==X.Y.Z' escpe
-export`, and the same line works on a laptop. The existing Action is
+would only wrap one command. A workflow runs `uvx escaping-site@X.Y.Z export`, and the same line works on a laptop. The existing Action is
 unchanged.
 
 ## Consequences

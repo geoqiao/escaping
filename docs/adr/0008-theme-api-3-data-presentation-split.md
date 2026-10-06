@@ -42,7 +42,7 @@ and `t` (strings for the site language). Theme static files are published at
 **Build-time checks cover integrity, not style.** Every build still checks
 that each route has an output, that internal links and assets resolve and that
 output stays inside its owned directory. Canonical/Open Graph conformance
-moves to the offline `escpe theme check`, which renders a Theme against
+moves to the offline `escaping-site theme check`, which renders a Theme against
 synthetic content.
 
 **One bad Issue skips that Issue.** Content errors in a Blog or Idea Issue

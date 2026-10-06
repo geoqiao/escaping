@@ -1,4 +1,4 @@
-"""Content Export: ``escpe export`` writes published Issues as Markdown files.
+"""Content Export: ``escaping-site export`` writes published Issues as Markdown files.
 
 Selection and content rules belong to ``test_content_compiler.py``; these
 tests own the exported files and the export directory.
@@ -12,8 +12,8 @@ from pathlib import Path
 import pytest
 import yaml
 
-from escpe.cli import main
-from escpe.output_staging import OUTPUT_MARKER
+from escaping_site.cli import main
+from escaping_site.output_staging import OUTPUT_MARKER
 
 _CONFIG = """\
 github:

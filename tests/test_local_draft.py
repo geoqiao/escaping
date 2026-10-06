@@ -8,9 +8,9 @@ from pathlib import Path
 
 import pytest
 
-from escpe.content_validation import validate_authored_content
-from escpe.local_draft import prepare_local_draft
-from escpe.utils.frontmatter import parse_front_matter, parse_yaml_envelope
+from escaping_site.content_validation import validate_authored_content
+from escaping_site.local_draft import prepare_local_draft
+from escaping_site.utils.frontmatter import parse_front_matter, parse_yaml_envelope
 
 
 @pytest.mark.parametrize("ending", ["\n", "\r\n", "\r"])
@@ -149,7 +149,7 @@ def test_module_is_read_only_without_gh_credentials_or_source_cwd(
     for content, expected in ((raw, 0), (b"not a draft", 1), (b"\xff", 1)):
         draft.write_bytes(content)
         result = subprocess.run(  # noqa: S603
-            [sys.executable, "-m", "escpe.local_draft", str(draft)],
+            [sys.executable, "-m", "escaping_site.local_draft", str(draft)],
             cwd=tmp_path,
             env=env,
             capture_output=True,

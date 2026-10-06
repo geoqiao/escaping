@@ -16,11 +16,16 @@ from pathlib import Path
 
 import pytest
 
-from escpe.artifact_validation import SiteArtifactValidator, audit_seo
-from escpe.config import Settings
-from escpe.models.issue_snapshot import IssueSnapshot
-from escpe.models.site import SiteModel
-from escpe.site_compiler import check_theme, compile_site, prepare_theme, render_site
+from escaping_site.artifact_validation import SiteArtifactValidator, audit_seo
+from escaping_site.config import Settings
+from escaping_site.models.issue_snapshot import IssueSnapshot
+from escaping_site.models.site import SiteModel
+from escaping_site.site_compiler import (
+    check_theme,
+    compile_site,
+    prepare_theme,
+    render_site,
+)
 
 _ROOT = Path(__file__).parent.parent.absolute()
 _NOW = datetime(2026, 1, 20, tzinfo=UTC)
@@ -594,7 +599,9 @@ def test_quiet_runtime_dependencies_are_local(tmp_path: Path) -> None:
 
 
 def test_quiet_favicon_is_a_valid_search_eligible_png() -> None:
-    favicon = (_ROOT / "src/escpe/themes/quiet/static/images/favicon.png").read_bytes()
+    favicon = (
+        _ROOT / "src/escaping_site/themes/quiet/static/images/favicon.png"
+    ).read_bytes()
 
     assert favicon.startswith(b"\x89PNG\r\n\x1a\n")
     width, height = struct.unpack(">II", favicon[16:24])
@@ -602,7 +609,7 @@ def test_quiet_favicon_is_a_valid_search_eligible_png() -> None:
 
 
 def test_shared_mermaid_loader_preserves_lazy_and_security_contract() -> None:
-    script = (_ROOT / "src/escpe/static/mermaid.js").read_text(encoding="utf-8")
+    script = (_ROOT / "src/escaping_site/static/mermaid.js").read_text(encoding="utf-8")
 
     assert "if (!loader || !runtimeSrc || !codeBlocks.length) return;" in script
     assert 'securityLevel: "strict"' in script

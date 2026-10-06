@@ -12,14 +12,14 @@ from unittest.mock import patch
 
 import pytest
 
-from escpe.config import Settings
-from escpe.models.issue_snapshot import IssueSnapshot
-from escpe.output_staging import (
+from escaping_site.config import Settings
+from escaping_site.models.issue_snapshot import IssueSnapshot
+from escaping_site.output_staging import (
     OUTPUT_MARKER,
     OutputStagingError,
     OutputStagingService,
 )
-from escpe.site_compiler import SiteCompiler
+from escaping_site.site_compiler import SiteCompiler
 
 
 def _snapshot(number: int, body: str, *, kind: str = "blog") -> IssueSnapshot:
@@ -147,7 +147,7 @@ def test_failed_promotion_restores_previous_output(tmp_path: Path) -> None:
 
     with (
         patch(
-            "escpe.output_staging.os.rename",
+            "escaping_site.output_staging.os.rename",
             side_effect=fail_candidate_promotion,
         ),
         pytest.raises(OutputStagingError, match="restored previous output"),
@@ -179,7 +179,7 @@ def test_failed_rollback_preserves_recovery_trees_and_reports_paths(
         real_rename(source, destination)
 
     with patch(
-        "escpe.output_staging.os.rename",
+        "escaping_site.output_staging.os.rename",
         side_effect=fail_publication_and_rollback,
     ):
         result = _compiler(tmp_path, [_ABOUT]).generate()
@@ -209,7 +209,7 @@ def test_backup_cleanup_failure_warns_after_successful_publication(
     (staging / "index.html").write_text("new", encoding="utf-8")
 
     with patch(
-        "escpe.output_staging.shutil.rmtree",
+        "escaping_site.output_staging.shutil.rmtree",
         side_effect=OSError("injected cleanup failure"),
     ):
         diagnostics = service.publish(staging)
@@ -295,7 +295,7 @@ def test_publish_reports_concurrent_disappearance_during_backup_reservation(
         return stat.st_dev, stat.st_ino
 
     with (
-        patch("escpe.output_staging._st_identity", side_effect=disappear),
+        patch("escaping_site.output_staging._st_identity", side_effect=disappear),
         pytest.raises(OutputStagingError, match="concurrent local builds"),
     ):
         service.publish(staging)

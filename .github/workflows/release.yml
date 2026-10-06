@@ -1,6 +1,6 @@
 name: Release
 
-# Pushing a version tag publishes the escpe package to PyPI.
+# Pushing a version tag publishes the escaping-site package to PyPI.
 on:
   push:
     tags: ["v*"]
@@ -38,7 +38,7 @@ jobs:
       - name: Run the built wheel
         run: |
           set -euo pipefail
-          uv run --isolated --no-project --python 3.14 --with dist/*.whl escpe export --help > /dev/null
+          uv run --isolated --no-project --python 3.14 --with dist/*.whl escaping-site export --help > /dev/null
       - name: Keep the package for the publish job
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
@@ -55,7 +55,7 @@ jobs:
     # PyPI trusts this workflow and this environment; no token is stored.
     environment:
       name: pypi
-      url: https://pypi.org/project/escpe/
+      url: https://pypi.org/project/escaping-site/
     permissions:
       id-token: write
     steps:

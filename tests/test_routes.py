@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import pytest
 
-from escpe.routes import RouteCollisionError, RouteRegistry
+from escaping_site.routes import RouteCollisionError, RouteRegistry
 
 
 def test_registry_covers_routes_and_output_mapping() -> None:

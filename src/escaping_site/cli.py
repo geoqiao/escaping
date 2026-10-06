@@ -1,5 +1,5 @@
-"""Command line: ``escpe build`` (the default), ``escpe export`` and
-``escpe theme check``.
+"""Command line: ``escaping-site build`` (the default), ``escaping-site export`` and
+``escaping-site theme check``.
 
 Exit status: 0 published, 1 failed (nothing published), 2 published but some
 Issues were skipped because of their own errors.
@@ -44,7 +44,7 @@ EXIT_SKIPPED = 2
 def run_cli(argv: Sequence[str] | None = None) -> None:
     # Progress lines, such as the commit of a downloaded Theme, go to stderr.
     logging.basicConfig(format="%(message)s")
-    logging.getLogger("escpe").setLevel(logging.INFO)
+    logging.getLogger("escaping_site").setLevel(logging.INFO)
     sys.exit(main(argv))
 
 
@@ -62,7 +62,7 @@ def main(argv: Sequence[str] | None = None) -> int:
 
 def _parser() -> argparse.ArgumentParser:
     parser = argparse.ArgumentParser(
-        prog="escpe", description="Build a website from GitHub Issues."
+        prog="escaping-site", description="Build a website from GitHub Issues."
     )
     commands = parser.add_subparsers(dest="command", required=True)
     build = commands.add_parser("build", help="build and publish the site (default)")

@@ -603,10 +603,10 @@ the previously published output unchanged.
 The build does not check titles, descriptions, canonical links or structured
 data. How a Theme writes its `<head>` is up to the Theme.
 
-### escpe theme check
+### escaping-site theme check
 
 ```bash
-escpe theme check --config config.yaml
+escaping-site theme check --config config.yaml
 ```
 
 This renders the site offline with sample Issues (enough Blog posts for two
@@ -659,7 +659,7 @@ each Theme folder:
   options, and the `pages.extra` lines for any extra-page templates it ships;
 - a license in the folder itself, since people may copy just that folder.
 
-Before you publish, run `escpe theme check` with at least two configs, each
+Before you publish, run `escaping-site theme check` with at least two configs, each
 with every page your Theme has templates for turned on and the rest off: one at
 the root of a host, and one under a path
 (`site.url: https://example.github.io/demo/`).
@@ -682,7 +682,7 @@ theme:
 
 Leave out `/paper` when the Theme is the whole repository. The version after
 `@` is a tag, a branch or a full commit SHA; it is required. At the start of
-every build and `escpe theme check`, escaping downloads the repository at that
+every build and `escaping-site theme check`, escaping downloads the repository at that
 version from GitHub, without a token, and uses only that folder; the download
 is deleted when the build ends. Only public repositories work. Set the options
 from the Theme's README under `theme.options` as usual.
@@ -738,7 +738,7 @@ only the rows that name API 3.
 | `{{ theme_path }}/static/…` (`/templates/<name>/static/…`); API 3: `href="/assets/…"` | `href="{{ '/assets/…'\|url }}"`, needed for sites under a path |
 | Shared `…/static/js/comments.js`, `…/static/js/mermaid.js`, `…/static/vendor/mermaid-11.16.1/mermaid.min.js` | `/assets/escaping/comments.js`, `/assets/escaping/mermaid.js`, `/assets/escaping/mermaid/mermaid.min.js`, each through `\|url` |
 | Page variables defined only on some templates | Every page gets the same `page` object; unused fields are `none` |
-| Build failed on canonical, social URL and JSON-LD problems | `escpe theme check` warns; the build checks integrity only |
+| Build failed on canonical, social URL and JSON-LD problems | `escaping-site theme check` warns; the build checks integrity only |
 | Quiet's interface was English for every language | `site.language: zh` or `zh-CN` switches Quiet to Chinese |
 | `site.routes.<name>` always set | `none` when the site turns that page off; guard links with `{% if site.routes.tags %}` |
 | `site.about` always set | `none` when `pages.about: false` |
@@ -800,5 +800,5 @@ unchanged; it never falls back to Quiet silently.
 
 Assets of the copied Theme move from `/templates/<name>/static/` to
 `/assets/`. Upgrade escaping, the Config and the local Theme together, check
-them with `escpe theme check` and a local build, and deploy separately; see
+them with `escaping-site theme check` and a local build, and deploy separately; see
 [deployment](../deployment.md).

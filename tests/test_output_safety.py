@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from escpe.output_safety import (
+from escaping_site.output_safety import (
     OutputContainmentError,
     validate_output_containment,
 )

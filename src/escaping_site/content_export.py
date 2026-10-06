@@ -1,7 +1,7 @@
 """Content Export: published Issue Content as Markdown files.
 
 For a site built with another tool. Selection, defaults and content rules are
-the Content Compiler's, so an Issue is exported exactly when ``escpe build``
+the Content Compiler's, so an Issue is exported exactly when ``escaping-site build``
 would publish it. No Theme is loaded and no page is rendered; the files and
 their fields are defined in docs/contracts/content-export-v1.md.
 

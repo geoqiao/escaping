@@ -96,7 +96,7 @@ here with:
 - one or two sentences on how it looks and which pages it has;
 - a screenshot at that same version.
 
-Before you open it, run `escpe theme check` on the Theme at the root of a host
+Before you open it, run `escaping-site theme check` on the Theme at the root of a host
 and under a path (see [Sharing a Theme](authoring.md#sharing-a-theme)).
 Listing a Theme here does not mean escaping has reviewed its code; read a
 Theme before you use it (see [Security](authoring.md#security)).

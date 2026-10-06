@@ -3,7 +3,7 @@ requires = ["setuptools>=77"]
 build-backend = "setuptools.build_meta"
 
 [project]
-name = "escpe"
+name = "escaping-site"
 version = "0.6.0"
 description = "An opinionated GitHub Issues personal-site generator"
 readme = "README.md"
@@ -35,10 +35,10 @@ Changelog = "https://github.com/geoqiao/escaping/blob/main/CHANGELOG.md"
 Issues = "https://github.com/geoqiao/escaping/issues"
 
 [project.scripts]
-escpe = "escpe.cli:run_cli"
+escaping-site = "escaping_site.cli:run_cli"
 
 [tool.setuptools.package-data]
-escpe = [
+escaping_site = [
     "static/*.js",
     "static/mermaid/*",
     "themes/**/*",

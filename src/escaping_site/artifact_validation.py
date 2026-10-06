@@ -3,7 +3,7 @@
 ``SiteArtifactValidator`` checks integrity only: every Route has its file, no
 stray HTML, and internal links and resources resolve. How a Theme writes its
 SEO tags is its own concern; ``audit_seo`` reports that as warnings for
-``escpe theme check``.
+``escaping-site theme check``.
 """
 
 from __future__ import annotations

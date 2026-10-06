@@ -33,7 +33,7 @@ No local Python, PAT, or manually created publishing labels are required.
 2. Save an Issue with a title and Markdown body. The workflow's `labels` job creates the publishing labels on its first run; refresh the Issue page if you do not see them.
 3. Add one of `type:blog`, `type:idea`, or `type:about`, plus `published` when ready, and check the deployment in Actions.
 
-The workflow installs the `escpe` package from PyPI at a fixed version and runs it (`uvx --from 'escpe==0.6.0' escpe build`); the site repository needs no scripts.
+The workflow installs the `escaping-site` package from PyPI at a fixed version and runs it (`uvx escaping-site@0.6.0 build`); the site repository needs no scripts.
 A repository with another name works too: the site then lives at `username.github.io/<repository>/`, and escaping handles that path.
 The [starter instructions](starter/README.md) cover the full setup, versions and failure recovery.
 
@@ -79,7 +79,7 @@ theme:
 | Appearance | See "Change the look" below |
 | Social preview image | Set `seo.social_image` to an HTTPS URL or a Theme file such as `/assets/images/og.png`; Quiet emits Open Graph/Twitter image tags |
 | Comments | Off by default; set `comments.enabled: true` and separately authorize the [Utterances App](https://github.com/apps/utterances). Profile About never has comments |
-| Build the site with another tool | `escpe export` writes the published Issues as Markdown files for a tool such as Astro to render; see [Content Export v1](docs/contracts/content-export-v1.md) |
+| Build the site with another tool | `escaping-site export` writes the published Issues as Markdown files for a tool such as Astro to render; see [Content Export v1](docs/contracts/content-export-v1.md) |
 | Local builds | Require Python 3.12 or later and uv; read Issues with a token, or build offline with `--issues-json`; see the [local build steps](docs/site-inputs.md#local-build) |
 
 A mistyped field fails the build and suggests the correct spelling.
@@ -98,7 +98,7 @@ You can also use a Theme someone put on GitHub: write `theme: {use: github.com/O
 
 Which pages the site has, and where, is up to your `config.yaml`: `pages` turns a page off, moves it or adds one such as `/now/`, and `redirects` keeps old addresses working. See [Pages](docs/site-inputs.md#pages).
 
-Then run `escpe theme check --config config.yaml`. It renders every page with sample content, offline and without a token, and reports Theme problems.
+Then run `escaping-site theme check --config config.yaml`. It renders every page with sample content, offline and without a token, and reports Theme problems.
 
 ## Upgrading
 

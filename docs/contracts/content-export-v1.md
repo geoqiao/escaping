@@ -4,7 +4,7 @@ Status: **Accepted**
 
 ## 1. Purpose and scope
 
-This contract defines the files `escpe export` writes: the published Issue
+This contract defines the files `escaping-site export` writes: the published Issue
 Content of a repository as Markdown, for a site that another tool builds.
 [Issue Content v1](issue-content-v1.md) stays the only definition of what an
 Issue must look like; this contract defines only how accepted content leaves
@@ -17,7 +17,7 @@ The key words **MUST**, **MUST NOT** and **MAY** are normative requirements.
 
 ## 2. Selection
 
-An Issue is exported exactly when `escpe build` with the same Config and the
+An Issue is exported exactly when `escaping-site build` with the same Config and the
 same Issues would publish it. Selection, the About choice, slug uniqueness and
 every content rule are those of Issue Content v1. In particular:
 
@@ -157,14 +157,14 @@ its address, its domain or the site builder changes.
 ## 7. Command
 
 ```bash
-escpe export --config config.yaml [--output build/content] [--issues-json FILE]
+escaping-site export --config config.yaml [--output build/content] [--issues-json FILE]
 ```
 
-`--repo`, `--context` and `--token-env` work as for `escpe build` (see
+`--repo`, `--context` and `--token-env` work as for `escaping-site build` (see
 [Site inputs](../site-inputs.md#cli-inputs)). Exit status: 0 exported, 1 failed
 with the previous export unchanged, 2 exported with Skipped Issues.
 
-The command is in the `escpe` package on PyPI. In GitHub Actions, run it at a
+The command is in the `escaping-site` package on PyPI. In GitHub Actions, run it at a
 fixed version (see
 [Deployment](../deployment.md#running-the-export-in-a-workflow)); it does not
 need GitHub Pages.

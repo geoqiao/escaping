@@ -8,14 +8,14 @@ from typing import Any
 
 import pytest
 
-from escpe.atom_feed import render_atom_xml
-from escpe.config import ExtraPageConfig, Settings
-from escpe.models.blog_post import BlogPost, BlogTag
-from escpe.models.content import AboutPage, ContentCompilationResult, Idea
-from escpe.models.site import SiteModel
-from escpe.projects import ProjectCompiler
-from escpe.routes import RouteRegistry
-from escpe.site_builder import SiteBuilder
+from escaping_site.atom_feed import render_atom_xml
+from escaping_site.config import ExtraPageConfig, Settings
+from escaping_site.models.blog_post import BlogPost, BlogTag
+from escaping_site.models.content import AboutPage, ContentCompilationResult, Idea
+from escaping_site.models.site import SiteModel
+from escaping_site.projects import ProjectCompiler
+from escaping_site.routes import RouteRegistry
+from escaping_site.site_builder import SiteBuilder
 
 _BUILD_START = datetime(2026, 2, 1, tzinfo=UTC)
 _ATOM = "{http://www.w3.org/2005/Atom}"

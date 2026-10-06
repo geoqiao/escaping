@@ -14,11 +14,11 @@ from pathlib import Path
 
 import pytest
 
-from escpe import remote_theme
-from escpe.config import Settings
-from escpe.remote_theme import DownloadError, RemoteTheme, download
-from escpe.site_compiler import check_theme
-from escpe.theme import ThemeError, ThemeLoader
+from escaping_site import remote_theme
+from escaping_site.config import Settings
+from escaping_site.remote_theme import DownloadError, RemoteTheme, download
+from escaping_site.site_compiler import check_theme
+from escaping_site.theme import ThemeError, ThemeLoader
 
 _ROOT = Path(__file__).resolve().parents[1]
 _COMMIT = "0123456789abcdef0123456789abcdef01234567"
@@ -177,7 +177,7 @@ def test_theme_check_downloads_the_theme_and_removes_it_afterwards(
     monkeypatch: pytest.MonkeyPatch,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    caplog.set_level(logging.INFO, logger="escpe")
+    caplog.set_level(logging.INFO, logger="escaping_site")
     _themes_repo(github)
     downloads: list[Path] = []
     real = remote_theme.download
@@ -186,7 +186,7 @@ def test_theme_check_downloads_the_theme_and_removes_it_afterwards(
         downloads.append(into)
         return real(theme, into)
 
-    monkeypatch.setattr("escpe.site_compiler.download", spy)
+    monkeypatch.setattr("escaping_site.site_compiler.download", spy)
     settings = Settings.model_validate(
         {
             "github": {"repo": "alice/site", "allowed_authors": ["alice"]},

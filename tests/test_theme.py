@@ -7,9 +7,9 @@ from pathlib import Path
 import pytest
 from jinja2 import UndefinedError
 
-import escpe.theme as theme_module
-from escpe.config import ConfigError, PagesConfig
-from escpe.theme import TEMPLATE_CHAINS, ThemeError, ThemeLoader
+import escaping_site.theme as theme_module
+from escaping_site.config import ConfigError, PagesConfig
+from escaping_site.theme import TEMPLATE_CHAINS, ThemeError, ThemeLoader
 
 _ROOT = Path(__file__).parent.parent.absolute()
 #: Every page template a Theme may have.

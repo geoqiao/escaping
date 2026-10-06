@@ -7,7 +7,7 @@ from typing import Never
 import pytest
 from pydantic import ValidationError
 
-from escpe.config import (
+from escaping_site.config import (
     ConfigError,
     GithubConfig,
     Link,
@@ -22,9 +22,9 @@ from escpe.config import (
     security_from_config,
     validate_config_overrides,
 )
-from escpe.routes import Sections
-from escpe.services.github_service import PublicProfile
-from escpe.site_inputs import resolve_settings
+from escaping_site.routes import Sections
+from escaping_site.services.github_service import PublicProfile
+from escaping_site.site_inputs import resolve_settings
 
 _BASE = {
     "github": {"repo": "geoqiao/site", "allowed_authors": ["geoqiao"]},

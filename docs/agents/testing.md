@@ -42,7 +42,7 @@
 | 导出的 Markdown、manifest 与导出目录 | Content Export（`test_content_export.py`） |
 | 命令、退出码、Actions 注解/summary/outputs | CLI（`test_cli.py`） |
 | Action 与 starter workflow 的 shell 步骤 | delivery（`test_delivery.py`：假 `gh`/`uv` 跑步骤，另有一个真实 uv 的端到端构建） |
-| wheel 内容与安装后的 `escpe` | package consumer（`test_package_consumer.py`：从 git 文件快照构建 wheel） |
+| wheel 内容与安装后的 `escaping-site` | package consumer（`test_package_consumer.py`：从 git 文件快照构建 wheel） |
 | locked 源码安装与失败前提 | source consumer（`test_source_consumer.py`） |
 | 键盘、布局、搜索、评论等前端行为 | browser（`test_browser_navigation.py`） |
 
@@ -115,7 +115,7 @@ uv run pytest -q tests/test_theme.py tests/test_template_integrity.py tests/test
 也可以直接检查一个站点的 Theme（离线，用示例内容渲染全部页面并报告 SEO 警告）：
 
 ```bash
-uv run escpe theme check --config config.example.yaml
+uv run escaping-site theme check --config config.example.yaml
 ```
 
 改动 `action.yml`、starter workflow 或打包配置时运行：
@@ -138,9 +138,9 @@ uv run pytest -q tests/test_delivery.py tests/test_package_consumer.py tests/tes
 ```bash
 uv lock --check
 CI=true uv run pytest -q -ra
-uv run ruff check src/escpe tests
-uv run ruff format --check src/escpe tests
-uv run ty check src/escpe tests
+uv run ruff check src/escaping_site tests
+uv run ruff format --check src/escaping_site tests
+uv run ty check src/escaping_site tests
 git diff --check
 ```
 

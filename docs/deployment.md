@@ -8,7 +8,7 @@ this document is the maintainer-facing contract for delivery and safety.
 
 The site repository owns its real `config.yaml`, its Pages workflow, its custom
 domain and any local Theme. The generator owns the compiler, Quiet,
-`config.example.yaml`, the `escpe` package on PyPI and the
+`config.example.yaml`, the `escaping-site` package on PyPI and the
 [starter](../starter/) source. A site depends on the package, not on this
 repository; the [Action](../action.yml) remains for sites that already use it.
 
@@ -21,14 +21,15 @@ history or workflow.
 ## Consumer naming contract
 
 The product and GitHub repository are named `escaping`. The Python
-distribution, its import package and its only console command are all named
-`escpe`: `escaping` belongs to an unrelated PyPI project, so one free name
-serves all three. The former `github-blog` /
+distribution and its only console command are named `escaping-site`, and the
+import package is `escaping_site`, the same name as Python spells it. The
+distribution is not plain `escaping` because that name belongs to an unrelated
+PyPI project. The command was `escpe` before 0.6.0. The former `github-blog` /
 `github_blog` names and the `blog-gen` command are not shipped.
 
 ## Building a site in a workflow
 
-A site workflow installs the `escpe` package from PyPI at a fixed version and
+A site workflow installs the `escaping-site` package from PyPI at a fixed version and
 runs it; this is what the starter does:
 
 ```yaml
@@ -38,7 +39,7 @@ runs it; this is what the starter does:
     GITHUB_TOKEN: ${{ github.token }}
   run: |
     status=0
-    uvx --from 'escpe==X.Y.Z' escpe build --config config.yaml || status=$?
+    uvx escaping-site@X.Y.Z build --config config.yaml || status=$?
     # 2: published, but some Issues were skipped; the skipped-issues output says which.
     if [ "$status" -eq 2 ]; then exit 0; fi
     exit "$status"
@@ -90,7 +91,7 @@ The Action runs three steps:
    [platform context](site-inputs.md#cli-inputs) (repository, owner, Pages
    URL) to `$RUNNER_TEMP/escaping-context.json`.
 3. **Build the site** with
-   `uv run --project "$GITHUB_ACTION_PATH" --locked --python 3.14 … escpe build --config … --context … --token-env ESCAPING_TOKEN`.
+   `uv run --project "$GITHUB_ACTION_PATH" --locked --python 3.14 … escaping-site build --config … --context … --token-env ESCAPING_TOKEN`.
    uv installs the generator's locked dependencies into a fresh environment
    under `$RUNNER_TEMP` and runs the pinned checkout of `escaping`. The token
    travels only in the `ESCAPING_TOKEN` environment variable, never in
@@ -105,7 +106,7 @@ Step scripts receive inputs through environment variables only, never by
 A site built with another tool takes the content instead of the finished site
 ([Content Export v1](contracts/content-export-v1.md)). There is no Action for
 it: the export needs nothing from GitHub Pages, so the workflow runs the
-`escpe` package from PyPI at a fixed version:
+`escaping-site` package from PyPI at a fixed version:
 
 ```yaml
 - uses: astral-sh/setup-uv@<full commit SHA>
@@ -115,7 +116,7 @@ it: the export needs nothing from GitHub Pages, so the workflow runs the
     GITHUB_TOKEN: ${{ github.token }}
   run: |
     status=0
-    uvx --python 3.14 --from 'escpe==X.Y.Z' escpe export --config config.yaml || status=$?
+    uvx --python 3.14 escaping-site@X.Y.Z export --config config.yaml || status=$?
     # 2: exported, but some Issues were skipped; the skipped-issues output says which.
     if [ "$status" -eq 2 ]; then exit 0; fi
     exit "$status"
@@ -127,14 +128,14 @@ it: the export needs nothing from GitHub Pages, so the workflow runs the
 | `output` | Absolute path of the exported content |
 | `skipped-issues` | Comma-separated numbers of Issues left out because of their own errors; empty when none |
 
-`escpe` writes both outputs itself when it runs in GitHub Actions. It reads
+`escaping-site` writes both outputs itself when it runs in GitHub Actions. It reads
 the token from `GITHUB_TOKEN` (or the variable named by `--token-env`). No
 platform context is written, so the Config must set `github.repo` and
 `site.url`. The job needs `contents: read` and `issues: read`. Building and
 deploying the site, and failing the run when `skipped-issues` is not empty,
 are the site workflow's steps.
 
-`escpe==X.Y.Z` fixes `escaping` itself; PyPI does not let a published version
+`escaping-site@X.Y.Z` fixes `escaping` itself; PyPI does not let a published version
 change. Its dependencies are resolved when the step runs. Add
 `--exclude-newer <date>` to fix those too.
 
@@ -153,7 +154,7 @@ own group, so it cannot replace a waiting deployment. The top-level
 | Job | Permissions | What it does |
 | --- | --- | --- |
 | `labels` | `issues: write` | Creates the missing labels `published`, `type:blog`, `type:idea`, `type:about`. It compares names without case and never edits, removes or applies labels. If creating one fails, it checks again (another run may have created it) and fails only if the label is still missing. |
-| `build` | `contents: read`, `issues: read`, `pages: read` | Checks out the site with `persist-credentials: false`, runs `escpe build` from the PyPI package and uploads its `output` as the Pages artifact. |
+| `build` | `contents: read`, `issues: read`, `pages: read` | Checks out the site with `persist-credentials: false`, runs `escaping-site build` from the PyPI package and uploads its `output` as the Pages artifact. |
 | `deploy` | `pages: write`, `id-token: write` | Deploys the artifact to the `github-pages` environment. Its last step fails when `skipped-issues` is not empty, pointing to the build job summary. |
 
 So a run with one broken Issue still deploys everything else, and the run is
@@ -168,7 +169,7 @@ prove GitHub's event delivery, permissions or Pages publication.
 
 ## Versions
 
-A site pins the package version in its workflow: `escpe==X.Y.Z`. PyPI does
+A site pins the package version in its workflow: `escaping-site@X.Y.Z`. PyPI does
 not let a published version change. There is no automatic "latest" lookup: a
 site changes version only when someone edits that line, after reading the
 [CHANGELOG](../CHANGELOG.md). A site that still uses the Action pins a release
@@ -188,12 +189,12 @@ this order:
    and tag the release (`vX.Y.Z`). Pushing the tag runs the
    [release workflow](../.github/workflows/release.yml): it refuses a tag that
    differs from the package version, builds the sdist and the wheel, and
-   publishes `escpe` to PyPI. PyPI trusts that workflow in the `pypi`
+   publishes `escaping-site` to PyPI. PyPI trusts that workflow in the `pypi`
    environment (Trusted Publishing); no token is stored. A published version
    cannot be replaced, only yanked.
 3. Build a real consumer site with the new tag on a branch, with its migrated
    Config, and check the output.
-4. Update the site's `uses:` or `escpe==` pin (and its Config, if the release
+4. Update the site's `uses:` or `escaping-site@` pin (and its Config, if the release
    needs it).
 5. Deploy the site.
 
@@ -222,15 +223,15 @@ uv 0.12.20, Python 3.14 and a fresh environment outside the source directory:
 export UV_PROJECT_ENVIRONMENT="/absolute/path/to/escaping-env"
 uv sync --project "/absolute/path/to/escaping" --python 3.14 \
   --locked --no-default-groups --group build --no-editable \
-  --no-build-isolation-package escpe
-"$UV_PROJECT_ENVIRONMENT/bin/escpe" build --config "/absolute/path/to/site/config.yaml"
+  --no-build-isolation-package escaping-site
+"$UV_PROJECT_ENVIRONMENT/bin/escaping-site" build --config "/absolute/path/to/site/config.yaml"
 ```
 
-On Windows the command is `Scripts/escpe.exe`.
+On Windows the command is `Scripts/escaping-site.exe`.
 
 - The `build` dependency group pins the setuptools version and hashes in
   `uv.lock` without making setuptools a runtime dependency.
-  `--no-build-isolation-package escpe` builds `escpe` with that pinned backend;
+  `--no-build-isolation-package escaping-site` builds `escaping-site` with that pinned backend;
   uv installs the other packages first. A plain `--no-build-isolation` is not
   the same: in a fresh environment it may build the project before setuptools
   is installed. Keep `build-system.requires` and the `build` group identical.

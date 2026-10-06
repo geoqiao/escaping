@@ -9,11 +9,11 @@ from pathlib import Path
 
 import pytest
 
-from escpe.artifact_validation import SiteArtifactValidator
-from escpe.config import Settings
-from escpe.models.issue_snapshot import IssueSnapshot
-from escpe.services.render_service import RenderedSite
-from escpe.site_compiler import (
+from escaping_site.artifact_validation import SiteArtifactValidator
+from escaping_site.config import Settings
+from escaping_site.models.issue_snapshot import IssueSnapshot
+from escaping_site.services.render_service import RenderedSite
+from escaping_site.site_compiler import (
     _sample_content,
     check_theme,
     compile_site,
@@ -347,7 +347,7 @@ def test_pages_that_are_off_have_no_route_and_no_file(tmp_path: Path) -> None:
 def test_assets_from_a_read_only_install_can_be_replaced(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    from escpe.services import render_service
+    from escaping_site.services import render_service
 
     shared = tmp_path / "shared"
     shutil.copytree(render_service.SHARED_STATIC, shared)

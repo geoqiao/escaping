@@ -1,4 +1,4 @@
-"""The escpe command line: exit status, messages and GitHub Actions output.
+"""The escaping-site command line: exit status, messages and GitHub Actions output.
 
 Builds read Issues from ``--issues-json`` files, as ``gh api --slurp`` writes
 them, so no test needs a token or the network.
@@ -12,11 +12,11 @@ from pathlib import Path
 
 import pytest
 
-from escpe.cli import main
-from escpe.config import PlatformContext, RepositoryIdentity
-from escpe.models.issue_snapshot import IssueSnapshot
-from escpe.output_staging import OUTPUT_MARKER
-from escpe.services.github_service import PublicProfile
+from escaping_site.cli import main
+from escaping_site.config import PlatformContext, RepositoryIdentity
+from escaping_site.models.issue_snapshot import IssueSnapshot
+from escaping_site.output_staging import OUTPUT_MARKER
+from escaping_site.services.github_service import PublicProfile
 
 _CONFIG = """\
 github:
@@ -77,7 +77,7 @@ def _clean_environment(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     def no_network(token: str) -> None:
         pytest.fail("this build must not contact GitHub")
 
-    monkeypatch.setattr("escpe.cli.GitHubService", no_network)
+    monkeypatch.setattr("escaping_site.cli.GitHubService", no_network)
 
 
 @pytest.fixture
@@ -366,7 +366,7 @@ def test_online_build_reads_github_and_keeps_the_token_private(
         def fetch_project_enrichment(self, repository: str) -> object:
             raise RuntimeError(f"token={secret}")
 
-    monkeypatch.setattr("escpe.cli.GitHubService", FakeGitHub)
+    monkeypatch.setattr("escaping_site.cli.GitHubService", FakeGitHub)
     monkeypatch.setenv("READ_TOKEN", secret)
     config = site / "config.yaml"
     config.write_text("projects:\n  - repository: alice/tool\n", encoding="utf-8")
@@ -420,7 +420,7 @@ def test_on_github_actions_the_command_reads_what_the_config_leaves_out(
         def fetch_public_profile(self, login: str) -> PublicProfile:
             return PublicProfile(login, "Alice")
 
-    monkeypatch.setattr("escpe.cli.GitHubService", FakeGitHub)
+    monkeypatch.setattr("escaping_site.cli.GitHubService", FakeGitHub)
     monkeypatch.setenv("GITHUB_TOKEN", "t")
     monkeypatch.setenv("GITHUB_REPOSITORY", "alice/site")
     empty = site / "config.yaml"
