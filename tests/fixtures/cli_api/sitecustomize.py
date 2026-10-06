@@ -19,29 +19,13 @@ def snapshot_response(
     assert url.scheme == "https" and url.port in (None, 443)
     assert request.headers["Authorization"] == "token consumer-fixture"
     path = url.path
-    if path == "/users/alice":
+    if path == "/repos/alice/site":
         data = {
-            "login": "alice",
-            "name": "Alice Example",
-            "avatar_url": "https://example.org/alice.png",
-            "bio": "Public profile.",
-        }
-    elif path in ("/repos/alice/site", "/repos/alice/tool"):
-        name = path.removeprefix("/repos/")
-        data = {
-            "full_name": name,
-            "html_url": f"https://github.com/{name}",
-            "url": f"https://api.github.com/repos/{name}",
+            "full_name": "alice/site",
+            "html_url": "https://github.com/alice/site",
+            "url": "https://api.github.com/repos/alice/site",
             "owner": {"login": "alice", "type": "User"},
-            "name": "Renamed Tool",
-            "description": "Selected public project.",
-            "stargazers_count": 7,
-            "forks_count": 0,
-            "language": "Python",
-            "topics": [],
         }
-    elif path == "/repos/alice/tool/topics":
-        data = {"names": []}
     elif path == "/repos/alice/site/issues":
         assert parse_qs(url.query)["state"] == ["all"]
         if os.environ.get("CONSUMER_FAIL_ISSUES"):

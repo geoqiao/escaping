@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: accepted; amended by ADR-0011 and ADR-0013 (compilation now ends at Markdown files)
 ---
 
 # Separate authoring, compilation, and orchestration

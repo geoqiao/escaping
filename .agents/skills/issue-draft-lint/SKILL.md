@@ -21,10 +21,10 @@ If the path is missing or ambiguous, ask. Read
 
 ## Deterministic check
 
-Use an environment containing the reviewed `escpe` package, then run:
+Use an environment containing the reviewed `escaping-site` package, then run:
 
 ```text
-python -m escaping.local_draft <draft-path>
+python -m escaping_site.local_draft <draft-path>
 ```
 
 Pass the path as one argument, not interpolated shell code. This real module is

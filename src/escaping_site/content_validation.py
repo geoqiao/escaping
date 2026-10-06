@@ -1,0 +1,224 @@
+"""Authored content rules shared by Issue compilation and optional draft lint.
+
+No Issue identity, defaults, publication selection, configuration or network I/O.
+"""
+
+from __future__ import annotations
+
+import re
+import unicodedata
+from collections.abc import Sequence
+from datetime import datetime
+
+from marko import HTMLRenderer, Markdown
+from marko.block import Paragraph
+from marko.ext.gfm import GFM
+from marko.helpers import MarkoExtension
+
+from .build_result import Diagnostic
+from .utils.frontmatter import ParsedFrontMatter
+from .utils.html_sanitizer import HTMLSanitizationError, sanitize_html
+
+CONTENT_TYPES = frozenset({"blog", "idea", "about"})
+SLUG = re.compile(r"^[a-z0-9]+(?:-[a-z0-9]+)*$")
+#: Tag keys may use any Unicode letters or digits, joined by single hyphens.
+TAG_KEY = re.compile(r"^[^\W_]+(?:-[^\W_]+)*$")
+TAG_KEY_MAX_LENGTH = 50
+# Characters XML 1.0 forbids. A Blog post goes into feeds, so it has none.
+NOT_XML = re.compile("[^\t\n\r\x20-퟿-�\U00010000-\U0010ffff]")
+_DATE_RE = re.compile(r"^\d{4}-\d{2}-\d{2}$")
+
+
+class _TaskListRenderer(HTMLRenderer):
+    """Show a task item's state as text: the sanitizer drops ``<input>``."""
+
+    def render_paragraph(self, element: Paragraph) -> str:
+        checked = getattr(element, "checked", None)
+        if checked is None:
+            return super().render_paragraph(element)
+        children = ("☑" if checked else "☐") + self.render_children(element)
+        return children if element._tight else f"<p>{children}</p>\n"
+
+
+_MARKDOWN = Markdown(
+    extensions=[GFM, MarkoExtension(renderer_mixins=[_TaskListRenderer])],
+)
+
+
+def tag_key(name: str) -> str:
+    """Key for a tag name: NFC, casefolded, spaces/underscores to hyphens."""
+    folded = unicodedata.normalize("NFC", name).casefold()
+    return re.sub(r"[\s_-]+", "-", folded).strip("-")
+
+
+def valid_tag(name: str) -> bool:
+    key = tag_key(name)
+    return bool(TAG_KEY.fullmatch(key)) and len(key) <= TAG_KEY_MAX_LENGTH
+
+
+def valid_slug(value: str) -> bool:
+    return bool(SLUG.fullmatch(value)) and len(value) <= 80
+
+
+def _valid_description(value: str) -> bool:
+    if not value.strip() or len(value) > 300 or "<" in value or ">" in value:
+        return False
+    return not any(
+        ord(char) < 32 or 0x7F <= ord(char) <= 0x9F or char in "\u2028\u2029"
+        for char in value
+    )
+
+
+def _valid_date(value: object, style: str | None) -> bool:
+    if (
+        not isinstance(value, str)
+        or style not in ("'", '"')
+        or not _DATE_RE.fullmatch(value)
+    ):
+        return False
+    try:
+        datetime.strptime(value, "%Y-%m-%d")
+    except ValueError:
+        return False
+    return True
+
+
+def validate_authored_content(
+    title: str,
+    content_type: str,
+    tags: Sequence[str],
+    parsed: ParsedFrontMatter,
+) -> tuple[Diagnostic, ...]:
+    """Validate native title, resolved type/tag names and explicit metadata only.
+
+    Callers own input shape and type selection. Missing metadata stays missing;
+    Issue label normalization and Local Draft field restrictions stay at intake.
+    """
+    errors: list[Diagnostic] = []
+    fields = parsed.fields
+    if not title.strip():
+        errors.append(
+            Diagnostic("error", "TITLE_EMPTY", "Title must be non-empty", field="title")
+        )
+    if not parsed.body.strip():
+        errors.append(
+            Diagnostic("error", "BODY_EMPTY", "Body must be non-empty", field="body")
+        )
+
+    description = fields.get("description")
+    if "description" in fields and (
+        not isinstance(description, str) or not _valid_description(description)
+    ):
+        code = (
+            "DESCRIPTION_TOO_LONG"
+            if isinstance(description, str) and len(description) > 300
+            else "DESCRIPTION_INVALID"
+        )
+        errors.append(
+            Diagnostic(
+                "error",
+                code,
+                "description must be plain text of at most 300 characters",
+                field="description",
+            )
+        )
+    for name in ("created_date", "update_date"):
+        if name in fields and not _valid_date(
+            fields[name], parsed.scalar_styles.get(name)
+        ):
+            errors.append(
+                Diagnostic(
+                    "error",
+                    f"{name.upper()}_INVALID",
+                    f"{name} must be a quoted YYYY-MM-DD string",
+                    field=name,
+                )
+            )
+
+    if content_type == "blog":
+        texts = {"title": title, "description": description, "body": parsed.body}
+        for field, text in texts.items():
+            if isinstance(text, str) and (match := NOT_XML.search(text)):
+                errors.append(
+                    Diagnostic(
+                        "error",
+                        "CHARACTER_INVALID",
+                        f"{field} contains U+{ord(match.group()):04X}, a character "
+                        "the Atom feed cannot hold",
+                        field=field,
+                    )
+                )
+
+    slug = fields.get("slug")
+    if content_type == "blog":
+        if "slug" in fields and (not isinstance(slug, str) or not valid_slug(slug)):
+            errors.append(
+                Diagnostic(
+                    "error",
+                    "SLUG_INVALID",
+                    "slug must be lower-case kebab-case and at most 80 characters",
+                    field="slug",
+                )
+            )
+        elif slug == "page":
+            # The Blog's archive pages live at page/2/, page/3/ and so on.
+            errors.append(
+                Diagnostic(
+                    "error", "SLUG_RESERVED", "slug 'page' is reserved", field="slug"
+                )
+            )
+    elif "slug" in fields:
+        errors.append(
+            Diagnostic(
+                "error",
+                "SLUG_FORBIDDEN",
+                f"slug is forbidden for {content_type.title()}",
+                field="slug",
+            )
+        )
+
+    for tag in tags:
+        if not valid_tag(tag):
+            errors.append(
+                Diagnostic(
+                    "error",
+                    "TAG_INVALID",
+                    f"Tag {tag!r} must use letters, digits, spaces or hyphens "
+                    f"(at most {TAG_KEY_MAX_LENGTH} characters)",
+                    field="tags",
+                )
+            )
+    if content_type == "about" and tags:
+        errors.append(
+            Diagnostic(
+                "error", "ABOUT_TAG_FORBIDDEN", "About must not have tags", field="tags"
+            )
+        )
+    return tuple(errors)
+
+
+def render_body(markdown: str) -> tuple[str | None, tuple[Diagnostic, ...]]:
+    """Render the shared GFM subset then apply the existing HTML sanitizer.
+
+    The returned HTML is a preview/compiled value, never replacement Markdown.
+    """
+    try:
+        rendered = _MARKDOWN.convert(markdown)
+    except Exception:
+        return None, (
+            Diagnostic(
+                "error",
+                "MARKDOWN_RENDER_FAILED",
+                "Markdown rendering failed",
+                field="body",
+            ),
+        )
+    try:
+        return sanitize_html(rendered), ()
+    except Exception as exc:
+        # Only our controlled tag/position messages are safe to expose;
+        # third-party exceptions may contain authored text or URL values.
+        message = "HTML sanitization failed"
+        if isinstance(exc, HTMLSanitizationError):
+            message += f": {exc}"
+        return None, (Diagnostic("error", "SANITIZER_FAILED", message, field="body"),)

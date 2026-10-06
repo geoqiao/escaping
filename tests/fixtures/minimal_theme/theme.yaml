@@ -1,4 +1,0 @@
-# The smallest Theme: every list page uses blog.html, every single page uses
-# post.html. Tags and Projects need their own templates, so a site using this
-# Theme turns them off (pages.tags: false, pages.projects: false).
-api: 4

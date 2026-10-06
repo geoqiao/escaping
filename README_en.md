@@ -1,119 +1,112 @@
 <div align="center">
 
-<img src="docs/assets/escaping-logo.png" alt="escaping logo" width="180">
+<img src="https://raw.githubusercontent.com/geoqiao/escaping/main/docs/assets/escaping-logo.png" alt="escaping logo" width="180">
 
 # escaping
 
-**Write in GitHub Issues. Publish on your own personal site.**
+**Write in GitHub Issues. Get clean Markdown files for any site builder.**
 
-Blog, Ideas, Projects, About, Tags and RSS, without a separate content management system.
+[![Python 3.12+](https://img.shields.io/badge/Python-3.12%2B-3776AB?logo=python&logoColor=white)](https://www.python.org/)
+[![GitHub Issues](https://img.shields.io/badge/Content-GitHub_Issues-181717?logo=github)](https://docs.github.com/issues)
+[![MIT License](https://img.shields.io/badge/License-MIT-22C55E)](https://github.com/geoqiao/escaping/blob/main/LICENSE)
 
-**[中文](README.md)** · **[Live site](https://geoqiao.me/)** · **[Get started](#get-started)** · **[Maintainer guide](docs/dual-repo-architecture.md)**
+**[中文](https://github.com/geoqiao/escaping/blob/main/README.md)** · **[Live site](https://geoqiao.me/)** · **[Quick start](#-quick-start)** · **[Maintainers](https://github.com/geoqiao/escaping/blob/main/docs/dual-repo-architecture.md)**
 
 </div>
 
-## Why escaping?
+## What escaping does
 
-| What you need | What escaping provides |
-| --- | --- |
-| Focus on writing | Issue titles and Markdown bodies, with labels controlling publication; front matter is optional |
-| A complete personal site | Home, article archives, short ideas, curated projects, About, tags, RSS, a 404 page, static site search and search-engine discovery files |
-| A simple default look you can change | The built-in Quiet Theme; change its options, override one file, or write a complete Theme |
-| Controlled publication | An Issue with an error is skipped and named, and the rest is still published; a failed build leaves the live site unchanged |
+`escaping` does one thing: it writes the published Issues of a repository as Markdown files.
 
-## Get started
+| Layer | Who owns it | Defined by |
+| --- | --- | --- |
+| Content | You write Issues and publish them with labels | [Issue Content v1](https://github.com/geoqiao/escaping/blob/main/docs/contracts/issue-content-v1.md) |
+| Export | `escaping-site export` selects, checks and resolves every value, then writes files | [Content Export v1](https://github.com/geoqiao/escaping/blob/main/docs/contracts/content-export-v1.md) |
+| Site | The site code that reads those files: the theme | The site |
+| Hosting | GitHub Pages, Cloudflare or any static host | The site |
 
-Use **Use this template** at [escaping-template](https://github.com/geoqiao/escaping-template).
-No local Python, PAT, or manually created publishing labels are required.
+How pages look, what their addresses are and where they are hosted is not decided by `escaping`.
 
-> **Public preview:** the 0.4.0 Action builds a live site on GitHub; creating a new repository
-> from the template, including the step that creates the labels, has not been tried on GitHub yet.
+## 🚀 Quick start
 
-1. Create `username.github.io` (public for GitHub Free), keep Issues/Actions enabled, and in **Settings → Pages** set **Source** to **GitHub Actions**.
-2. Save an Issue with a title and Markdown body. The workflow's `labels` job creates the publishing labels on its first run; refresh the Issue page if you do not see them.
-3. Add one of `type:blog`, `type:idea`, or `type:about`, plus `published` when ready, and check the deployment in Actions.
+**Use the default theme.** Create a site with **Use this template** on
+[escaping-template](https://github.com/geoqiao/escaping-template). The template holds a default
+theme that reads the exported files and a ready workflow; you need no local Python and no PAT.
+Follow the template's README.
 
-The workflow runs the generator with `uses: geoqiao/escaping@v0.5.1`; the site repository needs no scripts.
-A repository with another name works too: the site then lives at `username.github.io/<repository>/`, and escaping handles that path.
-The [starter instructions](starter/README.md) cover the full setup, versions and failure recovery.
+**Write your own theme.** Any site builder that reads Markdown works. Run this in a workflow:
 
-## Everyday writing
+```bash
+uvx escaping-site@0.6.0 export --config config.yaml --output src/content
+```
+
+Then let your site read `src/content`. See [Content Export v1](https://github.com/geoqiao/escaping/blob/main/docs/contracts/content-export-v1.md)
+for the files and [Deployment](https://github.com/geoqiao/escaping/blob/main/docs/deployment.md) for the workflow.
+
+## Writing
 
 | Action | Result |
 | --- | --- |
-| `type:blog` + `published` | Publish an article in Blog, RSS and its tag archives |
-| `type:idea` + `published` | Publish one independent short idea; it stays out of Blog/RSS and its tags are display-only |
-| `type:about` + `published` | Supply the About page; without an About Issue, the site shows the public owner profile |
-| Edit a published Issue | Update the site on the next successful build; GitHub remains authoritative after creation |
-| Remove `published` | Unpublish on the next successful build; closing the Issue alone does not unpublish it |
+| `type:blog` + `published` | Exported as `blog/<slug>.md` |
+| `type:idea` + `published` | Exported as `ideas/<issue_number>.md` |
+| `type:about` + `published` | Exported as `about.md` |
+| Edit a published Issue | The next export updates the file |
+| Remove `published` | The next export deletes the file; closing an Issue does not unpublish it |
 
-Only content from allowed authors is published; the workflow actor does not automatically gain author permission.
-Blogs use labels such as `tag:python` or `tag:机器学习`; spellings that differ only in case, spaces or underscores are the same tag.
-Articles default to `/blog/{issue_number}/`. Optional front matter overrides the slug, description or original creation date
-independently; keep a published slug stable. See [Issue Content v1](docs/contracts/issue-content-v1.md) for rules and examples.
+Only Issues by allowed authors are exported; whoever runs the workflow gains no author rights.
+Classify with labels such as `tag:python`; names that differ only in case, spaces or underscores
+are the same tag. Front matter is optional and sets the slug, description, creation date or
+update date field by field. Keep a published slug stable.
 
-If one Issue has an error, for example an invalid tag, only that Issue is left out and the rest is published.
-The run is marked failed, and its summary names the Issue and what to fix.
+If one Issue has a problem, for example an invalid tag, only that Issue is skipped and the rest is
+exported; the command exits with status 2 and names the Issue and what to fix. A failed export
+leaves the previous files as they were.
 
-## Customize when needed
+## The exported files
 
-The template's `config.yaml` starts as `{}`; your repository and GitHub profile fill in the title, author, URL, avatar and bio.
-The Config has two layers: site fields (such as `site`, `profile`, `projects`) keep their meaning with any Theme;
-appearance options go under `theme.options`, and the selected Theme defines which exist.
-
-```yaml
-site:
-  title: My notes
-  language: zh # also switches Quiet's interface text to Chinese
-theme:
-  use: quiet
-  options:
-    tagline: Writing about tools and learning
-    featured_posts: [12, 7]
+```text
+src/content/
+├── manifest.json
+├── about.md
+├── blog/<slug>.md
+├── ideas/<issue_number>.md
+└── .escaping-output
 ```
 
-| What to change | Where to look |
-| --- | --- |
-| Title, profile, curated projects | [Example Config](config.example.yaml) and [field sources](docs/site-inputs.md); the example is not a mandatory-field checklist |
-| Navigation | Home, Blog, Projects, Tags, About, RSS by default; Ideas can be added explicitly. `site.navigation.items` replaces the whole menu, including `[]`; see [Config sources](docs/site-inputs.md#missing-field-sources) |
-| Appearance | See "Change the look" below |
-| Social preview image | Set `seo.social_image` to an HTTPS URL or a Theme file such as `/assets/images/og.png`; Quiet emits Open Graph/Twitter image tags |
-| Comments | Off by default; set `comments.enabled: true` and separately authorize the [Utterances App](https://github.com/apps/utterances). Profile About never has comments |
-| Local builds | Require Python 3.14.x and uv; read Issues with a token, or build offline with `--issues-json`; see the [local build steps](docs/site-inputs.md#local-build) |
+Every front matter value is resolved (`issue_number`, `title`, `slug`, `description`,
+`created_date`, `update_date`, `tags` and more), and the body is the Markdown you wrote.
+The same Issues always give the same bytes, so a workflow that commits the folder commits only
+when content changed.
 
-A mistyped field fails the build and suggests the correct spelling.
-Error messages never repeat the values you wrote. Organization-owned content repositories require explicit `github.allowed_authors`.
-Output and local Theme paths are relative to the Config directory. Serve the output as the web root, not under an `/output/` URL prefix.
+## Config
 
-### Change the look
+`escaping` reads three sections of `config.yaml`; the rest of the file is your site's:
 
-Three ways, from simplest to most complete:
+```yaml
+github:
+  repo: alice/site            # optional on GitHub Actions
+  allowed_authors: [alice]    # optional for a personal repository with a token
+about:
+  issue_number: 42            # optional: the oldest published About Issue
+security:
+  token_env: GITHUB_TOKEN     # the default
+```
 
-1. **Change Quiet's options** under `theme.options`, such as `tagline`, `featured_posts` or `accent_color`. See [Quiet](docs/themes/quiet.md) for all of them.
-2. **Override one file.** Create a `theme/` directory with a `theme.yaml` containing `api: 4` and `extends: quiet`, add only the template or static file you want to replace, and set `theme: {use: ./theme}`. Everything else still comes from Quiet.
-3. **Write your own Theme.** It needs only `blog.html` and `post.html`; see the [Theme guide](docs/themes/authoring.md). A Theme can also declare its own options and interface text.
+A mistyped field in these sections fails with a message that names it and suggests the correct
+spelling. Messages never repeat the values you supplied.
 
-You can also use a Theme someone put on GitHub: write `theme: {use: github.com/OWNER/REPOSITORY/FOLDER@v1.0.0}` in `config.yaml`. Each build downloads that version; to update, change the version. See the [Theme list](docs/themes/catalog.md) and [Using a Theme from GitHub](docs/themes/authoring.md#using-a-theme-from-github).
+## Upgrading from 0.5
 
-Which pages the site has, and where, is up to your `config.yaml`: `pages` turns a page off, moves it or adds one such as `/now/`, and `redirects` keeps old addresses working. See [Pages](docs/site-inputs.md#pages).
+From 0.6.0 `escaping` no longer builds a website: the `build` command, Jinja Themes, Quiet and
+the Action are removed. A site keeps working unchanged while its workflow stays on
+`geoqiao/escaping@v0.5.1`. To move to 0.6.0, see the
+[CHANGELOG](https://github.com/geoqiao/escaping/blob/main/CHANGELOG.md#upgrading-from-05).
 
-Then run `escpe theme check --config config.yaml`. It renders every page with sample content, offline and without a token, and reports Theme problems.
+## Development
 
-## Upgrading
-
-A site pins the generator version in the workflow's `uses:` line (a tag or a full commit SHA); it never upgrades by itself.
-Read the [CHANGELOG](CHANGELOG.md) before upgrading. You can pin the latest version directly: from 0.1, do the steps in
-[Upgrading from 0.1](CHANGELOG.md#upgrading-from-01) and then [Upgrading from 0.2](CHANGELOG.md#upgrading-from-02);
-from 0.2, only the second. For a local Theme, see [Theme migration](docs/themes/authoring.md#migrating-from-api-1-2-or-3).
-Configuring comments is not proof of posting; actual App/OAuth submission still needs separate verification.
-
-## Development and maintenance
-
-The [maintainer guide](docs/dual-repo-architecture.md) links architecture, contracts, tests and ADRs;
-agents use [AGENTS.md](AGENTS.md). The [starter workflow](starter/.github/workflows/pages.yml) is the reference
-site workflow; once copied, it is site-owned. The generator runs as an [Action](action.yml). Generator upgrades,
-local Theme migrations and production deployment are separate operations.
+The [maintainer entry](https://github.com/geoqiao/escaping/blob/main/docs/dual-repo-architecture.md) lists architecture, contracts, tests
+and ADRs; agents use [AGENTS.md](https://github.com/geoqiao/escaping/blob/main/AGENTS.md).
 
 ## License
 
-[MIT](LICENSE) © geoqiao
+[MIT](https://github.com/geoqiao/escaping/blob/main/LICENSE) © geoqiao

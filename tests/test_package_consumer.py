@@ -2,7 +2,6 @@ from __future__ import annotations
 
 import json
 import os
-import re
 import shutil
 import subprocess
 import sys
@@ -10,18 +9,24 @@ import tomllib
 import zipfile
 from pathlib import Path
 
+import yaml
+
 _PROJECT_ROOT = Path(__file__).parent.parent.absolute()
 _FIXTURES = _PROJECT_ROOT / "tests/fixtures"
 _TOKEN = "consumer-fixture"  # noqa: S105 - HTTP fixture credential
 
 
-def test_packaging_declares_python_314_only_and_explicit_setuptools_backend() -> None:
+def test_packaging_declares_tested_pythons_and_explicit_setuptools_backend() -> None:
     project = tomllib.loads((_PROJECT_ROOT / "pyproject.toml").read_text())
     lock = tomllib.loads((_PROJECT_ROOT / "uv.lock").read_text())
 
     assert (_PROJECT_ROOT / ".python-version").read_text().strip() == "3.14"
-    assert project["project"]["requires-python"] == ">=3.14,<3.15"
-    assert lock["requires-python"] == "==3.14.*"
+    # The lowest version CI tests, and no upper bound: a cap only turns a
+    # working install into a refusal when the next Python is released.
+    assert project["project"]["requires-python"] == ">=3.12"
+    assert lock["requires-python"] == ">=3.12"
+    ci = yaml.safe_load((_PROJECT_ROOT / ".github/workflows/ci.yml").read_text())
+    assert ci["jobs"]["checks"]["strategy"]["matrix"]["python-version"][0] == "3.12"
     assert project["build-system"]["build-backend"] == "setuptools.build_meta"
     assert any(
         requirement.startswith("setuptools")
@@ -43,7 +48,7 @@ def _issue(
     }
 
 
-def test_wheel_consumer_builds_site_outside_checkout(
+def test_wheel_consumer_exports_outside_checkout(
     tmp_path: Path, source_snapshot: Path
 ) -> None:
     uv = shutil.which("uv")
@@ -78,26 +83,17 @@ def test_wheel_consumer_builds_site_outside_checkout(
     version = tomllib.loads((_PROJECT_ROOT / "pyproject.toml").read_text())["project"][
         "version"
     ]
-    assert f"Name: escpe\nVersion: {version}\n" in metadata
-    assert "Requires-Python: <3.15,>=3.14\n" in metadata
+    assert f"Name: escaping-site\nVersion: {version}\n" in metadata
+    assert "Requires-Python: >=3.12\n" in metadata
     assert "Requires-Dist: nh3==0.3.7\n" in metadata
-    assert "Requires-Dist: pygments==2.21.0\n" in metadata
-    assert "escpe = escaping.cli:run_cli\n" in entry_points
-    assert {n.split("/")[2] for n in names if n.startswith("escaping/themes/")} == {
-        "quiet"
-    }
-    assert {
-        "escaping/themes/quiet/theme.yaml",
-        "escaping/themes/quiet/404.html",
-        "escaping/themes/quiet/static/css/syntax.css",
-        "escaping/static/comments.js",
-        "escaping/static/mermaid.js",
-        "escaping/static/mermaid/mermaid.min.js",
-        "escaping/static/mermaid/LICENSE",
-    } <= names
+    assert "jinja2" not in metadata.lower() and "pygments" not in metadata.lower()
+    assert "escaping-site = escaping_site.cli:run_cli\n" in entry_points
+    # Only Python: no Theme, template or script is shipped.
+    assert all(
+        name.endswith(".py") for name in names if name.startswith("escaping_site/")
+    )
     assert any(name.endswith("/NOTICE.md") for name in names)
-    assert not any(name.endswith((".so", ".dylib", ".pyd")) for name in names)
-    assert not any(name.startswith(("tests/", "starter/")) for name in names)
+    assert not any(name.startswith("tests/") for name in names)
 
     venv = tmp_path / "venv"
     for command in (
@@ -107,68 +103,31 @@ def test_wheel_consumer_builds_site_outside_checkout(
         subprocess.run(  # noqa: S603
             command, cwd=tmp_path, check=True, capture_output=True, text=True, env=env
         )
-    escpe = venv / "bin/escpe"
+    command_path = venv / "bin/escaping-site"
 
     def run(*args: str, **extra: str) -> subprocess.CompletedProcess[str]:
         return subprocess.run(  # noqa: S603 - installed console only
-            [str(escpe), *args],
+            [str(command_path), *args],
             cwd=tmp_path,
             env={**env, **extra},
             capture_output=True,
             text=True,
         )
 
-    # A site outside the checkout: an extending and an independent local Theme.
     site = tmp_path / "site"
     site.mkdir()
-    shutil.copytree(_FIXTURES / "extends_theme", site / "child")
-    shutil.copytree(_FIXTURES / "independent_theme", site / "theme")
-    identity = {
-        "github": {"repo": "owner/site", "allowed_authors": ["owner"]},
-        "site": {
-            "title": "Consumer",
-            "author": "Owner",
-            "description": "Notes.",
-            "url": "https://example.com/",
-            "language": "zh-CN",
-        },
-        "profile": {"avatar": "", "bio": "Profile bio."},
-        "projects": [
-            {
-                "website": "https://tool.example/",
-                "slug": "tool",
-                "title": "Tool",
-                "summary": "A tool.",
-            }
-        ],
-    }
-    child = site / "child.json"  # JSON is valid YAML.
-    pages = {
-        "extra": [
-            {"path": "/now/", "template": "now.html"},
-            {
-                "path": "/projects/{slug}/",
-                "template": "project.html",
-                "for_each": "projects",
-            },
-        ]
-    }
-    child.write_text(
-        json.dumps({**identity, "pages": pages, "theme": {"use": "./child"}})
+    config = site / "config.json"  # JSON is valid YAML.
+    config.write_text(
+        json.dumps({"github": {"repo": "owner/site", "allowed_authors": ["owner"]}})
     )
-    independent = site / "independent.json"
-    independent.write_text(json.dumps({**identity, "theme": {"use": "./theme"}}))
-    for config in (child, independent):
-        checked = run("theme", "check", "--config", str(config))
-        assert checked.returncode == 0, checked.stderr
-
     issues = site / "issues.json"
-    code = '```python\nprint("hello")\n```\n\n```mermaid\ngraph LR\nA-->B\n```'
     issues.write_text(
         json.dumps(
             [
                 [
-                    _issue(1, "Post", code, "type:blog", "published", "tag:机器学习"),
+                    _issue(
+                        1, "Post", "Body.", "type:blog", "published", "tag:机器学习"
+                    ),
                     _issue(2, "Bad tag", "Body.", "type:blog", "published", "tag:C++"),
                     _issue(3, "Idea", "Thought.", "type:idea", "published"),
                 ],
@@ -176,86 +135,41 @@ def test_wheel_consumer_builds_site_outside_checkout(
             ]
         )
     )
-    built = run("build", "--config", str(child), "--issues-json", str(issues))
-    assert built.returncode == 2, built.stderr
-    assert "Skipped Issues #2" in built.stderr
-    output = site / "output"
-    assert (output / ".escaping-output").is_file()
-    assert not (output / "blog/2").exists() and not (output / "blog/4").exists()
-    post = (output / "blog/1/index.html").read_text()
-    code_classes = re.search(r'<code class="([^"]+)">', post)
-    assert code_classes and set(code_classes[1].split()) == {
-        "syntax",
-        "language-python",
-    }
-    assert "<span class=" in post and 'href="/assets/css/syntax.css"' in post
-    assert '<meta name="x-now" content="Working on escaping.">' in post
-    assert (
-        'lang="zh-CN"' in post and "/tags/%E6%9C%BA%E5%99%A8%E5%AD%A6%E4%B9%A0/" in post
-    )
-    assert (output / "tags/机器学习/index.html").is_file()
-    assert "现在" in (output / "now/index.html").read_text()
-    assert (output / "projects/tool/index.html").is_file()
-    for asset in (
-        "assets/css/style.css",  # from Quiet
-        "assets/css/extra.css",  # from the child Theme
-        "assets/fonts/manrope-bold.woff2",
-        "assets/escaping/mermaid/mermaid.min.js",
-        "404.html",
-    ):
-        assert (output / asset).is_file(), asset
+    exported = run("export", "--config", str(config), "--issues-json", str(issues))
+    assert exported.returncode == 2, exported.stderr
+    assert "Skipped Issues #2" in exported.stderr
+    content = site / "build/content"
+    assert sorted(p.relative_to(content).as_posix() for p in content.rglob("*.md")) == [
+        "blog/1.md",
+        "ideas/3.md",
+    ]
+    assert "key: 机器学习" in (content / "blog/1.md").read_text(encoding="utf-8")
 
     # The installed console against the GitHub API, only HTTP transport replaced.
-    context = site / "context.json"
-    context.write_text(
-        json.dumps(
-            {
-                "repository": "alice/site",
-                "owner_login": "alice",
-                "owner_type": "User",
-                "pages_base_url": "https://notes.example/",
-            }
-        )
-    )
-    independent.write_text(
-        json.dumps(
-            {
-                "theme": {"use": "./theme", "options": {"footer_note": "Bye."}},
-                "projects": [{"repository": "alice/tool"}],
-                "paths": {"output": "public"},
-            }
-        )
-    )
+    config.write_text("{}")
     request_log = site / "requests.log"
     api = run(
-        *("build", "--config", str(independent), "--context", str(context)),
+        *("export", "--config", str(config), "--output", "src/content"),
         *("--token-env", "READ_TOKEN"),
         PYTHONPATH=str(_FIXTURES / "cli_api"),
         READ_TOKEN=_TOKEN,
+        GITHUB_ACTIONS="true",
+        GITHUB_REPOSITORY="alice/site",
         GITHUB_ACTOR="mallory",
         CONSUMER_REQUEST_LOG=str(request_log),
     )
     assert api.returncode == 0, api.stderr
-    public = site / "public"
-    about = (public / "about/index.html").read_text()
-    assert "Alice Example" in about and "Public profile." in about
-    assert (public / "blog/128/index.html").is_file()
-    assert not (public / "blog/129").exists()  # mallory is not the owner
-    assert "Bye." in (public / "blog/128/index.html").read_text()
-    projects = (public / "projects/index.html").read_text()
-    assert "Renamed Tool" in projects and "Selected public project." in projects
-    assert (public / "assets/js/site.js").is_file()
+    committed = site / "src/content"
+    assert (committed / "blog/128.md").is_file()
+    assert not (committed / "blog/129.md").exists()  # mallory is not the owner
     assert set(request_log.read_text().splitlines()) == {
-        "/users/alice",
         "/repos/alice/site",
         "/repos/alice/site/issues",
-        "/repos/alice/tool",
-        "/repos/alice/tool/topics",
     }
     assert _TOKEN not in api.stdout + api.stderr
     assert not any(
         _TOKEN.encode() in path.read_bytes()
-        for path in public.rglob("*")
+        for path in committed.rglob("*")
         if path.is_file()
     )
 
@@ -264,7 +178,7 @@ def test_wheel_consumer_builds_site_outside_checkout(
     original = b"---\r\ntitle: Draft\r\ntype: blog\r\n---\r\n\r\nBody.\r\n"
     draft.write_bytes(original)
     checked = subprocess.run(  # noqa: S603
-        [str(venv / "bin/python"), "-I", "-m", "escaping.local_draft", str(draft)],
+        [str(venv / "bin/python"), "-I", "-m", "escaping_site.local_draft", str(draft)],
         cwd=tmp_path,
         env=env,
         capture_output=True,

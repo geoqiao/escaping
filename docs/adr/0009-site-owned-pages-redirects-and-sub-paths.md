@@ -1,5 +1,5 @@
 ---
-status: accepted
+status: superseded by ADR-0013
 supersedes: the Theme `pages` of ADR-0008, ADR-0003 and ADR-0005
 ---
 

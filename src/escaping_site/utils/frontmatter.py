@@ -1,0 +1,277 @@
+"""Strict YAML front-matter envelope parser.
+
+Implements the Issue Content Contract v1 front-matter envelope rules:
+- Only a first line exactly ``---`` declares an envelope; otherwise the
+  entire input is Markdown.
+- Closing delimiter MUST be a line containing exactly ``---``.
+- The front matter MUST be a YAML mapping.
+- YAML MUST be parsed with a safe loader.
+- Custom YAML tags MUST be rejected.
+- Duplicate mapping keys MUST be rejected.
+- Front matter MUST NOT exceed 16 KiB encoded as UTF-8.
+- Unknown fields MUST be rejected (only ``slug``, ``description``,
+  ``created_date``, ``update_date`` are allowed).
+
+The Markdown body (everything after the closing delimiter, with one leading
+newline consumed) is returned separately so it can be passed to the Markdown
+renderer without any front-matter contamination.
+"""
+
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass, field
+
+import yaml
+from yaml.constructor import ConstructorError
+
+#: Maximum front-matter size in UTF-8 bytes (16 KiB).
+FRONT_MATTER_MAX_BYTES: int = 16 * 1024
+
+#: Allowed front-matter field names per the Issue Content Contract.
+ALLOWED_FIELDS: frozenset[str] = frozenset(
+    {"slug", "description", "created_date", "update_date"}
+)
+
+#: Pattern matching any line ending (CRLF, CR, or LF).
+_LINE_ENDING_RE: re.Pattern[str] = re.compile(r"\r\n|\r|\n")
+
+
+class FrontMatterError(Exception):
+    """Raised when front-matter envelope validation fails.
+
+    Attributes:
+        code: Stable machine-readable error code.
+        message: Human-readable description.
+        field: Field name when the error is field-specific.
+    """
+
+    def __init__(
+        self,
+        code: str,
+        message: str,
+        field: str | None = None,
+    ) -> None:
+        self.code = code
+        self.message = message
+        self.field = field
+        super().__init__(message)
+
+
+@dataclass(frozen=True)
+class ParsedFrontMatter:
+    """YAML envelope values and body, with optional Issue-specific filtering.
+
+    Attributes:
+        fields: Raw mapping from parse_yaml_envelope; only allowed string keys
+            after parse_front_matter has applied Issue policy.
+        body: Raw suffix from parse_yaml_envelope; normalized for Issue compilation
+            by parse_front_matter.
+        unknown_fields: Names of fields not in ``ALLOWED_FIELDS``, collected by
+            :func:`parse_front_matter`.
+        scalar_styles: YAML node-level style for top-level scalar values,
+            keyed by field name.  Values are the PyYAML scalar style
+            indicator: ``'"'`` for double-quoted, ``"'"`` for
+            single-quoted, ``'|'`` for literal block, ``'>'`` for folded
+            block, and ``None`` for plain.  Non-scalar values are omitted.
+            This lets the compiler enforce quoting requirements without
+            regex-parsing the raw YAML text.
+    """
+
+    fields: dict = field(default_factory=dict)
+    body: str = ""
+    unknown_fields: list[str] = field(default_factory=list)
+    scalar_styles: dict[str, str | None] = field(default_factory=dict)
+
+
+class _StrictYAMLLoader(yaml.SafeLoader):
+    """SafeLoader that rejects duplicate mapping keys and captures
+    top-level scalar style metadata.
+
+    Custom YAML tags are already rejected by ``SafeLoader`` (it raises
+    ``ConstructorError`` for any tag without a registered constructor).
+    This subclass additionally detects duplicate keys before construction
+    completes, and records the YAML scalar style of top-level mapping
+    values so callers can enforce quoting requirements.
+    """
+
+    def __init__(self, stream: str) -> None:
+        super().__init__(stream)
+        #: Maps top-level field name -> PyYAML scalar style indicator
+        #: (``'"'``, ``"'"``, ``'|'``, ``'>'``, or ``None`` for plain).
+        #: Only populated for top-level scalar values; nested mappings do
+        #: not pollute this dict.
+        self.scalar_styles: dict[str, str | None] = {}
+
+    def construct_document(self, node: yaml.Node) -> object:  # type: ignore[override]
+        # Capture top-level scalar styles before construction.  This runs
+        # once for the root node, so only top-level mapping values are
+        # recorded -- nested mappings do not overwrite top-level entries.
+        if isinstance(node, yaml.MappingNode):
+            for key_node, value_node in node.value:
+                if isinstance(key_node, yaml.ScalarNode) and isinstance(
+                    value_node, yaml.ScalarNode
+                ):
+                    self.scalar_styles[key_node.value] = value_node.style
+        return super().construct_document(node)
+
+    def construct_mapping(self, node: yaml.MappingNode, deep: bool = False) -> dict:  # type: ignore[override]
+        if not isinstance(node, yaml.MappingNode):
+            raise yaml.constructor.ConstructorError(
+                None,
+                None,
+                "expected a mapping node",
+                node.start_mark,
+            )
+        seen: set[object] = set()
+        for key_node, _ in node.value:
+            key = self.construct_object(key_node, deep=deep)
+            try:
+                if key in seen:
+                    raise ConstructorError(
+                        None,
+                        None,
+                        f"duplicate key: {key!r}",
+                        key_node.start_mark,
+                    )
+                seen.add(key)
+            except TypeError:
+                # Unhashable key (e.g. list or dict) - produce a structured
+                # diagnostic rather than letting TypeError escape.
+                raise ConstructorError(
+                    None,
+                    None,
+                    f"unhashable mapping key: {key!r}",
+                    key_node.start_mark,
+                ) from None
+        return super().construct_mapping(node, deep=deep)
+
+
+def parse_yaml_envelope(raw_body: str) -> ParsedFrontMatter | None:
+    """Read a declared strict YAML mapping without content-field policy.
+
+    No envelope returns None. A malformed declared envelope raises
+    FrontMatterError; it never falls back to Markdown. The body is the exact
+    suffix after the closing delimiter's line ending (if any), including all
+    remaining whitespace. Callers own allowed fields and authored validation.
+    """
+    # Split by any line ending (CRLF, CR, or LF).  This produces the same
+    # lines as the previous normalize-then-split approach, but preserves
+    # access to the raw bytes (including ``\r``) for the size check.
+    lines = _LINE_ENDING_RE.split(raw_body)
+    line_endings = list(_LINE_ENDING_RE.finditer(raw_body))
+
+    # Only an exact first-line delimiter declares metadata. Preserve ordinary
+    # Markdown verbatim; malformed declared envelopes must still fail below.
+    if lines[0] != "---":
+        return None
+
+    # --- Find closing delimiter -------------------------------------------
+    close_index: int | None = None
+    for i in range(1, len(lines)):
+        if lines[i] == "---":
+            close_index = i
+            break
+
+    if close_index is None:
+        raise FrontMatterError(
+            code="FRONT_MATTER_UNCLOSED",
+            message="Front matter is missing a closing '---' delimiter",
+        )
+
+    # --- 16 KiB UTF-8 size check (raw bytes, before CRLF normalization) ---
+    # The size limit must be evaluated on the original front-matter bytes,
+    # including ``\r`` characters that CRLF/CR line endings contribute.
+    # Normalization (CRLF→LF, CR→LF) would shrink the byte count and could
+    # hide an oversized payload.
+    if close_index > 1 and line_endings:
+        fm_start = line_endings[0].end()
+        fm_end = line_endings[close_index - 1].start()
+        raw_fm_content = raw_body[fm_start:fm_end]
+    else:
+        raw_fm_content = ""
+    raw_fm_bytes = raw_fm_content.encode("utf-8")
+    if len(raw_fm_bytes) > FRONT_MATTER_MAX_BYTES:
+        raise FrontMatterError(
+            code="FRONT_MATTER_TOO_LARGE",
+            message=(
+                f"Front matter exceeds {FRONT_MATTER_MAX_BYTES} bytes "
+                f"({len(raw_fm_bytes)} bytes)"
+            ),
+        )
+
+    # YAML normalization is unchanged; authored Markdown is sliced, not joined.
+    fm_lines = lines[1:close_index]
+    fm_content = "\n".join(fm_lines)
+    body_start = (
+        line_endings[close_index].end()
+        if close_index < len(line_endings)
+        else len(raw_body)
+    )
+    body = raw_body[body_start:]
+
+    # --- Parse YAML with strict safe loader -------------------------------
+    # An explicit loader instance is used (instead of ``yaml.load``) so that
+    # top-level scalar style metadata captured by ``construct_document``
+    # remains accessible after parsing.
+    try:
+        loader = _StrictYAMLLoader(fm_content)
+        try:
+            node = loader.get_single_node()
+            data = {} if node is None else loader.construct_document(node)
+            scalar_styles = dict(loader.scalar_styles)
+        finally:
+            loader.dispose()
+    except ConstructorError as exc:
+        if "duplicate key" in str(exc).lower():
+            raise FrontMatterError(
+                code="FRONT_MATTER_DUPLICATE_KEY",
+                message=f"Duplicate key in front matter: {exc}",
+            ) from exc
+        # Custom tags and other constructor errors
+        raise FrontMatterError(
+            code="FRONT_MATTER_INVALID_YAML",
+            message=f"Invalid YAML in front matter: {exc}",
+        ) from exc
+    except (yaml.YAMLError, ValueError, RecursionError) as exc:
+        # SafeLoader's built-in timestamp constructor can raise ValueError for
+        # an impossible unquoted date, and deep nesting exhausts the recursion
+        # limit. Keep malformed YAML a parser diagnostic.
+        raise FrontMatterError(
+            code="FRONT_MATTER_INVALID_YAML",
+            message=f"Invalid YAML in front matter: {exc}",
+        ) from exc
+
+    # --- Must be a mapping ------------------------------------------------
+    if not isinstance(data, dict):
+        raise FrontMatterError(
+            code="FRONT_MATTER_NOT_MAPPING",
+            message=f"Front matter must be a YAML mapping, got {type(data).__name__}",
+        )
+
+    return ParsedFrontMatter(fields=data, body=body, scalar_styles=scalar_styles)
+
+
+def parse_front_matter(raw_body: str) -> ParsedFrontMatter:
+    """Apply Issue fields and legacy body normalization to the shared envelope.
+
+    Unknown fields are left out; their names are kept in ``unknown_fields``.
+    Undeclared Markdown is returned verbatim.
+    """
+    parsed = parse_yaml_envelope(raw_body)
+    if parsed is None:
+        return ParsedFrontMatter(body=raw_body)
+    unknown_fields: list[str] = []
+    known_fields: dict[str, object] = {}
+    for key, value in parsed.fields.items():
+        if isinstance(key, str) and key in ALLOWED_FIELDS:
+            known_fields[key] = value
+        else:
+            unknown_fields.append(str(key))
+
+    return ParsedFrontMatter(
+        fields=known_fields,
+        body=_LINE_ENDING_RE.sub("\n", parsed.body).removeprefix("\n"),
+        unknown_fields=unknown_fields,
+        scalar_styles=parsed.scalar_styles,
+    )

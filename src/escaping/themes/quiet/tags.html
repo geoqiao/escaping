@@ -1,7 +1,0 @@
-{% extends 'base.html' %}
-{% set page_title = t.tags %}
-{% set active_section = site.routes.tags.canonical_path %}
-{% block content %}
-<div class="page-heading"><p class="eyebrow">{{ t.tags_eyebrow }}</p><h1>{{ t.tags }}<span class="heading-dot" aria-hidden="true">.</span></h1><p>{{ t.tags_caption }}</p></div>
-<ul class="topic-index">{% for tag in page.items %}<li><a href="{{ tag.route.canonical_path }}"><span>{{ tag.name }}</span><span class="topic-count">{{ tag.count }} <span aria-hidden="true">↗</span></span></a></li>{% else %}<li class="empty-state">{{ t.tags_empty }}</li>{% endfor %}</ul>
-{% endblock %}

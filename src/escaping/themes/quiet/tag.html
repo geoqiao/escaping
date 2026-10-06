@@ -1,8 +1,0 @@
-{% extends 'base.html' %}
-{% set page_title = page.tag.name %}
-{% set active_section = site.routes.tags.canonical_path %}
-{% block content %}
-{% from 'components.html' import entry_list with context %}
-<div class="page-heading"><a class="breadcrumb" href="{{ site.routes.tags.canonical_path }}">← {{ t.tags }}</a><h1 class="topic-heading">{{ page.tag.name }}</h1><p>{{ t.related_articles|replace('{count}', page.tag.count|string) }}</p></div>
-{{ entry_list(page.items) }}
-{% endblock %}

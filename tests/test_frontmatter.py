@@ -10,7 +10,7 @@ from __future__ import annotations
 
 import pytest
 
-from escaping.utils.frontmatter import (
+from escaping_site.utils.frontmatter import (
     FRONT_MATTER_MAX_BYTES,
     FrontMatterError,
     parse_front_matter,
