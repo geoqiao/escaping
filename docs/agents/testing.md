@@ -39,6 +39,7 @@
 | 完整内容到静态文件、产物校验 | SiteCompiler integration tracer（`test_site_integration.py`） |
 | 构建失败保留旧产物、输出目录归属标记 | output staging / safety（`test_output_staging.py`、`test_output_safety.py`） |
 | GitHub API 对象隔离、`--issues-json` 读取 | GitHub adapter（`test_issue_ingestion.py`） |
+| 导出的 Markdown、manifest 与导出目录 | Content Export（`test_content_export.py`） |
 | 命令、退出码、Actions 注解/summary/outputs | CLI（`test_cli.py`） |
 | Action 与 starter workflow 的 shell 步骤 | delivery（`test_delivery.py`：假 `gh`/`uv` 跑步骤，另有一个真实 uv 的端到端构建） |
 | wheel 内容与安装后的 `escpe` | package consumer（`test_package_consumer.py`：从 git 文件快照构建 wheel） |

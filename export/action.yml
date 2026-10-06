@@ -1,0 +1,53 @@
+name: escaping export
+description: Write the published GitHub Issues of this repository as Markdown files.
+author: geoqiao
+branding:
+  icon: file-text
+  color: purple
+
+inputs:
+  config:
+    description: Site Config file, relative to the repository root.
+    default: config.yaml
+  output:
+    description: Directory to replace with the export, relative to the Config directory.
+    default: build/content
+  token:
+    description: Token that can read this repository's Issues.
+    default: ${{ github.token }}
+
+outputs:
+  output:
+    description: Directory of the exported content; point your site builder at it.
+    value: ${{ steps.export.outputs.output }}
+  skipped-issues:
+    description: Comma-separated Issues left out because of their own errors; empty when none.
+    value: ${{ steps.export.outputs.skipped-issues }}
+
+runs:
+  using: composite
+  steps:
+    - uses: astral-sh/setup-uv@c18668ad3cf93ea998bef934396af7bb5c839dc7 # v10.2.0
+      with:
+        version: "0.12.20"
+        enable-cache: false
+
+    - name: Export the content
+      id: export
+      shell: bash
+      env:
+        ESCAPING_CONFIG: ${{ inputs.config }}
+        ESCAPING_OUTPUT: ${{ inputs.output }}
+        ESCAPING_TOKEN: ${{ inputs.token }}
+        UV_PROJECT_ENVIRONMENT: ${{ runner.temp }}/escaping-venv
+      run: |
+        set -euo pipefail
+        status=0
+        uv run --project "$GITHUB_ACTION_PATH/.." --locked --python 3.14 \
+          --no-default-groups --group build --no-build-isolation-package escpe \
+          escpe export --config "$ESCAPING_CONFIG" --output "$ESCAPING_OUTPUT" \
+          --token-env ESCAPING_TOKEN \
+          || status=$?
+        # 2: exported, but some Issues were skipped; the skipped-issues output says which.
+        if [ "$status" -eq 2 ]; then exit 0; fi
+        exit "$status"

@@ -82,6 +82,7 @@ theme:
 | 外观 | 见下方“换外观” |
 | 社交预览图 | 在 `seo.social_image` 配置 HTTPS 或 Theme 资源 URL（如 `/assets/images/og.png`）；Quiet 会输出 Open Graph/Twitter 图片标签 |
 | 评论 | 默认关闭；设置 `comments.enabled: true`，并另行完成 [Utterances App 授权](https://github.com/apps/utterances)；Profile About 永远无评论 |
+| 用别的工具建站 | `escpe export` 把已发布的 Issue 写成 Markdown 文件，交给 Astro 等工具渲染；见 [Content Export v1](docs/contracts/content-export-v1.md) |
 | 本地构建 | 需要 Python 3.14.x 和 uv；有 Token 时直接读 Issues，没有 Token 可用 `--issues-json` 离线构建，见[本地构建步骤](docs/site-inputs.md#local-build) |
 
 写错字段名会报错并提示正确写法；报错不会回显你填的值。

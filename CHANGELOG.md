@@ -5,6 +5,23 @@ All notable changes to escaping are recorded here. The format follows
 [Semantic Versioning](https://semver.org/) (before 1.0, a minor version may
 break things).
 
+## [Unreleased]
+
+Sites that build with 0.5.1 need no changes.
+
+### Added
+
+- **`escpe export` writes the published Issues as Markdown files.** A site
+  built with another tool, such as Astro, can keep GitHub Issues as its content
+  source: one file per Blog post, Idea and About Issue with resolved front
+  matter, and a `manifest.json`. The same Issues are published or skipped as
+  in a build. The body is the author's Markdown; rendering and sanitizing it is
+  the consuming site's job. See
+  [Content Export v1](docs/contracts/content-export-v1.md).
+- **An export Action, `geoqiao/escaping/export`.** It runs the export in a
+  workflow and does not need GitHub Pages. See
+  [Deployment](docs/deployment.md#the-export-action).
+
 ## [0.5.1] - 2026-09-29
 
 Fixes from a full review. Sites that build with 0.5.0 need no changes; a

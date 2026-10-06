@@ -54,8 +54,11 @@ class OutputStagingError(Exception):
 class OutputStagingService:
     """Stage, publish and clean up one build's output."""
 
-    def __init__(self, output_path: str | Path, repo_root: Path) -> None:
-        self._output = validate_output_containment(output_path, repo_root)
+    def __init__(
+        self, output_path: str | Path, repo_root: Path, name: str = "paths.output"
+    ) -> None:
+        self._output = validate_output_containment(output_path, repo_root, name)
+        self._name = name
         self._repo_root = repo_root.resolve()
         self._staging_parent = self._output.parent
         # Maps resolved staging path -> (st_dev, st_ino) at creation time.
@@ -74,14 +77,14 @@ class OutputStagingService:
         if not self._output.is_dir():
             raise OutputStagingError(
                 f"output {self._output} is a file, not a directory; "
-                "remove it or set paths.output to another directory"
+                f"remove it or set {self._name} to another directory"
             )
         if (self._output / OUTPUT_MARKER).is_file() or not any(self._output.iterdir()):
             return
         raise OutputStagingError(
             f"output {self._output} contains files escaping did not create, "
             "and a build would delete them. Move your files out and delete the "
-            "directory, or set paths.output to another directory"
+            f"directory, or set {self._name} to another directory"
         )
 
     def create_staging_directory(self) -> Path:

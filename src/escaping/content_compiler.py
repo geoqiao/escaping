@@ -301,6 +301,7 @@ class ContentCompiler:
                     ),
                     body_html=body_html,
                     route=self._routes.blog_detail(slug),
+                    body_markdown=parsed.body,
                 )
             if content_type == "idea":
                 return Idea(
@@ -313,6 +314,7 @@ class ContentCompiler:
                     tags=tuple(IdeaTag(name) for name in tags),
                     body_html=body_html,
                     route=self._routes.idea(snapshot.number),
+                    body_markdown=parsed.body,
                 )
             return AboutPage(
                 issue_number=snapshot.number,
@@ -320,6 +322,7 @@ class ContentCompiler:
                 description=description,
                 body_html=body_html,
                 route=self._routes.about(),
+                body_markdown=parsed.body,
             )
         except (RouteCollisionError, ValueError) as exc:
             self._fail(snapshot, "ROUTE_COLLISION", str(exc), "route")

@@ -33,6 +33,8 @@ class BlogPost:
     tags: tuple[BlogTag, ...]
     body_html: str
     route: Route
+    #: The author's Markdown, front matter removed; the Content Export writes it.
+    body_markdown: str = ""
 
     @property
     def canonical_path(self) -> str:

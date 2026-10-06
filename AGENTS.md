@@ -17,6 +17,8 @@ Atom、sitemap、robots、搜索索引和旧地址跳转页。
   检查站内链接和资源、安全地替换输出目录。
 - 主题负责：页面长什么样、放哪些 SEO 标签、界面文字、主题自己的选项；只需
   `blog.html` 和 `post.html`，其余页面按固定规则退回这两个模板。
+- `escpe export` 是另一个出口：同一套内容规则，只写 Markdown 和 manifest，不加载
+  主题、不产生页面；渲染及其安全由使用导出的站点负责。
 - 站点仓库负责：真实 `config.yaml`（包括有哪些页面、地址、额外页面和旧地址跳转）、
   可选的本地主题、Pages workflow 和 `CNAME`。
 
@@ -38,6 +40,7 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
 | 任务 | 文档 |
 | --- | --- |
 | 内容与发布规则 | [Issue Content v1](docs/contracts/issue-content-v1.md) |
+| 导出 Markdown 给别的建站工具 | [Content Export v1](docs/contracts/content-export-v1.md)、[ADR-0011](docs/adr/0011-content-export-for-sites-built-elsewhere.md) |
 | 主题与主题选项 | [主题编写指南](docs/themes/authoring.md)、[Quiet](docs/themes/quiet.md) |
 | Config 字段 | [Site inputs](docs/site-inputs.md) |
 | 可选草稿创作辅助 | [Local Draft v1](docs/contracts/local-draft-v1.md)，不用于同步或发布 |
@@ -89,7 +92,7 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
 
 ```text
 src/escaping/              # 按构建顺序
-├── cli.py                 # escpe build / escpe theme check
+├── cli.py                 # escpe build / escpe export / escpe theme check
 ├── site_compiler.py       # 预检 → 拉取 → 编译 → 渲染 → 校验 → 发布
 ├── config.py              # 站点层 Config
 ├── site_inputs.py         # 从仓库和 GitHub 资料补全缺省的 Config 值
@@ -99,6 +102,7 @@ src/escaping/              # 按构建顺序
 ├── services/              # github_service.py 读 Issue；render_service.py 渲染
 ├── content_compiler.py    # Issue → Blog/Idea/About，坏 Issue 跳过
 ├── content_validation.py  # Issue 与本地草稿共用的内容规则、Markdown 渲染
+├── content_export.py      # escpe export：编译后的内容写成 Markdown + manifest
 ├── projects.py            # config 里的 Projects
 ├── site_builder.py        # SiteModel：固定页面、额外页面、导航、跳转页、Blog 分页、标签
 ├── routes.py              # RouteRegistry
@@ -112,6 +116,7 @@ src/escaping/              # 按构建顺序
 ├── static/                # comments.js、mermaid.js、mermaid/（发布到 /assets/escaping/）
 └── themes/quiet/
 action.yml                 # 站点仓库使用的可复用 Action
+export/action.yml          # 只导出内容的 Action，不要求 GitHub Pages
 config.example.yaml
 starter/                   # escaping-template 仓库的内容来源
 tests/

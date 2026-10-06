@@ -27,6 +27,7 @@ class Idea:
     tags: tuple[IdeaTag, ...]
     body_html: str
     route: Route
+    body_markdown: str = ""
 
     @property
     def canonical_path(self) -> str:
@@ -46,6 +47,7 @@ class AboutPage:
     description: str
     body_html: str
     route: Route
+    body_markdown: str = ""
     is_profile = False
     created_date = ""
     tags = ()

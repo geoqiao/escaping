@@ -79,6 +79,7 @@ theme:
 | Appearance | See "Change the look" below |
 | Social preview image | Set `seo.social_image` to an HTTPS URL or a Theme file such as `/assets/images/og.png`; Quiet emits Open Graph/Twitter image tags |
 | Comments | Off by default; set `comments.enabled: true` and separately authorize the [Utterances App](https://github.com/apps/utterances). Profile About never has comments |
+| Build the site with another tool | `escpe export` writes the published Issues as Markdown files for a tool such as Astro to render; see [Content Export v1](docs/contracts/content-export-v1.md) |
 | Local builds | Require Python 3.14.x and uv; read Issues with a token, or build offline with `--issues-json`; see the [local build steps](docs/site-inputs.md#local-build) |
 
 A mistyped field fails the build and suggests the correct spelling.

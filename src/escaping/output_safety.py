@@ -35,6 +35,7 @@ class OutputContainmentError(ValueError):
 def validate_output_containment(
     output: str | Path,
     repo_root: Path,
+    name: str = "paths.output",
 ) -> Path:
     """Validate that *output* is safely contained within *repo_root*.
 
@@ -44,6 +45,8 @@ def validate_output_containment(
         The configured output path (relative string or ``Path``).
     repo_root:
         The repository root directory used as the containment boundary.
+    name:
+        What error messages call the path, such as the Config field.
 
     Returns
     -------
@@ -68,25 +71,25 @@ def validate_output_containment(
 
     # --- Reject filesystem root ------------------------------------------------
     if str(output_path) == "/":
-        raise OutputContainmentError("paths.output must not be the filesystem root")
+        raise OutputContainmentError(f"{name} must not be the filesystem root")
 
     # --- Reject absolute paths ------------------------------------------------
     if output_path.is_absolute():
-        raise OutputContainmentError("paths.output must be a relative path")
+        raise OutputContainmentError(f"{name} must be a relative path")
 
     parts = output_path.parts
 
     # --- Reject filesystem root, current directory, and empty string ---------
     if not parts or parts == (".",) or parts == ("/",):
         raise OutputContainmentError(
-            "paths.output must not be the repository root, filesystem root, "
+            f"{name} must not be the repository root, filesystem root, "
             "or current directory"
         )
 
     # --- Reject parent-directory escapes --------------------------------------
     if ".." in parts:
         raise OutputContainmentError(
-            "paths.output must not contain parent-directory references (..)"
+            f"{name} must not contain parent-directory references (..)"
         )
 
     # --- Reject roots outside the allowed output-root set --------------------
@@ -94,11 +97,11 @@ def validate_output_containment(
     if top_level not in ALLOWED_OUTPUT_ROOTS:
         if top_level in PROTECTED_ROOTS:
             raise OutputContainmentError(
-                "paths.output must not be inside a protected repository folder; "
+                f"{name} must not be inside a protected repository folder; "
                 f"allowed folders: {', '.join(sorted(ALLOWED_OUTPUT_ROOTS))}"
             )
         raise OutputContainmentError(
-            "paths.output must start with an allowed folder: "
+            f"{name} must start with an allowed folder: "
             f"{', '.join(sorted(ALLOWED_OUTPUT_ROOTS))}"
         )
 
@@ -122,26 +125,24 @@ def validate_output_containment(
                 current.resolve()  # Raises on a symlink loop.
             except RuntimeError, OSError:
                 raise OutputContainmentError(
-                    "paths.output passes through a symlink with a resolution loop"
+                    f"{name} passes through a symlink with a resolution loop"
                 ) from None
-            raise OutputContainmentError("paths.output must not pass through a symlink")
+            raise OutputContainmentError(f"{name} must not pass through a symlink")
 
     # --- Final resolved-path containment check -------------------------------
     try:
         resolved = (repo_root / output_path).resolve()
     except RuntimeError, OSError:
         raise OutputContainmentError(
-            "symlink resolution loop while resolving paths.output"
+            f"symlink resolution loop while resolving {name}"
         ) from None
 
     if resolved == repo_resolved:
-        raise OutputContainmentError("paths.output resolves to the repository root")
+        raise OutputContainmentError(f"{name} resolves to the repository root")
 
     try:
         resolved.relative_to(repo_resolved)
     except ValueError:
-        raise OutputContainmentError(
-            "paths.output escapes the repository root"
-        ) from None
+        raise OutputContainmentError(f"{name} escapes the repository root") from None
 
     return resolved

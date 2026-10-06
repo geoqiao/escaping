@@ -32,6 +32,14 @@ _Avoid_: Publishing gate, Issue validator, upload command
 The `escaping` capability that converts Issue Content and repository-owned site content into a validated static site.
 _Avoid_: Issue monitor, Issue Draft Uploader
 
+**Content Export**:
+The published Issue Content written as Markdown files and a manifest, for a site that another tool builds. It carries the same selection and content rules as the Site Compiler and no pages, routes or Theme.
+_Avoid_: Sync, backup, Markdown source
+
+**Content Export Contract**:
+The single current agreement that defines the exported files, their front matter and the manifest; it is distinct from the Issue Content Contract, which defines what an author writes.
+_Avoid_: Issue Content Contract, front matter format
+
 **Site Config**:
 Repository-owned choices for one generated site, overriding missing-value defaults field by field. Relative filesystem paths belong to the Site Config directory, never to the caller's working directory.
 _Avoid_: Generator Config, global settings

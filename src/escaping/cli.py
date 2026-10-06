@@ -1,4 +1,5 @@
-"""Command line: ``escpe build`` (the default) and ``escpe theme check``.
+"""Command line: ``escpe build`` (the default), ``escpe export`` and
+``escpe theme check``.
 
 Exit status: 0 published, 1 failed (nothing published), 2 published but some
 Issues were skipped because of their own errors.
@@ -12,16 +13,19 @@ import os
 import sys
 from collections.abc import Sequence
 from copy import deepcopy
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
 from .build_result import BuildResult, Diagnostic
 from .config import (
     ConfigError,
+    Settings,
     read_config_overrides,
     read_platform_context,
     security_from_config,
 )
+from .content_export import DEFAULT_OUTPUT, ContentExporter
 from .models.issue_snapshot import IssueSnapshot
 from .services.github_service import GitHubService, read_issues_json
 from .site_compiler import IssueSource, SiteCompiler, check_theme
@@ -46,6 +50,8 @@ def main(argv: Sequence[str] | None = None) -> int:
     ns = _parser().parse_args(args)
     if ns.command == "theme":
         return _theme_check(ns)
+    if ns.command == "export":
+        return _export(ns)
     return _build(ns)
 
 
@@ -56,19 +62,19 @@ def _parser() -> argparse.ArgumentParser:
     commands = parser.add_subparsers(dest="command", required=True)
     build = commands.add_parser("build", help="build and publish the site (default)")
     _common(build)
-    build.add_argument(
-        "--repo", help="content repository (owner/name); overrides github.repo"
+    _source(build)
+    export = commands.add_parser(
+        "export",
+        help="write the published Issues as Markdown files, "
+        "for a site built with another tool",
     )
-    build.add_argument(
-        "--context",
-        type=Path,
-        help="JSON with the repository and Pages URL, written by the Action",
-    )
-    build.add_argument(
-        "--token-env",
-        metavar="NAME",
-        help="environment variable holding the GitHub token; "
-        "overrides security.token_env",
+    _common(export)
+    _source(export)
+    export.add_argument(
+        "--output",
+        default=DEFAULT_OUTPUT,
+        help="directory to replace with the export, relative to the Config "
+        f"directory (default: {DEFAULT_OUTPUT})",
     )
     theme = commands.add_parser("theme", help="Theme tools")
     theme_commands = theme.add_subparsers(dest="theme_command", required=True)
@@ -92,8 +98,35 @@ def _common(parser: argparse.ArgumentParser) -> None:
     )
 
 
-def _build(ns: argparse.Namespace) -> int:
-    report = _Reporter()
+def _source(parser: argparse.ArgumentParser) -> None:
+    parser.add_argument(
+        "--repo", help="content repository (owner/name); overrides github.repo"
+    )
+    parser.add_argument(
+        "--context",
+        type=Path,
+        help="JSON with the repository and Pages URL, written by the Action",
+    )
+    parser.add_argument(
+        "--token-env",
+        metavar="NAME",
+        help="environment variable holding the GitHub token; "
+        "overrides security.token_env",
+    )
+
+
+@dataclass(frozen=True)
+class _Inputs:
+    """What a build and an export both read before they start."""
+
+    settings: Settings
+    config_root: Path
+    github: GitHubService | None
+    issues: IssueSource
+    diagnostics: tuple[Diagnostic, ...]
+
+
+def _inputs(ns: argparse.Namespace, report: _Reporter) -> _Inputs | None:
     config_path = ns.config.expanduser().absolute()
     try:
         overrides = read_config_overrides(config_path)
@@ -108,7 +141,7 @@ def _build(ns: argparse.Namespace) -> int:
                     "or pass --issues-json"
                 ]
             )
-            return EXIT_FAILED
+            return None
         github = GitHubService(token) if token else None
         settings, input_diagnostics = resolve_settings(
             overrides,
@@ -118,28 +151,68 @@ def _build(ns: argparse.Namespace) -> int:
         )
     except ConfigError as exc:
         report.fail(exc.problems)
-        return EXIT_FAILED
+        return None
     except (OSError, ValueError) as exc:
         report.fail([str(exc)])
-        return EXIT_FAILED
+        return None
+    report.repo = settings.github.repo
+    return _Inputs(
+        settings,
+        config_path.parent,
+        github,
+        _issue_source(github, settings.github.repo, snapshots),
+        input_diagnostics,
+    )
 
+
+def _build(ns: argparse.Namespace) -> int:
+    report = _Reporter()
+    inputs = _inputs(ns, report)
+    if inputs is None:
+        return EXIT_FAILED
+    settings, github = inputs.settings, inputs.github
     result = SiteCompiler(
         settings,
-        config_root=config_path.parent,
-        issues=_issue_source(github, settings.github.repo, snapshots),
+        config_root=inputs.config_root,
+        issues=inputs.issues,
         project_enricher=github.fetch_project_enrichment if github else None,
     ).generate()
-    report.repo = settings.github.repo
     report.result(
         result,
-        input_diagnostics,
+        inputs.diagnostics,
         done=f"Published {settings.paths.output}/.",
         failed="Build failed; the previous output was left unchanged.",
     )
+    return _finish(
+        report, result, (inputs.config_root / settings.paths.output).resolve()
+    )
+
+
+def _export(ns: argparse.Namespace) -> int:
+    report = _Reporter()
+    inputs = _inputs(ns, report)
+    if inputs is None:
+        return EXIT_FAILED
+    result = ContentExporter(
+        inputs.settings,
+        config_root=inputs.config_root,
+        output=ns.output,
+        issues=inputs.issues,
+    ).export()
+    report.result(
+        result,
+        inputs.diagnostics,
+        done=f"Exported {ns.output.rstrip('/')}/.",
+        failed="Export failed; the previous export was left unchanged.",
+    )
+    return _finish(report, result, (inputs.config_root / ns.output).resolve())
+
+
+def _finish(report: _Reporter, result: BuildResult, output: Path) -> int:
     if not result.success:
         return EXIT_FAILED
     report.outputs(
-        output=str((config_path.parent / settings.paths.output).resolve()),
+        output=str(output),
         skipped_issues=",".join(map(str, result.skipped_issues)),
     )
     return EXIT_SKIPPED if result.skipped_issues else EXIT_OK

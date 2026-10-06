@@ -69,6 +69,38 @@ The Action runs three steps:
 Step scripts receive inputs through environment variables only, never by
 `${{ }}` interpolation into the script text.
 
+## The export Action
+
+A site built with another tool takes the content instead of the finished site
+([Content Export v1](contracts/content-export-v1.md)):
+
+```yaml
+- id: content
+  uses: geoqiao/escaping/export@<full commit SHA>
+  with:
+    config: config.yaml
+    output: build/content
+# then run your own site builder; it reads ${{ steps.content.outputs.output }}
+```
+
+| Input | Default | Meaning |
+| --- | --- | --- |
+| `config` | `config.yaml` | The site Config, relative to the repository root |
+| `output` | `build/content` | Directory to replace with the export, relative to the Config directory |
+| `token` | `${{ github.token }}` | Reads the repository and its Issues |
+
+| Output | Meaning |
+| --- | --- |
+| `output` | Absolute path of the exported content |
+| `skipped-issues` | Comma-separated numbers of Issues left out because of their own errors; empty when none |
+
+It sets up uv and runs `escpe export` from the pinned checkout, with the
+token only in `ESCAPING_TOKEN`. It does not read the Pages settings and
+writes no platform context, so the Config must set `github.repo` and
+`site.url`. The job needs `contents: read` and `issues: read`. Building
+and deploying the site, and failing the run when `skipped-issues` is not
+empty, are the site workflow's steps.
+
 ## Starter workflow
 
 The [starter workflow](../starter/.github/workflows/pages.yml) is the source of
