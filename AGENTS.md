@@ -57,43 +57,9 @@ Issue 是唯一内容来源，`published` 标签控制发布，内容类型只�
 9. 错误信息说明位置和原因，不回显字段值（可能含敏感信息）。GitHub Token 环境变量名
    由 `security.token_env` 决定；异常文本不得原样输出。
 
-## 当前结构
+## 开发与验证
 
-```text
-src/escaping_site/
-├── cli.py                 # escaping-site export
-├── config.py              # github / about / security 三段
-├── content_inputs.py      # 补全 Config 缺省值（仓库、作者）
-├── issue_content.py       # 内容内核：Issue → 条目，坏 Issue 跳过
-├── content_validation.py  # Issue 与本地草稿共用的内容规则、Markdown 渲染
-├── content_export.py      # 条目写成 Markdown + manifest
-├── output_safety.py       # 导出目录不越界
-├── output_staging.py      # 先写临时目录，成功后替换；归属标记
-├── build_result.py        # Diagnostic 与结果
-├── local_draft.py         # 本地草稿检查（python -m escaping_site.local_draft）
-├── services/github_service.py  # 读 Issue 与仓库归属
-├── utils/                 # front matter 解析、HTML sanitizer
-└── models/issue_snapshot.py
-tests/
-```
-
-## 开发流程
-
-涉及行为的非平凡改动遵循：
-
-```text
-检查相关代码/调用者/文档
-→ 写一个证明用户行为或安全边界的失败测试
-→ 最小实现
-→ 运行通过
-→ 重构
-→ 全量验证
-→ review diff
-```
-
-测试预算、每个行为的测试 owner 和默认不写的测试见[测试策略](docs/agents/testing.md)。
-环境准备、局部检查和完整验证统一见[验证命令](docs/agents/testing.md#验证命令)，与
-[CI](.github/workflows/ci.yml) 对齐。
+行为有实质变化时，先用失败测试刻画用户可见行为或安全边界，完成实现后做完整验证并审阅差异。测试范围、命令与 CI 对应关系见[测试策略](docs/agents/testing.md)。
 
 ## Scratch 材料
 
